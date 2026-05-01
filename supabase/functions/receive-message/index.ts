@@ -187,12 +187,19 @@ serve(async (req) => {
     // ── Detecção de Origem (Marketing vs Orgânico) ───────────────────────────
     let detectedOrigem = 'organico';
     try {
-      // Função auxiliar para busca profunda no payload (UaZapi envia em níveis variados)
+      // Chaves que contêm mensagens citadas/encaminhadas — NÃO devem ser buscadas
+      // pois carregam contexto de ad da mensagem ORIGINAL, não da atual
+      const IGNORED_KEYS = new Set([
+        'quotedMessage', 'quotedMsg', 'quoted', 'forwardedMessage',
+        'ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2',
+        'templateMessage', 'buttonsResponseMessage',
+      ]);
+
       const findInObject = (obj: any, key: string, value?: string): any => {
         if (!obj || typeof obj !== 'object') return null;
         if (obj[key] === value || (value === undefined && key in obj)) return obj[key] || true;
         for (const k in obj) {
-          if (Object.prototype.hasOwnProperty.call(obj, k)) {
+          if (Object.prototype.hasOwnProperty.call(obj, k) && !IGNORED_KEYS.has(k)) {
             const found = findInObject(obj[k], key, value);
             if (found) return found;
           }
