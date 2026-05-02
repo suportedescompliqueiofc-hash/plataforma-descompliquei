@@ -80,12 +80,16 @@ export function useProfile() {
     queryKey: ['user_role', user?.id],
     queryFn: async () => {
       if (!user) return null;
+      // Buscar TODOS os papéis e priorizar superadmin > admin > atendente
       const { data } = await supabase
         .from('usuarios_papeis')
         .select('papel')
-        .eq('usuario_id', user.id)
-        .maybeSingle();
-      return (data as any)?.papel || 'atendente';
+        .eq('usuario_id', user.id);
+      if (!data || data.length === 0) return 'atendente';
+      const papeis = data.map((d: any) => d.papel as string);
+      if (papeis.includes('superadmin')) return 'superadmin';
+      if (papeis.includes('admin')) return 'admin';
+      return papeis[0] || 'atendente';
     },
     enabled: !!user,
     staleTime: 1000 * 60 * 1, // Reduzido para 1 minuto para maior reatividade em mudanças de permissão

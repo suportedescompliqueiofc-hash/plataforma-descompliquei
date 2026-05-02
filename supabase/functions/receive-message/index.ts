@@ -261,14 +261,8 @@ serve(async (req) => {
       lead = newLead;
       console.log(`Novo lead registrado: ${contactName} / ${phoneWithCountryCode} (${detectedOrigem})`);
     } else {
-      // Se o lead já existe mas mudou para marketing, atualizamos a origem
-      if (detectedOrigem === 'marketing' && lead.origem !== 'marketing') {
-        const { error: updErr } = await supabaseAdmin.from('leads').update({ origem: 'marketing' }).eq('id', lead.id);
-        if (!updErr) {
-          lead.origem = 'marketing';
-          console.log(`Origem do lead ${lead.telefone} atualizada para marketing.`);
-        }
-      }
+      // Origem do lead é definida apenas na criação — não reclassificar leads existentes
+      // Contatos orgânicos podem clicar em anúncios depois, mas continuam orgânicos
     }
 
     // ── Definição de Direção/Remetente ─────────────────────────────────────────
