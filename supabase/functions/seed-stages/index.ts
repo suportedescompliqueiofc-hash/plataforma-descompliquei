@@ -6,15 +6,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configuração PADRÃO para Clínicas
-const targetStages = [
-  { nome: 'Novo Lead', cor: '#93c5fd', posicao_ordem: 1 }, 
-  { nome: 'Qualificação', cor: '#3b82f6', posicao_ordem: 2 },
-  { nome: 'Coletando Informações', cor: '#d1d5db', posicao_ordem: 3 },
-  { nome: 'Agendamento Solicitado', cor: '#fef08a', posicao_ordem: 4 },
-  { nome: 'Agendado', cor: '#10b981', posicao_ordem: 5 },
-  { nome: 'Procedimento Fechado', cor: '#22c55e', posicao_ordem: 6 },
+export const DEFAULT_STAGES = [
+  { nome: 'Em Atendimento',       cor: '#f97316', posicao_ordem: 1, em_funil: false },
+  { nome: 'Qualificação',         cor: '#3b82f6', posicao_ordem: 2, em_funil: false },
+  { nome: 'Qualificado',          cor: '#8b5cf6', posicao_ordem: 3, em_funil: false },
+  { nome: 'Handoff',              cor: '#a855f7', posicao_ordem: 4, em_funil: true  },
+  { nome: 'Agendado',             cor: '#10b981', posicao_ordem: 5, em_funil: true  },
+  { nome: 'Procedimento Fechado', cor: '#22c55e', posicao_ordem: 6, em_funil: true  },
 ];
+
+async function seedStagesForOrg(supabaseClient: any, orgId: string) {
+  const { data: currentStages, error: fetchError } = await supabaseClient
+    .from('etapas')
+    .select('*')
+    .eq('organization_id', orgId)
+    .order('posicao_ordem', { ascending: true });
+
+  if (fetchError) throw fetchError;
+
+  const existing = currentStages ?? [];
+  const updates: Promise<any>[] = [];
+  const inserts: any[] = [];
+
+  for (let i = 0; i < DEFAULT_STAGES.length; i++) {
+    const target = DEFAULT_STAGES[i];
+    if (i < existing.length) {
+      updates.push(
+        supabaseClient
+          .from('etapas')
+          .update({ nome: target.nome, cor: target.cor, posicao_ordem: target.posicao_ordem, em_funil: target.em_funil })
+          .eq('id', existing[i].id)
+      );
+    } else {
+      inserts.push({ ...target, organization_id: orgId });
+    }
+  }
+
+  if (updates.length > 0) await Promise.all(updates);
+  if (inserts.length > 0) {
+    const { error: insertError } = await supabaseClient.from('etapas').insert(inserts);
+    if (insertError) throw insertError;
+  }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -27,66 +60,42 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { orgId } = await req.json();
-    
+    const body = await req.json().catch(() => ({}));
+    const { orgId, seedAll } = body;
+
+    if (seedAll) {
+      // Semear TODAS as organizações (super-admin)
+      const { data: orgs, error: orgsError } = await supabaseClient
+        .from('organizations')
+        .select('id');
+      if (orgsError) throw orgsError;
+
+      for (const org of orgs ?? []) {
+        await seedStagesForOrg(supabaseClient, org.id);
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, message: `Etapas padronizadas para ${orgs?.length ?? 0} organizações.` }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
     if (!orgId) {
       throw new Error("ID da organização é obrigatório.");
     }
 
-    const { data: currentStages, error: fetchError } = await supabaseClient
-      .from('etapas')
-      .select('*')
-      .eq('organization_id', orgId)
-      .order('posicao_ordem', { ascending: true });
+    await seedStagesForOrg(supabaseClient, orgId);
 
-    if (fetchError) throw fetchError;
+    return new Response(
+      JSON.stringify({ success: true, message: "Etapas padronizadas com sucesso!" }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
 
-    const updates = [];
-    const inserts = [];
-
-    for (let i = 0; i < targetStages.length; i++) {
-      const target = targetStages[i];
-      if (i < currentStages.length) {
-        const existing = currentStages[i];
-        updates.push(
-          supabaseClient
-            .from('etapas')
-            .update({ 
-              nome: target.nome, 
-              cor: target.cor, 
-              posicao_ordem: target.posicao_ordem,
-              em_funil: true // Forçar que as padrão apareçam no funil
-            })
-            .eq('id', existing.id)
-        );
-      } else {
-        inserts.push({
-          ...target,
-          organization_id: orgId,
-          em_funil: true
-        });
-      }
-    }
-
-    if (updates.length > 0) {
-      await Promise.all(updates);
-    }
-
-    if (inserts.length > 0) {
-      const { error: insertError } = await supabaseClient.from('etapas').insert(inserts);
-      if (insertError) throw insertError;
-    }
-
-    return new Response(JSON.stringify({ success: true, message: "Etapas padronizadas com sucesso!" }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erro na função seed-stages:', error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+    );
   }
 });

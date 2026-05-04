@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Building2, Wifi, Plus, RefreshCw, MoreVertical, Eye, LogIn } from 'lucide-react';
+import { Users, Building2, Wifi, Plus, RefreshCw, MoreVertical, Eye, LogIn, Layers } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 
@@ -98,6 +98,27 @@ export default function TabClientesCRM({ toast, user }: any) {
     }
   };
 
+  const [isSeedingAll, setIsSeedingAll] = useState(false);
+
+  const handleSeedAllStages = async () => {
+    if (!confirm(`Isso irá padronizar as etapas do pipeline para todos os ${tenants.length} CRMs. Continuar?`)) return;
+    setIsSeedingAll(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const { data, error } = await supabase.functions.invoke('seed-stages', {
+        body: { seedAll: true },
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      toast({ title: '✅ Etapas padronizadas!', description: data?.message });
+    } catch (e: any) {
+      toast({ title: 'Erro ao padronizar etapas', description: e.message, variant: 'destructive' });
+    } finally {
+      setIsSeedingAll(false);
+    }
+  };
+
   const activeCount = tenants.filter(t => t.status === 'active').length;
   const connectedCount = tenants.filter(t => t.wp_status === 'connected').length;
 
@@ -107,6 +128,7 @@ export default function TabClientesCRM({ toast, user }: any) {
         <h2 className="text-xl font-bold">Gestão Base CRM</h2>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={loadTenants} disabled={isLoading}><RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`}/> Atualizar</Button>
+          <Button variant="outline" size="sm" onClick={handleSeedAllStages} disabled={isSeedingAll}><Layers className="h-4 w-4 mr-2"/> {isSeedingAll ? 'Padronizando...' : 'Padronizar Etapas'}</Button>
           <Button size="sm" onClick={() => setShowCreateModal(true)} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90"><Plus className="h-4 w-4 mr-2"/> Novo Cliente</Button>
         </div>
       </div>

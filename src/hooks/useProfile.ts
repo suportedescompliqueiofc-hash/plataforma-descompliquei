@@ -69,6 +69,19 @@ export function useProfile() {
         papel: 'admin'
       } as any);
 
+      // Semear etapas padrão do pipeline para a nova organização
+      const DEFAULT_STAGES = [
+        { nome: 'Em Atendimento',       cor: '#f97316', posicao_ordem: 1, em_funil: false },
+        { nome: 'Qualificação',         cor: '#3b82f6', posicao_ordem: 2, em_funil: false },
+        { nome: 'Qualificado',          cor: '#8b5cf6', posicao_ordem: 3, em_funil: false },
+        { nome: 'Handoff',              cor: '#a855f7', posicao_ordem: 4, em_funil: true  },
+        { nome: 'Agendado',             cor: '#10b981', posicao_ordem: 5, em_funil: true  },
+        { nome: 'Procedimento Fechado', cor: '#22c55e', posicao_ordem: 6, em_funil: true  },
+      ];
+      await supabase.from('etapas').insert(
+        DEFAULT_STAGES.map(s => ({ ...s, organization_id: newOrg.id })) as any
+      );
+
       return createdProfile as Profile;
     },
     enabled: !!user,

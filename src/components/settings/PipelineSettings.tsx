@@ -158,12 +158,12 @@ export function PipelineSettings() {
   };
 
   const DEFAULT_STAGES = [
-    { nome: 'Novo Lead',              cor: '#93c5fd', posicao_ordem: 1, em_funil: false },
-    { nome: 'Qualificação',           cor: '#3b82f6', posicao_ordem: 2, em_funil: false },
-    { nome: 'Coletando Informações',  cor: '#d1d5db', posicao_ordem: 3, em_funil: false },
-    { nome: 'Agendamento Solicitado', cor: '#fef08a', posicao_ordem: 4, em_funil: true  },
-    { nome: 'Agendado',               cor: '#10b981', posicao_ordem: 5, em_funil: true  },
-    { nome: 'Procedimento Fechado',   cor: '#22c55e', posicao_ordem: 6, em_funil: true  },
+    { nome: 'Em Atendimento',       cor: '#f97316', posicao_ordem: 1, em_funil: false },
+    { nome: 'Qualificação',         cor: '#3b82f6', posicao_ordem: 2, em_funil: false },
+    { nome: 'Qualificado',          cor: '#8b5cf6', posicao_ordem: 3, em_funil: false },
+    { nome: 'Handoff',              cor: '#a855f7', posicao_ordem: 4, em_funil: true  },
+    { nome: 'Agendado',             cor: '#10b981', posicao_ordem: 5, em_funil: true  },
+    { nome: 'Procedimento Fechado', cor: '#22c55e', posicao_ordem: 6, em_funil: true  },
   ];
 
   const handleSeedStages = async () => {
