@@ -52,6 +52,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   };
 
   const temPlataforma =
+    isSuperAdmin || // superadmin sempre vê o botão Plataforma
     acesso.acesso_cerebro ||
     acesso.acesso_sessoes_taticas ||
     acesso.acesso_materiais ||
