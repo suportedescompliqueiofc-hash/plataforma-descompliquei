@@ -920,11 +920,18 @@ Deno.serve(async (req: Request) => {
     const maxRetries = 3;
     const grokStart = Date.now();
     const imageErrorPatterns = ["image", "vision", "Cannot read image", "cannot read image", "image input", "visual"];
+    const retriablePatterns = ["429", "502", "503", "rate limit", "too many requests", "overloaded", "capacity"];
+
+    // Modelo de fallback: se o principal falhar todas as tentativas, tenta com grok-3-fast
+    const FALLBACK_MODEL = "grok-3-fast";
+    let usandoFallback = false;
+    let clienteAtual = llmClient;
+    let modeloAtual = modelo;
 
     while (retries < maxRetries) {
       try {
-        response = await llmClient.chat.completions.create({
-          model: modelo,
+        response = await clienteAtual.chat.completions.create({
+          model: modeloAtual,
           messages,
           tools: crmToolsDynamic,
           tool_choice: "auto",
@@ -933,11 +940,11 @@ Deno.serve(async (req: Request) => {
       } catch (grokError: any) {
         retries++;
         const errorMsg = grokError?.message || String(grokError);
-        console.error(`[AI-Agent] Tentativa ${retries} falhou:`, errorMsg);
-        
+        const errorMsgLower = errorMsg.toLowerCase();
+        console.error(`[AI-Agent] Tentativa ${retries}/${maxRetries} falhou (${modeloAtual}):`, errorMsg);
+
         // Verificar ERRO DE IMAGEM PRIMEIRO (antes do retry)
-        // Erros de imagem não devem ser retidados - Grok não suporta input de imagem
-        const isImageError = imageErrorPatterns.some(pattern => errorMsg.toLowerCase().includes(pattern.toLowerCase()));
+        const isImageError = imageErrorPatterns.some(pattern => errorMsgLower.includes(pattern.toLowerCase()));
         if (isImageError) {
           if (execLogId) await updateLog(execLogId, {
             status: "error",
@@ -945,33 +952,74 @@ Deno.serve(async (req: Request) => {
             erro_detalhe: `Erro de imagem no provedor ${llmProvider}: ${errorMsg}`,
             duracao_ms: Date.now() - globalStart,
           });
-          return jsonResponse({ 
-            ok: false, 
+          return jsonResponse({
+            ok: false,
             reason: "ia_nao_suporta_imagens",
             detalhe: "A IA configurada não suporta processamento de imagens. Apenas mensagens de texto e áudio são processadas."
           });
         }
-        
-        // Se não é erro de imagem, verificar se é erro retriável (503)
-        if (retries >= maxRetries || !errorMsg.includes("503")) {
-           if (execLogId) await updateLog(execLogId, {
-             status: "error",
-             etapa: "erro_ia",
-             erro_detalhe: `Erro IA final (${llmProvider}): ${errorMsg}`,
-             duracao_ms: Date.now() - globalStart,
-           });
-           return jsonResponse({ 
-             ok: false, 
-             reason: "erro_ia",
-             detalhe: errorMsg 
-           }, 500);
+
+        // Verificar se é erro retriável (429, 502, 503, rate limit, etc.)
+        const isRetriable = retriablePatterns.some(pattern => errorMsgLower.includes(pattern.toLowerCase()));
+
+        if (retries >= maxRetries) {
+          // Todas as tentativas com modelo principal falharam — tentar fallback
+          if (!usandoFallback && XAI_API_KEY && modeloAtual !== FALLBACK_MODEL) {
+            console.log(`[AI-Agent] Modelo ${modeloAtual} falhou ${maxRetries}x. Tentando fallback: ${FALLBACK_MODEL}`);
+            if (execLogId) await updateLog(execLogId, {
+              status: "running",
+              etapa: "fallback_modelo",
+              detalhe: `Modelo ${modeloAtual} indisponível após ${maxRetries} tentativas. Tentando ${FALLBACK_MODEL}...`,
+            });
+            usandoFallback = true;
+            clienteAtual = grok;
+            modeloAtual = FALLBACK_MODEL;
+            retries = 0; // Reset retries para o fallback
+            await wait(2000);
+            continue;
+          }
+
+          if (execLogId) await updateLog(execLogId, {
+            status: "error",
+            etapa: "erro_ia",
+            erro_detalhe: `Erro IA final (${usandoFallback ? 'fallback' : llmProvider}): ${errorMsg}`,
+            duracao_ms: Date.now() - globalStart,
+          });
+          return jsonResponse({
+            ok: false,
+            reason: "erro_ia",
+            detalhe: errorMsg
+          }, 500);
         }
-        // Espera exponencial antes de tentar de novo
-        await wait(Math.pow(2, retries) * 1000);
+
+        if (!isRetriable) {
+          // Erro não retriável (ex: prompt inválido, auth) — falha imediata
+          if (execLogId) await updateLog(execLogId, {
+            status: "error",
+            etapa: "erro_ia",
+            erro_detalhe: `Erro IA não-retriável (${usandoFallback ? 'fallback' : llmProvider}): ${errorMsg}`,
+            duracao_ms: Date.now() - globalStart,
+          });
+          return jsonResponse({
+            ok: false,
+            reason: "erro_ia",
+            detalhe: errorMsg
+          }, 500);
+        }
+
+        // Espera exponencial antes de tentar de novo (2s, 4s, 8s)
+        const waitMs = Math.pow(2, retries) * 1000;
+        console.log(`[AI-Agent] Erro retriável. Aguardando ${waitMs}ms antes da tentativa ${retries + 1}...`);
+        await wait(waitMs);
       }
     }
 
     const grokMs = Date.now() - grokStart;
+    // Atualizar modelo usado nos logs se houve fallback
+    const modeloUsado = usandoFallback ? FALLBACK_MODEL : modelo;
+    if (usandoFallback) {
+      console.log(`[AI-Agent] ✅ Fallback ${FALLBACK_MODEL} respondeu com sucesso após falha do ${modelo}`);
+    }
 
     let aiResponse = response.choices[0].message;
 
@@ -1031,8 +1079,8 @@ Deno.serve(async (req: Request) => {
         detalhe: "Resposta vazia detectada. Forçando retry com instrução explícita...",
       });
       try {
-        const retryResponse = await llmClient.chat.completions.create({
-          model: modelo,
+        const retryResponse = await clienteAtual.chat.completions.create({
+          model: modeloUsado,
           messages: [
             ...messages,
             { role: "assistant", content: "" },
@@ -1055,7 +1103,7 @@ Deno.serve(async (req: Request) => {
           status: "error",
           etapa: "resposta_vazia",
           erro_detalhe: "O modelo retornou resposta vazia mesmo após retry.",
-          model: modelo,
+          model: modeloUsado,
           duracao_ms: Date.now() - globalStart,
         });
         return jsonResponse({ ok: true, reason: "resposta_vazia" });
@@ -1169,8 +1217,8 @@ Deno.serve(async (req: Request) => {
         tool_calls: toolCallsSummary,
       });
 
-      response = await llmClient.chat.completions.create({
-        model: modelo,
+      response = await clienteAtual.chat.completions.create({
+        model: modeloUsado,
         messages: [...messages, ...toolMessages],
         tools: crmToolsDynamic,
         tool_choice: "auto",
@@ -1189,8 +1237,8 @@ Deno.serve(async (req: Request) => {
       try {
         const allMsgs = [...messages, ...toolMessages];
         allMsgs.push({ role: "user", content: "[SISTEMA] Sua última resposta chegou vazia. O lead está aguardando. Responda ao lead agora com uma mensagem de texto. Continue o atendimento normalmente." });
-        const retryResponse = await llmClient.chat.completions.create({
-          model: modelo,
+        const retryResponse = await clienteAtual.chat.completions.create({
+          model: modeloUsado,
           messages: allMsgs,
         });
         const retryContent = sanitizarRespostaIA(retryResponse.choices[0]?.message?.content);
@@ -1211,7 +1259,7 @@ Deno.serve(async (req: Request) => {
           status: "error",
           etapa: "resposta_vazia",
           erro_detalhe: "O modelo retornou resposta vazia mesmo após retry.",
-          model: modelo,
+          model: modeloUsado,
           duracao_ms: Date.now() - globalStart,
         });
         return jsonResponse({ ok: true, reason: "resposta_vazia" });
@@ -1236,7 +1284,7 @@ Deno.serve(async (req: Request) => {
         status: "error",
         etapa: "sem_whatsapp",
         erro_detalhe: "Sem instância WhatsApp conectada para esta organização.",
-        model: modelo,
+        model: modeloUsado,
         duracao_ms: Date.now() - globalStart,
       });
       return jsonResponse({ ok: false, reason: "sem_whatsapp_conectado" });
@@ -1253,7 +1301,7 @@ Deno.serve(async (req: Request) => {
         status: "error",
         etapa: "telefone_invalido",
         erro_detalhe: `Telefone inválido para envio: "${lead.telefone}"`,
-        model: modelo,
+        model: modeloUsado,
         duracao_ms: Date.now() - globalStart,
       });
       return jsonResponse({ ok: false, reason: "telefone_invalido" });
@@ -1268,7 +1316,7 @@ Deno.serve(async (req: Request) => {
       status: "running",
       etapa: "enviando_whatsapp",
       detalhe: `Resposta gerada (${grokMs}ms). Enviando ${partes.length} parte(s) para ${phoneFormatted}...`,
-      model: modelo,
+      model: modeloUsado,
       tool_calls: toolCallsSummary.length > 0 ? toolCallsSummary : null,
     });
 
@@ -1362,13 +1410,13 @@ Deno.serve(async (req: Request) => {
       detalhe: errosEnvio > 0
         ? `Concluído com ${errosEnvio} erro(s) no envio. ${partes.length - errosEnvio}/${partes.length} partes enviadas.`
         : `Concluído com sucesso! ${partes.length} parte(s) enviada(s) em ${duracaoTotal}ms.`,
-      model: modelo,
+      model: modeloUsado,
       partes_enviadas: partes.length - errosEnvio,
       tool_calls: toolCallsSummary.length > 0 ? toolCallsSummary : null,
       duracao_ms: duracaoTotal,
     });
 
-    console.log(`[AI-Agent] ✅ lead=${lead_id} | partes=${partes.length} | modelo=${modelo} | ${duracaoTotal}ms`);
+    console.log(`[AI-Agent] ✅ lead=${lead_id} | partes=${partes.length} | modelo=${modeloUsado} | ${duracaoTotal}ms`);
     return jsonResponse({ ok: true, partes_enviadas: partes.length });
   } catch (err: any) {
     console.error("[AI-Agent] Erro fatal:", err);
