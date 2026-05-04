@@ -125,6 +125,75 @@ async function updateLog(logId: string, patch: Partial<LogEntry>): Promise<void>
     .eq("id", logId);
 }
 
+// ── Notificação de Erro para Admin via WhatsApp ─────────────────────────────
+
+const ADMIN_NOTIFY_PHONE = "5521977297413";
+const ADMIN_WA_URL = "https://odontonova.uazapi.com";
+const ADMIN_WA_TOKEN = "434baaaf-4906-47f1-b0cf-1389a93e06e0";
+
+// Rate limit: máximo 1 notificação a cada 2 minutos por org
+const notifyRateLimit = new Map<string, number>();
+
+async function notifyAdminError(info: {
+  orgName: string;
+  orgId: string;
+  leadNome?: string | null;
+  leadTelefone?: string | null;
+  etapa: string;
+  erro: string;
+  modelo?: string | null;
+  duracaoMs?: number | null;
+}): Promise<void> {
+  try {
+    // Rate limit por org
+    const now = Date.now();
+    const lastNotify = notifyRateLimit.get(info.orgId) ?? 0;
+    if (now - lastNotify < 120_000) {
+      console.log(`[AI-Agent] Notificação admin suprimida (rate limit) para org ${info.orgId}`);
+      return;
+    }
+    notifyRateLimit.set(info.orgId, now);
+
+    const agora = new Intl.DateTimeFormat("pt-BR", {
+      day: "2-digit", month: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour12: false, timeZone: "America/Sao_Paulo",
+    }).format(new Date());
+
+    const mensagem = [
+      `⚠️ *ERRO IA PRÉ-ATENDIMENTO*`,
+      ``,
+      `🏥 *Cliente:* ${info.orgName}`,
+      `👤 *Lead:* ${info.leadNome || 'Não identificado'}`,
+      `📱 *Telefone:* ${info.leadTelefone || 'N/A'}`,
+      ``,
+      `❌ *Etapa:* ${info.etapa}`,
+      `📝 *Erro:* ${info.erro.substring(0, 300)}`,
+      info.modelo ? `🤖 *Modelo:* ${info.modelo}` : null,
+      info.duracaoMs ? `⏱️ *Duração:* ${info.duracaoMs}ms` : null,
+      `🕐 *Horário:* ${agora}`,
+    ].filter(Boolean).join("\n");
+
+    await fetch(`${ADMIN_WA_URL}/send/text`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "token": ADMIN_WA_TOKEN,
+      },
+      body: JSON.stringify({
+        number: ADMIN_NOTIFY_PHONE,
+        text: mensagem,
+        delay: 0,
+      }),
+    });
+
+    console.log(`[AI-Agent] ✅ Notificação de erro enviada ao admin`);
+  } catch (e: any) {
+    console.error(`[AI-Agent] Falha ao notificar admin:`, e?.message);
+  }
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function normalizeOutgoingMessage(value: string): string {
@@ -688,6 +757,10 @@ Deno.serve(async (req: Request) => {
       detalhe: "Recebida requisição. Verificando lead e configurações...",
     });
 
+    // 0. Nome da organização (para notificações)
+    const { data: orgData } = await supabase.from("organizations").select("name").eq("id", orgId).maybeSingle();
+    const orgName = orgData?.name || orgId;
+
     // 1. Lead
     const { data: lead, error: leadErr } = await supabase
       .from("leads")
@@ -985,6 +1058,11 @@ Deno.serve(async (req: Request) => {
             erro_detalhe: `Erro IA final (${usandoFallback ? 'fallback' : llmProvider}): ${errorMsg}`,
             duracao_ms: Date.now() - globalStart,
           });
+          await notifyAdminError({
+            orgName, orgId, leadNome: lead?.nome, leadTelefone: lead?.telefone,
+            etapa: "erro_ia", erro: `Modelo ${modeloAtual} falhou após ${maxRetries} tentativas${usandoFallback ? ' (inclusive fallback)' : ''}. ${errorMsg}`,
+            modelo: modeloAtual, duracaoMs: Date.now() - globalStart,
+          });
           return jsonResponse({
             ok: false,
             reason: "erro_ia",
@@ -999,6 +1077,11 @@ Deno.serve(async (req: Request) => {
             etapa: "erro_ia",
             erro_detalhe: `Erro IA não-retriável (${usandoFallback ? 'fallback' : llmProvider}): ${errorMsg}`,
             duracao_ms: Date.now() - globalStart,
+          });
+          await notifyAdminError({
+            orgName, orgId, leadNome: lead?.nome, leadTelefone: lead?.telefone,
+            etapa: "erro_ia_fatal", erro: `Erro não-retriável: ${errorMsg}`,
+            modelo: modeloAtual, duracaoMs: Date.now() - globalStart,
           });
           return jsonResponse({
             ok: false,
@@ -1105,6 +1188,11 @@ Deno.serve(async (req: Request) => {
           erro_detalhe: "O modelo retornou resposta vazia mesmo após retry.",
           model: modeloUsado,
           duracao_ms: Date.now() - globalStart,
+        });
+        await notifyAdminError({
+          orgName, orgId, leadNome: lead.nome, leadTelefone: lead.telefone,
+          etapa: "resposta_vazia", erro: "O modelo retornou resposta vazia mesmo após retry. Lead ficou sem resposta.",
+          modelo: modeloUsado, duracaoMs: Date.now() - globalStart,
         });
         return jsonResponse({ ok: true, reason: "resposta_vazia" });
       }
@@ -1252,6 +1340,11 @@ Deno.serve(async (req: Request) => {
       if (!textoFinal.trim()) {
         if (toolCallsSummary.length > 0) {
           if (execLogId) await updateLog(execLogId, { status: "success", etapa: "atualizacao_silenciosa", detalhe: "A IA utilizou ferramentas do CRM mas não gerou resposta mesmo após retry.", duracao_ms: Date.now() - globalStart });
+          await notifyAdminError({
+            orgName, orgId, leadNome: lead.nome, leadTelefone: lead.telefone,
+            etapa: "atualizacao_silenciosa", erro: "IA usou ferramentas CRM mas não gerou texto para o lead. Lead ficou sem resposta.",
+            modelo: modeloUsado, duracaoMs: Date.now() - globalStart,
+          });
           return jsonResponse({ ok: true, reason: "atualizacao_silenciosa" });
         }
 
@@ -1261,6 +1354,11 @@ Deno.serve(async (req: Request) => {
           erro_detalhe: "O modelo retornou resposta vazia mesmo após retry.",
           model: modeloUsado,
           duracao_ms: Date.now() - globalStart,
+        });
+        await notifyAdminError({
+          orgName, orgId, leadNome: lead.nome, leadTelefone: lead.telefone,
+          etapa: "resposta_vazia_pos_tools", erro: "Resposta vazia após ferramentas e retry. Lead ficou sem resposta.",
+          modelo: modeloUsado, duracaoMs: Date.now() - globalStart,
         });
         return jsonResponse({ ok: true, reason: "resposta_vazia" });
       }
@@ -1427,6 +1525,17 @@ Deno.serve(async (req: Request) => {
       erro_detalhe: String(err?.message ?? err),
       duracao_ms: Date.now() - globalStart,
     });
+    // Notificar admin — erro fatal é sempre crítico
+    try {
+      const { data: orgFatal } = await supabase.from("organizations").select("name").eq("id", orgId).maybeSingle();
+      const { data: leadFatal } = await supabase.from("leads").select("nome, telefone").eq("id", lead_id).maybeSingle();
+      await notifyAdminError({
+        orgName: orgFatal?.name || orgId, orgId,
+        leadNome: leadFatal?.nome, leadTelefone: leadFatal?.telefone,
+        etapa: "erro_fatal", erro: String(err?.message ?? err),
+        duracaoMs: Date.now() - globalStart,
+      });
+    } catch { /* não falhar por causa da notificação */ }
     return jsonResponse({ error: "internal_error", detail: String(err?.message ?? err) }, 500);
   }
 });
