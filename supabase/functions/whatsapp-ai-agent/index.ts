@@ -942,6 +942,28 @@ Deno.serve(async (req: Request) => {
     if (palavras.length > 0)
       palavrasStr = `\n\n## PALAVRAS PROIBIDAS\nNunca use: ${palavras.join(', ')}`;
 
+    // --- Extrair configuração de emojis do prompt ---
+    // O prompt tem a seção "## EMOJIS" com "A IA deve usar emojis?: Sim/Não" e "Emojis permitidos: ..."
+    let emojiRegraStr = '';
+    const promptTexto = aiConfig.prompt ?? '';
+    const emojiSectionMatch = promptTexto.match(/##\s*EMOJIS\s*\n([\s\S]*?)(?=\n##|\n===|$)/i);
+    if (emojiSectionMatch) {
+      const emojiSection = emojiSectionMatch[1];
+      const usarEmojiMatch = emojiSection.match(/A IA deve usar emojis\?:\s*(Sim|N[ãa]o)/i);
+      const usarEmoji = usarEmojiMatch ? usarEmojiMatch[1].toLowerCase() === 'sim' : false;
+      if (usarEmoji) {
+        const emojisPermitidosMatch = emojiSection.match(/Emojis permitidos:\s*(.+)/i);
+        const emojisPermitidos = emojisPermitidosMatch ? emojisPermitidosMatch[1].trim() : '';
+        if (emojisPermitidos) {
+          emojiRegraStr = `\n\n6. USE EMOJIS: Você DEVE usar emojis em suas mensagens. Os emojis permitidos são: ${emojisPermitidos}. Use-os naturalmente ao longo das respostas para transmitir calor humano.`;
+        } else {
+          emojiRegraStr = `\n\n6. USE EMOJIS: Você DEVE usar emojis em suas mensagens para transmitir calor humano e proximidade.`;
+        }
+      } else if (usarEmojiMatch) {
+        emojiRegraStr = `\n\n6. NÃO USE EMOJIS: A clínica configurou para não usar emojis. Não use nenhum emoji em suas respostas.`;
+      }
+    }
+
     const agora = new Date();
     const dataAtual = new Intl.DateTimeFormat("pt-BR", {
       weekday: "long",
@@ -972,6 +994,7 @@ Deno.serve(async (req: Request) => {
       + `3. NUNCA diga ao lead 'dados atualizados', 'notifiquei a equipe', 'salvei no sistema'. Ferramentas sao invisiveis.\n`
       + `4. Aja 100% como atendente humano da clinica.\n`
       + `5. SEMPRE responda ao lead com mensagem de texto apos usar qualquer ferramenta.`
+      + emojiRegraStr
       + `\n\n=== DATA E HORA ATUAL ===\n`
       + `Data: ${dataAtual}\nHora: ${horaAtual} (horario de Brasilia)`;
 
