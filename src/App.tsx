@@ -118,16 +118,19 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [isReturning, setIsReturning] = useState(false);
   const isSuperAdmin = role === 'superadmin';
   
-  // Impersonação: superadmin cuja org atual é diferente da master (não depende de localStorage)
-  const isImpersonating = isSuperAdmin && !!profile?.organization_id && profile.organization_id !== MASTER_ORG_ID;
+  // Impersonação: detectada APENAS quando o fluxo de "Acessar CRM" salvou a org original no localStorage
+  // Isso permite que múltiplos superadmins tenham orgs diferentes sem falso positivo
+  const originalOrgId = typeof window !== 'undefined' ? localStorage.getItem('original_master_org_id') : null;
+  const isImpersonating = isSuperAdmin && !!originalOrgId;
   const showBanner = isImpersonating;
 
   const handleReturnToMaster = async () => {
     try {
       setIsReturning(true);
 
-      // Usa localStorage se disponível, senão usa a constante MASTER_ORG_ID diretamente
-      const originalOrgId = localStorage.getItem('original_master_org_id') || MASTER_ORG_ID;
+      if (!originalOrgId) {
+        throw new Error('Organização original não encontrada. Faça logout e login novamente.');
+      }
 
       if (!profile?.id) {
         throw new Error('Perfil não encontrado. Recarregue a página.');
@@ -142,9 +145,9 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
       localStorage.removeItem('original_master_org_id');
 
-      toast.success('Sessão restaurada. Retornando ao painel master...');
+      toast.success('Sessão restaurada. Retornando...');
       setTimeout(() => {
-        window.location.href = '/crm/super-admin-crm';
+        window.location.href = '/crm';
       }, 1000);
 
     } catch (err: any) {

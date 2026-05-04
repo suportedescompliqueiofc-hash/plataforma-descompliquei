@@ -106,18 +106,18 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   };
 
   const handleBackToMaster = async () => {
-    const originalOrgId = localStorage.getItem('original_master_org_id') || MASTER_ORG_ID;
-    if (!user) return;
+    const originalOrgId = localStorage.getItem('original_master_org_id');
+    if (!user || !originalOrgId) return;
     try {
       const { error } = await supabase.from('perfis').update({ organization_id: originalOrgId as any }).eq('id', user.id);
       if (error) throw error;
       localStorage.removeItem('original_master_org_id');
-      window.location.href = '/crm/super-admin-crm';
+      window.location.href = '/crm';
     } catch (err: any) { console.error(err); }
   };
 
-  // Impersonação: superadmin cuja org atual é diferente da master (não depende de localStorage)
-  const isImpersonating = isSuperAdmin && !!profile?.organization_id && profile.organization_id !== MASTER_ORG_ID;
+  // Impersonação: detectada APENAS quando o localStorage tem a flag (setada pelo fluxo "Acessar CRM")
+  const isImpersonating = isSuperAdmin && !!localStorage.getItem('original_master_org_id');
 
   return (
     <TooltipProvider>
