@@ -13,8 +13,9 @@ import { toast } from "sonner";
 import { Cadence } from "@/hooks/useCadences";
 import { useLeads } from "@/hooks/useLeads";
 import { useLeadOptions } from "@/hooks/useLeadOptions";
-import { Loader2, Zap, Search, Users, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Zap, Search, Users, Calendar as CalendarIcon, Tag as TagIcon } from "lucide-react";
 import { differenceInDays, isWithinInterval, parseISO } from "date-fns";
+import { useTags, getTagColorStyles } from "@/hooks/useTags";
 
 interface BulkCadenceDispatchModalProps {
   open: boolean;
@@ -26,28 +27,30 @@ interface BulkCadenceDispatchModalProps {
 export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfirm }: BulkCadenceDispatchModalProps) {
   const { leads } = useLeads();
   const { stages, sources } = useLeadOptions();
+  const { availableTags } = useTags();
   const [minDelay, setMinDelay] = useState(60);
   const [maxDelay, setMaxDelay] = useState(150);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [segmentation, setSegmentation] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // Filters state
   const [daysSinceContact, setDaysSinceContact] = useState("");
   const [pipelineStage, setPipelineStage] = useState("all");
   const [source, setSource] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [selectedTag, setSelectedTag] = useState("all");
 
   const filteredLeads = useMemo(() => {
     return leads.filter(l => {
         const matchesSearch = (l.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || l.telefone?.includes(searchTerm));
         if (!matchesSearch) return false;
-        
+
         if (segmentation === 'filters') {
             if (pipelineStage !== "all" && l.posicao_pipeline.toString() !== pipelineStage) return false;
             if (source !== "all" && l.fonte !== source) return false;
-            
+
             if (daysSinceContact) {
               const days = differenceInDays(new Date(), parseISO(l.ultimo_contato || l.criado_em));
               if (days < parseInt(daysSinceContact)) return false;
@@ -57,10 +60,15 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
               const leadDate = parseISO(l.criado_em);
               if (!isWithinInterval(leadDate, { start: dateRange.from, end: dateRange.to })) return false;
             }
+
+            if (selectedTag !== "all") {
+              const leadTagIds = l.leads_tags?.map(lt => lt.tags?.id).filter(Boolean) || [];
+              if (!leadTagIds.includes(selectedTag)) return false;
+            }
         }
         return true;
     });
-  }, [leads, searchTerm, segmentation, pipelineStage, source, dateRange]);
+  }, [leads, searchTerm, segmentation, pipelineStage, source, dateRange, selectedTag]);
 
 
   const toggleLead = (id: string) => {
@@ -162,6 +170,28 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
                     <div className="space-y-1">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">DATA DE CADASTRO</Label>
                         <DateRangePicker date={dateRange} setDate={setDateRange} hideQuickSelect={true} />
+                    </div>
+                    <div className="space-y-1 col-span-2">
+                        <Label className="text-[10px] uppercase font-bold text-muted-foreground flex items-center gap-1">
+                            <TagIcon className="h-3 w-3" /> ETIQUETA
+                        </Label>
+                        <Select value={selectedTag} onValueChange={setSelectedTag}>
+                            <SelectTrigger><SelectValue placeholder="Todas as Etiquetas" /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todas as Etiquetas</SelectItem>
+                                {availableTags.map(tag => {
+                                    const styles = getTagColorStyles(tag.color);
+                                    return (
+                                        <SelectItem key={tag.id} value={tag.id}>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`inline-block h-2.5 w-2.5 rounded-full ${styles.className}`} style={styles.style} />
+                                                {tag.name}
+                                            </div>
+                                        </SelectItem>
+                                    );
+                                })}
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
               )}
