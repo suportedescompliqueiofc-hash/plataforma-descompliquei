@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Users, Plus, RefreshCw, MoreVertical, Eye, Edit, Trash2, CheckCircle2, TrendingUp, AlertTriangle, FileText, Settings, Award } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { MASTER_ORG_ID } from '@/lib/constants';
 import { format } from 'date-fns';
 
 export default function TabPlataformaClientes({ toast }: { toast: any }) {
@@ -192,7 +193,7 @@ export default function TabPlataformaClientes({ toast }: { toast: any }) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-[220px]">
                         <DropdownMenuItem onClick={() => {
-                          localStorage.setItem('original_master_org_id', 'aa787cc8-787a-4774-bd80-ffbf78c0cf5f');
+                          localStorage.setItem('original_master_org_id', MASTER_ORG_ID);
                           // logic to set the correct organization_id for the user in the database would go here 
                           // but for now we just open the platform in a new tab
                           window.open('/plataforma', '_blank');
@@ -200,7 +201,7 @@ export default function TabPlataformaClientes({ toast }: { toast: any }) {
                           <Eye className="mr-2 h-4 w-4" /> Visualizar como Cliente
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => {
-                          localStorage.setItem('original_master_org_id', 'aa787cc8-787a-4774-bd80-ffbf78c0cf5f');
+                          localStorage.setItem('original_master_org_id', MASTER_ORG_ID);
                           window.open('/', '_blank');
                         }} className="font-bold text-[#E85D24] focus:text-[#E85D24]">
                           <Users className="mr-2 h-4 w-4" /> Acessar CRM do Cliente

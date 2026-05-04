@@ -63,11 +63,15 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { orgId, seedAll } = body;
 
+    // Org master da Descompliquei — isolada, não é cliente
+    const MASTER_ORG_ID = 'aa787cc8-787a-4774-bd80-ffbf78c0cf5f';
+
     if (seedAll) {
-      // Semear TODAS as organizações (super-admin)
+      // Semear apenas organizações de CLIENTES (exclui a org master)
       const { data: orgs, error: orgsError } = await supabaseClient
         .from('organizations')
-        .select('id');
+        .select('id')
+        .neq('id', MASTER_ORG_ID);
       if (orgsError) throw orgsError;
 
       for (const org of orgs ?? []) {

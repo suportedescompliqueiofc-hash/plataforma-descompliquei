@@ -52,6 +52,7 @@ import { useLocalStorage } from "./hooks/use-local-storage";
 import { useProfile } from "./hooks/useProfile";
 import { usePlataforma } from "@/contexts/PlataformaContext";
 import { cn } from "./lib/utils";
+import { MASTER_ORG_ID } from "./lib/constants";
 
 // Componentes da Plataforma
 import Hub from "./pages/plataforma/Hub";
@@ -118,7 +119,6 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const isSuperAdmin = role === 'superadmin';
   
   // Impersonação: superadmin cuja org atual é diferente da master (não depende de localStorage)
-  const MASTER_ORG_ID = 'aa787cc8-787a-4774-bd80-ffbf78c0cf5f';
   const isImpersonating = isSuperAdmin && !!profile?.organization_id && profile.organization_id !== MASTER_ORG_ID;
   const showBanner = isImpersonating;
 

@@ -15,6 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { MASTER_ORG_ID } from "@/lib/constants";
 
 interface SidebarContentProps {
   isCollapsed?: boolean;
@@ -104,8 +105,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   };
 
-  const MASTER_ORG_ID = 'aa787cc8-787a-4774-bd80-ffbf78c0cf5f';
-  
   const handleBackToMaster = async () => {
     const originalOrgId = localStorage.getItem('original_master_org_id') || MASTER_ORG_ID;
     if (!user) return;
