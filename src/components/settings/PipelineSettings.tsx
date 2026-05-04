@@ -157,6 +157,15 @@ export function PipelineSettings() {
     }
   };
 
+  const DEFAULT_STAGES = [
+    { nome: 'Novo Lead',              cor: '#93c5fd', posicao_ordem: 1, em_funil: false },
+    { nome: 'Qualificação',           cor: '#3b82f6', posicao_ordem: 2, em_funil: false },
+    { nome: 'Coletando Informações',  cor: '#d1d5db', posicao_ordem: 3, em_funil: false },
+    { nome: 'Agendamento Solicitado', cor: '#fef08a', posicao_ordem: 4, em_funil: true  },
+    { nome: 'Agendado',               cor: '#10b981', posicao_ordem: 5, em_funil: true  },
+    { nome: 'Procedimento Fechado',   cor: '#22c55e', posicao_ordem: 6, em_funil: true  },
+  ];
+
   const handleSeedStages = async () => {
     if (!profile?.organization_id) {
       toast.error("Organização não identificada. Por favor, recarregue a página.");
@@ -164,21 +173,51 @@ export function PipelineSettings() {
     }
 
     if (!confirm("Isso irá padronizar as etapas para o modelo padrão. Continuar?")) return;
-    
+
     setIsResetting(true);
     try {
-      const { error } = await supabase.functions.invoke('seed-stages', {
-        body: { orgId: profile.organization_id }
-      });
+      const orgId = profile.organization_id;
 
-      if (error) throw error;
+      // Buscar etapas existentes
+      const { data: currentStages, error: fetchError } = await supabase
+        .from('etapas')
+        .select('*')
+        .eq('organization_id', orgId)
+        .order('posicao_ordem', { ascending: true });
 
-      // Remover cache existente e forçar recarregamento
-      await queryClient.removeQueries({ queryKey: STAGES_QUERY_KEY });
-      await queryClient.refetchQueries({ queryKey: STAGES_QUERY_KEY });
+      if (fetchError) throw fetchError;
 
+      const existing = currentStages ?? [];
+      const updates: Promise<any>[] = [];
+      const inserts: typeof DEFAULT_STAGES = [];
+
+      for (let i = 0; i < DEFAULT_STAGES.length; i++) {
+        const target = DEFAULT_STAGES[i];
+        if (i < existing.length) {
+          updates.push(
+            supabase
+              .from('etapas')
+              .update({ nome: target.nome, cor: target.cor, posicao_ordem: target.posicao_ordem, em_funil: target.em_funil })
+              .eq('id', existing[i].id)
+              .then(({ error }) => { if (error) throw error; })
+          );
+        } else {
+          inserts.push(target);
+        }
+      }
+
+      if (updates.length > 0) await Promise.all(updates);
+
+      if (inserts.length > 0) {
+        const { error: insertError } = await supabase
+          .from('etapas')
+          .insert(inserts.map(s => ({ ...s, organization_id: orgId })));
+        if (insertError) throw insertError;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: STAGES_QUERY_KEY });
       toast.success("Etapas padronizadas!");
-      
+
     } catch (err: any) {
       console.error('Erro ao padronizar etapas:', err);
       toast.error("Erro: " + (err.message || "Erro desconhecido"));
