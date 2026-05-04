@@ -117,8 +117,8 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     } catch (err: any) { console.error(err); }
   };
 
-  // Impersonação ativa SOMENTE quando o localStorage tem a chave salva pelo processo de impersonar um cliente
-  const isImpersonating = !!localStorage.getItem('original_master_org_id');
+  // Impersonação: superadmin cuja org atual é diferente da master (não depende de localStorage)
+  const isImpersonating = isSuperAdmin && !!profile?.organization_id && profile.organization_id !== MASTER_ORG_ID;
 
   return (
     <TooltipProvider>

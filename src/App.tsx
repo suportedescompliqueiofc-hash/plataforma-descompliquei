@@ -117,51 +117,36 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [isReturning, setIsReturning] = useState(false);
   const isSuperAdmin = role === 'superadmin';
   
-  // O super admin só está impersonando se a organização atual dele for diferente da master salva
-  const originalMasterOrgId = typeof window !== 'undefined' ? localStorage.getItem('original_master_org_id') : null;
-  const isImpersonating = !!originalMasterOrgId && originalMasterOrgId !== profile?.organization_id;
-  const showBanner = isSuperAdmin && isImpersonating;
+  // Impersonação: superadmin cuja org atual é diferente da master (não depende de localStorage)
+  const MASTER_ORG_ID = 'aa787cc8-787a-4774-bd80-ffbf78c0cf5f';
+  const isImpersonating = isSuperAdmin && !!profile?.organization_id && profile.organization_id !== MASTER_ORG_ID;
+  const showBanner = isImpersonating;
 
   const handleReturnToMaster = async () => {
     try {
       setIsReturning(true);
-      
-      let originalOrgId = localStorage.getItem('original_master_org_id');
-      
-      // Fallback: caso a sessão tenha sido iniciada sem passar pelo botão (não salvou no localstorage),
-      // localiza a organização master do super admin no banco de dados.
-      if (!originalOrgId) {
-        const { data: masterOrg } = await supabase
-          .from('organizations')
-          .select('id')
-          .ilike('name', '%Super Admin%')
-          .limit(1)
-          .maybeSingle();
-          
-        if (masterOrg?.id) {
-          originalOrgId = masterOrg.id;
-        }
+
+      // Usa localStorage se disponível, senão usa a constante MASTER_ORG_ID diretamente
+      const originalOrgId = localStorage.getItem('original_master_org_id') || MASTER_ORG_ID;
+
+      if (!profile?.id) {
+        throw new Error('Perfil não encontrado. Recarregue a página.');
       }
 
-      if (!originalOrgId || !profile?.id) {
-        throw new Error('Não foi possível identificar a organização master. Entre novamente na sua conta.');
-      }
-      
       const { error } = await supabase
         .from('perfis')
         .update({ organization_id: originalOrgId as any })
         .eq('id', profile.id);
-        
+
       if (error) throw error;
-      
-      // Limpa a memória para sinalizar que o impersonate acabou
+
       localStorage.removeItem('original_master_org_id');
-      
+
       toast.success('Sessão restaurada. Retornando ao painel master...');
       setTimeout(() => {
         window.location.href = '/crm/super-admin-crm';
       }, 1000);
-      
+
     } catch (err: any) {
       toast.error('Erro ao retornar: ' + err.message);
       setIsReturning(false);
