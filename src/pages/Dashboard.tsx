@@ -302,16 +302,20 @@ export default function Dashboard() {
       {isDescompliqueiOrg && (() => {
         const aq = metrics.acquisitionEfficiency ?? { investment: 0, cpl: null, cpm: null, cpa: null, cpf: null };
         const fmt = (v: number | null) => v != null ? `R$ ${v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}` : '—';
+        const roas = (aq.investment && aq.investment > 0 && faturamento > 0)
+          ? (faturamento / aq.investment).toFixed(2) + 'x'
+          : '—';
         const cards = [
           { label: 'CPL', title: 'Custo por Lead', value: fmt(aq.cpl), color: '#6366f1' },
-          { label: 'CPM', title: 'Custo por MQL', value: fmt(aq.cpm), color: '#8b5cf6' },
-          { label: 'CPA', title: 'Custo por Reunião', value: fmt(aq.cpa), color: '#3b82f6' },
-          { label: 'CPF', title: 'Custo por Fechamento', value: fmt(aq.cpf), color: '#10b981' },
+          { label: 'CPMQL', title: 'Custo por MQL', value: fmt(aq.cpm), color: '#8b5cf6' },
+          { label: 'CPR', title: 'Custo por Reunião', value: fmt(aq.cpa), color: '#3b82f6' },
+          { label: 'CPA', title: 'Custo de Aquisição', value: fmt(aq.cpf), color: '#10b981' },
+          { label: 'ROAS', title: 'Retorno sobre Anúncios', value: roas, color: '#f59e0b' },
         ];
         return (
           <div>
             <SectionHeader title="Eficiência de Aquisição" icon={DollarSign} />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
               {cards.map((c) => (
                 <Card key={c.label} className="overflow-hidden shadow-sm" style={{ borderTop: `3px solid ${c.color}` }}>
                   <CardContent className="p-4 sm:p-5">

@@ -315,8 +315,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           })),
           // Evolução no tempo para Descompliquei (3 séries: leads mkt, mqls, fechamentos)
           descompliqueiOverTime: eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(d => {
-            const dayStr = format(d, 'yyyy-MM-dd');
-            const mktDay = filteredAllLeads.filter(l => l.origem === 'marketing' && l.criado_em.startsWith(dayStr));
+            const dayStart = startOfDay(d).toISOString();
+            const dayEnd = endOfDay(d).toISOString();
+            const mktDay = leads.filter(l => l.origem === 'marketing' && l.criado_em >= dayStart && l.criado_em <= dayEnd);
             return {
               day: format(d, 'dd/MM'),
               leads: mktDay.length,
