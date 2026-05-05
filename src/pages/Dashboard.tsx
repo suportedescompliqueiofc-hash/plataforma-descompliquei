@@ -391,56 +391,68 @@ export default function Dashboard() {
       {/* Seção 3 — Performance Comercial */}
       <div>
         <SectionHeader title={isDescompliqueiOrg ? "Performance Comercial Global" : "Performance Comercial"} icon={BarChart2} />
-        <div className={cn("grid gap-3 sm:gap-4", isDescompliqueiOrg ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-6")}>
-          <MetricCard
-            title="Taxa de MQL"
-            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalMQL ?? 0) : taxaMQL}%`}
-            description={`${metrics.mqlCount ?? 0} qualificados / ${metrics.totalContatos ?? 0} leads`}
-            icon={Tag}
-            topColor="#8b5cf6"
-          />
-          <MetricCard
-            title="Taxa Agendamento"
-            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalAgendamento ?? 0) : taxaAgendamento}%`}
-            description={`${metrics.scheduledCount ?? 0} agendados / ${metrics.totalContatos ?? 0} leads`}
-            icon={CalendarCheck}
-            topColor="#3b82f6"
-          />
-          <MetricCard
-            title="Taxa Fechamento"
-            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalFechamento ?? 0) : taxaFechamento}%`}
-            description={`${metrics.closedCount ?? 0} fechados / ${metrics.totalContatos ?? 0} leads`}
-            icon={BadgeCheck}
-            topColor="#10b981"
-          />
-          <MetricCard
-            title="Conversão Global"
-            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalConversao ?? 0) : taxaConversaoGlobal}%`}
-            description={isDescompliqueiOrg ? `Fechados / total de leads` : "Fechados / marketing"}
-            icon={TrendingUp}
-            topColor="hsl(var(--primary))"
-          />
-          {!isDescompliqueiOrg && (
-            <>
+        {(() => {
+          const total = metrics.totalContatos ?? 0;
+          const mql = metrics.mqlCount ?? 0;
+          const sched = metrics.scheduledCount ?? 0;
+          const closed = metrics.closedCount ?? 0;
+          const pct = (n: number) => total > 0 ? ((n / total) * 100).toFixed(1) : '0';
+
+          return (
+            <div className={cn("grid gap-3 sm:gap-4", isDescompliqueiOrg ? "grid-cols-2 lg:grid-cols-3" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-6")}>
               <MetricCard
-                title="Ticket Médio"
-                value={ticketMedio > 0
-                  ? `R$ ${ticketMedio.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
-                  : 'R$ 0'}
-                description="Por venda fechada"
-                icon={Wallet}
-                topColor="#f59e0b"
+                title="Taxa de MQL"
+                value={`${isDescompliqueiOrg ? pct(mql) : taxaMQL}%`}
+                description={`${mql} qualificados / ${total} leads`}
+                icon={Tag}
+                topColor="#8b5cf6"
               />
               <MetricCard
-                title="Faturamento Total"
-                value={`R$ ${faturamento.toLocaleString('pt-BR')}`}
-                description="Vendas fechadas"
-                icon={DollarSign}
-                topColor="#22c55e"
+                title="Taxa Agendamento"
+                value={`${isDescompliqueiOrg ? pct(sched) : taxaAgendamento}%`}
+                description={`${sched} agendados / ${total} leads`}
+                icon={CalendarCheck}
+                topColor="#3b82f6"
               />
-            </>
-          )}
-        </div>
+              <MetricCard
+                title="Taxa Fechamento"
+                value={`${isDescompliqueiOrg ? pct(closed) : taxaFechamento}%`}
+                description={`${closed} fechados / ${total} leads`}
+                icon={BadgeCheck}
+                topColor="#10b981"
+              />
+              {!isDescompliqueiOrg && (
+                <MetricCard
+                  title="Conversão Global"
+                  value={`${taxaConversaoGlobal}%`}
+                  description="Fechados / marketing"
+                  icon={TrendingUp}
+                  topColor="hsl(var(--primary))"
+                />
+              )}
+              {!isDescompliqueiOrg && (
+                <>
+                  <MetricCard
+                    title="Ticket Médio"
+                    value={ticketMedio > 0
+                      ? `R$ ${ticketMedio.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+                      : 'R$ 0'}
+                    description="Por venda fechada"
+                    icon={Wallet}
+                    topColor="#f59e0b"
+                  />
+                  <MetricCard
+                    title="Faturamento Total"
+                    value={`R$ ${faturamento.toLocaleString('pt-BR')}`}
+                    description="Vendas fechadas"
+                    icon={DollarSign}
+                    topColor="#22c55e"
+                  />
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Seção 4 — Performance da IA */}
