@@ -9,6 +9,8 @@ import {
   Tooltip, Legend, ResponsiveContainer, Cell
 } from "recharts";
 import { useDashboard, type OrigemFilter } from "@/hooks/useDashboard";
+import { useProfile } from "@/hooks/useProfile";
+import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { startOfMonth, endOfMonth } from 'date-fns';
@@ -101,6 +103,9 @@ export default function Dashboard() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialDateRange);
   const [origemFilter, setOrigemFilter] = useState<OrigemFilter>('geral');
 
+  const { profile } = useProfile();
+  const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
+
   const { metrics, isLoading, error: metricsError, refetch } = useDashboard(dateRange, origemFilter);
 
   const GRADIENTS = (
@@ -190,6 +195,47 @@ export default function Dashboard() {
           <DateRangePicker date={dateRange} setDate={setDateRange} className="w-full" />
         </div>
       </div>
+
+      {/* Funil Descompliquei (exclusivo org Descompliquei) */}
+      {isDescompliqueiOrg && (() => {
+        const f = metrics.descompliqueiFunnel ?? { leads: 0, mql: 0, scheduled: 0, closed: 0, txMql: 0, txAgendamento: 0, txConversao: 0 };
+        const steps = [
+          { label: 'Leads', value: f.leads, desc: 'Captados via marketing', color: '#6366f1' },
+          { label: 'MQL', value: f.mql, desc: 'Qualificados', color: '#8b5cf6' },
+          { label: 'Reuniões', value: f.scheduled, desc: 'Agendadas', color: '#3b82f6' },
+          { label: 'Fechamentos', value: f.closed, desc: 'Vendas fechadas', color: '#10b981' },
+        ];
+        const rates = [
+          { label: 'Tx MQL', value: f.txMql },
+          { label: 'Tx Agendamento', value: f.txAgendamento },
+          { label: 'Tx Conversão', value: f.txConversao },
+        ];
+        return (
+          <div>
+            <SectionHeader title="Funil de Conversão — Marketing" icon={Filter} />
+            <div className="flex items-stretch gap-0 overflow-x-auto pb-2">
+              {steps.map((step, i) => (
+                <div key={step.label} className="flex items-stretch flex-1 min-w-0">
+                  <Card className="flex-1 overflow-hidden shadow-sm min-w-[140px]" style={{ borderTop: `3px solid ${step.color}` }}>
+                    <CardContent className="p-4 sm:p-5 flex flex-col justify-between h-full">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{step.label}</span>
+                      <div className="text-3xl sm:text-4xl font-black text-foreground mt-1">{step.value}</div>
+                      <p className="text-xs text-muted-foreground mt-1">{step.desc}</p>
+                    </CardContent>
+                  </Card>
+                  {i < steps.length - 1 && (
+                    <div className="flex flex-col items-center justify-center px-2 sm:px-3 shrink-0">
+                      <ArrowRight className="h-4 w-4 text-muted-foreground/50" />
+                      <span className="text-[9px] sm:text-[10px] font-bold text-primary whitespace-nowrap mt-0.5">{rates[i].label}</span>
+                      <span className="text-sm sm:text-base font-black text-primary">{rates[i].value}%</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Seção 1 — Visão Geral de Captação */}
       <div>

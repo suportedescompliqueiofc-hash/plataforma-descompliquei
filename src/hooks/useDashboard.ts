@@ -273,6 +273,23 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           tempoMedioIA,
           aguardandoContatoHumano,
           topProcedimentos,
+          // Funil Descompliquei (apenas leads de marketing no período)
+          descompliqueiFunnel: (() => {
+            const mkt = leadsCreatedInPeriod.filter(l => l.origem === 'marketing');
+            const mktTotal = mkt.length;
+            const mktMql = mkt.filter(l => l.is_qualified).length;
+            const mktScheduled = mkt.filter(l => l.is_scheduled).length;
+            const mktClosed2 = mkt.filter(l => l.is_closed).length;
+            return {
+              leads: mktTotal,
+              mql: mktMql,
+              scheduled: mktScheduled,
+              closed: mktClosed2,
+              txMql: mktTotal > 0 ? parseFloat(((mktMql / mktTotal) * 100).toFixed(1)) : 0,
+              txAgendamento: mktMql > 0 ? parseFloat(((mktScheduled / mktMql) * 100).toFixed(1)) : 0,
+              txConversao: mktScheduled > 0 ? parseFloat(((mktClosed2 / mktScheduled) * 100).toFixed(1)) : 0,
+            };
+          })(),
           scoringDistribution: (['A', 'B', 'C', 'D'] as const).map(s => ({
             scoring: s,
             count: filteredAllLeads.filter(l => l.is_qualified && l.lead_scoring === s).length,
