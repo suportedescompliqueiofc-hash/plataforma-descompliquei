@@ -308,6 +308,17 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
             scoring: s,
             count: filteredAllLeads.filter(l => l.is_qualified && l.lead_scoring === s).length,
           })),
+          // Evolução no tempo para Descompliquei (3 séries: leads mkt, mqls, fechamentos)
+          descompliqueiOverTime: eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(d => {
+            const dayStr = format(d, 'yyyy-MM-dd');
+            const mktDay = filteredAllLeads.filter(l => l.origem === 'marketing' && l.criado_em.startsWith(dayStr));
+            return {
+              day: format(d, 'dd/MM'),
+              leads: mktDay.length,
+              mqls: mktDay.filter(l => l.is_qualified).length,
+              fechamentos: mktDay.filter(l => l.is_closed).length,
+            };
+          }),
         };
       } catch (err: any) {
         console.error("Erro no painel:", err);

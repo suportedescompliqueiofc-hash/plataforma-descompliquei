@@ -118,6 +118,14 @@ export default function Dashboard() {
         <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
         <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
       </linearGradient>
+      <linearGradient id="colorMqls" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+      </linearGradient>
+      <linearGradient id="colorFechamentos" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+      </linearGradient>
     </defs>
   );
 
@@ -212,7 +220,6 @@ export default function Dashboard() {
         ];
         return (
           <div>
-            <SectionHeader title="Funil de Conversão — Marketing" icon={Filter} />
             <div className="flex items-stretch gap-0 overflow-x-auto pb-2">
               {steps.map((step, i) => (
                 <div key={step.label} className="flex items-stretch flex-1 min-w-0">
@@ -448,7 +455,7 @@ export default function Dashboard() {
             topColor="#6366f1"
           />
           <MetricCard
-            title="Taxa de Handoff IA"
+            title={isDescompliqueiOrg ? "Taxa de Passagem para Humano" : "Taxa de Handoff IA"}
             value={`${taxaHandoffIA}%`}
             description="Chegaram ao Handoff"
             icon={ArrowRight}
@@ -473,60 +480,72 @@ export default function Dashboard() {
       </div>
 
       {/* Seção 5 — Gráficos */}
-      <div>
-        <SectionHeader title="Evolução & Distribuição" icon={Activity} />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-          {/* Gráfico 1 — Evolução de Leads */}
+      {isDescompliqueiOrg ? (
+        <div>
+          <SectionHeader title="Evolução no Tempo" icon={Activity} />
           <Card className="shadow-sm overflow-hidden">
             <CardHeader className="px-4 pt-4 pb-1">
-              <CardTitle className="text-base">Evolução de Leads</CardTitle>
-              <p className="text-xs text-muted-foreground">Captados vs Convertidos no período</p>
+              <CardTitle className="text-base">Leads, MQLs e Fechamentos</CardTitle>
+              <p className="text-xs text-muted-foreground">Evolução diária no período selecionado (marketing)</p>
             </CardHeader>
             <CardContent className="p-2 pt-0 pb-3">
-              <div className="h-[260px]">
+              <div className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={metrics.leadsOverTime ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <AreaChart data={metrics.descompliqueiOverTime ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     {GRADIENTS}
                     <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.15} />
                     <XAxis dataKey="day" fontSize={10} tickLine={false} axisLine={false} />
                     <YAxis fontSize={10} tickLine={false} axisLine={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
-                    <Area type="monotone" dataKey="captados" name="Captados" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#colorCaptados)" />
-                    <Area type="monotone" dataKey="convertidos" name="Convertidos" stroke="#10b981" strokeWidth={2} fill="url(#colorConvertidos)" />
+                    <Area type="monotone" dataKey="leads" name="Leads Captados" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#colorCaptados)" />
+                    <Area type="monotone" dataKey="mqls" name="MQLs" stroke="#8b5cf6" strokeWidth={2} fill="url(#colorMqls)" />
+                    <Area type="monotone" dataKey="fechamentos" name="Fechamentos" stroke="#10b981" strokeWidth={2} fill="url(#colorFechamentos)" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
-
-          {/* Gráfico 2 — Distribuição do Funil */}
-          <Card className="shadow-sm overflow-hidden">
-            <CardHeader className="px-4 pt-4 pb-1">
-              <CardTitle className="text-base">Distribuição do Funil</CardTitle>
-              <p className="text-xs text-muted-foreground">Leads por etapa no período</p>
-            </CardHeader>
-            <CardContent className="p-2 pt-0 pb-3">
-              <div className="h-[260px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={pipelineDistribution}
-                    layout="vertical"
-                    margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.15} />
-                    <XAxis type="number" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      fontSize={10}
-                      tickLine={false}
-                      axisLine={false}
-                      width={85}
-                    />
-                    <Tooltip
-                      content={({ active, payload, label }: any) => {
+        </div>
+      ) : (
+        <div>
+          <SectionHeader title="Evolução & Distribuição" icon={Activity} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <Card className="shadow-sm overflow-hidden">
+              <CardHeader className="px-4 pt-4 pb-1">
+                <CardTitle className="text-base">Evolução de Leads</CardTitle>
+                <p className="text-xs text-muted-foreground">Captados vs Convertidos no período</p>
+              </CardHeader>
+              <CardContent className="p-2 pt-0 pb-3">
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={metrics.leadsOverTime ?? []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      {GRADIENTS}
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.15} />
+                      <XAxis dataKey="day" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis fontSize={10} tickLine={false} axisLine={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
+                      <Area type="monotone" dataKey="captados" name="Captados" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#colorCaptados)" />
+                      <Area type="monotone" dataKey="convertidos" name="Convertidos" stroke="#10b981" strokeWidth={2} fill="url(#colorConvertidos)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm overflow-hidden">
+              <CardHeader className="px-4 pt-4 pb-1">
+                <CardTitle className="text-base">Distribuição do Funil</CardTitle>
+                <p className="text-xs text-muted-foreground">Leads por etapa no período</p>
+              </CardHeader>
+              <CardContent className="p-2 pt-0 pb-3">
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={pipelineDistribution} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} strokeOpacity={0.15} />
+                      <XAxis type="number" fontSize={10} tickLine={false} axisLine={false} />
+                      <YAxis type="category" dataKey="name" fontSize={10} tickLine={false} axisLine={false} width={85} />
+                      <Tooltip content={({ active, payload, label }: any) => {
                         if (active && payload && payload.length) {
                           return (
                             <div className="bg-popover/95 backdrop-blur-sm border border-border p-2 rounded-lg shadow-lg">
@@ -536,20 +555,20 @@ export default function Dashboard() {
                           );
                         }
                         return null;
-                      }}
-                    />
-                    <Bar dataKey="value" name="Leads" radius={[0, 4, 4, 0]}>
-                      {pipelineDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+                      }} />
+                      <Bar dataKey="value" name="Leads" radius={[0, 4, 4, 0]}>
+                        {pipelineDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Seção 6 — Top Procedimentos (oculta para Descompliquei) */}
       {!isDescompliqueiOrg && (
