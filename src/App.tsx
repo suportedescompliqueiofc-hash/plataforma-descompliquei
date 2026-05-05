@@ -26,6 +26,7 @@ import Vendas from "./pages/Vendas";
 import { Navigate } from "react-router-dom";
 import QuickMessagesPage from "./pages/QuickMessagesPage";
 import Cadences from "./pages/Cadences";
+import MarketingTrafego from "./pages/MarketingTrafego";
 import SuperAdmin from "./pages/SuperAdmin";
 import AdminGuard from "./pages/admin-os/AdminGuard";
 import AdminLayout from "./pages/admin-os/AdminLayout";
@@ -238,6 +239,7 @@ const App = () => (
                 <Route path="/crm/conversas/:leadId" element={<Conversations />} />
                 <Route path="/crm/notificacoes" element={<Notifications />} />
                 <Route path="/crm/vendas" element={<Vendas />} />
+                <Route path="/crm/marketing-trafego" element={<MarketingTrafego />} />
                 <Route path="/crm/super-admin-crm" element={<SuperAdmin />} />
               </Route>
             </Route>

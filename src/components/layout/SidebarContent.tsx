@@ -15,7 +15,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { MASTER_ORG_ID } from "@/lib/constants";
+import { MASTER_ORG_ID, DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
 
 interface SidebarContentProps {
   isCollapsed?: boolean;
@@ -61,6 +61,8 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     (acesso.pilares_liberados?.length ?? 0) > 0 ||
     (acesso.ias_liberadas?.length ?? 0) > 0;
 
+  const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
+
   const crmMenuItems = [
     { title: "Painel", icon: LayoutDashboard, path: "/crm" },
     { title: "Leads", icon: Users, path: "/crm/leads" },
@@ -68,6 +70,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Conversas", icon: MessageSquare, path: "/crm/conversas" },
     { title: "Notificações", icon: Bell, path: "/crm/notificacoes" },
     { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
+    ...(isDescompliqueiOrg ? [{ title: "Marketing", icon: BarChart3, path: "/crm/marketing-trafego" }] : []),
     { title: "Msgs Rápidas", icon: Zap, path: "/crm/quick-messages" },
     { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },
     { title: "IA", icon: Bot, path: "/crm/ia" },
