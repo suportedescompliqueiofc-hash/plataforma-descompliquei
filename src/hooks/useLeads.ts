@@ -47,6 +47,7 @@ export interface Lead {
   is_scheduled?: boolean;
   is_closed?: boolean;
   excluir_metricas?: boolean;
+  lead_scoring?: string | null;
 }
 
 export function useLeads(dateRange?: DateRange) {
@@ -220,7 +221,7 @@ export function useLeads(dateRange?: DateRange) {
         'nome', 'telefone', 'email', 'cpf', 'idade', 'genero', 'endereco',
         'queixa_principal', 'procedimento_interesse', 'resumo', 'origem', 'fonte',
         'criativo_id', 'status', 'posicao_pipeline', 'ultimo_contato', 'agendamento',
-        'data_nascimento', 'ia_ativa', 'ia_paused_until', 'is_qualified', 'is_scheduled', 'is_closed', 'excluir_metricas',
+        'data_nascimento', 'ia_ativa', 'ia_paused_until', 'is_qualified', 'is_scheduled', 'is_closed', 'excluir_metricas', 'lead_scoring',
       ];
 
       const cleanUpdates: Record<string, unknown> = {};

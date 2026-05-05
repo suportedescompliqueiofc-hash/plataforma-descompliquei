@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import EmojiPicker from 'emoji-picker-react';
@@ -187,6 +188,33 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   // Edit Message State
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+
+  // Scoring Modal
+  const [showScoringModal, setShowScoringModal] = useState(false);
+  const [selectedScoring, setSelectedScoring] = useState<string | null>(null);
+
+  const SCORING_OPTIONS = [
+    { value: 'A', label: 'Lead dos sonhos', description: 'Estética, 60K+/mês, 4+ pessoas, 3+ anos de mercado', bg: '#E1F5EE', text: '#085041' },
+    { value: 'B', label: 'Qualificado com ressalva', description: 'Estética, 30–60K/mês, equipe menor ou menos tempo', bg: '#E6F1FB', text: '#0C447C' },
+    { value: 'C', label: 'Em desenvolvimento', description: 'Estética, abaixo de 30K/mês, clínica nova ou solo', bg: '#FAEEDA', text: '#633806' },
+    { value: 'D', label: 'Fora do ICP', description: 'Fora do nicho de estética ou começando agora', bg: '#FCEBEB', text: '#791F1F' },
+  ] as const;
+
+  const handleOpenScoringModal = () => {
+    setSelectedScoring(lead?.lead_scoring || null);
+    setShowScoringModal(true);
+  };
+
+  const handleConfirmScoring = () => {
+    if (!lead || !selectedScoring) return;
+    updateLead({ id: lead.id, is_qualified: true, lead_scoring: selectedScoring });
+    setShowScoringModal(false);
+  };
+
+  const handleRemoveQualified = () => {
+    if (!lead) return;
+    updateLead({ id: lead.id, is_qualified: false, lead_scoring: null });
+  };
 
   // Media Preview States (Send)
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -536,13 +564,17 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       className={cn(
                         "h-7 px-2 sm:px-3 text-[10px] sm:text-xs font-bold gap-1.5 transition-all duration-300 rounded-full uppercase tracking-wider",
                         lead.is_qualified
-                          ? "bg-emerald-500 text-white hover:bg-emerald-600 border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
+                          ? "border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
                           : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
                       )}
-                      onClick={() => updateLead({ id: lead.id, is_qualified: !lead.is_qualified })}
+                      style={lead.is_qualified && lead.lead_scoring ? {
+                        backgroundColor: SCORING_OPTIONS.find(s => s.value === lead.lead_scoring)?.bg || '#E1F5EE',
+                        color: SCORING_OPTIONS.find(s => s.value === lead.lead_scoring)?.text || '#085041',
+                      } : lead.is_qualified ? { backgroundColor: '#10b981', color: '#fff' } : undefined}
+                      onClick={() => lead.is_qualified ? handleRemoveQualified() : handleOpenScoringModal()}
                     >
                       <UserCheck className={cn("h-3.5 w-3.5", lead.is_qualified ? "fill-current" : "")} />
-                      Qualificado
+                      {lead.is_qualified && lead.lead_scoring ? `Qualificado ${lead.lead_scoring}` : 'Qualificado'}
                     </Button>
                     <Button
                       variant={lead.is_scheduled ? "default" : "outline"}
@@ -1036,6 +1068,60 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         lead={lead}
         mode="edit"
       />
+
+      {/* Modal de Lead Scoring */}
+      <Dialog open={showScoringModal} onOpenChange={setShowScoringModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Qualificar Lead</DialogTitle>
+            <p className="text-sm text-muted-foreground">Selecione a classificação deste lead antes de qualificá-lo.</p>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            {SCORING_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => setSelectedScoring(opt.value)}
+                className={cn(
+                  "w-full flex items-start gap-3 p-3 rounded-xl border-2 transition-all text-left",
+                  selectedScoring === opt.value
+                    ? "ring-2 ring-offset-1"
+                    : "border-transparent hover:border-muted-foreground/20"
+                )}
+                style={{
+                  backgroundColor: opt.bg,
+                  borderColor: selectedScoring === opt.value ? opt.text : undefined,
+                  ringColor: selectedScoring === opt.value ? opt.text : undefined,
+                }}
+              >
+                <span
+                  className="flex items-center justify-center h-8 w-8 rounded-lg text-sm font-black flex-shrink-0"
+                  style={{ backgroundColor: opt.text, color: opt.bg }}
+                >
+                  {opt.value}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold" style={{ color: opt.text }}>{opt.label}</p>
+                  <p className="text-xs mt-0.5 opacity-80" style={{ color: opt.text }}>{opt.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowScoringModal(false)}>Cancelar</Button>
+            <Button
+              disabled={!selectedScoring}
+              onClick={handleConfirmScoring}
+              className="text-white font-bold"
+              style={selectedScoring ? {
+                backgroundColor: SCORING_OPTIONS.find(s => s.value === selectedScoring)?.text,
+              } : { backgroundColor: '#10b981' }}
+            >
+              <UserCheck className="h-4 w-4 mr-2" />
+              Qualificar como {selectedScoring || '...'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
