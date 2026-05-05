@@ -322,65 +322,69 @@ export default function Dashboard() {
         );
       })()}
 
-      {/* Seção 1 — Visão Geral de Captação */}
-      <div>
-        <SectionHeader title="Visão Geral de Captação" icon={Target} />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <MetricCard
-            title="Total de Leads"
-            value={(metrics.totalContatos ?? 0).toString()}
-            description="Captados no período"
-            icon={UserPlus}
-            topColor="hsl(var(--primary))"
-          />
-          <MetricCard
-            title="Leads Marketing"
-            value={(metrics.marketingLeads ?? 0).toString()}
-            description="Via anúncios (Ads)"
-            icon={Megaphone}
-            topColor="#8b5cf6"
-          />
-          <MetricCard
-            title="Leads Orgânico"
-            value={(metrics.organicLeads ?? 0).toString()}
-            description="Indicação, manual..."
-            icon={Users}
-            topColor="#3b82f6"
-          />
-          <MetricCard
-            title="Custo por Lead"
-            value={custoPerLead > 0
-              ? `R$ ${custoPerLead.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`
-              : 'R$ 0,00'}
-            description="Investimento / leads marketing"
-            icon={DollarSign}
-            topColor="#10b981"
-          />
-        </div>
-      </div>
-
-      {/* Seção 2 — Funil de Conversão */}
-      <div>
-        <SectionHeader title="Funil de Conversão" icon={Filter} />
-        {funnelConversion.length > 0 ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
-            {funnelConversion.map((step, i) => (
-              <FunnelStepCard key={i} {...step} />
-            ))}
+      {/* Seção 1 — Visão Geral de Captação (oculta para Descompliquei — dados já no funil) */}
+      {!isDescompliqueiOrg && (
+        <div>
+          <SectionHeader title="Visão Geral de Captação" icon={Target} />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <MetricCard
+              title="Total de Leads"
+              value={(metrics.totalContatos ?? 0).toString()}
+              description="Captados no período"
+              icon={UserPlus}
+              topColor="hsl(var(--primary))"
+            />
+            <MetricCard
+              title="Leads Marketing"
+              value={(metrics.marketingLeads ?? 0).toString()}
+              description="Via anúncios (Ads)"
+              icon={Megaphone}
+              topColor="#8b5cf6"
+            />
+            <MetricCard
+              title="Leads Orgânico"
+              value={(metrics.organicLeads ?? 0).toString()}
+              description="Indicação, manual..."
+              icon={Users}
+              topColor="#3b82f6"
+            />
+            <MetricCard
+              title="Custo por Lead"
+              value={custoPerLead > 0
+                ? `R$ ${custoPerLead.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`
+                : 'R$ 0,00'}
+              description="Investimento / leads marketing"
+              icon={DollarSign}
+              topColor="#10b981"
+            />
           </div>
-        ) : (
-          <Card className="shadow-sm">
-            <CardContent className="p-6 text-center text-muted-foreground text-sm">
-              Sem dados de funil para o período selecionado
-            </CardContent>
-          </Card>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Seção 2 — Funil de Conversão por pipeline (oculta para Descompliquei — usa funil próprio) */}
+      {!isDescompliqueiOrg && (
+        <div>
+          <SectionHeader title="Funil de Conversão" icon={Filter} />
+          {funnelConversion.length > 0 ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+              {funnelConversion.map((step, i) => (
+                <FunnelStepCard key={i} {...step} />
+              ))}
+            </div>
+          ) : (
+            <Card className="shadow-sm">
+              <CardContent className="p-6 text-center text-muted-foreground text-sm">
+                Sem dados de funil para o período selecionado
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Seção 3 — Performance Comercial */}
       <div>
         <SectionHeader title="Performance Comercial" icon={BarChart2} />
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+        <div className={cn("grid gap-3 sm:gap-4", isDescompliqueiOrg ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-6")}>
           <MetricCard
             title="Taxa de MQL"
             value={`${taxaMQL}%`}
@@ -409,22 +413,26 @@ export default function Dashboard() {
             icon={TrendingUp}
             topColor="hsl(var(--primary))"
           />
-          <MetricCard
-            title="Ticket Médio"
-            value={ticketMedio > 0
-              ? `R$ ${ticketMedio.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
-              : 'R$ 0'}
-            description="Por venda fechada"
-            icon={Wallet}
-            topColor="#f59e0b"
-          />
-          <MetricCard
-            title="Faturamento Total"
-            value={`R$ ${faturamento.toLocaleString('pt-BR')}`}
-            description="Vendas fechadas"
-            icon={DollarSign}
-            topColor="#22c55e"
-          />
+          {!isDescompliqueiOrg && (
+            <>
+              <MetricCard
+                title="Ticket Médio"
+                value={ticketMedio > 0
+                  ? `R$ ${ticketMedio.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}`
+                  : 'R$ 0'}
+                description="Por venda fechada"
+                icon={Wallet}
+                topColor="#f59e0b"
+              />
+              <MetricCard
+                title="Faturamento Total"
+                value={`R$ ${faturamento.toLocaleString('pt-BR')}`}
+                description="Vendas fechadas"
+                icon={DollarSign}
+                topColor="#22c55e"
+              />
+            </>
+          )}
         </div>
       </div>
 
@@ -543,39 +551,41 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Seção 6 — Top Procedimentos */}
-      <div>
-        <SectionHeader title="Top Procedimentos" icon={Stethoscope} />
-        {topProcedimentos.length > 0 ? (
-          <Card className="shadow-sm overflow-hidden">
-            <div className="divide-y divide-border">
-              {topProcedimentos.map((proc, i) => {
-                const maxCount = topProcedimentos[0]?.count || 1;
-                const pct = Math.round((proc.count / maxCount) * 100);
-                return (
-                  <div key={i} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/40 transition-colors">
-                    <span className="text-xs font-bold text-muted-foreground w-5 flex-shrink-0">#{i + 1}</span>
-                    <span className="text-sm text-foreground flex-1 min-w-0 truncate">{proc.name}</span>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
-                        <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+      {/* Seção 6 — Top Procedimentos (oculta para Descompliquei) */}
+      {!isDescompliqueiOrg && (
+        <div>
+          <SectionHeader title="Top Procedimentos" icon={Stethoscope} />
+          {topProcedimentos.length > 0 ? (
+            <Card className="shadow-sm overflow-hidden">
+              <div className="divide-y divide-border">
+                {topProcedimentos.map((proc, i) => {
+                  const maxCount = topProcedimentos[0]?.count || 1;
+                  const pct = Math.round((proc.count / maxCount) * 100);
+                  return (
+                    <div key={i} className="flex items-center gap-4 px-4 py-3 hover:bg-muted/40 transition-colors">
+                      <span className="text-xs font-bold text-muted-foreground w-5 flex-shrink-0">#{i + 1}</span>
+                      <span className="text-sm text-foreground flex-1 min-w-0 truncate">{proc.name}</span>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden hidden sm:block">
+                          <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <span className="text-sm font-bold text-primary w-8 text-right">{proc.count}</span>
+                        <span className="text-xs text-muted-foreground">leads</span>
                       </div>
-                      <span className="text-sm font-bold text-primary w-8 text-right">{proc.count}</span>
-                      <span className="text-xs text-muted-foreground">leads</span>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        ) : (
-          <Card className="shadow-sm">
-            <CardContent className="p-6 text-center text-muted-foreground text-sm">
-              Sem dados de procedimentos para o período selecionado
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                  );
+                })}
+              </div>
+            </Card>
+          ) : (
+            <Card className="shadow-sm">
+              <CardContent className="p-6 text-center text-muted-foreground text-sm">
+                Sem dados de procedimentos para o período selecionado
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
     </div>
   );
