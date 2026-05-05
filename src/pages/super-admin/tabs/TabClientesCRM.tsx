@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Users, Building2, Wifi, Plus, RefreshCw, MoreVertical, Eye, LogIn, Layers } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { MASTER_ORG_ID } from '@/lib/constants';
+import { MASTER_ORG_ID, DESCOMPLIQUEI_ORG_ID } from '@/lib/constants';
 import { format } from 'date-fns';
 
 interface TenantRow {
@@ -32,7 +32,7 @@ export default function TabClientesCRM({ toast, user }: any) {
   const loadTenants = async () => {
     setIsLoading(true);
     try {
-      const { data } = await supabase.from('platform_tenants').select(`organization_id, plan, status, monthly_fee, max_leads, created_at, organizations ( name )`).neq('organization_id', MASTER_ORG_ID).order('created_at', { ascending: false });
+      const { data } = await supabase.from('platform_tenants').select(`organization_id, plan, status, monthly_fee, max_leads, created_at, organizations ( name )`).neq('organization_id', MASTER_ORG_ID).neq('organization_id', DESCOMPLIQUEI_ORG_ID).order('created_at', { ascending: false });
       if (!data) { setIsLoading(false); return; }
       
       const enriched: TenantWithExtra[] = await Promise.all(
