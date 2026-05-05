@@ -14,6 +14,16 @@ npm run preview    # Preview production build locally
 
 There are no automated tests configured in this project.
 
+## Git Remotes
+
+This repo has two remotes. **Always push to `plataforma`**, never to `origin`:
+```bash
+git push plataforma main   # ✅ SEMPRE usar este
+# git push origin main     # ❌ NÃO usar
+```
+- `plataforma` → `github.com/suportedescompliqueiofc-hash/plataforma-descompliquei.git` (repo principal)
+- `origin` → `github.com/suportedescompliqueiofc-hash/crm-descompliquei-.git` (legado, não usar)
+
 ## Architecture Overview
 
 This is a **multi-tenant WhatsApp CRM** (SaaS white-label) built on React + Vite + TypeScript + Supabase.
