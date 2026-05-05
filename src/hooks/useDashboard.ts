@@ -322,6 +322,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
               day: format(d, 'dd/MM'),
               leads: mktDay.length,
               mqls: mktDay.filter(l => l.is_qualified).length,
+              agendamentos: mktDay.filter(l => l.is_scheduled).length,
               fechamentos: mktDay.filter(l => l.is_closed).length,
             };
           }),

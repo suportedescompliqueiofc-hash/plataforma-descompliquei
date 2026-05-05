@@ -122,6 +122,10 @@ export default function Dashboard() {
         <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
         <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
       </linearGradient>
+      <linearGradient id="colorAgendamentos" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+      </linearGradient>
       <linearGradient id="colorFechamentos" x1="0" y1="0" x2="0" y2="1">
         <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
         <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
@@ -501,7 +505,7 @@ export default function Dashboard() {
           <SectionHeader title="Evolução no Tempo" icon={Activity} />
           <Card className="shadow-sm overflow-hidden">
             <CardHeader className="px-4 pt-4 pb-1">
-              <CardTitle className="text-base">Leads, MQLs e Fechamentos</CardTitle>
+              <CardTitle className="text-base">Leads, MQLs, Agendamentos e Fechamentos</CardTitle>
               <p className="text-xs text-muted-foreground">Evolução diária no período selecionado (marketing)</p>
             </CardHeader>
             <CardContent className="p-2 pt-0 pb-3">
@@ -516,6 +520,7 @@ export default function Dashboard() {
                     <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
                     <Area type="monotone" dataKey="leads" name="Leads Captados" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#colorCaptados)" />
                     <Area type="monotone" dataKey="mqls" name="MQLs" stroke="#8b5cf6" strokeWidth={2} fill="url(#colorMqls)" />
+                    <Area type="monotone" dataKey="agendamentos" name="Agendamentos" stroke="#3b82f6" strokeWidth={2} fill="url(#colorAgendamentos)" />
                     <Area type="monotone" dataKey="fechamentos" name="Fechamentos" stroke="#10b981" strokeWidth={2} fill="url(#colorFechamentos)" />
                   </AreaChart>
                 </ResponsiveContainer>
