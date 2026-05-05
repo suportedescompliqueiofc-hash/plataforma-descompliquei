@@ -237,6 +237,60 @@ export default function Dashboard() {
         );
       })()}
 
+      {/* Seção — Qualidade dos Leads (exclusivo Descompliquei, logo abaixo do funil) */}
+      {isDescompliqueiOrg && (() => {
+        const scoring = metrics.scoringDistribution ?? [];
+        const totalQualified = scoring.reduce((sum: number, s: any) => sum + s.count, 0);
+
+        const SCORING_META: Record<string, { label: string; bg: string; text: string; bar: string }> = {
+          A: { label: 'Lead dos sonhos', bg: '#E1F5EE', text: '#085041', bar: '#1D9E75' },
+          B: { label: 'Qualificado com ressalva', bg: '#E6F1FB', text: '#0C447C', bar: '#378ADD' },
+          C: { label: 'Em desenvolvimento', bg: '#FAEEDA', text: '#633806', bar: '#BA7517' },
+          D: { label: 'Fora do ICP', bg: '#FCEBEB', text: '#791F1F', bar: '#E24B4A' },
+        };
+
+        return (
+          <div>
+            <SectionHeader title="Qualidade dos Leads" icon={BadgeCheck} />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {scoring.map((s: any) => {
+                const meta = SCORING_META[s.scoring];
+                const pct = totalQualified > 0 ? Math.round((s.count / totalQualified) * 100) : 0;
+                return (
+                  <Card key={s.scoring} className="overflow-hidden shadow-sm border-0" style={{ backgroundColor: meta.bg }}>
+                    <CardContent className="p-4 sm:p-5">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <span
+                          className="flex items-center justify-center h-9 w-9 rounded-lg text-base font-black flex-shrink-0"
+                          style={{ backgroundColor: meta.bar, color: '#fff' }}
+                        >
+                          {s.scoring}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold truncate" style={{ color: meta.text }}>{meta.label}</p>
+                          <p className="text-[10px] uppercase tracking-widest font-semibold opacity-60" style={{ color: meta.text }}>Scoring {s.scoring}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black" style={{ color: meta.text }}>{s.count}</span>
+                        <span className="text-sm font-bold" style={{ color: meta.bar }}>{pct}%</span>
+                        <span className="text-[10px] opacity-60" style={{ color: meta.text }}>dos MQLs</span>
+                      </div>
+                      <div className="h-2 bg-white/60 rounded-full overflow-hidden mt-3">
+                        <div
+                          className="h-full rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: meta.bar }}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Seção 1 — Visão Geral de Captação */}
       <div>
         <SectionHeader title="Visão Geral de Captação" icon={Target} />
@@ -342,55 +396,6 @@ export default function Dashboard() {
           />
         </div>
       </div>
-
-      {/* Seção — Lead Scoring */}
-      {(() => {
-        const scoring = metrics.scoringDistribution ?? [];
-        const totalQualified = scoring.reduce((sum: number, s: any) => sum + s.count, 0);
-        if (totalQualified === 0) return null;
-
-        const SCORING_META: Record<string, { label: string; bg: string; text: string }> = {
-          A: { label: 'Lead dos sonhos', bg: '#E1F5EE', text: '#085041' },
-          B: { label: 'Qualificado com ressalva', bg: '#E6F1FB', text: '#0C447C' },
-          C: { label: 'Em desenvolvimento', bg: '#FAEEDA', text: '#633806' },
-          D: { label: 'Fora do ICP', bg: '#FCEBEB', text: '#791F1F' },
-        };
-
-        return (
-          <div>
-            <SectionHeader title="Lead Scoring" icon={BadgeCheck} />
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-              {scoring.map((s: any) => {
-                const meta = SCORING_META[s.scoring];
-                const pct = totalQualified > 0 ? ((s.count / totalQualified) * 100).toFixed(0) : '0';
-                return (
-                  <Card key={s.scoring} className="overflow-hidden shadow-sm" style={{ borderTop: `3px solid ${meta.text}` }}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest leading-tight">Scoring {s.scoring}</span>
-                        <span
-                          className="flex items-center justify-center h-6 w-6 rounded-md text-xs font-black flex-shrink-0"
-                          style={{ backgroundColor: meta.bg, color: meta.text }}
-                        >
-                          {s.scoring}
-                        </span>
-                      </div>
-                      <div className="text-2xl font-bold text-foreground">{s.count}</div>
-                      <p className="text-xs text-muted-foreground mt-1">{meta.label}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: meta.text }} />
-                        </div>
-                        <span className="text-[10px] font-bold" style={{ color: meta.text }}>{pct}%</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Seção 4 — Performance da IA */}
       <div>
