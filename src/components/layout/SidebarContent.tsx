@@ -106,10 +106,10 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   };
 
   const handleBackToMaster = async () => {
-    const originalOrgId = localStorage.getItem('original_master_org_id');
-    if (!user || !originalOrgId) return;
+    if (!user) return;
     try {
-      const { error } = await supabase.from('perfis').update({ organization_id: originalOrgId as any }).eq('id', user.id);
+      // Sempre restaurar para MASTER_ORG_ID (fonte de verdade), ignorando valor do localStorage
+      const { error } = await supabase.from('perfis').update({ organization_id: MASTER_ORG_ID as any }).eq('id', user.id);
       if (error) throw error;
       localStorage.removeItem('original_master_org_id');
       window.location.href = '/crm';
@@ -211,7 +211,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
             <div className={`flex-1 overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-full opacity-100'}`}>
               <div className="flex items-center gap-2">
 			          <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.user_metadata?.full_name || profile?.nome_completo || plataformaUser?.clinic_name || 'Colaborador'}</p>
-			          {plataformaUser && plan && (
+			          {plataformaUser && plan && !isSuperAdmin && (
                   <Badge variant="outline" className={`text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-transparent ${plan === 'gca' ? 'bg-[#E85D24] text-white' : 'bg-muted text-muted-foreground'}`}>{plan}✅</Badge>
                 )}
 			        </div>

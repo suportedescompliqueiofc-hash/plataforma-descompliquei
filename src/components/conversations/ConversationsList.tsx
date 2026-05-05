@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, GitBranch, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -41,6 +41,8 @@ import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { LeadModal } from "@/components/leads/LeadModal";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
@@ -79,18 +81,20 @@ const MessagePreview = ({ content, type, sender }: { content?: string, type?: st
   );
 };
 
-const ConversationItem = ({ 
-  conversation, 
-  onDelete, 
-  isSelectionMode, 
-  isSelected, 
-  onToggleSelection 
-}: { 
-  conversation: Conversation, 
+const ConversationItem = ({
+  conversation,
+  onDelete,
+  isSelectionMode,
+  isSelected,
+  onToggleSelection,
+  messageSnippet,
+}: {
+  conversation: Conversation,
   onDelete: (c: Conversation) => void,
   isSelectionMode: boolean,
   isSelected: boolean,
-  onToggleSelection: (id: string) => void
+  onToggleSelection: (id: string) => void,
+  messageSnippet?: string,
 }) => {
   const { leadId } = useParams();
   const isActive = leadId === conversation.id;
@@ -187,11 +191,18 @@ const ConversationItem = ({
 
           <div className="min-w-0 overflow-hidden h-5">
             <div className="text-xs w-full">
-              <MessagePreview 
-                content={conversation.last_message_content} 
-                type={conversation.last_message_type} 
-                sender={conversation.last_message_sender} 
-              />
+              {messageSnippet ? (
+                <div className="flex items-center gap-1 w-full overflow-hidden text-primary/80">
+                  <Search className="h-3 w-3 shrink-0" />
+                  <span className="block truncate flex-1 font-medium">{messageSnippet}</span>
+                </div>
+              ) : (
+                <MessagePreview
+                  content={conversation.last_message_content}
+                  type={conversation.last_message_type}
+                  sender={conversation.last_message_sender}
+                />
+              )}
             </div>
           </div>
         </Link>
@@ -234,11 +245,65 @@ export function ConversationsList() {
   const { updateLead, deleteLead } = useLeads();
   const { cadences } = useCadences();
   const { startCadence } = useLeadCadence(undefined);
-  
+  const { profile } = useProfile();
+
   const [searchTerm, setSearchTerm] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<Conversation | null>(null);
   const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
-  
+
+  // Busca profunda em mensagens (estilo WhatsApp)
+  const [messageSearchLeadIds, setMessageSearchLeadIds] = useState<Set<string>>(new Set());
+  const [messageSearchSnippets, setMessageSearchSnippets] = useState<Map<string, string>>(new Map());
+  const [isSearchingMessages, setIsSearchingMessages] = useState(false);
+
+  // Debounced search in mensagens table
+  useEffect(() => {
+    const orgId = profile?.organization_id;
+    if (!orgId || searchTerm.trim().length < 3) {
+      setMessageSearchLeadIds(new Set());
+      setMessageSearchSnippets(new Map());
+      setIsSearchingMessages(false);
+      return;
+    }
+
+    setIsSearchingMessages(true);
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('mensagens')
+          .select('lead_id, conteudo')
+          .eq('organization_id', orgId)
+          .ilike('conteudo', `%${searchTerm.trim()}%`)
+          .order('criado_em', { ascending: false })
+          .limit(200);
+
+        if (!error && data) {
+          const leadIds = new Set<string>();
+          const snippets = new Map<string, string>();
+          for (const row of data) {
+            if (row.lead_id && !leadIds.has(row.lead_id)) {
+              leadIds.add(row.lead_id);
+              // Guardar trecho da mensagem encontrada como snippet
+              const content = row.conteudo || '';
+              const idx = content.toLowerCase().indexOf(searchTerm.toLowerCase());
+              const start = Math.max(0, idx - 20);
+              const end = Math.min(content.length, idx + searchTerm.length + 40);
+              snippets.set(row.lead_id, (start > 0 ? '...' : '') + content.substring(start, end) + (end < content.length ? '...' : ''));
+            }
+          }
+          setMessageSearchLeadIds(leadIds);
+          setMessageSearchSnippets(snippets);
+        }
+      } catch (e) {
+        // silently fail
+      } finally {
+        setIsSearchingMessages(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm, profile?.organization_id]);
+
   // Estados de Seleção Múltipla
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -247,7 +312,7 @@ export function ConversationsList() {
   const [bulkAction, setBulkAction] = useState<'stage' | 'tag' | 'cadence' | 'ai' | 'delete' | null>(null);
   const [bulkValue, setBulkValue] = useState<string>("");
   const [isBulkExecuting, setIsBulkExecuting] = useState(false);
-  
+
   // Estados de Filtro
   const [filters, setFilters] = useState({
     origin: "all",
@@ -260,24 +325,30 @@ export function ConversationsList() {
   const filteredConversations = useMemo(() => {
     return conversations?.filter(c => {
       const searchLower = searchTerm.toLowerCase();
-      const nameMatch = (c.nome && c.nome.toLowerCase().includes(searchLower)) || c.telefone.includes(searchLower);
+      // Busca por nome, telefone, última mensagem E mensagens profundas (via query)
+      const nameMatch = !searchTerm ||
+        (c.nome && c.nome.toLowerCase().includes(searchLower)) ||
+        c.telefone.includes(searchLower) ||
+        (c.last_message_content && c.last_message_content.toLowerCase().includes(searchLower)) ||
+        messageSearchLeadIds.has(c.id);
+
       const originMatch = filters.origin === "all" || c.origem === filters.origin;
       const tagMatch = filters.tagId === "all" || c.tags?.some(tag => tag.id === filters.tagId);
       const statusMatch = filters.status === "all" || c.status === filters.status;
       const stageMatch = filters.stageId === "all" || c.posicao_pipeline?.toString() === filters.stageId;
-      
+
       let dateMatch = true;
       if (filters.dateRange?.from) {
         const leadDate = parseISO(c.criado_em);
         const start = startOfDay(filters.dateRange.from);
         const end = filters.dateRange.to ? endOfDay(filters.dateRange.to) : endOfDay(filters.dateRange.from);
-        dateMatch = (isAfter(leadDate, start) || leadDate.getTime() === start.getTime()) && 
+        dateMatch = (isAfter(leadDate, start) || leadDate.getTime() === start.getTime()) &&
                     (isBefore(leadDate, end) || leadDate.getTime() === end.getTime());
       }
 
       return nameMatch && originMatch && tagMatch && statusMatch && stageMatch && dateMatch;
     });
-  }, [conversations, searchTerm, filters]);
+  }, [conversations, searchTerm, filters, messageSearchLeadIds]);
 
   const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.status !== "all" || filters.stageId !== "all" || !!filters.dateRange;
 
@@ -450,13 +521,27 @@ export function ConversationsList() {
 
         <div className="flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              {isSearchingMessages ? (
+                <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-primary animate-spin" />
+              ) : (
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              )}
               <Input
-                placeholder="Buscar..."
+                placeholder="Buscar nome, telefone ou mensagem..."
                 className="pl-10 h-10 bg-muted/30 border-muted-foreground/10 focus-visible:ring-primary rounded-lg shadow-xs"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              {searchTerm && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full text-muted-foreground hover:text-foreground"
+                  onClick={() => setSearchTerm("")}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              )}
             </div>
             
             <Popover>
@@ -595,13 +680,14 @@ export function ConversationsList() {
             ))
           ) : filteredConversations && filteredConversations.length > 0 ? (
             filteredConversations.map(conversation => (
-              <ConversationItem 
-                key={conversation.id} 
-                conversation={conversation} 
+              <ConversationItem
+                key={conversation.id}
+                conversation={conversation}
                 onDelete={setConfirmDelete}
                 isSelectionMode={isSelectionMode}
                 isSelected={selectedIds.has(conversation.id)}
                 onToggleSelection={handleToggleSelection}
+                messageSnippet={messageSearchSnippets.get(conversation.id)}
               />
             ))
           ) : (

@@ -35,13 +35,10 @@ Several hooks subscribe to Supabase Realtime (`postgres_changes`) and update the
 
 ### Backend (Edge Functions)
 
-Supabase Edge Functions (Deno, TypeScript) live in `supabase/functions/`. Key functions:
-- `receive-message` — webhook endpoint for UaZAPI (WhatsApp) incoming messages
-- `whatsapp-ai-agent` — AI auto-reply agent
-- `process-cadences` — scheduled cadence message dispatcher
-- `process-scheduled-messages` — cron for timed messages
-- `send-quick-message` — sends WhatsApp messages via UaZAPI
-- `manage-whatsapp` — WhatsApp connection management
+Supabase Edge Functions (Deno, TypeScript) live in `supabase/functions/`. See **Key Edge Functions** section below for the full list. Deploy with:
+```bash
+npx supabase functions deploy <function-name> --project-ref noncbgdczgcboronmcah
+```
 
 ### White-label Branding
 
@@ -62,13 +59,59 @@ All routes are defined in `src/App.tsx`. Every route is wrapped in `<ProtectedRo
 - **Forms**: `react-hook-form` + `zod`.
 - **Client state**: `useState`/`useContext` only — no Redux, Zustand, etc.
 
+### WhatsApp Integration (UAZAPI)
+
+The CRM integrates with WhatsApp via **UAZAPI** (based on whatsmeow/wuzapi). Key details:
+- Connection config stored in `whatsapp_connections` table (per org)
+- Auth: `token` header (not Bearer)
+- **Reply/Quote**: Use field `replyId` (string, WhatsApp message ID) in send payloads. NOT `ContextInfo`/`StanzaId` — UAZAPI ignores those.
+- **Edit message**: `POST {uazapi_url}/message/edit` with `{ id, text }`. 15-minute window.
+- **Send text**: `POST /send/text` with `{ number, text, delay?, replyId? }`
+- **Send media**: `POST /send/media` with `{ number, type, file, text?, replyId? }`
+- `delay` field only for bot messages (simulates typing); human agent messages send instantly.
+
+### Impersonation (Acessar CRM)
+
+Superadmins from the **master org** (`MASTER_ORG_ID` in `src/lib/constants.ts`) can impersonate client orgs via "Acessar CRM" in Super Admin pages. Critical rules:
+- **Only users whose current `organization_id === MASTER_ORG_ID`** can impersonate (enforced in `TabClientesCRM.tsx`)
+- `localStorage.original_master_org_id` is always set to `MASTER_ORG_ID` (hardcoded, never from profile)
+- "Sair do Cliente" (`handleBackToMaster` in `SidebarContent.tsx`) always restores to `MASTER_ORG_ID`
+- **NEVER** save `myProfile.organization_id` as the return org — it could be wrong
+
+### Key Organizations
+
+| ID | Name | Purpose |
+|----|------|---------|
+| `aa787cc8-787a-4774-bd80-ffbf78c0cf5f` | Descompliquei — Super Admin | Master org — controle da plataforma, impersonação de clientes |
+| `91a0e113-f428-4bd5-867f-431c91bc91c1` | Descompliquei | CRM operacional da Descompliquei — org separada com dados próprios |
+
+**Superadmins:**
+- `jghf5554@gmail.com` → master org (`aa787cc8`), `superadmin` — gestão da plataforma
+- `suportedescompliqueiofc@gmail.com` → org Descompliquei (`91a0e113`), `superadmin` — CRM principal da Descompliquei
+
+**IMPORTANTE:** O CRM da Descompliquei (`91a0e113`) é uma org **independente** com seus próprios leads, mensagens e WhatsApp. Alterações específicas para a Descompliquei devem afetar APENAS esta org. O `suportedescompliqueiofc` é superadmin mas opera em org separada da master — impersonação só é permitida a partir da org master (`aa787cc8`).
+
 ### Key Tables (Portuguese naming convention)
 
 - `perfis` — user profiles (linked to `auth.users`)
 - `organizations` — tenants
 - `leads` — contacts/leads
-- `mensagens` — WhatsApp messages
-- `estagios` — pipeline stages
+- `mensagens` — WhatsApp messages (supports `quoted_message_id`, `is_edited`, `edited_at`, `original_content`)
+- `etapas` — pipeline stages
 - `cadencias` — message cadence sequences
 - `organization_branding` — white-label settings per org
-- `usuarios_papeis` — user roles (`admin`, `atendente`)
+- `usuarios_papeis` — user roles (`superadmin`, `admin`, `atendente`)
+- `whatsapp_connections` — UAZAPI connection config per org
+- `debug_payloads` — temporary debug logging for API payloads
+
+### Key Edge Functions
+
+- `receive-message` — webhook for UAZAPI incoming messages
+- `whatsapp-ai-agent` — AI auto-reply agent
+- `send-quick-message` — sends WhatsApp messages (text, media, audio, reply/quote)
+- `edit-message` — edits sent WhatsApp messages (15-min window)
+- `delete-message` — deletes messages
+- `process-cadences` — scheduled cadence dispatcher
+- `process-scheduled-messages` — cron for timed messages
+- `manage-whatsapp` — WhatsApp connection management
+- `seed-stages` — seeds default pipeline stages for orgs

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
-import { Send, Smile, AlertTriangle, CheckCircle, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff } from "lucide-react";
+import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +27,7 @@ import { toast } from "sonner";
 
 import { useLead, useLeads } from "@/hooks/useLeads";
 import { useLeadCadence } from "@/hooks/useCadences";
-import { useMessages, useSendMessage, Message, Attachment, useDeleteMessage, useSendAudioMessage, useSendMediaMessage } from "@/hooks/useConversations";
+import { useMessages, useSendMessage, Message, Attachment, useDeleteMessage, useEditMessage, useSendAudioMessage, useSendMediaMessage } from "@/hooks/useConversations";
 import { useNotifications, useUpdateNotificationStatus } from "@/hooks/useNotifications";
 import { useStages } from "@/hooks/useStages";
 import { useMarketing } from "@/hooks/useMarketing";
@@ -168,7 +168,8 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const { mutate: updateNotification } = useUpdateNotificationStatus(leadId);
   const { updateLead } = useLeads();
   const { mutate: deleteMessage } = useDeleteMessage();
-  
+  const { mutate: editMessage, isPending: isEditingMessage } = useEditMessage();
+
   const [messageContent, setMessageContent] = useState("");
   const [isAiActive, setIsAiActive] = useState(true);
   const [deletingMessage, setDeletingMessage] = useState<Message | null>(null);
@@ -178,7 +179,15 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const [exportStartId, setExportStartId] = useState<string | null>(null);
   const [exportEndId, setExportEndId] = useState<string | null>(null);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
-  
+
+  // Reply/Quote State
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Edit Message State
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
   // Media Preview States (Send)
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [isMediaPreviewOpen, setIsMediaPreviewOpen] = useState(false);
@@ -214,11 +223,15 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   }, [messages, exportStartIndex, exportEndIndex, hasValidExportRange]);
 
   useEffect(() => { if (lead) setIsAiActive(lead.ia_ativa ?? true); }, [lead]);
+  // Map de mensagens por ID para lookup rápido de citações
+  const messagesById = useMemo(() => new Map(messages.map(m => [m.id, m])), [messages]);
+
   useEffect(() => {
     setIsExportMode(false);
     setExportStartId(null);
     setExportEndId(null);
     setIsExportingPdf(false);
+    setReplyingTo(null);
   }, [leadId]);
   
   useLayoutEffect(() => { 
@@ -227,9 +240,60 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (messageContent.trim()) { 
-      sendMessage({ leadId, content: messageContent.trim() }); 
-      setMessageContent(""); 
+    if (messageContent.trim()) {
+      sendMessage({
+        leadId,
+        content: messageContent.trim(),
+        ...(replyingTo ? {
+          quotedMessageId: replyingTo.id,
+          quotedWaMsgId: replyingTo.id_mensagem || undefined,
+          quotedParticipant: replyingTo.remetente === 'lead' ? lead?.telefone : undefined,
+        } : {}),
+      });
+      setMessageContent("");
+      setReplyingTo(null);
+    }
+  };
+
+  const handleReply = (msg: Message) => {
+    setReplyingTo(msg);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const handleStartEdit = (msg: Message) => {
+    setEditingMessageId(msg.id);
+    setEditText(msg.conteudo || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditText('');
+  };
+
+  const handleSaveEdit = (msg: Message) => {
+    if (!editText.trim() || editText.trim() === msg.conteudo) {
+      handleCancelEdit();
+      return;
+    }
+    editMessage({ messageId: msg.id, newText: editText.trim(), leadId }, {
+      onSuccess: () => handleCancelEdit(),
+    });
+  };
+
+  const canEditMessage = (msg: Message): boolean => {
+    if (msg.direcao !== 'saida') return false;
+    if (msg.tipo_conteudo !== 'texto') return false;
+    if (!msg.id_mensagem) return false;
+    const sentAt = new Date(msg.criado_em).getTime();
+    return (Date.now() - sentAt) < 15 * 60 * 1000;
+  };
+
+  const scrollToMessage = (messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-2', 'ring-primary/40');
+      setTimeout(() => el.classList.remove('ring-2', 'ring-primary/40'), 2000);
     }
   };
 
@@ -649,11 +713,14 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
             const isVisualMedia = !isAudio && (typeLower.includes('image') || typeLower.includes('imagem') || typeLower.includes('video') || pathLower.includes('.jpg') || pathLower.includes('.png') || pathLower.includes('.mp4'));
             const isPdf = typeLower.includes('pdf') || pathLower.includes('.pdf');
 
+            const quotedMsg = msg.quoted_message_id ? messagesById.get(msg.quoted_message_id) : null;
+
             return (
               <div
                 key={msg.id}
+                id={`msg-${msg.id}`}
                 className={cn(
-                  "group relative flex flex-col gap-0.5 py-0.5 animate-in fade-in slide-in-from-bottom-1 duration-200",
+                  "group relative flex flex-col gap-0.5 py-0.5 animate-in fade-in slide-in-from-bottom-1 duration-200 transition-all",
                   isOutgoing ? "items-end" : "items-start",
                   isExportMode && "rounded-2xl px-2 py-2",
                   isWithinExportRange && "bg-primary/5 ring-1 ring-primary/15"
@@ -710,12 +777,41 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                         )}
                       </div>
                     )}
+                    {/* Bloco de citação (Quote) */}
+                    {quotedMsg && (
+                      <div
+                        className={cn(
+                          "mb-2 p-2 rounded-lg cursor-pointer transition-colors text-xs",
+                          isOutgoing
+                            ? "bg-black/15 hover:bg-black/25 border-l-3"
+                            : "bg-muted/60 hover:bg-muted border-l-3",
+                          quotedMsg.remetente === 'lead'
+                            ? "border-l-[#E85D24]"
+                            : "border-l-white"
+                        )}
+                        style={{ borderLeftWidth: '3px' }}
+                        onClick={() => scrollToMessage(quotedMsg.id)}
+                      >
+                        <p className={cn("font-semibold text-[10px] mb-0.5", isOutgoing ? "text-primary-foreground/90" : "text-foreground/80")}>
+                          {quotedMsg.remetente === 'lead' ? (lead?.nome || 'Lead') : (quotedMsg.remetente === 'bot' ? 'Agente IA' : 'Equipe')}
+                        </p>
+                        <p className={cn("line-clamp-2 text-[11px]", isOutgoing ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                          {quotedMsg.tipo_conteudo === 'audio' ? '🎤 Áudio' :
+                           quotedMsg.tipo_conteudo === 'imagem' ? '📷 Imagem' :
+                           quotedMsg.tipo_conteudo === 'video' ? '🎥 Vídeo' :
+                           quotedMsg.tipo_conteudo === 'pdf' ? '📄 Documento' :
+                           (quotedMsg.conteudo || '').substring(0, 100) || 'Mensagem'}
+                          {quotedMsg.conteudo && quotedMsg.conteudo.length > 100 ? '...' : ''}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="mb-1 space-y-1">
                       {msg.message_attachments?.map(att => (
-                        <AttachmentRenderer 
-                          key={att.id} 
-                          attachment={att} 
-                          isOutgoing={isOutgoing} 
+                        <AttachmentRenderer
+                          key={att.id}
+                          attachment={att}
+                          isOutgoing={isOutgoing}
                           onViewMedia={openMediaViewer}
                         />
                       ))}
@@ -739,12 +835,55 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                         ) : null}
                       </div>
                     )}
-                    {msg.conteudo && !isAudio && !isVisualMedia && !isPdf && (<p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed break-words">{msg.conteudo}</p>)}
-                    <div className={cn("flex items-center justify-end gap-1 mt-1 opacity-70", isOutgoing ? "text-primary-foreground/80" : "text-muted-foreground")}><span className="text-[9px] sm:text-[10px] tabular-nums">{format(new Date(msg.criado_em), 'HH:mm')}</span>{isOutgoing && <CheckCircle className="h-2.5 w-2.5" />}</div>
+                    {msg.conteudo && !isAudio && !isVisualMedia && !isPdf && (
+                      editingMessageId === msg.id ? (
+                        <div className="space-y-2">
+                          <textarea
+                            className="w-full min-h-[60px] p-2 rounded-lg text-xs sm:text-sm bg-black/10 border border-white/20 text-inherit resize-none focus:outline-none focus:ring-1 focus:ring-white/40"
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSaveEdit(msg); }
+                              if (e.key === 'Escape') handleCancelEdit();
+                            }}
+                          />
+                          <div className="flex items-center gap-1 justify-end">
+                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6 rounded-full text-inherit hover:bg-white/20" onClick={handleCancelEdit} disabled={isEditingMessage}>
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6 rounded-full text-inherit hover:bg-white/20" onClick={() => handleSaveEdit(msg)} disabled={isEditingMessage}>
+                              {isEditingMessage ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed break-words">{msg.conteudo}</p>
+                      )
+                    )}
+                    <div className={cn("flex items-center justify-end gap-1 mt-1 opacity-70", isOutgoing ? "text-primary-foreground/80" : "text-muted-foreground")}>
+                      {msg.is_edited && <span className="text-[9px] sm:text-[10px] italic opacity-60">editada</span>}
+                      <span className="text-[9px] sm:text-[10px] tabular-nums">{format(new Date(msg.criado_em), 'HH:mm')}</span>
+                      {isOutgoing && <CheckCircle className="h-2.5 w-2.5" />}
+                    </div>
                   </div>
                   <DropdownMenu>
                       <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className={cn("h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0", isOutgoing ? "mr-1" : "ml-1")}><ChevronDown className="h-3 w-3 text-muted-foreground" /></Button></DropdownMenuTrigger>
-                      <DropdownMenuContent align={isOutgoing ? "end" : "start"}><DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive text-xs" onSelect={() => setDeletingMessage(msg)}><Trash2 className="mr-2 h-3.5 w-3.5" /><span>Excluir</span></DropdownMenuItem></DropdownMenuContent>
+                      <DropdownMenuContent align={isOutgoing ? "end" : "start"}>
+                        {msg.id_mensagem && (
+                          <DropdownMenuItem className="text-xs" onSelect={() => handleReply(msg)}>
+                            <Reply className="mr-2 h-3.5 w-3.5" /><span>Responder</span>
+                          </DropdownMenuItem>
+                        )}
+                        {canEditMessage(msg) && (
+                          <DropdownMenuItem className="text-xs" onSelect={() => handleStartEdit(msg)}>
+                            <Pencil className="mr-2 h-3.5 w-3.5" /><span>Editar</span>
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive text-xs" onSelect={() => setDeletingMessage(msg)}>
+                          <Trash2 className="mr-2 h-3.5 w-3.5" /><span>Excluir</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               </div>
@@ -754,7 +893,41 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         </div>
       </ScrollArea>
 
-      <footer className="p-2 sm:p-3 border-t bg-card flex-shrink-0">
+      <footer className="border-t bg-card flex-shrink-0">
+        {/* Reply Preview Bar */}
+        {replyingTo && (
+          <div className="px-3 pt-2 max-w-5xl mx-auto">
+            <div className="flex items-center gap-2 bg-muted/50 rounded-xl px-3 py-2 border border-border/40">
+              <div
+                className="w-1 self-stretch rounded-full flex-shrink-0"
+                style={{ backgroundColor: replyingTo.remetente === 'lead' ? '#E85D24' : '#ffffff' }}
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground/80">
+                  {replyingTo.remetente === 'lead' ? (lead?.nome || 'Lead') : (replyingTo.remetente === 'bot' ? 'Agente IA' : 'Equipe')}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {replyingTo.tipo_conteudo === 'audio' ? '🎤 Áudio' :
+                   replyingTo.tipo_conteudo === 'imagem' ? '📷 Imagem' :
+                   replyingTo.tipo_conteudo === 'video' ? '🎥 Vídeo' :
+                   replyingTo.tipo_conteudo === 'pdf' ? '📄 Documento' :
+                   (replyingTo.conteudo || '').substring(0, 100) || 'Mensagem'}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-full text-muted-foreground hover:text-foreground flex-shrink-0"
+                onClick={() => setReplyingTo(null)}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <div className="p-2 sm:p-3">
         {isRecordingMode ? (
           <AudioRecorder onSend={handleSendAudio} onCancel={() => setIsRecordingMode(false)} />
         ) : (
@@ -812,7 +985,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 />
             </div>
 
-            <Input placeholder="Digite sua mensagem..." value={messageContent} onChange={(e) => setMessageContent(e.target.value)} autoComplete="off" className="border-0 bg-transparent shadow-none focus-visible:ring-0 px-1 h-8 sm:h-9 text-sm" />
+            <Input ref={inputRef} placeholder="Digite sua mensagem..." value={messageContent} onChange={(e) => setMessageContent(e.target.value)} autoComplete="off" className="border-0 bg-transparent shadow-none focus-visible:ring-0 px-1 h-8 sm:h-9 text-sm" />
             
             <div className="flex-shrink-0">
                 {messageContent.trim() ? (
@@ -827,6 +1000,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
             </div>
           </form>
         )}
+        </div>
       </footer>
 
       <MediaPreviewModal 

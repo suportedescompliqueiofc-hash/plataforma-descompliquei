@@ -25,6 +25,10 @@ export interface Message {
   criado_em: string;
   media_path: string | null;
   id_mensagem: string | null;
+  quoted_message_id: string | null;
+  is_edited: boolean;
+  edited_at: string | null;
+  original_content: string | null;
   message_attachments?: Attachment[];
 }
 
@@ -286,14 +290,12 @@ export function useSendMessage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ leadId, content }: { leadId: string; content: string }) => {
+    mutationFn: async ({ leadId, content, quotedMessageId, quotedWaMsgId, quotedParticipant }: { leadId: string; content: string; quotedMessageId?: string; quotedWaMsgId?: string; quotedParticipant?: string }) => {
       if (!user?.id) throw new Error("Usuário não autenticado");
 
       const { data: lead } = await supabase.from('leads').select('telefone').eq('id', leadId).single();
       if (!(lead as any)?.telefone) throw new Error("Telefone do lead não encontrado");
 
-      // Usa send-quick-message que é comprovadamente funcional com UaZAPI
-      // skip_db=false → a Edge Function salva no banco e envia via UaZAPI
       const { error } = await supabase.functions.invoke('send-quick-message', {
         body: {
           lead_id: leadId,
@@ -303,6 +305,9 @@ export function useSendMessage() {
           user_id: user.id,
           remetente: 'agente',
           skip_db: false,
+          ...(quotedWaMsgId ? { quoted_msg_id: quotedWaMsgId } : {}),
+          ...(quotedMessageId ? { quoted_message_id: quotedMessageId } : {}),
+          ...(quotedParticipant ? { quoted_participant: quotedParticipant } : {}),
         },
       });
 
@@ -316,7 +321,7 @@ export function useSendMessage() {
       }
       return { lead_id: leadId, conteudo: content };
     },
-    onMutate: async ({ leadId, content }) => {
+    onMutate: async ({ leadId, content, quotedMessageId }) => {
       const queryKey = ['messages', leadId];
       await queryClient.cancelQueries({ queryKey });
       const previousMessages = queryClient.getQueryData<Message[]>(queryKey);
@@ -332,6 +337,10 @@ export function useSendMessage() {
         criado_em: new Date().toISOString(),
         media_path: null,
         id_mensagem: null,
+        quoted_message_id: quotedMessageId || null,
+        is_edited: false,
+        edited_at: null,
+        original_content: null,
         message_attachments: []
       };
 
@@ -383,6 +392,27 @@ export function useDeleteMessage() {
     },
     onSuccess: ({ leadId }) => {
       queryClient.invalidateQueries({ queryKey: ['messages', leadId] });
+    }
+  });
+}
+
+export function useEditMessage() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageId, newText, leadId }: { messageId: string; newText: string; leadId: string }) => {
+      const { data, error } = await supabase.functions.invoke('edit-message', {
+        body: { message_id: messageId, new_text: newText, user_id: user?.id },
+      });
+      if (error) throw new Error(error.message || 'Erro ao editar mensagem');
+      if (data?.error) throw new Error(data.error);
+      return { messageId, newText, leadId };
+    },
+    onSuccess: ({ leadId }) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', leadId] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Não foi possível editar. A janela de 15 minutos pode ter expirado.');
     }
   });
 }

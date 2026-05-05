@@ -25,6 +25,12 @@ Deno.serve(async (req: Request) => {
       skip_db = false,
       // internal_msg_id: id da mensagem já salva (para atualizar id_mensagem após envio)
       internal_msg_id = null,
+      // Reply/Quote: WhatsApp message ID da mensagem sendo citada (StanzaId para UAZAPI)
+      quoted_msg_id = null,
+      // Reply/Quote: telefone do remetente da mensagem citada (para Participant)
+      quoted_participant = null,
+      // Reply/Quote: ID interno (FK mensagens.id) para salvar no banco
+      quoted_message_id = null,
     } = await req.json();
 
     if (!lead_id || !telefone || !user_id) {
@@ -77,6 +83,7 @@ Deno.serve(async (req: Request) => {
           remetente: rem,
           tipo_conteudo: tipo || 'texto',
           media_path: url_midia || null,
+          ...(quoted_message_id ? { quoted_message_id } : {}),
         })
         .select('id')
         .single();
@@ -98,24 +105,28 @@ Deno.serve(async (req: Request) => {
 
     // UaZAPI docs: todos os tipos de mídia usam POST /send/media
     // Campos: number, type, file, text (caption), docName (para docs)
+    // Reply/Quote: campo "replyId" (string) = ID da mensagem para responder
+    const quoteFields = quoted_msg_id ? { replyId: quoted_msg_id } : {};
+
     if (tipo === 'audio' && url_midia) {
       endpoint = '/send/media';
-      uazapiPayload = { number: phoneFormatted, type: 'ptt', file: url_midia };
+      uazapiPayload = { number: phoneFormatted, type: 'ptt', file: url_midia, ...quoteFields };
     } else if (tipo === 'imagem' && url_midia) {
       endpoint = '/send/media';
-      uazapiPayload = { number: phoneFormatted, type: 'image', file: url_midia, text: mensagem || '' };
+      uazapiPayload = { number: phoneFormatted, type: 'image', file: url_midia, text: mensagem || '', ...quoteFields };
     } else if (tipo === 'video' && url_midia) {
       endpoint = '/send/media';
-      uazapiPayload = { number: phoneFormatted, type: 'video', file: url_midia, text: mensagem || '' };
+      uazapiPayload = { number: phoneFormatted, type: 'video', file: url_midia, text: mensagem || '', ...quoteFields };
     } else if (tipo === 'pdf' && url_midia) {
       endpoint = '/send/media';
-      uazapiPayload = { number: phoneFormatted, type: 'document', file: url_midia, docName: titulo_pdf || 'documento.pdf', text: mensagem || '' };
+      uazapiPayload = { number: phoneFormatted, type: 'document', file: url_midia, docName: titulo_pdf || 'documento.pdf', text: mensagem || '', ...quoteFields };
     } else {
       endpoint = '/send/text';
-      uazapiPayload = { number: phoneFormatted, text: mensagem || '', delay: 1200 };
+      // delay apenas para mensagens da IA (remetente 'bot'), agente humano envia instantâneo
+      uazapiPayload = { number: phoneFormatted, text: mensagem || '', ...(rem === 'bot' ? { delay: 1200 } : {}), ...quoteFields };
     }
 
-    console.log(`[send-quick-message] Enviando para UAZAPI: ${uazapiUrl}${endpoint} | number=${phoneFormatted} | tipo=${tipo}`);
+    console.log(`[send-quick-message] Enviando para UAZAPI: ${uazapiUrl}${endpoint} | number=${phoneFormatted} | tipo=${tipo} | quote=${quoted_msg_id || 'none'}`);
 
     const uazapiRes = await fetch(`${uazapiUrl}${endpoint}`, {
       method: 'POST',
@@ -124,7 +135,15 @@ Deno.serve(async (req: Request) => {
     });
 
     const uazapiRespText = await uazapiRes.text();
-    console.log(`[send-quick-message] UAZAPI response ${uazapiRes.status}: ${uazapiRespText.substring(0, 300)}`);
+
+    // DEBUG: salvar payload enviado + resposta da UAZAPI para diagnóstico
+    if (quoted_msg_id) {
+      try {
+        await supabaseAdmin.from('debug_payloads').insert({
+          payload: { sent_to: `${uazapiUrl}${endpoint}`, uazapi_payload: uazapiPayload, uazapi_response_status: uazapiRes.status, uazapi_response_body: uazapiRespText.substring(0, 1000) }
+        });
+      } catch (e) {}
+    }
 
     let uazapiRespJson: any = {};
     try { uazapiRespJson = JSON.parse(uazapiRespText); } catch {}
