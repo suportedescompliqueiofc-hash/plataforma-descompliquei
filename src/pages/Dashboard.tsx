@@ -297,6 +297,55 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Seção — Lead Scoring */}
+      {(() => {
+        const scoring = metrics.scoringDistribution ?? [];
+        const totalQualified = scoring.reduce((sum: number, s: any) => sum + s.count, 0);
+        if (totalQualified === 0) return null;
+
+        const SCORING_META: Record<string, { label: string; bg: string; text: string }> = {
+          A: { label: 'Lead dos sonhos', bg: '#E1F5EE', text: '#085041' },
+          B: { label: 'Qualificado com ressalva', bg: '#E6F1FB', text: '#0C447C' },
+          C: { label: 'Em desenvolvimento', bg: '#FAEEDA', text: '#633806' },
+          D: { label: 'Fora do ICP', bg: '#FCEBEB', text: '#791F1F' },
+        };
+
+        return (
+          <div>
+            <SectionHeader title="Lead Scoring" icon={BadgeCheck} />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {scoring.map((s: any) => {
+                const meta = SCORING_META[s.scoring];
+                const pct = totalQualified > 0 ? ((s.count / totalQualified) * 100).toFixed(0) : '0';
+                return (
+                  <Card key={s.scoring} className="overflow-hidden shadow-sm" style={{ borderTop: `3px solid ${meta.text}` }}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest leading-tight">Scoring {s.scoring}</span>
+                        <span
+                          className="flex items-center justify-center h-6 w-6 rounded-md text-xs font-black flex-shrink-0"
+                          style={{ backgroundColor: meta.bg, color: meta.text }}
+                        >
+                          {s.scoring}
+                        </span>
+                      </div>
+                      <div className="text-2xl font-bold text-foreground">{s.count}</div>
+                      <p className="text-xs text-muted-foreground mt-1">{meta.label}</p>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="h-1.5 flex-1 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: meta.text }} />
+                        </div>
+                        <span className="text-[10px] font-bold" style={{ color: meta.text }}>{pct}%</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Seção 4 — Performance da IA */}
       <div>
         <SectionHeader title="Performance da IA" icon={Bot} />

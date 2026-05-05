@@ -273,6 +273,10 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           tempoMedioIA,
           aguardandoContatoHumano,
           topProcedimentos,
+          scoringDistribution: (['A', 'B', 'C', 'D'] as const).map(s => ({
+            scoring: s,
+            count: filteredAllLeads.filter(l => l.is_qualified && l.lead_scoring === s).length,
+          })),
         };
       } catch (err: any) {
         console.error("Erro no painel:", err);
