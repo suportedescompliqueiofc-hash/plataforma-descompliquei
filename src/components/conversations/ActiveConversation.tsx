@@ -32,7 +32,9 @@ import { useMessages, useSendMessage, Message, Attachment, useDeleteMessage, use
 import { useNotifications, useUpdateNotificationStatus } from "@/hooks/useNotifications";
 import { useStages } from "@/hooks/useStages";
 import { useMarketing } from "@/hooks/useMarketing";
+import { useProfile } from "@/hooks/useProfile";
 import { useBranding } from "@/contexts/BrandingContext";
+import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
 import { exportConversationPdf, type ConversationPdfMessage } from "@/lib/conversation-pdf";
 
 import { AudioMessage } from "./AudioMessage";
@@ -156,7 +158,9 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
   const { branding } = useBranding();
-  
+  const { profile } = useProfile();
+  const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
+
   const { data: lead, isLoading: leadLoading, isFetching: leadFetching } = useLead(leadId);
   const { activeCadence } = useLeadCadence(leadId);
   const { data: messages = [], isLoading: messagesLoading } = useMessages(leadId);
@@ -564,17 +568,25 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       className={cn(
                         "h-7 px-2 sm:px-3 text-[10px] sm:text-xs font-bold gap-1.5 transition-all duration-300 rounded-full uppercase tracking-wider",
                         lead.is_qualified
-                          ? "border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
+                          ? isDescompliqueiOrg && lead.lead_scoring
+                            ? "border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
+                            : "bg-emerald-500 text-white hover:bg-emerald-600 border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
                           : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
                       )}
-                      style={lead.is_qualified && lead.lead_scoring ? {
+                      style={lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? {
                         backgroundColor: SCORING_OPTIONS.find(s => s.value === lead.lead_scoring)?.bg || '#E1F5EE',
                         color: SCORING_OPTIONS.find(s => s.value === lead.lead_scoring)?.text || '#085041',
-                      } : lead.is_qualified ? { backgroundColor: '#10b981', color: '#fff' } : undefined}
-                      onClick={() => lead.is_qualified ? handleRemoveQualified() : handleOpenScoringModal()}
+                      } : undefined}
+                      onClick={() => {
+                        if (isDescompliqueiOrg) {
+                          lead.is_qualified ? handleRemoveQualified() : handleOpenScoringModal();
+                        } else {
+                          updateLead({ id: lead.id, is_qualified: !lead.is_qualified });
+                        }
+                      }}
                     >
                       <UserCheck className={cn("h-3.5 w-3.5", lead.is_qualified ? "fill-current" : "")} />
-                      {lead.is_qualified && lead.lead_scoring ? `Qualificado ${lead.lead_scoring}` : 'Qualificado'}
+                      {lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? `Qualificado ${lead.lead_scoring}` : 'Qualificado'}
                     </Button>
                     <Button
                       variant={lead.is_scheduled ? "default" : "outline"}
