@@ -290,6 +290,20 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
               txConversao: mktScheduled > 0 ? parseFloat(((mktClosed2 / mktScheduled) * 100).toFixed(1)) : 0,
             };
           })(),
+          // Eficiência de aquisição (investimento / etapas do funil marketing)
+          acquisitionEfficiency: (() => {
+            const mkt = leadsCreatedInPeriod.filter(l => l.origem === 'marketing');
+            const mktMql = mkt.filter(l => l.is_qualified).length;
+            const mktScheduled = mkt.filter(l => l.is_scheduled).length;
+            const mktClosed2 = mkt.filter(l => l.is_closed).length;
+            return {
+              investment: totalInvestment,
+              cpl: mkt.length > 0 ? totalInvestment / mkt.length : null,
+              cpm: mktMql > 0 ? totalInvestment / mktMql : null,
+              cpa: mktScheduled > 0 ? totalInvestment / mktScheduled : null,
+              cpf: mktClosed2 > 0 ? totalInvestment / mktClosed2 : null,
+            };
+          })(),
           scoringDistribution: (['A', 'B', 'C', 'D'] as const).map(s => ({
             scoring: s,
             count: filteredAllLeads.filter(l => l.is_qualified && l.lead_scoring === s).length,

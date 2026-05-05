@@ -291,6 +291,37 @@ export default function Dashboard() {
         );
       })()}
 
+      {/* Seção — Eficiência de Aquisição (exclusivo Descompliquei) */}
+      {isDescompliqueiOrg && (() => {
+        const aq = metrics.acquisitionEfficiency ?? { investment: 0, cpl: null, cpm: null, cpa: null, cpf: null };
+        const fmt = (v: number | null) => v != null ? `R$ ${v.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}` : '—';
+        const cards = [
+          { label: 'CPL', title: 'Custo por Lead', value: fmt(aq.cpl), color: '#6366f1' },
+          { label: 'CPM', title: 'Custo por MQL', value: fmt(aq.cpm), color: '#8b5cf6' },
+          { label: 'CPA', title: 'Custo por Reunião', value: fmt(aq.cpa), color: '#3b82f6' },
+          { label: 'CPF', title: 'Custo por Fechamento', value: fmt(aq.cpf), color: '#10b981' },
+        ];
+        return (
+          <div>
+            <SectionHeader title="Eficiência de Aquisição" icon={DollarSign} />
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              {cards.map((c) => (
+                <Card key={c.label} className="overflow-hidden shadow-sm" style={{ borderTop: `3px solid ${c.color}` }}>
+                  <CardContent className="p-4 sm:p-5">
+                    <div className="flex items-start justify-between mb-1">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{c.label}</span>
+                      <DollarSign className="h-3.5 w-3.5 text-muted-foreground/40 flex-shrink-0" />
+                    </div>
+                    <div className="text-2xl sm:text-3xl font-black text-foreground mt-1">{c.value}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{c.title}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Seção 1 — Visão Geral de Captação */}
       <div>
         <SectionHeader title="Visão Geral de Captação" icon={Target} />
