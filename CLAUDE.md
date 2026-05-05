@@ -91,11 +91,35 @@ Superadmins from the **master org** (`MASTER_ORG_ID` in `src/lib/constants.ts`) 
 
 **IMPORTANTE:** O CRM da Descompliquei (`91a0e113`) é uma org **independente** com seus próprios leads, mensagens e WhatsApp. Alterações específicas para a Descompliquei devem afetar APENAS esta org. O `suportedescompliqueiofc` é superadmin mas opera em org separada da master — impersonação só é permitida a partir da org master (`aa787cc8`).
 
+### Lead Scoring (Descompliquei-only)
+
+The `leads` table has a `lead_scoring` field (`text`, nullable, check constraint: `A`, `B`, `C`, `D`). This feature is **exclusive to the Descompliquei org** (`DESCOMPLIQUEI_ORG_ID` in `src/lib/constants.ts`).
+
+- **Scoring options**: A (Lead dos sonhos), B (Qualificado com ressalva), C (Em desenvolvimento), D (Fora do ICP)
+- **Modal**: In `ActiveConversation.tsx`, the "QUALIFICADO" button opens a scoring modal for Descompliquei; for client orgs, it remains a direct toggle.
+- **Badge**: `ConversationsList.tsx` shows a colored badge (A=green, B=blue, C=yellow, D=red) next to lead names.
+- **Conditional flag**: `const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID`
+
+### Descompliquei Dashboard
+
+The Dashboard (`src/pages/Dashboard.tsx`) has a fully custom layout for the Descompliquei org, controlled by `isDescompliqueiOrg`. All metrics come from `useDashboard.ts`.
+
+**Sections (in order, Descompliquei only):**
+1. **Funil de Conversão** — 4 cards: Leads → MQL → Reuniões → Fechamentos (with arrows and conversion rates between steps). Only marketing-origin leads (`origem = 'marketing'`).
+2. **Qualidade dos Leads** — Scoring distribution cards (A/B/C/D) with colored bars and percentages.
+3. **Eficiência de Aquisição** — 5 metric cards: CPL, CPMQL, CPR, CPA, ROAS. Investment value is hardcoded per org (placeholder). Formulas: `investment / count`.
+4. **Performance Comercial Global** — 3 rate cards: Taxa de Qualificação (MQL), Taxa de Agendamento, Taxa de Fechamento. Computed from total leads (all origins).
+5. **Evolução no Tempo** — Single AreaChart with 4 series: Leads, MQLs, Agendamentos, Fechamentos (daily).
+
+**Hidden for Descompliquei:** Visão Geral cards, pipeline-based funnel, Top Procedimentos, Ticket Médio, Faturamento, Conversão Global card.
+
+**Client CRM dashboard** remains unchanged — all sections wrapped in `!isDescompliqueiOrg` conditionals.
+
 ### Key Tables (Portuguese naming convention)
 
 - `perfis` — user profiles (linked to `auth.users`)
 - `organizations` — tenants
-- `leads` — contacts/leads
+- `leads` — contacts/leads (includes `lead_scoring` A/B/C/D field, Descompliquei-only)
 - `mensagens` — WhatsApp messages (supports `quoted_message_id`, `is_edited`, `edited_at`, `original_content`)
 - `etapas` — pipeline stages
 - `cadencias` — message cadence sequences
