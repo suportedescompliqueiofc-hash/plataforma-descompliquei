@@ -390,33 +390,33 @@ export default function Dashboard() {
 
       {/* Seção 3 — Performance Comercial */}
       <div>
-        <SectionHeader title="Performance Comercial" icon={BarChart2} />
+        <SectionHeader title={isDescompliqueiOrg ? "Performance Comercial Global" : "Performance Comercial"} icon={BarChart2} />
         <div className={cn("grid gap-3 sm:gap-4", isDescompliqueiOrg ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2 lg:grid-cols-3 xl:grid-cols-6")}>
           <MetricCard
             title="Taxa de MQL"
-            value={`${taxaMQL}%`}
-            description={`${metrics.mqlCount ?? 0} qualificados`}
+            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalMQL ?? 0) : taxaMQL}%`}
+            description={`${metrics.mqlCount ?? 0} qualificados / ${metrics.totalContatos ?? 0} leads`}
             icon={Tag}
             topColor="#8b5cf6"
           />
           <MetricCard
             title="Taxa Agendamento"
-            value={`${taxaAgendamento}%`}
-            description={`${metrics.scheduledCount ?? 0} agendados`}
+            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalAgendamento ?? 0) : taxaAgendamento}%`}
+            description={`${metrics.scheduledCount ?? 0} agendados / ${metrics.totalContatos ?? 0} leads`}
             icon={CalendarCheck}
             topColor="#3b82f6"
           />
           <MetricCard
             title="Taxa Fechamento"
-            value={`${taxaFechamento}%`}
-            description={`${metrics.closedCount ?? 0} fechados`}
+            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalFechamento ?? 0) : taxaFechamento}%`}
+            description={`${metrics.closedCount ?? 0} fechados / ${metrics.totalContatos ?? 0} leads`}
             icon={BadgeCheck}
             topColor="#10b981"
           />
           <MetricCard
             title="Conversão Global"
-            value={`${taxaConversaoGlobal}%`}
-            description="Fechados / marketing"
+            value={`${isDescompliqueiOrg ? (metrics.taxaGlobalConversao ?? 0) : taxaConversaoGlobal}%`}
+            description={isDescompliqueiOrg ? `Fechados / total de leads` : "Fechados / marketing"}
             icon={TrendingUp}
             topColor="hsl(var(--primary))"
           />

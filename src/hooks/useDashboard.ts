@@ -266,6 +266,11 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           taxaAgendamento,
           taxaFechamento,
           taxaConversaoGlobal,
+          // Taxas globais (todas com base no total de leads do período)
+          taxaGlobalMQL: leadsCreatedInPeriod.length > 0 ? parseFloat(((mqlCount / leadsCreatedInPeriod.length) * 100).toFixed(1)) : 0,
+          taxaGlobalAgendamento: leadsCreatedInPeriod.length > 0 ? parseFloat(((scheduledCount / leadsCreatedInPeriod.length) * 100).toFixed(1)) : 0,
+          taxaGlobalFechamento: leadsCreatedInPeriod.length > 0 ? parseFloat(((closedCount / leadsCreatedInPeriod.length) * 100).toFixed(1)) : 0,
+          taxaGlobalConversao: leadsCreatedInPeriod.length > 0 ? parseFloat(((closedCount / leadsCreatedInPeriod.length) * 100).toFixed(1)) : 0,
           ticketMedio,
           custoPerLead,
           leadsAtendidosIA,
