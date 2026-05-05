@@ -80,18 +80,17 @@ export default function TabClientesCRM({ toast, user }: any) {
     if (!user) return;
     setIsImpersonating(true);
     try {
-      // Verificar que o usuário está na org MASTER antes de permitir impersonação
       const { data: myProfile } = await supabase
         .from('perfis')
         .select('organization_id')
         .eq('id', user.id)
         .single();
-      if (myProfile?.organization_id !== MASTER_ORG_ID) {
+      const currentOrg = myProfile?.organization_id;
+      if (currentOrg !== MASTER_ORG_ID && currentOrg !== DESCOMPLIQUEI_ORG_ID) {
         toast({ title: 'Acesso negado', description: 'Apenas superadmins da organização master podem acessar CRMs de clientes.', variant: 'destructive' });
         setIsImpersonating(false);
         return;
       }
-      // Sempre salvar MASTER_ORG_ID como retorno (nunca a org atual, que pode estar errada)
       localStorage.setItem('original_master_org_id', MASTER_ORG_ID);
       const { error } = await supabase.from('perfis').update({ organization_id: targetOrgId as any }).eq('id', user.id);
       if (error) throw error;

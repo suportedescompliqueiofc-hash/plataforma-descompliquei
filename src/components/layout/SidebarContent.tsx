@@ -119,8 +119,10 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     } catch (err: any) { console.error(err); }
   };
 
-  // Impersonação: detectada APENAS quando o localStorage tem a flag (setada pelo fluxo "Acessar CRM")
-  const isImpersonating = isSuperAdmin && !!localStorage.getItem('original_master_org_id');
+  const hasImpersonationFlag = !!localStorage.getItem('original_master_org_id');
+  const isImpersonating = isSuperAdmin && hasImpersonationFlag;
+  const isStuckOutsideMaster = isSuperAdmin && !hasImpersonationFlag && profile?.organization_id !== MASTER_ORG_ID;
+  const showBackToAdmin = isImpersonating || isStuckOutsideMaster;
 
   return (
     <TooltipProvider>
@@ -202,8 +204,8 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
 
         {/* User Footer */}
         <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-t border-sidebar-border flex-shrink-0 space-y-2`}>
-          {isImpersonating && (
-             <Button variant="default" className={`w-full h-9 bg-[#E85D24] hover:bg-[#E85D24]/90 text-white shadow-lg animate-pulse ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'}`} onClick={handleBackToMaster}><ShieldCheck className="h-4 w-4 flex-shrink-0" />{!isCollapsed && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider">Sair do Cliente</span>}</Button>
+          {showBackToAdmin && (
+             <Button variant="default" className={`w-full h-9 bg-[#E85D24] hover:bg-[#E85D24]/90 text-white shadow-lg ${isImpersonating ? 'animate-pulse' : ''} ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'}`} onClick={handleBackToMaster}><ShieldCheck className="h-4 w-4 flex-shrink-0" />{!isCollapsed && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider">{isImpersonating ? 'Sair do Cliente' : 'Voltar para Admin'}</span>}</Button>
           )}
 
           <div className={`flex items-center gap-3 mb-2 ${isCollapsed ? 'justify-center flex-col' : ''}`}>
