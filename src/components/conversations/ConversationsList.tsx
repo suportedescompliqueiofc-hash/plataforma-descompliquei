@@ -167,7 +167,20 @@ const ConversationItem = ({
               {conversation.em_cadencia && (
                 <Zap className="h-3 w-3 text-orange-500 fill-orange-500/20 shrink-0" title="Em Cadência" />
               )}
-              
+
+              {conversation.lead_scoring && (
+                <span
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 leading-none"
+                  style={{
+                    backgroundColor: conversation.lead_scoring === 'A' ? '#E1F5EE' : conversation.lead_scoring === 'B' ? '#E6F1FB' : conversation.lead_scoring === 'C' ? '#FAEEDA' : '#FCEBEB',
+                    color: conversation.lead_scoring === 'A' ? '#085041' : conversation.lead_scoring === 'B' ? '#0C447C' : conversation.lead_scoring === 'C' ? '#633806' : '#791F1F',
+                  }}
+                  title={`Scoring ${conversation.lead_scoring}`}
+                >
+                  {conversation.lead_scoring}
+                </span>
+              )}
+
               <div className="flex gap-0.5 shrink-0">
                 {conversation.tags?.slice(0, 2).map(tag => {
                   const isHex = tag.color?.startsWith('#');
