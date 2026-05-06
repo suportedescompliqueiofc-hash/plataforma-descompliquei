@@ -4,7 +4,7 @@ import {
   RefreshCw, ChevronDown, ChevronUp, Loader2, Image, MessageCircle, FileText,
   AlertTriangle, AlertCircle, Zap, Info, Trophy, Medal, Award, ArrowUpRight,
   ArrowDownRight, Minus, Clock, Filter, LayoutDashboard, Layers, BarChart3,
-  Megaphone, Settings, Pause, Play, ArrowRight, CheckCircle, CalendarCheck, Handshake,
+  Megaphone, Settings, Pause, Play, ArrowRight, CheckCircle, CalendarCheck, Handshake, Key,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,11 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Tooltip as ShadTooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
@@ -246,6 +251,9 @@ export default function MarketingTrafego() {
   const [adSort, setAdSort] = useState<"cpl" | "investido" | "leads" | "ctr">("investido");
   const [showInactiveAds, setShowInactiveAds] = useState(false);
   const [scoreConfigOpen, setScoreConfigOpen] = useState(false);
+  const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+  const [newToken, setNewToken] = useState("");
+  const [savingToken, setSavingToken] = useState(false);
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | "ACTIVE" | "PAUSED">("all");
   const [activeTab, setActiveTab] = useState("dashboard");
 
@@ -454,6 +462,36 @@ export default function MarketingTrafego() {
 
   const hasData = summary.totalImpressoes > 0 || summary.totalInvestido > 0 || campaignRows.length > 0;
 
+  const handleSaveToken = async () => {
+    if (!newToken.trim() || !orgId) return;
+    setSavingToken(true);
+    try {
+      const { data: existing } = await supabase
+        .from('integracoes')
+        .select('id, credenciais')
+        .eq('organization_id', orgId)
+        .eq('tipo', 'meta_ads')
+        .maybeSingle();
+
+      if (!existing) throw new Error('Integração Meta Ads não encontrada. Configure primeiro.');
+
+      const updatedCreds = { ...(existing.credenciais as any), access_token: newToken.trim() };
+      const { error } = await supabase
+        .from('integracoes')
+        .update({ credenciais: updatedCreds } as any)
+        .eq('id', existing.id);
+      if (error) throw error;
+
+      toast.success('Token atualizado com sucesso!');
+      setTokenDialogOpen(false);
+      setNewToken('');
+    } catch (err: any) {
+      toast.error('Erro ao atualizar token: ' + (err?.message || 'Tente novamente'));
+    } finally {
+      setSavingToken(false);
+    }
+  };
+
   const handleSync = () => {
     toast.info("Sincronizando dados do Meta Ads...");
     syncMutation.mutate(undefined, {
@@ -512,10 +550,49 @@ export default function MarketingTrafego() {
           <Button variant="ghost" size="sm" onClick={() => setScoreConfigOpen(true)} title="Configurar Score">
             <Settings className="h-4 w-4" />
           </Button>
+          <Button variant="ghost" size="sm" onClick={() => setTokenDialogOpen(true)} title="Atualizar Token Meta">
+            <Key className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
       <ConfiguracaoScore isOpen={scoreConfigOpen} onClose={() => { setScoreConfigOpen(false); refetchScore(); }} />
+
+      {/* Dialog para atualizar token Meta */}
+      <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Atualizar Token Meta Ads</DialogTitle>
+            <DialogDescription>
+              Cole o novo token do Graph API Explorer. Tokens de usuário expiram a cada ~60 dias.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label htmlFor="meta-token">Access Token</Label>
+            <Input
+              id="meta-token"
+              placeholder="EAAVSH0jI4m8BR..."
+              value={newToken}
+              onChange={(e) => setNewToken(e.target.value)}
+              className="font-mono text-xs"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Obtenha em{" "}
+              <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                Graph API Explorer
+              </a>
+              {" "}com permissões: ads_read, ads_management, business_management
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTokenDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveToken} disabled={!newToken.trim() || savingToken}>
+              {savingToken ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Salvar Token
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
