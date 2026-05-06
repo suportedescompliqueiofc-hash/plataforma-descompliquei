@@ -223,7 +223,7 @@ serve(async (req) => {
     // ── Encontrar ou Criar Lead ──────────────────────────────────────────────
     let leadQuery = supabaseAdmin
       .from('leads')
-      .select('id, organization_id, usuario_id, nome, telefone, ia_ativa, origem')
+      .select('id, organization_id, usuario_id, nome, telefone, ia_ativa, origem, criativo_id')
       .or(`telefone.eq.${phoneWithCountryCode},telefone.eq.${phoneWithCountryCode.substring(2)}`);
       
     if (orgId) {
@@ -250,7 +250,7 @@ serve(async (req) => {
           posicao_pipeline: 1,
           origem: detectedOrigem
         })
-        .select('id, organization_id, usuario_id, nome, telefone, ia_ativa, origem')
+        .select('id, organization_id, usuario_id, nome, telefone, ia_ativa, origem, criativo_id')
         .single();
 
       if (createLeadError) {
@@ -263,6 +263,113 @@ serve(async (req) => {
     } else {
       // Origem do lead é definida apenas na criação — não reclassificar leads existentes
       // Contatos orgânicos podem clicar em anúncios depois, mas continuam orgânicos
+    }
+
+    // ── Captura de Criativo Meta Ads (Click-to-WhatsApp) ────────────────────
+    if (!fromMe && lead && !lead.criativo_id) {
+      try {
+        const dataObj = payload?.data || {};
+        const msg = dataObj?.message || {};
+        const contextInfo = msg?.contextInfo
+          || msg?.extendedTextMessage?.contextInfo
+          || msg?.imageMessage?.contextInfo
+          || msg?.videoMessage?.contextInfo
+          || rawPayloadData?.body?.message?.content?.contextInfo
+          || rawPayloadData?.body?.message?.contextInfo
+          || null;
+
+        const externalAdReply = contextInfo?.externalAdReply;
+        const sourceType = externalAdReply?.sourceType;
+        const sourceID = externalAdReply?.sourceID;
+
+        if (sourceType === 'ad' && sourceID) {
+          console.log(`[receive-message] Click-to-WhatsApp detectado! Ad ID: ${sourceID}, Platform: ${externalAdReply.sourceApp}`);
+
+          let criativoId: string | null = null;
+          try {
+            const { data: existingCriativo } = await supabaseAdmin
+              .from('criativos')
+              .select('id')
+              .eq('id_externo', sourceID)
+              .eq('organization_id', lead.organization_id)
+              .limit(1)
+              .maybeSingle();
+
+            if (existingCriativo) {
+              criativoId = existingCriativo.id;
+              console.log(`[receive-message] Criativo existente encontrado: ${criativoId}`);
+            } else {
+              let metaNome: string | null = null;
+              const { data: metaAd } = await supabaseAdmin
+                .from('meta_ads')
+                .select('nome')
+                .eq('meta_ad_id', sourceID)
+                .eq('organization_id', lead.organization_id)
+                .maybeSingle();
+              if (metaAd) metaNome = metaAd.nome;
+
+              const { data: newCriativo, error: createErr } = await supabaseAdmin
+                .from('criativos')
+                .insert({
+                  organization_id: lead.organization_id,
+                  id_externo: sourceID,
+                  nome: metaNome || externalAdReply.title || `Ad ${sourceID}`,
+                  titulo: externalAdReply.title || null,
+                  conteudo: externalAdReply.body || null,
+                  url_thumbnail: externalAdReply.thumbnailURL || null,
+                  plataforma: 'meta',
+                  aplicativo: externalAdReply.sourceApp || null,
+                })
+                .select('id')
+                .single();
+
+              if (createErr) {
+                console.error('[receive-message] Erro ao criar criativo:', createErr);
+              } else {
+                criativoId = newCriativo.id;
+                console.log(`[receive-message] Criativo criado automaticamente: ${criativoId}`);
+              }
+            }
+          } catch (adLookupErr) {
+            console.error('[receive-message] Erro ao buscar/criar criativo:', adLookupErr);
+          }
+
+          const adMetadata = {
+            ad_source_id: sourceID,
+            ad_title: externalAdReply.title || null,
+            ad_body: externalAdReply.body || null,
+            ad_thumbnail: externalAdReply.thumbnailURL || null,
+            ad_platform: externalAdReply.sourceApp || null,
+            ctwa_clid: contextInfo?.ctwaClid || null,
+            captured_at: new Date().toISOString(),
+          };
+
+          const leadUpdate: Record<string, any> = {
+            origem: 'marketing',
+            fonte: externalAdReply.sourceApp || 'meta',
+          };
+          if (criativoId) leadUpdate.criativo_id = criativoId;
+
+          const { error: updateErr } = await supabaseAdmin
+            .from('leads')
+            .update(leadUpdate)
+            .eq('id', lead.id);
+
+          if (updateErr) {
+            console.error('[receive-message] Erro ao atualizar lead com dados do criativo:', updateErr);
+          } else {
+            console.log(`[receive-message] Lead ${lead.id} atualizado com criativo Meta Ads. Origem=marketing, Fonte=${leadUpdate.fonte}, CriativoID=${criativoId || 'N/A'}`);
+          }
+
+          try {
+            await supabaseAdmin
+              .from('debug_payloads')
+              .insert({ payload: { type: 'ctwa_ad_capture', lead_id: lead.id, ad_metadata: adMetadata } });
+          } catch (_) {}
+        }
+      } catch (adCaptureErr) {
+        console.error('[receive-message] Erro na captura de criativo Meta Ads:', adCaptureErr);
+      }
     }
 
     // ── Definição de Direção/Remetente ─────────────────────────────────────────
