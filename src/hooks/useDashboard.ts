@@ -283,7 +283,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           tempoMedioIA,
           aguardandoContatoHumano,
           topProcedimentos,
-          // Funil Descompliquei (apenas leads de marketing no período)
+          // Funil Descompliquei (apenas leads de marketing CRIADOS no período)
           descompliqueiFunnel: (() => {
             const mkt = leadsCreatedInPeriod.filter(l => l.origem === 'marketing');
             const mktTotal = mkt.length;
@@ -300,7 +300,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
               txConversao: mktScheduled > 0 ? parseFloat(((mktClosed2 / mktScheduled) * 100).toFixed(1)) : 0,
             };
           })(),
-          // Eficiência de aquisição (investimento / etapas do funil marketing)
+          // Eficiência de aquisição (investimento / etapas do funil marketing criados no período)
           acquisitionEfficiency: (() => {
             const mkt = leadsCreatedInPeriod.filter(l => l.origem === 'marketing');
             const mktMql = mkt.filter(l => l.is_qualified).length;
@@ -316,7 +316,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           })(),
           scoringDistribution: (['A', 'B', 'C', 'D'] as const).map(s => ({
             scoring: s,
-            count: filteredAllLeads.filter(l => l.is_qualified && l.lead_scoring === s).length,
+            count: leadsCreatedInPeriod.filter(l => l.origem === 'marketing' && l.is_qualified && l.lead_scoring === s).length,
           })),
           // Evolução no tempo para Descompliquei (3 séries: leads mkt, mqls, fechamentos)
           descompliqueiOverTime: eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(d => {
