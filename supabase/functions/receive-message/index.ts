@@ -274,8 +274,12 @@ serve(async (req) => {
           || msg?.extendedTextMessage?.contextInfo
           || msg?.imageMessage?.contextInfo
           || msg?.videoMessage?.contextInfo
+          || rawPayloadData?.message?.content?.contextInfo
+          || rawPayloadData?.message?.contextInfo
           || rawPayloadData?.body?.message?.content?.contextInfo
           || rawPayloadData?.body?.message?.contextInfo
+          || payload?.message?.content?.contextInfo
+          || payload?.message?.contextInfo
           || null;
 
         const externalAdReply = contextInfo?.externalAdReply;
