@@ -4,7 +4,7 @@ import {
   RefreshCw, ChevronDown, ChevronUp, Loader2, Image, MessageCircle, FileText,
   AlertTriangle, AlertCircle, Zap, Info, Trophy, Medal, Award, ArrowUpRight,
   ArrowDownRight, Minus, Clock, Filter, LayoutDashboard, Layers, BarChart3,
-  Megaphone, Settings, Pause, Play,
+  Megaphone, Settings, Pause, Play, ArrowRight, CheckCircle, CalendarCheck, Handshake,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,13 +16,16 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip as ShadTooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { DateRange } from "react-day-picker";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, format as fnsFormat } from "date-fns";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Legend, PieChart, Pie, Cell,
-  LineChart, Line, BarChart, Bar, ScatterChart, Scatter, ZAxis,
+  LineChart, Line, BarChart, Bar,
 } from "recharts";
 import { toast } from "sonner";
 import { useMetaAds, AlertItem } from "@/hooks/useMetaAds";
@@ -32,6 +35,8 @@ import { useMarketingScore } from "@/hooks/useMarketingScore";
 import { useProfile } from "@/hooks/useProfile";
 import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
 import { Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -51,10 +56,20 @@ function formatCompact(value: number) {
   if (value >= 1000) return (value / 1000).toFixed(1) + "K";
   return value.toFixed(0);
 }
+function displayValue(value: number | undefined | null, formatter: (v: number) => string = formatCurrency): string {
+  if (value === undefined || value === null || value === 0) return "—";
+  return formatter(value);
+}
+function displayPercent(value: number | undefined | null): string {
+  if (value === undefined || value === null || value === 0) return "—";
+  return value.toFixed(1) + "%";
+}
 
 const DONUT_COLORS = [
   "#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#06b6d4", "#f97316", "#6366f1",
 ];
+
+const FUNNEL_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#22c55e"];
 
 function VariationBadge({ value, invert = false }: { value: number | null; invert?: boolean }) {
   if (value === null) return <span className="text-xs text-muted-foreground">—</span>;
@@ -103,8 +118,8 @@ function RankingBadge({ position }: { position: number }) {
 function QualityBadge({ ranking }: { ranking: string | null }) {
   if (!ranking || ranking === "UNKNOWN") return null;
   const map: Record<string, { label: string; className: string }> = {
-    ABOVE_AVERAGE: { label: "Acima da média", className: "bg-emerald-500/15 text-emerald-600 border-0" },
-    AVERAGE: { label: "Na média", className: "bg-blue-500/15 text-blue-600 border-0" },
+    ABOVE_AVERAGE: { label: "Acima da media", className: "bg-emerald-500/15 text-emerald-600 border-0" },
+    AVERAGE: { label: "Na media", className: "bg-blue-500/15 text-blue-600 border-0" },
     BELOW_AVERAGE_10: { label: "Abaixo 10%", className: "bg-red-500/15 text-red-600 border-0" },
     BELOW_AVERAGE_20: { label: "Abaixo 20%", className: "bg-red-500/15 text-red-600 border-0" },
     BELOW_AVERAGE_35: { label: "Abaixo 35%", className: "bg-amber-500/15 text-amber-600 border-0" },
@@ -143,16 +158,80 @@ function CampaignTypeBadge({ tipo }: { tipo: string }) {
   if (tipo === "formulario") {
     return (
       <Badge variant="outline" className="bg-blue-500/10 text-blue-600 border-blue-500/30 gap-1">
-        <FileText className="h-3 w-3" /> Formulário
+        <FileText className="h-3 w-3" /> Formulario
       </Badge>
     );
   }
   return <Badge variant="outline" className="bg-muted text-muted-foreground border-0">Outro</Badge>;
 }
 
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <TooltipProvider delayDuration={200}>
+      <ShadTooltip>
+        <TooltipTrigger asChild>
+          <Info className="h-3 w-3 text-muted-foreground cursor-help inline ml-1" />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[220px] text-xs">
+          {text}
+        </TooltipContent>
+      </ShadTooltip>
+    </TooltipProvider>
+  );
+}
+
+interface CriativoPerf {
+  criativo_uuid: string;
+  meta_ad_id: string;
+  criativo_nome: string;
+  criativo_status: string;
+  url_thumbnail: string | null;
+  campanha_nome: string | null;
+  organization_id: string;
+  total_gasto: number;
+  total_impressoes: number;
+  total_cliques: number;
+  ctr_medio: number;
+  leads_crm_total: number;
+  leads_qualificados: number;
+  leads_agendados: number;
+  leads_fechados: number;
+  scoring_a: number;
+  scoring_b: number;
+  scoring_c: number;
+  scoring_d: number;
+  receita_gerada: number;
+  cpl_real: number;
+  cpa_real: number;
+  cpv_real: number;
+  roas_real: number;
+  taxa_qualificacao: number;
+  taxa_agendamento: number;
+  taxa_fechamento: number;
+}
+
+interface Eficiencia {
+  organization_id: string;
+  total_investido: number;
+  total_leads: number;
+  leads_marketing: number;
+  qualificados: number;
+  agendados: number;
+  fechados: number;
+  receita_marketing: number;
+  cpl_real: number;
+  cpa_real: number;
+  cpv_real: number;
+  roas_real: number;
+  taxa_qualificacao: number;
+  taxa_agendamento: number;
+  taxa_fechamento: number;
+}
+
 export default function MarketingTrafego() {
   const { profile, isLoading: isProfileLoading } = useProfile();
-  const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
+  const orgId = profile?.organization_id;
+  const isDescompliqueiOrg = orgId === DESCOMPLIQUEI_ORG_ID;
   const { calcularScore, refetch: refetchScore } = useMarketingScore();
 
   const today = new Date();
@@ -182,6 +261,66 @@ export default function MarketingTrafego() {
     spendByCampaign, integration, isLoading, syncMutation,
   } = useMetaAds(dateRange);
 
+  const { data: eficiencia } = useQuery({
+    queryKey: ['marketing-eficiencia', orgId],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('vw_marketing_eficiencia' as any) as any)
+        .select('*')
+        .eq('organization_id', orgId)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Eficiencia | null;
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: criativosPerf } = useQuery({
+    queryKey: ['criativo-performance', orgId],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from('vw_criativo_performance' as any) as any)
+        .select('*')
+        .eq('organization_id', orgId);
+      if (error) throw error;
+      return (data || []) as CriativoPerf[];
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const dataInicio = dateRange?.from ? fnsFormat(dateRange.from, 'yyyy-MM-dd') : null;
+  const dataFim = dateRange?.to ? fnsFormat(dateRange.to, 'yyyy-MM-dd') : null;
+
+  const { data: leadsCrmDiario } = useQuery({
+    queryKey: ['leads-crm-por-dia', orgId, dataInicio, dataFim],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('criado_em')
+        .eq('organization_id', orgId!)
+        .eq('origem', 'marketing')
+        .gte('criado_em', dataInicio!)
+        .lte('criado_em', dataFim! + 'T23:59:59');
+      if (error) throw error;
+      const countByDay: Record<string, number> = {};
+      (data || []).forEach((l: any) => {
+        if (l.criado_em) {
+          const day = l.criado_em.substring(0, 10);
+          countByDay[day] = (countByDay[day] || 0) + 1;
+        }
+      });
+      return countByDay;
+    },
+    enabled: !!orgId && !!dataInicio && !!dataFim,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const criativoPerfMap = useMemo(() => {
+    const map = new Map<string, CriativoPerf>();
+    (criativosPerf || []).forEach(cp => map.set(cp.meta_ad_id, cp));
+    return map;
+  }, [criativosPerf]);
+
   const sortedAds = useMemo(() => {
     let filtered = adFilter === "all" ? adRows : adRows.filter(a => a.meta_campaign_id === adFilter);
     return [...filtered].sort((a, b) => {
@@ -205,7 +344,14 @@ export default function MarketingTrafego() {
   const activeCampaigns = useMemo(() => campaignRows.filter(c => c.status === "ACTIVE"), [campaignRows]);
   const inactiveCampaigns = useMemo(() => campaignRows.filter(c => c.status !== "ACTIVE"), [campaignRows]);
 
-  // Analysis data: CPL per campaign over time
+  const dailyDataWithCrm = useMemo(() => {
+    if (!dailyData.length) return [];
+    return dailyData.map(d => ({
+      ...d,
+      leadsCrm: leadsCrmDiario?.[d.data] || 0,
+    }));
+  }, [dailyData, leadsCrmDiario]);
+
   const cplPerCampaignDaily = useMemo(() => {
     if (!dailyData.length || !campaignRows.length) return [];
     return dailyData.map(d => {
@@ -215,7 +361,6 @@ export default function MarketingTrafego() {
     });
   }, [dailyData, campaignRows]);
 
-  // Analysis: spend vs leads per campaign (for scatter/bar)
   const gastoVsLeads = useMemo(() => {
     return campaignRows
       .filter(c => c.investido > 0)
@@ -227,7 +372,6 @@ export default function MarketingTrafego() {
       }));
   }, [campaignRows]);
 
-  // Cumulative trend
   const cumulativeData = useMemo(() => {
     let accInvestido = 0;
     let accLeads = 0;
@@ -243,9 +387,8 @@ export default function MarketingTrafego() {
     });
   }, [dailyData]);
 
-  // Weekday heatmap data
   const weekdayData = useMemo(() => {
-    const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
     const map = new Map<number, { investido: number; leads: number; count: number }>();
     dailyData.forEach(d => {
       const date = new Date(d.data + "T12:00:00");
@@ -267,6 +410,21 @@ export default function MarketingTrafego() {
     });
   }, [dailyData]);
 
+  const qualidadePorCriativo = useMemo(() => {
+    return (criativosPerf || [])
+      .filter(cp => cp.leads_crm_total > 0)
+      .sort((a, b) => (b.scoring_a + b.scoring_b) - (a.scoring_a + a.scoring_b))
+      .slice(0, 10)
+      .map(cp => ({
+        nome: cp.criativo_nome.length > 25 ? cp.criativo_nome.substring(0, 25) + "…" : cp.criativo_nome,
+        A: cp.scoring_a,
+        B: cp.scoring_b,
+        C: cp.scoring_c,
+        D: cp.scoring_d,
+        sem: cp.leads_crm_total - cp.scoring_a - cp.scoring_b - cp.scoring_c - cp.scoring_d,
+      }));
+  }, [criativosPerf]);
+
   if (isProfileLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -287,12 +445,12 @@ export default function MarketingTrafego() {
       onSuccess: (data) => {
         const s = data?.synced;
         toast.success(
-          `Sincronizado! ${s?.campaigns || 0} campanhas, ${s?.ads || 0} anúncios, ${s?.insights || 0} métricas.` +
+          `Sincronizado! ${s?.campaigns || 0} campanhas, ${s?.ads || 0} anuncios, ${s?.insights || 0} metricas.` +
           (data?.elapsed_ms ? ` (${(data.elapsed_ms / 1000).toFixed(1)}s)` : "")
         );
       },
       onError: (err: any) => {
-        toast.error("Falha na sincronização", { description: err?.message || "Erro desconhecido" });
+        toast.error("Falha na sincronizacao", { description: err?.message || "Erro desconhecido" });
       },
     });
   };
@@ -301,24 +459,24 @@ export default function MarketingTrafego() {
     ? new Date(integration.ultima_sincronizacao).toLocaleString("pt-BR")
     : "Nunca";
 
-  const metricCards = [
-    { title: "Investido", value: formatCurrency(summary.totalInvestido), icon: DollarSign, color: "text-emerald-500", variation: summary.variacao.investido },
-    { title: "Leads", value: formatNumber(summary.totalLeads), icon: Users, color: "text-blue-500", variation: summary.variacao.leads },
-    { title: "CPL", value: formatCurrency(summary.cplMedio), icon: Target, color: "text-orange-500", variation: summary.variacao.cpl, invert: true },
-    { title: "CTR", value: formatPercent(summary.ctrMedio), icon: MousePointerClick, color: "text-purple-500", variation: summary.variacao.ctr },
-    { title: "Impressões", value: formatCompact(summary.totalImpressoes), icon: Eye, color: "text-cyan-500", variation: summary.variacao.impressoes },
-    { title: "Cliques", value: formatCompact(summary.totalCliques), icon: TrendingUp, color: "text-pink-500", variation: summary.variacao.cliques },
+  const ef = eficiencia;
+
+  const funnelSteps = [
+    { label: "Leads", value: ef?.leads_marketing || 0, icon: Users, color: FUNNEL_COLORS[0] },
+    { label: "Qualificados", value: ef?.qualificados || 0, icon: CheckCircle, color: FUNNEL_COLORS[1] },
+    { label: "Agendados", value: ef?.agendados || 0, icon: CalendarCheck, color: FUNNEL_COLORS[2] },
+    { label: "Fechados", value: ef?.fechados || 0, icon: Handshake, color: FUNNEL_COLORS[3] },
   ];
 
   return (
     <div className="space-y-6">
-      {/* === HEADER FIXO (fora das abas) === */}
+      {/* === HEADER === */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Inteligência de Marketing</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Inteligencia de Marketing</h1>
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             <Clock className="h-3.5 w-3.5" />
-            Última sync: {lastSync}
+            Ultima sync: {lastSync}
             {summary.totalInvestido > 0 && (
               <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
                 Meta API: dados com ~24h de atraso
@@ -360,54 +518,78 @@ export default function MarketingTrafego() {
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="bg-muted/50 p-1 rounded-xl">
-            <TabsTrigger
-              value="dashboard"
-              className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              Dashboard
+            <TabsTrigger value="dashboard" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
+              <LayoutDashboard className="h-4 w-4" /> Dashboard
             </TabsTrigger>
-            <TabsTrigger
-              value="criativos"
-              className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]"
-            >
-              <Layers className="h-4 w-4" />
-              Criativos
+            <TabsTrigger value="criativos" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
+              <Layers className="h-4 w-4" /> Criativos
             </TabsTrigger>
-            <TabsTrigger
-              value="campanhas"
-              className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]"
-            >
-              <Megaphone className="h-4 w-4" />
-              Campanhas
+            <TabsTrigger value="campanhas" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
+              <Megaphone className="h-4 w-4" /> Campanhas
             </TabsTrigger>
-            <TabsTrigger
-              value="analise"
-              className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Análise
+            <TabsTrigger value="analise" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
+              <BarChart3 className="h-4 w-4" /> Analise
             </TabsTrigger>
           </TabsList>
 
-          {/* ═══════════════════════════════════════════════════════════════
-              TAB 1: DASHBOARD
-          ═══════════════════════════════════════════════════════════════ */}
+          {/* ══════════ TAB 1: DASHBOARD ══════════ */}
           <TabsContent value="dashboard" className="space-y-6">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {metricCards.map((card) => (
-                <Card key={card.title} className="relative overflow-hidden">
-                  <CardContent className="pt-4 pb-3 px-4">
-                    <div className="flex items-center justify-between mb-1">
-                      <card.icon className={`h-4 w-4 ${card.color}`} />
-                      <VariationBadge value={card.variation} invert={card.invert} />
-                    </div>
-                    <p className="text-lg font-bold truncate">{card.value}</p>
-                    <span className="text-[11px] text-muted-foreground">{card.title}</span>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* BLOCO A — Meta Ads */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Megaphone className="h-4 w-4 text-muted-foreground" />
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meta Ads</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { title: "Investido", value: formatCurrency(summary.totalInvestido), icon: DollarSign, color: "text-emerald-500", variation: summary.variacao.investido },
+                  { title: "Impressoes", value: formatCompact(summary.totalImpressoes), icon: Eye, color: "text-cyan-500", variation: summary.variacao.impressoes },
+                  { title: "Cliques", value: formatCompact(summary.totalCliques), icon: TrendingUp, color: "text-pink-500", variation: summary.variacao.cliques },
+                  { title: "CTR Medio", value: formatPercent(summary.ctrMedio), icon: MousePointerClick, color: "text-purple-500", variation: summary.variacao.ctr },
+                  { title: "CPM", value: summary.totalImpressoes > 0 ? formatCurrency((summary.totalInvestido / summary.totalImpressoes) * 1000) : "—", icon: Eye, color: "text-amber-500", variation: null },
+                  { title: "CPL Meta", value: formatCurrency(summary.cplMedio), icon: Target, color: "text-orange-500", variation: summary.variacao.cpl, invert: true },
+                ].map((card) => (
+                  <Card key={card.title} className="relative overflow-hidden">
+                    <CardContent className="pt-4 pb-3 px-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <card.icon className={`h-4 w-4 ${card.color}`} />
+                        <VariationBadge value={card.variation} invert={card.invert} />
+                      </div>
+                      <p className="text-lg font-bold truncate">{card.value}</p>
+                      <span className="text-[11px] text-muted-foreground">{card.title}</span>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+
+            {/* BLOCO B — Resultados Reais CRM */}
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Resultados Reais (CRM)</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                {[
+                  { title: "Leads CRM", value: displayValue(ef?.leads_marketing, formatNumber), icon: Users, color: "text-blue-500" },
+                  { title: "Qualificados", value: displayValue(ef?.qualificados, formatNumber), icon: CheckCircle, color: "text-purple-500" },
+                  { title: "Agendados", value: displayValue(ef?.agendados, formatNumber), icon: CalendarCheck, color: "text-emerald-500" },
+                  { title: "Fechados", value: displayValue(ef?.fechados, formatNumber), icon: Handshake, color: "text-green-600" },
+                  { title: "CPL Real", value: displayValue(ef?.cpl_real), icon: Target, color: "text-orange-500" },
+                  { title: "ROAS Real", value: displayValue(ef?.roas_real, (v) => v.toFixed(2) + "x"), icon: TrendingUp, color: "text-emerald-600", tooltip: "Baseado em vendas registradas no CRM vinculadas a leads de marketing" },
+                ].map((card) => (
+                  <Card key={card.title} className="relative overflow-hidden border-blue-500/10 bg-blue-500/[0.02]">
+                    <CardContent className="pt-4 pb-3 px-4">
+                      <div className="flex items-center justify-between mb-1">
+                        <card.icon className={`h-4 w-4 ${card.color}`} />
+                        {(card as any).tooltip && <InfoTooltip text={(card as any).tooltip} />}
+                      </div>
+                      <p className="text-lg font-bold truncate">{card.value}</p>
+                      <span className="text-[11px] text-muted-foreground">{card.title}</span>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
 
             {/* Alerts */}
@@ -422,6 +604,54 @@ export default function MarketingTrafego() {
               </div>
             )}
 
+            {/* Funil de Conversao */}
+            {ef && (ef.leads_marketing || 0) > 0 && (
+              <Card className="rounded-xl">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Funil de Conversao (Marketing)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between gap-2 mb-4">
+                    {funnelSteps.map((step, idx) => {
+                      const maxVal = funnelSteps[0].value || 1;
+                      const pct = maxVal > 0 ? (step.value / maxVal) * 100 : 0;
+                      const convRate = idx > 0 && funnelSteps[idx - 1].value > 0
+                        ? ((step.value / funnelSteps[idx - 1].value) * 100).toFixed(0) + "%"
+                        : null;
+                      return (
+                        <Fragment key={step.label}>
+                          {idx > 0 && (
+                            <div className="flex flex-col items-center flex-shrink-0">
+                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-[10px] font-medium text-muted-foreground">{convRate || "—"}</span>
+                            </div>
+                          )}
+                          <div className="flex-1 text-center">
+                            <div className="flex items-center justify-center gap-1.5 mb-1">
+                              <step.icon className="h-4 w-4" style={{ color: step.color }} />
+                              <span className="text-xs font-medium">{step.label}</span>
+                            </div>
+                            <p className="text-2xl font-bold" style={{ color: step.color }}>{step.value}</p>
+                            <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: step.color }} />
+                            </div>
+                          </div>
+                        </Fragment>
+                      );
+                    })}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
+                    <span>CPL Real: <strong className="text-foreground">{displayValue(ef?.cpl_real)}</strong></span>
+                    <span>CPA Real: <strong className="text-foreground">{displayValue(ef?.cpa_real)}</strong></span>
+                    <span>CPV Real: <strong className="text-foreground">{displayValue(ef?.cpv_real)}</strong>
+                      <InfoTooltip text="Baseado em vendas registradas no CRM vinculadas a leads de marketing" />
+                    </span>
+                    <span className="ml-auto text-[10px] italic">Baseado em leads com rastreamento ativo</span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <Card className="lg:col-span-2 rounded-xl">
@@ -429,11 +659,11 @@ export default function MarketingTrafego() {
                   <CardTitle className="text-sm font-medium">Investimento & Leads por Dia</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {dailyData.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-10">Sem dados no período.</p>
+                  {dailyDataWithCrm.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-10">Sem dados no periodo.</p>
                   ) : (
                     <ResponsiveContainer width="100%" height={280}>
-                      <AreaChart data={dailyData}>
+                      <AreaChart data={dailyDataWithCrm}>
                         <defs>
                           <linearGradient id="gradInvest" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -453,13 +683,15 @@ export default function MarketingTrafego() {
                           labelFormatter={formatDateBR}
                           formatter={(value: number, name: string) => {
                             if (name === "investido") return [formatCurrency(value), "Investido"];
-                            if (name === "leads") return [formatNumber(value), "Leads"];
+                            if (name === "leads") return [formatNumber(value), "Leads Meta (estimativa)"];
+                            if (name === "leadsCrm") return [formatNumber(value), "Leads CRM (real)"];
                             return [formatCurrency(value), "CPL"];
                           }}
                         />
-                        <Legend formatter={(v) => v === "investido" ? "Investido" : v === "leads" ? "Leads" : "CPL"} />
+                        <Legend formatter={(v) => v === "investido" ? "Investido" : v === "leads" ? "Leads Meta (estimativa)" : "Leads CRM (real)"} />
                         <Area yAxisId="left" type="monotone" dataKey="investido" stroke="#10b981" fill="url(#gradInvest)" strokeWidth={2} />
                         <Area yAxisId="right" type="monotone" dataKey="leads" stroke="#3b82f6" fill="url(#gradLeads)" strokeWidth={2} />
+                        <Line yAxisId="right" type="monotone" dataKey="leadsCrm" stroke="#8b5cf6" strokeWidth={2} strokeDasharray="6 3" dot={false} />
                       </AreaChart>
                     </ResponsiveContainer>
                   )}
@@ -477,16 +709,7 @@ export default function MarketingTrafego() {
                     <div>
                       <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
-                          <Pie
-                            data={spendByCampaign}
-                            dataKey="value"
-                            nameKey="name"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={50}
-                            outerRadius={80}
-                            paddingAngle={2}
-                          >
+                          <Pie data={spendByCampaign} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
                             {spendByCampaign.map((_, idx) => (
                               <Cell key={idx} fill={DONUT_COLORS[idx % DONUT_COLORS.length]} />
                             ))}
@@ -543,10 +766,7 @@ export default function MarketingTrafego() {
                         </div>
                         <CriativoScoreCard
                           scoreOutput={calcularScore({ cpl: ad.cpl, ctr: ad.ctr, leads: ad.leads, diasAtivos: ad.diasAtivos, gasto: ad.investido })}
-                          ctr={ad.ctr}
-                          cpl={ad.cpl}
-                          leads={ad.leads}
-                          diasAtivos={ad.diasAtivos}
+                          ctr={ad.ctr} cpl={ad.cpl} leads={ad.leads} diasAtivos={ad.diasAtivos}
                         />
                       </div>
                     ))}
@@ -556,11 +776,8 @@ export default function MarketingTrafego() {
             )}
           </TabsContent>
 
-          {/* ═══════════════════════════════════════════════════════════════
-              TAB 2: CRIATIVOS
-          ═══════════════════════════════════════════════════════════════ */}
+          {/* ══════════ TAB 2: CRIATIVOS ══════════ */}
           <TabsContent value="criativos" className="space-y-6">
-            {/* Filters */}
             <div className="flex items-center gap-3">
               <Select value={adFilter} onValueChange={setAdFilter}>
                 <SelectTrigger className="h-9 w-[200px] text-xs">
@@ -588,138 +805,170 @@ export default function MarketingTrafego() {
                 </SelectContent>
               </Select>
               <span className="text-xs text-muted-foreground ml-auto">
-                {sortedAds.length} anúncio{sortedAds.length !== 1 ? "s" : ""}
+                {sortedAds.length} anuncio{sortedAds.length !== 1 ? "s" : ""}
               </span>
             </div>
 
-            {/* Creative Cards Grid */}
             {sortedAds.length === 0 ? (
               <Card className="rounded-xl">
                 <CardContent className="py-10 text-center">
-                  <p className="text-sm text-muted-foreground">Nenhum anúncio encontrado.</p>
+                  <p className="text-sm text-muted-foreground">Nenhum anuncio encontrado.</p>
                 </CardContent>
               </Card>
             ) : (
               <>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {sortedAds.slice(0, 10).map((ad, idx) => (
-                    <div key={ad.meta_ad_id} className="flex items-center gap-3 p-4 rounded-xl border bg-card hover:shadow-sm transition-shadow">
-                      <div className="flex flex-col items-center gap-1 w-8">
-                        <RankingBadge position={idx + 1} />
-                      </div>
-                      {ad.url_thumbnail ? (
-                        <img src={ad.url_thumbnail} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
-                      ) : (
-                        <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                          <Image className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <p className="text-sm font-medium truncate">{ad.nome}</p>
-                          <StatusBadge status={ad.status} />
-                        </div>
-                        <p className="text-xs text-muted-foreground truncate mb-2">{ad.campanha_nome}</p>
-                        <div className="grid grid-cols-4 gap-2 text-xs">
-                          <div>
-                            <span className="text-muted-foreground">CPL</span>
-                            <p className={`font-semibold ${ad.cpl > 0 && ad.cpl < summary.cplMedio * 0.7 ? "text-emerald-600" : ad.cpl > summary.cplMedio * 1.3 ? "text-red-500" : ""}`}>
-                              {ad.leads > 0 ? formatCurrency(ad.cpl) : "—"}
-                            </p>
+                  {sortedAds.slice(0, 10).map((ad, idx) => {
+                    const cp = criativoPerfMap.get(ad.meta_ad_id);
+                    return (
+                      <div key={ad.meta_ad_id} className="flex flex-col rounded-xl border bg-card hover:shadow-sm transition-shadow">
+                        <div className="flex items-center gap-3 p-4">
+                          <div className="flex flex-col items-center gap-1 w-8">
+                            <RankingBadge position={idx + 1} />
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">CTR</span>
-                            <p className="font-semibold">{formatPercent(ad.ctr)}</p>
+                          {ad.url_thumbnail ? (
+                            <img src={ad.url_thumbnail} alt="" className="w-14 h-14 rounded-lg object-cover flex-shrink-0" />
+                          ) : (
+                            <div className="w-14 h-14 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                              <Image className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="text-sm font-medium truncate">{ad.nome}</p>
+                              <StatusBadge status={ad.status} />
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate mb-2">{ad.campanha_nome}</p>
+                            <div className="grid grid-cols-4 gap-2 text-xs">
+                              <div><span className="text-muted-foreground">CPL</span><p className={`font-semibold ${ad.cpl > 0 && ad.cpl < summary.cplMedio * 0.7 ? "text-emerald-600" : ad.cpl > summary.cplMedio * 1.3 ? "text-red-500" : ""}`}>{ad.leads > 0 ? formatCurrency(ad.cpl) : "—"}</p></div>
+                              <div><span className="text-muted-foreground">CTR</span><p className="font-semibold">{formatPercent(ad.ctr)}</p></div>
+                              <div><span className="text-muted-foreground">Leads</span><p className="font-semibold">{ad.leads}</p></div>
+                              <div><span className="text-muted-foreground">Gasto</span><p className="font-semibold">{formatCurrency(ad.investido)}</p></div>
+                            </div>
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full bg-purple-500 transition-all" style={{ width: `${Math.min(ad.ctr / 3 * 100, 100)}%` }} />
+                              </div>
+                              <span className="text-[10px] text-muted-foreground">{formatPercent(ad.ctr)}</span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="text-muted-foreground">Leads</span>
-                            <p className="font-semibold">{ad.leads}</p>
-                          </div>
-                          <div>
-                            <span className="text-muted-foreground">Gasto</span>
-                            <p className="font-semibold">{formatCurrency(ad.investido)}</p>
-                          </div>
-                        </div>
-                        {/* CTR progress bar */}
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-purple-500 transition-all"
-                              style={{ width: `${Math.min(ad.ctr / 3 * 100, 100)}%` }}
+                          <div className="flex flex-col items-center gap-1">
+                            <CriativoScoreCard
+                              scoreOutput={calcularScore({ cpl: ad.cpl, ctr: ad.ctr, leads: ad.leads, diasAtivos: ad.diasAtivos, gasto: ad.investido })}
+                              ctr={ad.ctr} cpl={ad.cpl} leads={ad.leads} diasAtivos={ad.diasAtivos}
                             />
+                            <QualityBadge ranking={ad.quality_ranking} />
                           </div>
-                          <span className="text-[10px] text-muted-foreground">{formatPercent(ad.ctr)}</span>
+                        </div>
+                        {/* CRM Performance section */}
+                        <div className="border-t px-4 py-3 bg-blue-500/[0.02]">
+                          {cp && cp.leads_crm_total > 0 ? (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Target className="h-3 w-3 text-blue-500" />
+                                <span className="text-[11px] font-semibold text-blue-600">Performance Real (CRM)</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span>Leads: <strong className="text-foreground">{cp.leads_crm_total}</strong></span>
+                                <span>Qualif: <strong className="text-foreground">{cp.leads_qualificados}</strong></span>
+                                <span>Agend: <strong className="text-foreground">{cp.leads_agendados}</strong></span>
+                                <span>Fechados: <strong className="text-foreground">{cp.leads_fechados}</strong></span>
+                              </div>
+                              {(cp.scoring_a + cp.scoring_b + cp.scoring_c + cp.scoring_d) > 0 && (
+                                <div className="flex items-center gap-2 text-[10px]">
+                                  <span>Scoring:</span>
+                                  {cp.scoring_a > 0 && <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] px-1 h-4">A:{cp.scoring_a}</Badge>}
+                                  {cp.scoring_b > 0 && <Badge className="bg-blue-100 text-blue-700 border-0 text-[10px] px-1 h-4">B:{cp.scoring_b}</Badge>}
+                                  {cp.scoring_c > 0 && <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] px-1 h-4">C:{cp.scoring_c}</Badge>}
+                                  {cp.scoring_d > 0 && <Badge className="bg-red-100 text-red-700 border-0 text-[10px] px-1 h-4">D:{cp.scoring_d}</Badge>}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                <span>CPL Real: <strong className="text-foreground">{displayValue(cp.cpl_real)}</strong></span>
+                                <span>ROAS: <strong className="text-foreground">{displayValue(cp.roas_real, (v) => v.toFixed(2) + "x")}</strong></span>
+                              </div>
+                              {cp.leads_crm_total > 0 && (
+                                <div className="flex items-center gap-1 h-2">
+                                  <div className="h-full rounded-l bg-emerald-500" style={{ width: `${(cp.leads_qualificados / cp.leads_crm_total) * 100}%` }} />
+                                  <div className="h-full bg-blue-500" style={{ width: `${(cp.leads_agendados / cp.leads_crm_total) * 100}%` }} />
+                                  <div className="h-full rounded-r bg-green-600" style={{ width: `${(cp.leads_fechados / cp.leads_crm_total) * 100}%` }} />
+                                  <div className="h-full rounded-r bg-muted flex-1" />
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Target className="h-3 w-3" />
+                              <span>Performance Real (CRM): aguardando leads rastreados</span>
+                            </div>
+                          )}
                         </div>
                       </div>
-                      <div className="flex flex-col items-center gap-1">
-                        <CriativoScoreCard
-                          scoreOutput={calcularScore({ cpl: ad.cpl, ctr: ad.ctr, leads: ad.leads, diasAtivos: ad.diasAtivos, gasto: ad.investido })}
-                          ctr={ad.ctr}
-                          cpl={ad.cpl}
-                          leads={ad.leads}
-                          diasAtivos={ad.diasAtivos}
-                        />
-                        <QualityBadge ranking={ad.quality_ranking} />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
-                {/* Full table below */}
                 {sortedAds.length > 10 && (
                   <Card className="rounded-xl">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Todos os Anúncios ({sortedAds.length})</CardTitle>
+                      <CardTitle className="text-sm font-medium">Todos os Anuncios ({sortedAds.length})</CardTitle>
                     </CardHeader>
                     <CardContent className="px-0">
                       <Table>
                         <TableHeader>
                           <TableRow>
                             <TableHead className="pl-6 w-[50px]"></TableHead>
-                            <TableHead>Anúncio</TableHead>
+                            <TableHead>Anuncio</TableHead>
                             <TableHead>Campanha</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-right">Gasto</TableHead>
                             <TableHead className="text-right">Leads</TableHead>
                             <TableHead className="text-right">CPL</TableHead>
                             <TableHead className="text-right">CTR</TableHead>
-                            <TableHead className="text-right">CPC</TableHead>
+                            <TableHead className="text-right">Leads CRM</TableHead>
+                            <TableHead className="text-right">Qualif.</TableHead>
+                            <TableHead className="text-right">CPL Real</TableHead>
+                            <TableHead className="text-right">ROAS</TableHead>
                             <TableHead className="text-right pr-6">Score</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {sortedAds.slice(10).map((ad) => (
-                            <TableRow key={ad.meta_ad_id}>
-                              <TableCell className="pl-6">
-                                {ad.url_thumbnail ? (
-                                  <img src={ad.url_thumbnail} alt="" className="w-9 h-9 rounded object-cover" />
-                                ) : (
-                                  <div className="w-9 h-9 rounded bg-muted flex items-center justify-center">
-                                    <Image className="h-4 w-4 text-muted-foreground" />
+                          {sortedAds.slice(10).map((ad) => {
+                            const cp = criativoPerfMap.get(ad.meta_ad_id);
+                            return (
+                              <TableRow key={ad.meta_ad_id}>
+                                <TableCell className="pl-6">
+                                  {ad.url_thumbnail ? (
+                                    <img src={ad.url_thumbnail} alt="" className="w-9 h-9 rounded object-cover" />
+                                  ) : (
+                                    <div className="w-9 h-9 rounded bg-muted flex items-center justify-center">
+                                      <Image className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                </TableCell>
+                                <TableCell className="font-medium max-w-[180px] truncate">{ad.nome}</TableCell>
+                                <TableCell className="text-muted-foreground max-w-[150px] truncate">{ad.campanha_nome}</TableCell>
+                                <TableCell><StatusBadge status={ad.status} /></TableCell>
+                                <TableCell className="text-right">{formatCurrency(ad.investido)}</TableCell>
+                                <TableCell className="text-right">{ad.leads}</TableCell>
+                                <TableCell className="text-right">
+                                  <span className={ad.cpl > 0 && ad.cpl < summary.cplMedio * 0.7 ? "text-emerald-600 font-medium" : ad.cpl > summary.cplMedio * 1.3 ? "text-red-500" : ""}>
+                                    {ad.leads > 0 ? formatCurrency(ad.cpl) : "—"}
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">{formatPercent(ad.ctr)}</TableCell>
+                                <TableCell className="text-right">{cp && cp.leads_crm_total > 0 ? cp.leads_crm_total : "—"}</TableCell>
+                                <TableCell className="text-right">{cp && cp.leads_qualificados > 0 ? cp.leads_qualificados : "—"}</TableCell>
+                                <TableCell className="text-right">{cp ? displayValue(cp.cpl_real) : "—"}</TableCell>
+                                <TableCell className="text-right">{cp ? displayValue(cp.roas_real, (v) => v.toFixed(2) + "x") : "—"}</TableCell>
+                                <TableCell className="text-right pr-6">
+                                  <div className="flex justify-end">
+                                    <CriativoScoreBadge scoreOutput={calcularScore({ cpl: ad.cpl, ctr: ad.ctr, leads: ad.leads, diasAtivos: ad.diasAtivos, gasto: ad.investido })} />
                                   </div>
-                                )}
-                              </TableCell>
-                              <TableCell className="font-medium max-w-[180px] truncate">{ad.nome}</TableCell>
-                              <TableCell className="text-muted-foreground max-w-[150px] truncate">{ad.campanha_nome}</TableCell>
-                              <TableCell><StatusBadge status={ad.status} /></TableCell>
-                              <TableCell className="text-right">{formatCurrency(ad.investido)}</TableCell>
-                              <TableCell className="text-right">{ad.leads}</TableCell>
-                              <TableCell className="text-right">
-                                <span className={ad.cpl > 0 && ad.cpl < summary.cplMedio * 0.7 ? "text-emerald-600 font-medium" : ad.cpl > summary.cplMedio * 1.3 ? "text-red-500" : ""}>
-                                  {ad.leads > 0 ? formatCurrency(ad.cpl) : "—"}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right">{formatPercent(ad.ctr)}</TableCell>
-                              <TableCell className="text-right">{formatCurrency(ad.cpc)}</TableCell>
-                              <TableCell className="text-right pr-6">
-                                <div className="flex justify-end">
-                                  <CriativoScoreBadge
-                                    scoreOutput={calcularScore({ cpl: ad.cpl, ctr: ad.ctr, leads: ad.leads, diasAtivos: ad.diasAtivos, gasto: ad.investido })}
-                                  />
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </CardContent>
@@ -729,39 +978,20 @@ export default function MarketingTrafego() {
             )}
           </TabsContent>
 
-          {/* ═══════════════════════════════════════════════════════════════
-              TAB 3: CAMPANHAS
-          ═══════════════════════════════════════════════════════════════ */}
+          {/* ══════════ TAB 3: CAMPANHAS ══════════ */}
           <TabsContent value="campanhas" className="space-y-6">
-            {/* Status Filter */}
             <div className="flex items-center gap-2">
-              <Button
-                variant={campaignStatusFilter === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCampaignStatusFilter("all")}
-                className="text-xs"
-              >
+              <Button variant={campaignStatusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setCampaignStatusFilter("all")} className="text-xs">
                 Todas ({campaignRows.length})
               </Button>
-              <Button
-                variant={campaignStatusFilter === "ACTIVE" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCampaignStatusFilter("ACTIVE")}
-                className="text-xs"
-              >
+              <Button variant={campaignStatusFilter === "ACTIVE" ? "default" : "outline"} size="sm" onClick={() => setCampaignStatusFilter("ACTIVE")} className="text-xs">
                 <Play className="h-3 w-3 mr-1" /> Ativas ({activeCampaigns.length})
               </Button>
-              <Button
-                variant={campaignStatusFilter === "PAUSED" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCampaignStatusFilter("PAUSED")}
-                className="text-xs"
-              >
+              <Button variant={campaignStatusFilter === "PAUSED" ? "default" : "outline"} size="sm" onClick={() => setCampaignStatusFilter("PAUSED")} className="text-xs">
                 <Pause className="h-3 w-3 mr-1" /> Pausadas ({inactiveCampaigns.length})
               </Button>
             </div>
 
-            {/* Campaigns with hierarchy */}
             {filteredCampaigns.length === 0 ? (
               <Card className="rounded-xl">
                 <CardContent className="py-10 text-center">
@@ -811,9 +1041,9 @@ export default function MarketingTrafego() {
                                       <TableHeader>
                                         <TableRow className="bg-muted/40">
                                           <TableHead className="pl-10 w-8"></TableHead>
-                                          <TableHead className="text-xs">Conjunto de Anúncio</TableHead>
+                                          <TableHead className="text-xs">Conjunto de Anuncio</TableHead>
                                           <TableHead className="text-xs">Status</TableHead>
-                                          <TableHead className="text-xs">Orçamento</TableHead>
+                                          <TableHead className="text-xs">Orcamento</TableHead>
                                           <TableHead className="text-xs text-right">Gasto</TableHead>
                                           <TableHead className="text-xs text-right">Leads</TableHead>
                                           <TableHead className="text-xs text-right">CPL</TableHead>
@@ -826,17 +1056,14 @@ export default function MarketingTrafego() {
                                           const isAdsetOpen = expandedAdsets.has(adset.meta_adset_id);
                                           return (
                                             <Fragment key={adset.meta_adset_id}>
-                                              <TableRow
-                                                className="cursor-pointer hover:bg-muted/20 transition-colors"
-                                                onClick={() => toggleAdset(adset.meta_adset_id)}
-                                              >
+                                              <TableRow className="cursor-pointer hover:bg-muted/20 transition-colors" onClick={() => toggleAdset(adset.meta_adset_id)}>
                                                 <TableCell className="pl-10 w-8">
                                                   {isAdsetOpen ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
                                                 </TableCell>
                                                 <TableCell>
                                                   <div>
                                                     <p className="text-sm font-medium truncate max-w-[200px]">{adset.nome}</p>
-                                                    <span className="text-[10px] text-muted-foreground">{adsetAds.length} anúncio{adsetAds.length !== 1 ? "s" : ""}</span>
+                                                    <span className="text-[10px] text-muted-foreground">{adsetAds.length} anuncio{adsetAds.length !== 1 ? "s" : ""}</span>
                                                   </div>
                                                 </TableCell>
                                                 <TableCell><StatusBadge status={adset.status} /></TableCell>
@@ -871,9 +1098,7 @@ export default function MarketingTrafego() {
                                                             <span>CPL {ad.leads > 0 ? formatCurrency(ad.cpl) : "—"}</span>
                                                             <span>CTR {formatPercent(ad.ctr)}</span>
                                                           </div>
-                                                          <CriativoScoreBadge
-                                                            scoreOutput={calcularScore({ cpl: ad.cpl, ctr: ad.ctr, leads: ad.leads, diasAtivos: ad.diasAtivos, gasto: ad.investido })}
-                                                          />
+                                                          <CriativoScoreBadge scoreOutput={calcularScore({ cpl: ad.cpl, ctr: ad.ctr, leads: ad.leads, diasAtivos: ad.diasAtivos, gasto: ad.investido })} />
                                                         </div>
                                                       ))}
                                                     </div>
@@ -883,7 +1108,7 @@ export default function MarketingTrafego() {
                                               {isAdsetOpen && adsetAds.length === 0 && (
                                                 <TableRow>
                                                   <TableCell colSpan={8} className="bg-muted/10 text-center text-xs text-muted-foreground py-3">
-                                                    Nenhum anúncio neste conjunto.
+                                                    Nenhum anuncio neste conjunto.
                                                   </TableCell>
                                                 </TableRow>
                                               )}
@@ -908,19 +1133,45 @@ export default function MarketingTrafego() {
             )}
           </TabsContent>
 
-          {/* ═══════════════════════════════════════════════════════════════
-              TAB 4: ANÁLISE
-          ═══════════════════════════════════════════════════════════════ */}
+          {/* ══════════ TAB 4: ANALISE ══════════ */}
           <TabsContent value="analise" className="space-y-6">
+            {/* Resumo de Eficiencia */}
+            {ef && (
+              <Card className="rounded-xl border-l-4 border-l-blue-500">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Eficiencia do Marketing — Periodo selecionado</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-x-6 gap-y-2 text-sm">
+                    <div><span className="text-muted-foreground">Investido:</span> <strong>{displayValue(ef.total_investido)}</strong></div>
+                    <div><span className="text-muted-foreground">Leads:</span> <strong>{displayValue(ef.leads_marketing, formatNumber)}</strong></div>
+                    <div><span className="text-muted-foreground">Qualificados:</span> <strong>{displayValue(ef.qualificados, formatNumber)}</strong></div>
+                    <div><span className="text-muted-foreground">Agendados:</span> <strong>{displayValue(ef.agendados, formatNumber)}</strong></div>
+                    <div><span className="text-muted-foreground">Fechados:</span> <strong>{displayValue(ef.fechados, formatNumber)}</strong></div>
+                    <div><span className="text-muted-foreground">Receita:</span> <strong>{displayValue(ef.receita_marketing)}</strong></div>
+                    <div><span className="text-muted-foreground">CPL Real:</span> <strong>{displayValue(ef.cpl_real)}</strong></div>
+                    <div><span className="text-muted-foreground">CPA:</span> <strong>{displayValue(ef.cpa_real)}</strong></div>
+                    <div><span className="text-muted-foreground">CPV:</span> <strong>{displayValue(ef.cpv_real)}</strong><InfoTooltip text="Baseado em vendas registradas no CRM vinculadas a leads de marketing" /></div>
+                    <div><span className="text-muted-foreground">ROAS:</span> <strong>{displayValue(ef.roas_real, (v) => v.toFixed(2) + "x")}</strong><InfoTooltip text="Baseado em vendas registradas no CRM vinculadas a leads de marketing" /></div>
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-muted-foreground border-t mt-3 pt-3">
+                    <span>Taxa Qualif: <strong className="text-foreground">{displayPercent(ef.taxa_qualificacao)}</strong></span>
+                    <span>Taxa Agend: <strong className="text-foreground">{displayPercent(ef.taxa_agendamento)}</strong></span>
+                    <span>Taxa Fecha: <strong className="text-foreground">{displayPercent(ef.taxa_fechamento)}</strong></span>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* CPL Evolution */}
               <Card className="rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Evolução do CPL</CardTitle>
+                  <CardTitle className="text-sm font-medium">Evolucao do CPL</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {dailyData.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-10">Sem dados no período.</p>
+                    <p className="text-sm text-muted-foreground text-center py-10">Sem dados no periodo.</p>
                   ) : (
                     <ResponsiveContainer width="100%" height={260}>
                       <LineChart data={dailyData}>
@@ -972,7 +1223,7 @@ export default function MarketingTrafego() {
               {/* Cumulative Trend */}
               <Card className="rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Tendência Acumulada</CardTitle>
+                  <CardTitle className="text-sm font-medium">Tendencia Acumulada</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {cumulativeData.length === 0 ? (
@@ -1031,11 +1282,11 @@ export default function MarketingTrafego() {
                           contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12 }}
                           formatter={(value: number, name: string) => {
                             if (name === "leadsMedia") return [value.toFixed(1), "Leads/dia"];
-                            if (name === "cplMedia") return [formatCurrency(value), "CPL médio"];
-                            return [formatCurrency(value), "Gasto médio"];
+                            if (name === "cplMedia") return [formatCurrency(value), "CPL medio"];
+                            return [formatCurrency(value), "Gasto medio"];
                           }}
                         />
-                        <Legend formatter={(v) => v === "leadsMedia" ? "Leads/dia" : v === "cplMedia" ? "CPL médio" : "Gasto/dia"} />
+                        <Legend formatter={(v) => v === "leadsMedia" ? "Leads/dia" : v === "cplMedia" ? "CPL medio" : "Gasto/dia"} />
                         <Bar yAxisId="left" dataKey="leadsMedia" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         <Bar yAxisId="right" dataKey="cplMedia" fill="#f97316" radius={[4, 4, 0, 0]} />
                       </BarChart>
@@ -1044,6 +1295,36 @@ export default function MarketingTrafego() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Qualidade de Leads por Criativo */}
+            {qualidadePorCriativo.length > 0 && (
+              <Card className="rounded-xl">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">Qualidade de Leads por Criativo</CardTitle>
+                    <span className="text-[10px] text-muted-foreground">Criativos com rastreamento ativo: {qualidadePorCriativo.length}</span>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={Math.max(qualidadePorCriativo.length * 40, 200)}>
+                    <BarChart data={qualidadePorCriativo} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis type="number" tick={{ fontSize: 10 }} />
+                      <YAxis type="category" dataKey="nome" width={150} tick={{ fontSize: 10 }} />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, fontSize: 12 }}
+                      />
+                      <Legend />
+                      <Bar dataKey="A" stackId="score" fill="#22c55e" name="A" radius={[0, 0, 0, 0]} />
+                      <Bar dataKey="B" stackId="score" fill="#3b82f6" name="B" />
+                      <Bar dataKey="C" stackId="score" fill="#f59e0b" name="C" />
+                      <Bar dataKey="D" stackId="score" fill="#ef4444" name="D" />
+                      <Bar dataKey="sem" stackId="score" fill="#d1d5db" name="Sem scoring" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       )}
