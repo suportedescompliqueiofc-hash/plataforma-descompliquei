@@ -33,6 +33,8 @@ export interface Lead {
   origem?: string;
   fonte?: string;
   criativo_id?: string;
+  meta_ad_platform?: string;
+  meta_ad_source_id?: string;
   status: string;
   posicao_pipeline: number;
   ultimo_contato?: string;
