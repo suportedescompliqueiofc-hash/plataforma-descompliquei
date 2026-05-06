@@ -266,8 +266,8 @@ export default function MarketingTrafego() {
     queryKey: ['marketing-eficiencia', orgId, dateRange],
     queryFn: async () => {
       if (!orgId || !dateRange?.from || !dateRange?.to) return null;
-      const startDate = fnsFormat(startOfMonth(dateRange.from), 'yyyy-MM-dd');
-      const endDate = fnsFormat(endOfMonth(dateRange.to), 'yyyy-MM-dd');
+      const startDate = fnsFormat(dateRange.from, 'yyyy-MM-dd');
+      const endDate = fnsFormat(dateRange.to, 'yyyy-MM-dd');
 
       const [leadsRes, vendasRes, insightsRes] = await Promise.all([
         supabase.from('leads').select('origem, is_qualified, is_scheduled, is_closed')
