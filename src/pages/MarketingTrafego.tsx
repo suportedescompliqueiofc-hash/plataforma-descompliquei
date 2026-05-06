@@ -37,6 +37,7 @@ import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
 import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useDashboard } from "@/hooks/useDashboard";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -262,61 +263,31 @@ export default function MarketingTrafego() {
     spendByCampaign, integration, isLoading, syncMutation,
   } = useMetaAds(dateRange);
 
-  const { data: eficiencia } = useQuery({
-    queryKey: ['marketing-eficiencia', orgId, dateRange],
-    queryFn: async () => {
-      if (!orgId || !dateRange?.from || !dateRange?.to) return null;
-      const startDate = fnsFormat(dateRange.from, 'yyyy-MM-dd');
-      const endDate = fnsFormat(dateRange.to, 'yyyy-MM-dd');
+  const { metrics: dashboardMetrics } = useDashboard(dateRange, 'geral');
 
-      const [leadsRes, vendasRes, insightsRes] = await Promise.all([
-        supabase.from('leads').select('origem, is_qualified, is_scheduled, is_closed')
-          .eq('organization_id', orgId)
-          .gte('criado_em', `${startDate}T00:00:00`)
-          .lte('criado_em', `${endDate}T23:59:59`),
-        supabase.from('vendas').select('valor_fechado, lead_id')
-          .eq('organization_id', orgId)
-          .gte('data_fechamento', startDate)
-          .lte('data_fechamento', endDate),
-        supabase.from('meta_insights' as any).select('gasto')
-          .eq('organization_id', orgId)
-          .eq('nivel', 'campaign')
-          .gte('data_ref', startDate)
-          .lte('data_ref', endDate),
-      ]);
-
-      const leads = leadsRes.data || [];
-      const vendas = vendasRes.data || [];
-      const insights = (insightsRes.data as any[]) || [];
-
-      const totalInvestido = insights.reduce((s: number, i: any) => s + Number(i.gasto || 0), 0);
-      const mktLeads = leads.filter((l: any) => l.origem === 'marketing');
-      const qualificados = mktLeads.filter((l: any) => l.is_qualified).length;
-      const agendados = mktLeads.filter((l: any) => l.is_scheduled).length;
-      const fechados = mktLeads.filter((l: any) => l.is_closed).length;
-      const receitaMkt = vendas.reduce((s: number, v: any) => s + Number(v.valor_fechado || 0), 0);
-
-      return {
-        organization_id: orgId,
-        total_investido: totalInvestido,
-        total_leads: leads.length,
-        leads_marketing: mktLeads.length,
-        qualificados,
-        agendados,
-        fechados,
-        receita_marketing: receitaMkt,
-        cpl_real: mktLeads.length > 0 ? totalInvestido / mktLeads.length : 0,
-        cpa_real: agendados > 0 ? totalInvestido / agendados : 0,
-        cpv_real: fechados > 0 ? totalInvestido / fechados : 0,
-        roas_real: totalInvestido > 0 ? receitaMkt / totalInvestido : 0,
-        taxa_qualificacao: mktLeads.length > 0 ? (qualificados / mktLeads.length) * 100 : 0,
-        taxa_agendamento: qualificados > 0 ? (agendados / qualificados) * 100 : 0,
-        taxa_fechamento: agendados > 0 ? (fechados / agendados) * 100 : 0,
-      } as Eficiencia;
-    },
-    enabled: !!orgId && !!dateRange?.from,
-    staleTime: 5 * 60 * 1000,
-  });
+  const eficiencia = useMemo((): Eficiencia | null => {
+    if (!dashboardMetrics) return null;
+    const f = dashboardMetrics.descompliqueiFunnel ?? { leads: 0, mql: 0, scheduled: 0, closed: 0, txMql: 0, txAgendamento: 0, txConversao: 0 };
+    const aq = dashboardMetrics.acquisitionEfficiency ?? { investment: 0, cpl: null, cpm: null, cpa: null, cpf: null };
+    const inv = aq.investment || 0;
+    return {
+      organization_id: orgId || '',
+      total_investido: inv,
+      total_leads: f.leads,
+      leads_marketing: f.leads,
+      qualificados: f.mql,
+      agendados: f.scheduled,
+      fechados: f.closed,
+      receita_marketing: dashboardMetrics.faturamentoTotal || 0,
+      cpl_real: aq.cpl || 0,
+      cpa_real: aq.cpa || 0,
+      cpv_real: aq.cpf || 0,
+      roas_real: inv > 0 ? (dashboardMetrics.faturamentoTotal || 0) / inv : 0,
+      taxa_qualificacao: f.txMql,
+      taxa_agendamento: f.txAgendamento,
+      taxa_fechamento: f.txConversao,
+    };
+  }, [dashboardMetrics, orgId]);
 
   const { data: criativosPerf } = useQuery({
     queryKey: ['criativo-performance', orgId],
