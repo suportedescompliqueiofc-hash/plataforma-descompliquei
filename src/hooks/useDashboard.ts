@@ -43,7 +43,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
       const endDayStr = format(endOfDay(dateRange.to), 'yyyy-MM-dd');
 
       try {
-        const [ leadsRes, stagesRes, vendasRes, expensesRes, criativosRes ] = await Promise.all([
+        const [ leadsRes, stagesRes, vendasRes, expensesRes, criativosRes, metaInsightsRes ] = await Promise.all([
           supabase
             .from('leads')
             .select('*')
@@ -52,7 +52,8 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           supabase.from('etapas').select('*').order('posicao_ordem'),
           supabase.from('vendas').select('*').eq('organization_id', orgId).gte('data_fechamento', startDayStr).lte('data_fechamento', endDayStr),
           supabase.from('marketing_expenses').select('amount').eq('organization_id', orgId).gte('expense_date', startDayStr).lte('expense_date', endDayStr),
-          supabase.from('criativos').select('platform_metrics').eq('organization_id', orgId)
+          supabase.from('criativos').select('platform_metrics').eq('organization_id', orgId),
+          supabase.from('meta_insights' as any).select('gasto').eq('organization_id', orgId).eq('nivel', 'campaign').gte('data_ref', startDayStr).lte('data_ref', endDayStr),
         ]);
 
         if (leadsRes.error?.status === 401) throw new Error("Sessão expirada.");
@@ -63,6 +64,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const vendas = vendasRes.data || [];
         const expenses = expensesRes.data || [];
         const criativos = criativosRes.data || [];
+        const metaInsights = (metaInsightsRes.data as any[]) || [];
 
         const funnelStages = allStages.filter(s => s.em_funil);
         const lostPos = allStages.find(s => s.nome.toLowerCase() === 'perdido')?.posicao_ordem || 999;
@@ -83,10 +85,13 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
 
         const faturamentoTotal = vendas.reduce((sum, v) => sum + Number(v.valor_fechado || 0), 0);
 
-        const totalInvestment = expenses.reduce((a, c) => a + Number(c.amount || 0), 0) + criativos.reduce((a, c) => {
+        const metaAdsSpend = metaInsights.reduce((a: number, c: any) => a + Number(c.gasto || 0), 0);
+        const manualExpenses = expenses.reduce((a, c) => a + Number(c.amount || 0), 0);
+        const criativosSpend = criativos.reduce((a, c) => {
           const m = c.platform_metrics as any;
           return (m?.included_in_dashboard) ? a + Number(m.spend || 0) : a;
         }, 0);
+        const totalInvestment = metaAdsSpend > 0 ? metaAdsSpend : (manualExpenses + criativosSpend);
 
         const filterByOrigem = (l: any) => {
           if (origemFilter === 'marketing') return l.origem === 'marketing';
