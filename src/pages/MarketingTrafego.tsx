@@ -686,9 +686,14 @@ export default function MarketingTrafego() {
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
                     <span>CPL Real: <strong className="text-foreground">{displayValue(ef?.cpl_real)}</strong></span>
-                    <span>CPA Real: <strong className="text-foreground">{displayValue(ef?.cpa_real)}</strong></span>
-                    <span>CPV Real: <strong className="text-foreground">{displayValue(ef?.cpv_real)}</strong>
-                      <InfoTooltip text="Baseado em vendas registradas no CRM vinculadas a leads de marketing" />
+                    <span>CPMQL: <strong className="text-foreground">{displayValue(ef?.qualificados && ef.qualificados > 0 ? ef.total_investido / ef.qualificados : null)}</strong>
+                      <InfoTooltip text="Custo por MQL — investimento / qualificados" />
+                    </span>
+                    <span>CPR Real: <strong className="text-foreground">{displayValue(ef?.cpa_real)}</strong>
+                      <InfoTooltip text="Custo por Reunião — investimento / agendamentos" />
+                    </span>
+                    <span>CPA Real: <strong className="text-foreground">{displayValue(ef?.cpv_real)}</strong>
+                      <InfoTooltip text="Custo por Aquisição — investimento / fechamentos" />
                     </span>
                     <span className="ml-auto text-[10px] italic">Baseado em leads com rastreamento ativo</span>
                   </div>
@@ -1207,8 +1212,9 @@ export default function MarketingTrafego() {
                     <div><span className="text-muted-foreground">Fechados:</span> <strong>{displayValue(ef.fechados, formatNumber)}</strong></div>
                     <div><span className="text-muted-foreground">Receita:</span> <strong>{displayValue(ef.receita_marketing)}</strong></div>
                     <div><span className="text-muted-foreground">CPL Real:</span> <strong>{displayValue(ef.cpl_real)}</strong></div>
-                    <div><span className="text-muted-foreground">CPA:</span> <strong>{displayValue(ef.cpa_real)}</strong></div>
-                    <div><span className="text-muted-foreground">CPV:</span> <strong>{displayValue(ef.cpv_real)}</strong><InfoTooltip text="Baseado em vendas registradas no CRM vinculadas a leads de marketing" /></div>
+                    <div><span className="text-muted-foreground">CPMQL:</span> <strong>{displayValue(ef.qualificados > 0 ? ef.total_investido / ef.qualificados : null)}</strong></div>
+                    <div><span className="text-muted-foreground">CPR:</span> <strong>{displayValue(ef.cpa_real)}</strong></div>
+                    <div><span className="text-muted-foreground">CPA:</span> <strong>{displayValue(ef.cpv_real)}</strong><InfoTooltip text="Custo por Aquisição — investimento / fechamentos" /></div>
                     <div><span className="text-muted-foreground">ROAS:</span> <strong>{displayValue(ef.roas_real, (v) => v.toFixed(2) + "x")}</strong><InfoTooltip text="Baseado em vendas registradas no CRM vinculadas a leads de marketing" /></div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground border-t mt-3 pt-3">
