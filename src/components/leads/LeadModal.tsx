@@ -20,6 +20,7 @@ import { useMarketing } from "@/hooks/useMarketing";
 import { VendaModal } from "@/components/vendas/VendaModal";
 import { FormattedText } from "@/components/FormattedText";
 import { TagManager } from "@/components/tags/TagManager";
+import { CardCriativoOrigem } from "@/components/leads/CardCriativoOrigem";
 
 // --- Funções Auxiliares (mantidas) ---
 const calculateAge = (dobString: string | undefined): number | '' => {
@@ -114,7 +115,9 @@ const ViewContent = ({ lead, stages, creativeName }: { lead: any, stages: Stage[
           {creativeName && <div className="flex items-center gap-2 col-span-2 md:col-span-1"><Tag className="h-4 w-4 text-muted-foreground" /><span className="truncate" title={creativeName}>{creativeName}</span></div>}
         </CardContent>
       </Card>
-      
+
+      <CardCriativoOrigem leadId={lead.id} />
+
       {/* Resumo da IA com formatação aprimorada */}
       <Card className="shadow-md border-l-4 border-l-primary bg-primary/5">
         <CardHeader className="pb-3">
