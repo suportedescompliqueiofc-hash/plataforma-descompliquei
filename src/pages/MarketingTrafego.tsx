@@ -584,11 +584,12 @@ export default function MarketingTrafego() {
                 <Megaphone className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meta Ads</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                 {[
                   { title: "Investido", value: formatCurrency(summary.totalInvestido), icon: DollarSign, color: "text-emerald-500", variation: summary.variacao.investido },
                   { title: "Impressoes", value: formatCompact(summary.totalImpressoes), icon: Eye, color: "text-cyan-500", variation: summary.variacao.impressoes },
                   { title: "Cliques", value: formatCompact(summary.totalCliques), icon: TrendingUp, color: "text-pink-500", variation: summary.variacao.cliques },
+                  { title: "Leads Meta", value: formatCompact(summary.totalLeads), icon: Users, color: "text-blue-500", variation: summary.variacao.leads },
                   { title: "CTR Medio", value: formatPercent(summary.ctrMedio), icon: MousePointerClick, color: "text-purple-500", variation: summary.variacao.ctr },
                   { title: "CPM", value: summary.totalImpressoes > 0 ? formatCurrency((summary.totalInvestido / summary.totalImpressoes) * 1000) : "—", icon: Eye, color: "text-amber-500", variation: null },
                   { title: "CPL Meta", value: formatCurrency(summary.cplMedio), icon: Target, color: "text-orange-500", variation: summary.variacao.cpl, invert: true },
