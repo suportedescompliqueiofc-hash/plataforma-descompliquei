@@ -315,6 +315,10 @@ export function useMetaAds(dateRange: DateRange | undefined) {
       const diasComLeads = new Set(aInsights.filter((i: any) => Number(i.leads) > 0).map((i: any) => i.data_ref)).size;
       const lastInsight = aInsights[aInsights.length - 1];
       const campanha = campaigns.find((c: any) => c.meta_campaign_id === a.meta_campaign_id);
+      const adset = adsets.find((as_: any) => as_.meta_adset_id === a.meta_adset_id);
+      const effectiveStatus = (campanha?.status && campanha.status !== 'ACTIVE') || (adset?.status && adset.status !== 'ACTIVE')
+        ? 'PAUSED'
+        : (a.status || 'UNKNOWN');
       return {
         meta_ad_id: a.meta_ad_id,
         meta_adset_id: a.meta_adset_id || '',
@@ -334,7 +338,7 @@ export function useMetaAds(dateRange: DateRange | undefined) {
         engagement_ranking: lastInsight?.engagement_ranking || null,
         conversion_ranking: lastInsight?.conversion_ranking || null,
         diasAtivos: diasComLeads,
-        status: a.status || 'UNKNOWN',
+        status: effectiveStatus,
       };
     });
 

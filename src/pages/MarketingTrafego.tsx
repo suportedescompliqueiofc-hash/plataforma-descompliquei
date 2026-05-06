@@ -243,6 +243,7 @@ export default function MarketingTrafego() {
   const [expandedAdsets, setExpandedAdsets] = useState<Set<string>>(new Set());
   const [adFilter, setAdFilter] = useState<string>("all");
   const [adSort, setAdSort] = useState<"cpl" | "investido" | "leads" | "ctr">("investido");
+  const [showInactiveAds, setShowInactiveAds] = useState(false);
   const [scoreConfigOpen, setScoreConfigOpen] = useState(false);
   const [campaignStatusFilter, setCampaignStatusFilter] = useState<"all" | "ACTIVE" | "PAUSED">("all");
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -323,11 +324,12 @@ export default function MarketingTrafego() {
 
   const sortedAds = useMemo(() => {
     let filtered = adFilter === "all" ? adRows : adRows.filter(a => a.meta_campaign_id === adFilter);
+    if (!showInactiveAds) filtered = filtered.filter(a => a.status === "ACTIVE");
     return [...filtered].sort((a, b) => {
       if (adSort === "cpl") return (a.cpl || Infinity) - (b.cpl || Infinity);
       return b[adSort] - a[adSort];
     });
-  }, [adRows, adFilter, adSort]);
+  }, [adRows, adFilter, adSort, showInactiveAds]);
 
   const topCreatives = useMemo(() => {
     return [...adRows]
@@ -804,6 +806,15 @@ export default function MarketingTrafego() {
                   <SelectItem value="ctr">Maior CTR</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant={showInactiveAds ? "secondary" : "outline"}
+                size="sm"
+                className="h-9 text-xs gap-1.5"
+                onClick={() => setShowInactiveAds(!showInactiveAds)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                {showInactiveAds ? "Ocultar inativos" : "Mostrar inativos"}
+              </Button>
               <span className="text-xs text-muted-foreground ml-auto">
                 {sortedAds.length} anuncio{sortedAds.length !== 1 ? "s" : ""}
               </span>
@@ -836,6 +847,7 @@ export default function MarketingTrafego() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-0.5">
                               <p className="text-sm font-medium truncate">{ad.nome}</p>
+                              <span className="text-[10px] text-muted-foreground font-mono shrink-0">...{ad.meta_ad_id?.slice(-6)}</span>
                               <StatusBadge status={ad.status} />
                             </div>
                             <p className="text-xs text-muted-foreground truncate mb-2">{ad.campanha_nome}</p>
@@ -946,7 +958,10 @@ export default function MarketingTrafego() {
                                     </div>
                                   )}
                                 </TableCell>
-                                <TableCell className="font-medium max-w-[180px] truncate">{ad.nome}</TableCell>
+                                <TableCell className="font-medium max-w-[220px]">
+                                  <div className="truncate">{ad.nome}</div>
+                                  <span className="text-[10px] text-muted-foreground font-mono">ID: ...{ad.meta_ad_id?.slice(-6)}</span>
+                                </TableCell>
                                 <TableCell className="text-muted-foreground max-w-[150px] truncate">{ad.campanha_nome}</TableCell>
                                 <TableCell><StatusBadge status={ad.status} /></TableCell>
                                 <TableCell className="text-right">{formatCurrency(ad.investido)}</TableCell>
