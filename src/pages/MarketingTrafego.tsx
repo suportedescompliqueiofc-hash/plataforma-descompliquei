@@ -263,16 +263,58 @@ export default function MarketingTrafego() {
   } = useMetaAds(dateRange);
 
   const { data: eficiencia } = useQuery({
-    queryKey: ['marketing-eficiencia', orgId],
+    queryKey: ['marketing-eficiencia', orgId, dateRange],
     queryFn: async () => {
-      const { data, error } = await (supabase.from('vw_marketing_eficiencia' as any) as any)
-        .select('*')
-        .eq('organization_id', orgId)
-        .maybeSingle();
-      if (error) throw error;
-      return data as Eficiencia | null;
+      if (!orgId || !dateRange?.from || !dateRange?.to) return null;
+      const startDate = fnsFormat(startOfMonth(dateRange.from), 'yyyy-MM-dd');
+      const endDate = fnsFormat(endOfMonth(dateRange.to), 'yyyy-MM-dd');
+
+      const [leadsRes, vendasRes, insightsRes] = await Promise.all([
+        supabase.from('leads').select('origem, is_qualified, is_scheduled, is_closed')
+          .eq('organization_id', orgId)
+          .gte('criado_em', `${startDate}T00:00:00`)
+          .lte('criado_em', `${endDate}T23:59:59`),
+        supabase.from('vendas').select('valor_fechado, lead_id')
+          .eq('organization_id', orgId)
+          .gte('data_fechamento', startDate)
+          .lte('data_fechamento', endDate),
+        supabase.from('meta_insights' as any).select('gasto')
+          .eq('organization_id', orgId)
+          .eq('nivel', 'campaign')
+          .gte('data_ref', startDate)
+          .lte('data_ref', endDate),
+      ]);
+
+      const leads = leadsRes.data || [];
+      const vendas = vendasRes.data || [];
+      const insights = (insightsRes.data as any[]) || [];
+
+      const totalInvestido = insights.reduce((s: number, i: any) => s + Number(i.gasto || 0), 0);
+      const mktLeads = leads.filter((l: any) => l.origem === 'marketing');
+      const qualificados = mktLeads.filter((l: any) => l.is_qualified).length;
+      const agendados = mktLeads.filter((l: any) => l.is_scheduled).length;
+      const fechados = mktLeads.filter((l: any) => l.is_closed).length;
+      const receitaMkt = vendas.reduce((s: number, v: any) => s + Number(v.valor_fechado || 0), 0);
+
+      return {
+        organization_id: orgId,
+        total_investido: totalInvestido,
+        total_leads: leads.length,
+        leads_marketing: mktLeads.length,
+        qualificados,
+        agendados,
+        fechados,
+        receita_marketing: receitaMkt,
+        cpl_real: mktLeads.length > 0 ? totalInvestido / mktLeads.length : 0,
+        cpa_real: agendados > 0 ? totalInvestido / agendados : 0,
+        cpv_real: fechados > 0 ? totalInvestido / fechados : 0,
+        roas_real: totalInvestido > 0 ? receitaMkt / totalInvestido : 0,
+        taxa_qualificacao: mktLeads.length > 0 ? (qualificados / mktLeads.length) * 100 : 0,
+        taxa_agendamento: qualificados > 0 ? (agendados / qualificados) * 100 : 0,
+        taxa_fechamento: agendados > 0 ? (fechados / agendados) * 100 : 0,
+      } as Eficiencia;
     },
-    enabled: !!orgId,
+    enabled: !!orgId && !!dateRange?.from,
     staleTime: 5 * 60 * 1000,
   });
 
