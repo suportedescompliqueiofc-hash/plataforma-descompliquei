@@ -319,6 +319,10 @@ export default function Dashboard() {
         return (
           <div>
             <SectionHeader title="Eficiência de Aquisição" icon={DollarSign} />
+            <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <DollarSign className="h-4 w-4" />
+              <span>Investimento no período: <strong className="text-foreground">{fmt(aq.investment > 0 ? aq.investment : null)}</strong></span>
+            </div>
             <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
               {cards.map((c) => (
                 <Card key={c.label} className="overflow-hidden shadow-sm" style={{ borderTop: `3px solid ${c.color}` }}>
