@@ -22,6 +22,7 @@ interface ParsedRow {
   email?: string;
   procedimento_interesse?: string;
   origem?: string;
+  etiqueta?: string;
   valid: boolean;
   errors: string[];
 }
@@ -36,9 +37,9 @@ const normalizePhone = (raw: string): string => {
 
 const downloadTemplate = () => {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['nome', 'telefone', 'email', 'procedimento_interesse', 'origem'],
-    ['João Silva', '11987654321', 'joao@email.com', 'Botox', 'organico'],
-    ['Maria Santos', '21912345678', '', 'Rinoplastia', 'marketing'],
+    ['nome', 'telefone', 'email', 'procedimento_interesse', 'origem', 'etiqueta'],
+    ['João Silva', '11987654321', 'joao@email.com', 'Botox', 'organico', 'Reativação'],
+    ['Maria Santos', '21912345678', '', 'Rinoplastia', 'marketing', 'Reativação'],
   ]);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Leads');
@@ -60,16 +61,24 @@ const parseRows = (raw: Record<string, unknown>[]): ParsedRow[] => {
     const email = findCol('email', 'e-mail');
     const procedimento_interesse = findCol('procedimento_interesse', 'procedimento', 'interesse', 'servico', 'serviço');
     const origem = findCol('origem', 'source', 'canal') || 'organico';
+    const etiqueta = findCol('etiqueta', 'etiquetas', 'tag', 'tags', 'label', 'labels');
 
     const errors: string[] = [];
     if (!nome) errors.push('Nome obrigatório');
     if (!telefone || telefone.length < 10) errors.push('Telefone inválido');
 
-    return { nome, telefone, email, procedimento_interesse, origem, valid: errors.length === 0, errors };
+    return { nome, telefone, email, procedimento_interesse, origem, etiqueta, valid: errors.length === 0, errors };
   });
 };
 
 type Step = 'upload' | 'preview' | 'importing' | 'done';
+
+const revalidateRow = (row: ParsedRow): ParsedRow => {
+  const errors: string[] = [];
+  if (!row.nome.trim()) errors.push('Nome obrigatório');
+  if (!row.telefone || row.telefone.length < 10) errors.push('Telefone inválido');
+  return { ...row, valid: errors.length === 0, errors };
+};
 
 export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps) {
   const { user } = useAuth();
@@ -81,17 +90,39 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [importedCount, setImportedCount] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
+  const [tagCount, setTagCount] = useState(0);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const updateRow = (index: number, field: keyof ParsedRow, value: string) => {
+    setRows(prev => {
+      const next = [...prev];
+      const updated = { ...next[index], [field]: value };
+      next[index] = revalidateRow(updated as ParsedRow);
+      return next;
+    });
+  };
+
+  const normalizeRowPhone = (index: number) => {
+    setRows(prev => {
+      const next = [...prev];
+      const normalized = normalizePhone(next[index].telefone);
+      const updated = { ...next[index], telefone: normalized };
+      next[index] = revalidateRow(updated as ParsedRow);
+      return next;
+    });
+  };
+
   const validRows = rows.filter(r => r.valid);
   const invalidRows = rows.filter(r => !r.valid);
+  const hasTagColumn = rows.some(r => r.etiqueta);
 
   const reset = () => {
     setStep('upload');
     setRows([]);
     setImportedCount(0);
     setErrorCount(0);
+    setTagCount(0);
   };
 
   const handleClose = (val: boolean) => {
@@ -137,9 +168,12 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
     const BATCH = 50;
     let ok = 0;
     let fail = 0;
+    // phone -> lead id, built from insert responses
+    const phoneToLeadId: Record<string, string> = {};
 
     for (let i = 0; i < validRows.length; i += BATCH) {
-      const batch = validRows.slice(i, i + BATCH).map(r => ({
+      const batchRows = validRows.slice(i, i + BATCH);
+      const batch = batchRows.map(r => ({
         usuario_id: user.id,
         organization_id: orgId,
         nome: r.nome,
@@ -152,18 +186,93 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
         queixa_principal: '',
       }));
 
-      const { error } = await supabase.from('leads').insert(batch);
+      const { data: inserted, error } = await supabase
+        .from('leads')
+        .insert(batch)
+        .select('id, telefone');
+
       if (error) {
         fail += batch.length;
       } else {
-        ok += batch.length;
+        ok += inserted?.length ?? 0;
+        for (const lead of (inserted ?? [])) {
+          phoneToLeadId[lead.telefone] = lead.id;
+        }
+      }
+    }
+
+    // ── Etiquetas ────────────────────────────────────────────────────────────
+    const rowsWithTag = validRows.filter(r => r.etiqueta?.trim());
+    let tagsAssigned = 0;
+
+    if (rowsWithTag.length > 0) {
+      const uniqueTagNames = [...new Set(rowsWithTag.map(r => r.etiqueta!.trim()))];
+
+      // Fetch existing tags
+      const { data: existingTags } = await supabase
+        .from('tags')
+        .select('id, name, label_lid')
+        .eq('organization_id', orgId)
+        .in('name', uniqueTagNames);
+
+      const tagMap: Record<string, { id: string; label_lid: string | null }> = {};
+      for (const t of (existingTags ?? [])) {
+        tagMap[t.name.toLowerCase()] = { id: t.id, label_lid: t.label_lid };
+      }
+
+      // Create missing tags with default color (slate)
+      for (const tagName of uniqueTagNames) {
+        if (!tagMap[tagName.toLowerCase()]) {
+          const { data: newTag } = await supabase
+            .from('tags')
+            .insert({ name: tagName, color: '#64748b', organization_id: orgId })
+            .select('id, label_lid')
+            .single();
+          if (newTag) {
+            tagMap[tagName.toLowerCase()] = { id: newTag.id, label_lid: newTag.label_lid };
+          }
+        }
+      }
+
+      // Build leads_tags rows + WhatsApp sync list
+      const leadTagRows: { lead_id: string; tag_id: string }[] = [];
+      const waSync: { telefone: string; label_lid: string }[] = [];
+
+      for (const row of rowsWithTag) {
+        const leadId = phoneToLeadId[row.telefone];
+        const tagInfo = tagMap[row.etiqueta!.trim().toLowerCase()];
+        if (!leadId || !tagInfo) continue;
+        leadTagRows.push({ lead_id: leadId, tag_id: tagInfo.id });
+        if (tagInfo.label_lid) {
+          waSync.push({ telefone: row.telefone, label_lid: tagInfo.label_lid });
+        }
+      }
+
+      if (leadTagRows.length > 0) {
+        const { error: tagErr } = await supabase.from('leads_tags').insert(leadTagRows);
+        if (!tagErr) {
+          tagsAssigned = leadTagRows.length;
+
+          // Sync with WhatsApp — fire and forget
+          if (waSync.length > 0) {
+            const { data: { session } } = await supabase.auth.getSession();
+            for (const { telefone, label_lid } of waSync) {
+              supabase.functions.invoke('manage-whatsapp', {
+                body: { action: 'add_label', telefone, label_lid },
+                headers: { Authorization: `Bearer ${session?.access_token}` },
+              }).catch(() => {/* silent: WhatsApp sync failure doesn't block import */});
+            }
+          }
+        }
       }
     }
 
     setImportedCount(ok);
     setErrorCount(fail);
+    setTagCount(tagsAssigned);
     setStep('done');
     queryClient.invalidateQueries({ queryKey: ['leads', orgId] });
+    if (tagsAssigned > 0) queryClient.invalidateQueries({ queryKey: ['tags', orgId] });
   };
 
   return (
@@ -214,6 +323,11 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
               {invalidRows.length > 0 && (
                 <Badge variant="destructive">{invalidRows.length} com erro</Badge>
               )}
+              {hasTagColumn && (
+                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                  {validRows.filter(r => r.etiqueta).length} com etiqueta
+                </Badge>
+              )}
             </div>
 
             <div className="overflow-auto rounded-lg border border-border flex-1 max-h-80">
@@ -226,6 +340,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
                     <th className="text-left p-2 font-medium">Email</th>
                     <th className="text-left p-2 font-medium">Procedimento</th>
                     <th className="text-left p-2 font-medium">Origem</th>
+                    <th className="text-left p-2 font-medium">Etiqueta</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -237,11 +352,55 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
                           : <span title={row.errors.join(', ')}><AlertCircle className="h-3.5 w-3.5 text-destructive" /></span>
                         }
                       </td>
-                      <td className="p-2">{row.nome || <span className="text-destructive italic">vazio</span>}</td>
-                      <td className="p-2">{row.telefone || <span className="text-destructive italic">inválido</span>}</td>
-                      <td className="p-2 text-muted-foreground">{row.email}</td>
-                      <td className="p-2 text-muted-foreground">{row.procedimento_interesse}</td>
-                      <td className="p-2 text-muted-foreground">{row.origem}</td>
+                      <td className="p-1">
+                        <input
+                          className={cn("w-full bg-transparent px-1 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white", !row.nome && "text-destructive italic placeholder:text-destructive")}
+                          value={row.nome}
+                          placeholder="vazio"
+                          onChange={e => updateRow(i, 'nome', e.target.value)}
+                        />
+                      </td>
+                      <td className="p-1">
+                        <input
+                          className={cn("w-full bg-transparent px-1 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white", (!row.telefone || row.telefone.length < 10) && "text-destructive italic")}
+                          value={row.telefone}
+                          placeholder="inválido"
+                          onChange={e => updateRow(i, 'telefone', e.target.value)}
+                          onBlur={() => normalizeRowPhone(i)}
+                        />
+                      </td>
+                      <td className="p-1">
+                        <input
+                          className="w-full bg-transparent px-1 py-0.5 rounded text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white focus:text-foreground"
+                          value={row.email ?? ''}
+                          placeholder="—"
+                          onChange={e => updateRow(i, 'email', e.target.value)}
+                        />
+                      </td>
+                      <td className="p-1">
+                        <input
+                          className="w-full bg-transparent px-1 py-0.5 rounded text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white focus:text-foreground"
+                          value={row.procedimento_interesse ?? ''}
+                          placeholder="—"
+                          onChange={e => updateRow(i, 'procedimento_interesse', e.target.value)}
+                        />
+                      </td>
+                      <td className="p-1">
+                        <input
+                          className="w-full bg-transparent px-1 py-0.5 rounded text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white focus:text-foreground"
+                          value={row.origem ?? ''}
+                          placeholder="organico"
+                          onChange={e => updateRow(i, 'origem', e.target.value)}
+                        />
+                      </td>
+                      <td className="p-1">
+                        <input
+                          className="w-full bg-transparent px-1 py-0.5 rounded text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-white focus:text-foreground"
+                          value={row.etiqueta ?? ''}
+                          placeholder="—"
+                          onChange={e => updateRow(i, 'etiqueta', e.target.value)}
+                        />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -275,6 +434,11 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
             <CheckCircle2 className="h-12 w-12 text-green-500" />
             <div className="text-center">
               <p className="text-lg font-semibold">{importedCount} lead{importedCount !== 1 ? 's' : ''} importado{importedCount !== 1 ? 's' : ''}!</p>
+              {tagCount > 0 && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {tagCount} etiqueta{tagCount !== 1 ? 's' : ''} atribuída{tagCount !== 1 ? 's' : ''} e sincronizada{tagCount !== 1 ? 's' : ''} com o WhatsApp.
+                </p>
+              )}
               {errorCount > 0 && (
                 <p className="text-sm text-muted-foreground mt-1">{errorCount} não puderam ser inseridos (telefone duplicado ou erro).</p>
               )}

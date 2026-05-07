@@ -13,9 +13,11 @@ import { toast } from "sonner";
 import { Cadence } from "@/hooks/useCadences";
 import { useLeads } from "@/hooks/useLeads";
 import { useLeadOptions } from "@/hooks/useLeadOptions";
-import { Loader2, Zap, Search, Users, Calendar as CalendarIcon, Tag as TagIcon } from "lucide-react";
+import { Loader2, Zap, Users, Tag as TagIcon } from "lucide-react";
 import { differenceInDays, isWithinInterval, parseISO } from "date-fns";
 import { useTags, getTagColorStyles } from "@/hooks/useTags";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BulkCadenceDispatchModalProps {
   open: boolean;
@@ -42,6 +44,24 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedTag, setSelectedTag] = useState("all");
 
+  // Leads que já têm esta cadência registrada
+  const { data: alreadySentIds = [] } = useQuery({
+    queryKey: ['lead_cadencias_sent', cadence?.id],
+    queryFn: async () => {
+      if (!cadence?.id) return [];
+      const { data } = await supabase
+        .from('lead_cadencias')
+        .select('lead_id')
+        .eq('cadencia_id', cadence.id)
+        .neq('status', 'cancelado');
+      return (data ?? []).map(r => r.lead_id as string);
+    },
+    enabled: !!cadence?.id && open,
+  });
+
+  const alreadySentSet = useMemo(() => new Set(alreadySentIds), [alreadySentIds]);
+  const [hideAlreadySent, setHideAlreadySent] = useState(false);
+
   const filteredLeads = useMemo(() => {
     return leads.filter(l => {
         const matchesSearch = (l.nome?.toLowerCase().includes(searchTerm.toLowerCase()) || l.telefone?.includes(searchTerm));
@@ -66,9 +86,10 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
               if (!leadTagIds.includes(selectedTag)) return false;
             }
         }
+        if (hideAlreadySent && alreadySentSet.has(l.id)) return false;
         return true;
     });
-  }, [leads, searchTerm, segmentation, pipelineStage, source, dateRange, selectedTag]);
+  }, [leads, searchTerm, segmentation, pipelineStage, source, dateRange, selectedTag, hideAlreadySent, alreadySentSet]);
 
 
   const toggleLead = (id: string) => {
@@ -206,7 +227,17 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
         />
 
         <div className="flex justify-between items-center text-sm font-medium">
-            <span>Leads Selecionados {selectedLeads.size}</span>
+            <div className="flex items-center gap-3">
+              <span>Leads Selecionados {selectedLeads.size}</span>
+              {alreadySentSet.size > 0 && (
+                <button
+                  onClick={() => setHideAlreadySent(h => !h)}
+                  className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${hideAlreadySent ? 'bg-amber-100 text-amber-800 border-amber-300' : 'text-muted-foreground border-border hover:border-amber-300 hover:text-amber-700'}`}
+                >
+                  {hideAlreadySent ? `Mostrando sem os ${alreadySentSet.size} já enviados` : `${alreadySentSet.size} já receberam esta cadência — ocultar`}
+                </button>
+              )}
+            </div>
             <div className="flex items-center gap-2">
                 <Checkbox checked={selectedLeads.size === filteredLeads.length && filteredLeads.length > 0} onCheckedChange={toggleAll} />
                 <span>Selecionar todos os {filteredLeads.length} encontrados</span>
@@ -215,15 +246,25 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
 
         <ScrollArea className="flex-1 border rounded-lg p-2 h-[300px] w-full bg-background overflow-y-auto">
           <div className="h-full">
-            {filteredLeads.map(lead => (
-              <div key={lead.id} className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded cursor-pointer" onClick={() => toggleLead(lead.id)}>
-                <Checkbox checked={selectedLeads.has(lead.id)} />
-                <div className="flex-1 flex justify-between text-sm">
-                  <span>{lead.nome || "Lead sem nome"}</span>
-                  <span className="text-muted-foreground">{lead.telefone}</span>
+            {filteredLeads.map(lead => {
+              const alreadySent = alreadySentSet.has(lead.id);
+              return (
+                <div key={lead.id} className="flex items-center gap-3 p-2 hover:bg-muted/50 rounded cursor-pointer" onClick={() => toggleLead(lead.id)}>
+                  <Checkbox checked={selectedLeads.has(lead.id)} />
+                  <div className="flex-1 flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className={alreadySent ? 'text-muted-foreground' : ''}>{lead.nome || "Lead sem nome"}</span>
+                      {alreadySent && (
+                        <span className="text-[10px] bg-amber-100 text-amber-700 border border-amber-200 rounded-full px-1.5 py-px leading-none">
+                          já enviado
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground">{lead.telefone}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </ScrollArea>
 

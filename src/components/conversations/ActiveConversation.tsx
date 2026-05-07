@@ -44,6 +44,8 @@ import { NotificationMessage } from "./NotificationMessage";
 import { AiLockControl } from "./AiLockControl";
 import { CadenceLeadSelector } from "./CadenceLeadSelector";
 import { TagManager } from "@/components/tags/TagManager";
+import { useLeadAgendamento } from "@/hooks/useLeadAgendamento";
+import AgendamentoLeadModal from "@/components/agendamentos/AgendamentoLeadModal";
 import { AudioRecorder } from "./AudioRecorder";
 import { MediaPreviewModal } from "./MediaPreviewModal";
 import { FullscreenMediaViewer } from "./FullscreenMediaViewer";
@@ -162,6 +164,8 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
 
   const { data: lead, isLoading: leadLoading, isFetching: leadFetching } = useLead(leadId);
+  const { agendamentoAtivo, invalidate: invalidateAgendamento } = useLeadAgendamento(leadId);
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   const { activeCadence } = useLeadCadence(leadId);
   const { data: messages = [], isLoading: messagesLoading } = useMessages(leadId);
   const { data: notifications } = useNotifications(leadId);
@@ -588,20 +592,36 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       <UserCheck className={cn("h-3.5 w-3.5", lead.is_qualified ? "fill-current" : "")} />
                       {lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? `Qualificado ${lead.lead_scoring}` : 'Qualificado'}
                     </Button>
-                    <Button
-                      variant={lead.is_scheduled ? "default" : "outline"}
-                      size="sm"
-                      className={cn(
-                        "h-7 px-2 sm:px-3 text-[10px] sm:text-xs font-bold gap-1.5 transition-all duration-300 rounded-full uppercase tracking-wider",
-                        lead.is_scheduled
-                          ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-[0_0_12px_-2px_rgba(59,130,246,0.4)] scale-105 active:scale-95"
-                          : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
+                    <div className="flex flex-col items-center">
+                      <Button
+                        variant={lead.is_scheduled ? "default" : "outline"}
+                        size="sm"
+                        className={cn(
+                          "h-7 px-2 sm:px-3 text-[10px] sm:text-xs font-bold gap-1.5 transition-all duration-300 rounded-full uppercase tracking-wider",
+                          lead.is_scheduled
+                            ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-[0_0_12px_-2px_rgba(59,130,246,0.4)] scale-105 active:scale-95"
+                            : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
+                        )}
+                        onClick={() => {
+                          if (lead.is_scheduled) {
+                            updateLead({ id: lead.id, is_scheduled: false });
+                          } else {
+                            setShowAgendamentoModal(true);
+                          }
+                        }}
+                      >
+                        <CalendarCheck className={cn("h-3.5 w-3.5", lead.is_scheduled ? "fill-current" : "")} />
+                        Agendado
+                      </Button>
+                      {agendamentoAtivo && (
+                        <button
+                          className="text-[9px] text-blue-500 hover:text-blue-700 mt-0.5 cursor-pointer"
+                          onClick={() => setShowAgendamentoModal(true)}
+                        >
+                          📅 {format(parseISO(agendamentoAtivo.data_hora_inicio), "dd/MM 'às' HH:mm")}
+                        </button>
                       )}
-                      onClick={() => updateLead({ id: lead.id, is_scheduled: !lead.is_scheduled })}
-                    >
-                      <CalendarCheck className={cn("h-3.5 w-3.5", lead.is_scheduled ? "fill-current" : "")} />
-                      Agendado
-                    </Button>
+                    </div>
                     <Button
                       variant={lead.is_closed ? "default" : "outline"}
                       size="sm"
@@ -1080,6 +1100,20 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         lead={lead}
         mode="edit"
       />
+
+      {lead && (
+        <AgendamentoLeadModal
+          isOpen={showAgendamentoModal}
+          onClose={() => setShowAgendamentoModal(false)}
+          leadId={lead.id}
+          leadNome={lead.nome || "Lead"}
+          agendamentoExistente={agendamentoAtivo}
+          onSaved={() => {
+            invalidateAgendamento();
+            updateLead({ id: lead.id, is_scheduled: true });
+          }}
+        />
+      )}
 
       {/* Modal de Lead Scoring */}
       <Dialog open={showScoringModal} onOpenChange={setShowScoringModal}>

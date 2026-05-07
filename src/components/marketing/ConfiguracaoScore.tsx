@@ -18,10 +18,26 @@ interface ScoreConfig {
   ctr_otimo: number;
   ctr_bom: number;
   ctr_aceitavel: number;
+  cpmql_a_otimo: number;
+  cpmql_a_bom: number;
+  cpmql_a_aceitavel: number;
+  cpmql_b_otimo: number;
+  cpmql_b_bom: number;
+  cpmql_b_aceitavel: number;
+  agendamento_otimo: number;
+  agendamento_bom: number;
+  agendamento_aceitavel: number;
+  fechamento_otimo: number;
+  fechamento_bom: number;
+  fechamento_aceitavel: number;
   peso_cpl: number;
   peso_ctr: number;
   peso_leads: number;
   peso_consistencia: number;
+  peso_cpmql_a: number;
+  peso_cpmql_b: number;
+  peso_agendamento: number;
+  peso_fechamento: number;
   leads_minimo: number;
   gasto_alerta_sem_leads: number;
   tag_escalar: string;
@@ -37,7 +53,12 @@ interface ScoreConfig {
 const DEFAULTS: ScoreConfig = {
   cpl_otimo: 5, cpl_bom: 8, cpl_aceitavel: 15,
   ctr_otimo: 2, ctr_bom: 1.2, ctr_aceitavel: 0.8,
-  peso_cpl: 40, peso_ctr: 30, peso_leads: 20, peso_consistencia: 10,
+  cpmql_a_otimo: 20, cpmql_a_bom: 35, cpmql_a_aceitavel: 50,
+  cpmql_b_otimo: 25, cpmql_b_bom: 40, cpmql_b_aceitavel: 60,
+  agendamento_otimo: 30, agendamento_bom: 20, agendamento_aceitavel: 10,
+  fechamento_otimo: 25, fechamento_bom: 15, fechamento_aceitavel: 8,
+  peso_cpl: 25, peso_ctr: 15, peso_leads: 10, peso_consistencia: 10,
+  peso_cpmql_a: 15, peso_cpmql_b: 10, peso_agendamento: 10, peso_fechamento: 5,
   leads_minimo: 1, gasto_alerta_sem_leads: 20,
   tag_escalar: "Escalar", tag_manter: "Manter", tag_monitorar: "Monitorar", tag_pausar: "Pausar",
   cor_escalar: "#22c55e", cor_manter: "#3b82f6", cor_monitorar: "#f59e0b", cor_pausar: "#ef4444",
@@ -77,10 +98,26 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
             ctr_otimo: Number(d.ctr_otimo) || DEFAULTS.ctr_otimo,
             ctr_bom: Number(d.ctr_bom) || DEFAULTS.ctr_bom,
             ctr_aceitavel: Number(d.ctr_aceitavel) || DEFAULTS.ctr_aceitavel,
+            cpmql_a_otimo: Number(d.cpmql_a_otimo) || DEFAULTS.cpmql_a_otimo,
+            cpmql_a_bom: Number(d.cpmql_a_bom) || DEFAULTS.cpmql_a_bom,
+            cpmql_a_aceitavel: Number(d.cpmql_a_aceitavel) || DEFAULTS.cpmql_a_aceitavel,
+            cpmql_b_otimo: Number(d.cpmql_b_otimo) || DEFAULTS.cpmql_b_otimo,
+            cpmql_b_bom: Number(d.cpmql_b_bom) || DEFAULTS.cpmql_b_bom,
+            cpmql_b_aceitavel: Number(d.cpmql_b_aceitavel) || DEFAULTS.cpmql_b_aceitavel,
+            agendamento_otimo: Number(d.agendamento_otimo) || DEFAULTS.agendamento_otimo,
+            agendamento_bom: Number(d.agendamento_bom) || DEFAULTS.agendamento_bom,
+            agendamento_aceitavel: Number(d.agendamento_aceitavel) || DEFAULTS.agendamento_aceitavel,
+            fechamento_otimo: Number(d.fechamento_otimo) || DEFAULTS.fechamento_otimo,
+            fechamento_bom: Number(d.fechamento_bom) || DEFAULTS.fechamento_bom,
+            fechamento_aceitavel: Number(d.fechamento_aceitavel) || DEFAULTS.fechamento_aceitavel,
             peso_cpl: Number(d.peso_cpl) ?? DEFAULTS.peso_cpl,
             peso_ctr: Number(d.peso_ctr) ?? DEFAULTS.peso_ctr,
             peso_leads: Number(d.peso_leads) ?? DEFAULTS.peso_leads,
             peso_consistencia: Number(d.peso_consistencia) ?? DEFAULTS.peso_consistencia,
+            peso_cpmql_a: Number(d.peso_cpmql_a) ?? DEFAULTS.peso_cpmql_a,
+            peso_cpmql_b: Number(d.peso_cpmql_b) ?? DEFAULTS.peso_cpmql_b,
+            peso_agendamento: Number(d.peso_agendamento) ?? DEFAULTS.peso_agendamento,
+            peso_fechamento: Number(d.peso_fechamento) ?? DEFAULTS.peso_fechamento,
             leads_minimo: Number(d.leads_minimo) ?? DEFAULTS.leads_minimo,
             gasto_alerta_sem_leads: Number(d.gasto_alerta_sem_leads) || DEFAULTS.gasto_alerta_sem_leads,
             tag_escalar: d.tag_escalar || DEFAULTS.tag_escalar,
@@ -100,7 +137,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
   const set = <K extends keyof ScoreConfig>(key: K, val: ScoreConfig[K]) =>
     setConfig((prev) => ({ ...prev, [key]: val }));
 
-  const pesoTotal = config.peso_cpl + config.peso_ctr + config.peso_leads + config.peso_consistencia;
+  const pesoTotal = config.peso_cpl + config.peso_ctr + config.peso_leads + config.peso_consistencia + config.peso_cpmql_a + config.peso_cpmql_b + config.peso_agendamento + config.peso_fechamento;
   const pesoValido = pesoTotal === 100;
 
   const handleSave = async () => {
@@ -177,13 +214,97 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
               <p className="text-xs text-muted-foreground mt-2">CTR abaixo de {config.ctr_aceitavel}% será considerado ruim</p>
             </div>
 
-            {/* SEÇÃO 3: PESOS */}
+            {/* SEÇÃO 3: CPMQL A */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">CPMQL A — Custo por MQL Scoring A (R$)</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Ótimo (abaixo de)</Label>
+                  <Input type="number" step="1" value={config.cpmql_a_otimo} onChange={(e) => set("cpmql_a_otimo", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Bom (abaixo de)</Label>
+                  <Input type="number" step="1" value={config.cpmql_a_bom} onChange={(e) => set("cpmql_a_bom", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Aceitável (abaixo de)</Label>
+                  <Input type="number" step="1" value={config.cpmql_a_aceitavel} onChange={(e) => set("cpmql_a_aceitavel", Number(e.target.value))} className="mt-1" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">CPMQL A acima de {fmt(config.cpmql_a_aceitavel)} será considerado ruim</p>
+            </div>
+
+            {/* SEÇÃO 4: CPMQL B */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">CPMQL B — Custo por MQL Scoring B (R$)</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Ótimo (abaixo de)</Label>
+                  <Input type="number" step="1" value={config.cpmql_b_otimo} onChange={(e) => set("cpmql_b_otimo", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Bom (abaixo de)</Label>
+                  <Input type="number" step="1" value={config.cpmql_b_bom} onChange={(e) => set("cpmql_b_bom", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Aceitável (abaixo de)</Label>
+                  <Input type="number" step="1" value={config.cpmql_b_aceitavel} onChange={(e) => set("cpmql_b_aceitavel", Number(e.target.value))} className="mt-1" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">CPMQL B acima de {fmt(config.cpmql_b_aceitavel)} será considerado ruim</p>
+            </div>
+
+            {/* SEÇÃO 5: AGENDAMENTO */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Taxa de Agendamento (%)</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Ótimo (acima de)</Label>
+                  <Input type="number" step="1" value={config.agendamento_otimo} onChange={(e) => set("agendamento_otimo", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Bom (acima de)</Label>
+                  <Input type="number" step="1" value={config.agendamento_bom} onChange={(e) => set("agendamento_bom", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Aceitável (acima de)</Label>
+                  <Input type="number" step="1" value={config.agendamento_aceitavel} onChange={(e) => set("agendamento_aceitavel", Number(e.target.value))} className="mt-1" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Taxa abaixo de {config.agendamento_aceitavel}% será considerada ruim</p>
+            </div>
+
+            {/* SEÇÃO 6: FECHAMENTO */}
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Taxa de Fechamento (%)</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Ótimo (acima de)</Label>
+                  <Input type="number" step="1" value={config.fechamento_otimo} onChange={(e) => set("fechamento_otimo", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Bom (acima de)</Label>
+                  <Input type="number" step="1" value={config.fechamento_bom} onChange={(e) => set("fechamento_bom", Number(e.target.value))} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Aceitável (acima de)</Label>
+                  <Input type="number" step="1" value={config.fechamento_aceitavel} onChange={(e) => set("fechamento_aceitavel", Number(e.target.value))} className="mt-1" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">Taxa abaixo de {config.fechamento_aceitavel}% será considerada ruim</p>
+            </div>
+
+            {/* SEÇÃO 7: PESOS */}
             <div>
               <h3 className="text-sm font-semibold mb-3">Pesos do Score (total deve ser 100)</h3>
               <div className="space-y-4">
                 {([
                   ["CPL", "peso_cpl"],
                   ["CTR", "peso_ctr"],
+                  ["CPMQL A", "peso_cpmql_a"],
+                  ["CPMQL B", "peso_cpmql_b"],
+                  ["Agendamento", "peso_agendamento"],
+                  ["Fechamento", "peso_fechamento"],
                   ["Volume de Leads", "peso_leads"],
                   ["Consistência", "peso_consistencia"],
                 ] as const).map(([label, key]) => (

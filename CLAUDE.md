@@ -115,32 +115,86 @@ The `leads` table has a `lead_scoring` field (`text`, nullable, check constraint
 The Dashboard (`src/pages/Dashboard.tsx`) has a fully custom layout for the Descompliquei org, controlled by `isDescompliqueiOrg`. All metrics come from `useDashboard.ts`.
 
 **Sections (in order, Descompliquei only):**
-1. **Funil de Conversão** — 4 cards: Leads → MQL → Reuniões → Fechamentos (with arrows and conversion rates between steps). Only marketing-origin leads (`origem = 'marketing'`).
-2. **Qualidade dos Leads** — Scoring distribution cards (A/B/C/D) with colored bars and percentages.
-3. **Eficiência de Aquisição** — 5 metric cards: CPL, CPMQL, CPR, CPA, ROAS. Investment value is hardcoded per org (placeholder). Formulas: `investment / count`.
+1. **Funil de Conversão** — 4 cards: Leads → MQL → Reuniões → Fechamentos (with arrows and conversion rates between steps). Only marketing-origin leads (`origem = 'marketing'`) **created** in the selected period (`leadsCreatedInPeriod`).
+2. **Qualidade dos Leads** — Scoring distribution cards (A/B/C/D) with colored bars and percentages. Uses same `leadsCreatedInPeriod` base as the funnel.
+3. **Eficiência de Aquisição** — Shows total investment in the period (from `meta_insights`) + 5 metric cards: CPL, CPMQL, CPR (Custo por Reunião = investimento/agendamentos), CPA (Custo por Aquisição = investimento/fechamentos), ROAS. Real spend comes from `meta_insights` table (`gasto` column, `nivel = 'campaign'`), includes all campaigns (active and inactive).
 4. **Performance Comercial Global** — 3 rate cards: Taxa de Qualificação (MQL), Taxa de Agendamento, Taxa de Fechamento. Computed from total leads (all origins).
 5. **Evolução no Tempo** — Single AreaChart with 4 series: Leads, MQLs, Agendamentos, Fechamentos (daily).
+
+**Metric naming convention:**
+- CPL = Custo por Lead (investimento / leads marketing)
+- CPMQL = Custo por MQL (investimento / qualificados)
+- CPR = Custo por Reunião (investimento / agendamentos) — NOT CPA
+- CPA = Custo por Aquisição (investimento / fechamentos) — only when there are closed deals
+- ROAS = Return on Ad Spend (receita / investimento)
 
 **Hidden for Descompliquei:** Visão Geral cards, pipeline-based funnel, Top Procedimentos, Ticket Médio, Faturamento, Conversão Global card.
 
 **Client CRM dashboard** remains unchanged — all sections wrapped in `!isDescompliqueiOrg` conditionals.
 
+### Marketing / Tráfego Page
+
+The Marketing page (`src/pages/MarketingTrafego.tsx`) is the Meta Ads intelligence hub, exclusive to Descompliquei org.
+
+**Data sources:**
+- `useMetaAds(dateRange)` — campaigns, adsets, ads, insights from `meta_ads` + `meta_insights` tables
+- `useDashboard(dateRange, 'geral')` — CRM metrics (shared with Dashboard for data consistency)
+- `vw_criativo_performance` — SQL view joining meta_ads → criativos → leads → vendas for per-creative CRM data
+
+**Tabs:** Dashboard, Criativos, Campanhas, Análise
+
+**Key behaviors:**
+- **Effective ad status**: If a campaign or adset is not ACTIVE, the ad inherits `PAUSED` status regardless of its own status (`useMetaAds.ts`).
+- **Active filter**: Criativos tab shows only active ads by default. A "Mostrar inativos" toggle reveals paused/inactive ads.
+- **Criativo ID**: Last 6 digits of `meta_ad_id` shown next to ad name in cards and table to distinguish ads with identical names.
+- **CRM data consistency**: The "Resultados Reais (CRM)" section and "Funil de Conversão" use `useDashboard` as single source of truth — same data as the Painel de Controle.
+- **Date-aware metrics**: All metrics (Meta Ads + CRM) respect the selected date range filter (Dia/Semana/Mês/Ano).
+
+**Meta Ads integration:**
+- Credentials stored in `integracoes` table (`tipo = 'meta_ads'`, `credenciais->>'access_token'`)
+- Sync via Edge Function `meta-ads-sync`
+- `meta_insights` table stores daily metrics per campaign/ad with Portuguese column names: `gasto` (spend), `impressoes`, `cliques`, `leads`, `data_ref` (date), `nivel` (level: 'campaign' or 'ad')
+
+### CTWA (Click-to-WhatsApp) Tracking
+
+The `receive-message` Edge Function captures criativo origin from Meta Ads when leads arrive via Click-to-WhatsApp ads. It checks multiple contextInfo paths to handle different webhook formats:
+- UaZAPI raw: `payload.data.message.contextInfo`
+- n8n-wrapped: `payload.message.content.contextInfo`
+- Additional fallbacks for `rawPayloadData.body.message` paths
+
+When `externalAdReply` with `sourceType = 'ad'` is found, it looks up the `criativos` table by `id_externo` matching `sourceID`, and sets `leads.criativo_id` + `leads.fonte`.
+
 ### Key Tables (Portuguese naming convention)
 
 - `perfis` — user profiles (linked to `auth.users`)
 - `organizations` — tenants
-- `leads` — contacts/leads (includes `lead_scoring` A/B/C/D field, Descompliquei-only)
+- `leads` — contacts/leads (includes `lead_scoring` A/B/C/D field, `criativo_id` FK to `criativos`, `fonte`, `meta_ad_platform`, `meta_ad_source_id`)
 - `mensagens` — WhatsApp messages (supports `quoted_message_id`, `is_edited`, `edited_at`, `original_content`)
 - `etapas` — pipeline stages
 - `cadencias` — message cadence sequences
+- `lead_cadencias` — tracks which cadence was dispatched to which lead (prevents duplicate dispatch)
+- `cadencia_logs` — execution logs for cadence steps
 - `organization_branding` — white-label settings per org
 - `usuarios_papeis` — user roles (`superadmin`, `admin`, `atendente`)
 - `whatsapp_connections` — UAZAPI connection config per org
+- `integracoes` — external integrations (Meta Ads credentials, etc.) per org
+- `meta_ads` — synced Meta Ads entities (campaigns, adsets, ads) with `nivel`, `status`, `meta_campaign_id`, `meta_adset_id`, `meta_ad_id`
+- `meta_insights` — daily metrics per entity: `gasto`, `impressoes`, `cliques`, `leads`, `data_ref`, `nivel` ('campaign'/'ad')
+- `criativos` — canonical creative references (`id_externo` = Meta ad ID, linked from `leads.criativo_id`)
+- `marketing_score_config` — custom scoring weights for creative performance (per org)
+- `lead_blacklist` — permanently blocked phone numbers per org
+- `tags` / `leads_tags` — tagging system for leads
 - `debug_payloads` — temporary debug logging for API payloads
+
+### Key SQL Views
+
+- `vw_criativo_performance` — joins meta_ads → criativos (via `id_externo = meta_ad_id`) → leads (via `criativo_id`) → vendas for per-creative CRM metrics
+- `vw_marketing_eficiencia` — all-time marketing efficiency metrics (NOTE: no date filter — prefer `useDashboard` for date-aware calculations)
 
 ### Key Edge Functions
 
-- `receive-message` — webhook for UAZAPI incoming messages
+- `receive-message` — webhook for UAZAPI incoming messages (includes CTWA criativo tracking)
+- `meta-ads-sync` — syncs Meta Marketing API data to `meta_ads` + `meta_insights` tables
 - `whatsapp-ai-agent` — AI auto-reply agent
 - `send-quick-message` — sends WhatsApp messages (text, media, audio, reply/quote)
 - `edit-message` — edits sent WhatsApp messages (15-min window)

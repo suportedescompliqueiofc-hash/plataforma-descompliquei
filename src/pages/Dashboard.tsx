@@ -12,8 +12,11 @@ import { useDashboard, type OrigemFilter } from "@/hooks/useDashboard";
 import { useProfile } from "@/hooks/useProfile";
 import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
-import { startOfMonth, endOfMonth } from 'date-fns';
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
+import { supabase } from "@/integrations/supabase/client";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { Button } from "@/components/ui/button";
@@ -98,6 +101,7 @@ const FunnelStepCard = ({ from, to, rate, fromCount, toCount }: FunnelStepCardPr
 );
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const today = new Date();
   const initialDateRange: DateRange = { from: startOfMonth(today), to: endOfMonth(today) };
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialDateRange);
@@ -105,6 +109,26 @@ export default function Dashboard() {
 
   const { profile } = useProfile();
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
+  const orgId = profile?.organization_id;
+
+  // ── Meta ativa (widget) ──
+  const { data: metaAtiva } = useQuery({
+    queryKey: ["meta-ativa-widget", orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_meta_acompanhamento")
+        .select("*")
+        .eq("organization_id", orgId!)
+        .eq("ativo", true)
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!orgId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { metrics, isLoading, error: metricsError, refetch } = useDashboard(dateRange, origemFilter);
 
@@ -245,6 +269,140 @@ export default function Dashboard() {
               ))}
             </div>
           </div>
+        );
+      })()}
+
+      {/* ── Widget Meta Ativa ── */}
+      {(() => {
+        const m = metaAtiva;
+
+        // Sem meta ativa — card convite
+        if (!m) {
+          return (
+            <Card className="overflow-hidden shadow-sm border-dashed border-2 border-muted-foreground/20">
+              <CardContent className="p-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-muted rounded-full p-2.5">
+                    <Target className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground text-sm">Nenhuma meta ativa</p>
+                    <p className="text-xs text-muted-foreground">Defina metas para acompanhar seu progresso comercial</p>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => navigate("/crm/metas")} className="shrink-0 gap-1.5">
+                  Criar meta <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        }
+
+        // Dados da meta
+        const diasRestantes = Math.max(Number(m.dias_restantes) || 0, 0);
+        const receitaTotal = Number(m.receita_total) || 0;
+        const metaReceita = Number(m.meta_receita) || 1;
+        const leadsTotal = Number(m.leads_total) || 0;
+        const metaLeads = Number(m.meta_leads) || 0;
+        const reunioesTotal = Number(m.reunioes_total) || 0;
+        const metaReunioes = Number(m.meta_reunioes) || 0;
+        const fechamentosTotal = Number(m.fechamentos_total) || 0;
+        const metaFechamentos = Number(m.meta_fechamentos) || 0;
+        const leadsHoje = Number(m.leads_hoje) || 0;
+        const leadsSemana = Number(m.leads_semana) || 0;
+        const metaLeadsDia = Number(m.meta_leads_dia) || 0;
+        const metaLeadsSemana = Number(m.meta_leads_semana) || 0;
+        const leadsNecessariosDia = Number(m.leads_necessarios_por_dia) || 0;
+
+        const pctReceita = metaReceita > 0 ? Math.round((receitaTotal / metaReceita) * 100) : 0;
+        const pctLeads = metaLeads > 0 ? Math.round((leadsTotal / metaLeads) * 100) : 0;
+        const pctReunioes = metaReunioes > 0 ? Math.round((reunioesTotal / metaReunioes) * 100) : 0;
+        const pctFechamentos = metaFechamentos > 0 ? Math.round((fechamentosTotal / metaFechamentos) * 100) : 0;
+
+        const metaBatida = pctReceita >= 100;
+        const hojeBateu = leadsHoje >= metaLeadsDia;
+        const semanaBateu = leadsSemana >= metaLeadsSemana;
+
+        const fmtK = (v: number) =>
+          v >= 1000 ? `${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}K` : v.toLocaleString("pt-BR");
+
+        const barColor = (pct: number) =>
+          pct >= 100 ? "#10b981" : pct >= 60 ? "#3b82f6" : pct >= 30 ? "#f59e0b" : "#ef4444";
+
+        const metrics_list = [
+          { label: "Receita", real: `R$${fmtK(receitaTotal)}`, meta: `R$${fmtK(metaReceita)}`, pct: pctReceita },
+          { label: "Leads", real: String(leadsTotal), meta: String(metaLeads), pct: pctLeads },
+          { label: "Reuniões", real: String(reunioesTotal), meta: String(metaReunioes), pct: pctReunioes },
+          { label: "Fechamentos", real: String(fechamentosTotal), meta: String(metaFechamentos), pct: pctFechamentos },
+        ];
+
+        return (
+          <Card
+            className={cn(
+              "overflow-hidden shadow-sm transition-all duration-500",
+              metaBatida && "ring-2 ring-green-500/50 animate-pulse"
+            )}
+            style={{ borderTop: metaBatida ? "3px solid #10b981" : "3px solid hsl(var(--primary))" }}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-4 pb-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Target className="h-4.5 w-4.5 text-primary flex-shrink-0" />
+                <span className="font-bold text-foreground text-sm truncate">
+                  {metaBatida ? "🎉 " : ""}{m.nome}
+                </span>
+              </div>
+              <div className="flex items-center gap-3 shrink-0">
+                <span className="text-xs text-muted-foreground font-medium">
+                  {diasRestantes > 0 ? `${diasRestantes} dias restantes` : "Encerrada"}
+                </span>
+                <Button size="sm" variant="ghost" onClick={() => navigate("/crm/metas")} className="gap-1 text-xs h-7 px-2.5 text-primary hover:text-primary">
+                  Ver meta <ArrowRight className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Progress bars */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-5 pb-3">
+              {metrics_list.map((item) => (
+                <div key={item.label} className="space-y-1.5">
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{item.label}</span>
+                    <span className="text-[10px] font-bold" style={{ color: barColor(item.pct) }}>{item.pct}%</span>
+                  </div>
+                  <div className="text-sm font-bold text-foreground">
+                    {item.real} <span className="text-muted-foreground font-normal text-xs">/ {item.meta}</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{
+                        width: `${Math.min(item.pct, 100)}%`,
+                        backgroundColor: barColor(item.pct),
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer — tracking */}
+            <div className="border-t border-border bg-muted/30 px-5 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
+              <span className="flex items-center gap-1.5">
+                Hoje: <strong>{leadsHoje} leads</strong>
+                <span>{hojeBateu ? "✅" : "❌"}</span>
+              </span>
+              <span className="text-border">|</span>
+              <span className="flex items-center gap-1.5">
+                Semana: <strong>{leadsSemana} leads</strong>
+                <span>{semanaBateu ? "✅" : "❌"}</span>
+              </span>
+              <span className="text-border">|</span>
+              <span className="text-muted-foreground">
+                Pace: <strong className="text-foreground">{leadsNecessariosDia} leads/dia</strong>
+              </span>
+            </div>
+          </Card>
         );
       })()}
 

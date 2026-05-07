@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, Users, GitBranch, BarChart3, Settings, LogOut, ChevronLeft,
   MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, ShieldCheck,
-  PlayCircle, Brain, Calendar, Target
+  PlayCircle, Brain, Calendar, Target, CalendarDays
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -67,9 +67,11 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Painel", icon: LayoutDashboard, path: "/crm" },
     { title: "Leads", icon: Users, path: "/crm/leads" },
     { title: "Pipeline", icon: GitBranch, path: "/crm/pipeline" },
+    { title: "Agendamentos", icon: CalendarDays, path: "/crm/agendamentos" },
     { title: "Conversas", icon: MessageSquare, path: "/crm/conversas" },
     { title: "Notificações", icon: Bell, path: "/crm/notificacoes" },
     { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
+    { title: "Metas", icon: Target, path: "/crm/metas" },
     ...(isDescompliqueiOrg ? [{ title: "Marketing", icon: BarChart3, path: "/crm/marketing-trafego" }] : []),
     { title: "Msgs Rápidas", icon: Zap, path: "/crm/quick-messages" },
     { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },

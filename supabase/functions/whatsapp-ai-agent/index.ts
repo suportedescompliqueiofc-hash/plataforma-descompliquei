@@ -840,7 +840,7 @@ Deno.serve(async (req: Request) => {
     await supabase.from("leads").update({ ai_pending_since: null }).eq("id", lead_id);
 
     let userMessageFinal = "";
-    const sessionId = lead.telefone?.replace(/\D/g, "") || lead_id;
+    const sessionId = lead_id;
 
     if (recentMsgs && recentMsgs.length > 0) {
       if (execLogId) await updateLog(execLogId, {
@@ -1244,7 +1244,7 @@ Deno.serve(async (req: Request) => {
         args: JSON.parse(tc.function.arguments),
       })));
 
-      toolMessages.push({ role: "assistant", content: aiResponse.content, tool_calls: aiResponse.tool_calls });
+      toolMessages.push({ role: "assistant", content: null, tool_calls: aiResponse.tool_calls });
       toolMessages.push(...toolResults);
 
       // ── INTERRUPÇÃO após notificacao — envia mensagem ao lead antes de notificar ──
