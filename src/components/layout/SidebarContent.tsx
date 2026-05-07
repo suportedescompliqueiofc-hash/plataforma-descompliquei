@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, Users, GitBranch, BarChart3, Settings, LogOut, ChevronLeft,
   MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, ShieldCheck,
-  PlayCircle, Brain, Calendar, Target, CalendarDays
+  PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -73,6 +73,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
     { title: "Metas", icon: Target, path: "/crm/metas" },
     ...(isDescompliqueiOrg ? [{ title: "Marketing", icon: BarChart3, path: "/crm/marketing-trafego" }] : []),
+    ...(isDescompliqueiOrg ? [{ title: "Criativos", icon: ImagePlay, path: "/crm/criativos" }] : []),
     { title: "Msgs Rápidas", icon: Zap, path: "/crm/quick-messages" },
     { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },
     { title: "IA", icon: Bot, path: "/crm/ia" },
