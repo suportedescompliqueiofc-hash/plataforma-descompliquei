@@ -111,6 +111,34 @@ serve(async (req) => {
       await supabaseAdmin.from('debug_payloads').insert({ payload });
     } catch (e) {}
 
+    // DEBUG: Gravar payload detalhado se for mensagem de anúncio
+    try {
+      const _msgContent = payload?.message?.content;
+      const _ctxInfo = _msgContent?.contextInfo ||
+                       _msgContent?.extendedTextMessage?.contextInfo ||
+                       payload?.message?.contextInfo ||
+                       payload?.data?.message?.contextInfo;
+      const _hasAdData = _ctxInfo?.externalAdReply ||
+                         _ctxInfo?.conversionSource === 'FB_Ads' ||
+                         _ctxInfo?.entryPointConversionSource === 'ctwa_ad';
+
+      if (_hasAdData && !payload?.message?.fromMe) {
+        await supabaseAdmin.from('debug_payloads').insert({
+          payload: {
+            type: 'ad_context_capture',
+            telefone: payload?.chat?.phone || payload?.data?.key?.remoteJid,
+            sourceID: _ctxInfo?.externalAdReply?.sourceID,
+            sourceApp: _ctxInfo?.externalAdReply?.sourceApp,
+            sourceType: _ctxInfo?.externalAdReply?.sourceType,
+            conversionSource: _ctxInfo?.conversionSource,
+            entryPointSource: _ctxInfo?.entryPointConversionSource,
+            full_context: _ctxInfo
+          }
+        });
+        console.log('[DEBUG-AD] Payload de anúncio gravado no debug_payloads');
+      }
+    } catch (e) {}
+
     console.log("PAYLOAD BRUTO RECEBIDO:", JSON.stringify(payload));
     let from, text, externalId, tipoConteudo, mediaPath, conversionSource, fromMe, isGroupFlag = false;
 
@@ -186,9 +214,13 @@ serve(async (req) => {
 
     // ── Detecção de Origem (Marketing vs Orgânico) ───────────────────────────
     let detectedOrigem = 'organico';
+    let detectedFonte = '';
+    let detectedSourceID: string | null = null;
+    let detectedAdReply: any = null;
+    let detectedContextInfo: any = null;
+
     try {
       // Chaves que contêm mensagens citadas/encaminhadas — NÃO devem ser buscadas
-      // pois carregam contexto de ad da mensagem ORIGINAL, não da atual
       const IGNORED_KEYS = new Set([
         'quotedMessage', 'quotedMsg', 'quoted', 'forwardedMessage',
         'ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2',
@@ -207,17 +239,97 @@ serve(async (req) => {
         return null;
       };
 
+      // Busca recursiva (fallback)
       const hasFBAds = findInObject(payload, 'conversionSource', 'FB_Ads') || findInObject(payload, 'entryPointConversionExternalSource', 'FB_Ads');
-      const hasAdReply = findInObject(payload, 'externalAdReply');
       const hasMarketingContext = findInObject(payload, 'entryPointConversionSource', 'ctwa_ad');
 
-      if (hasFBAds) {
+      // Busca direta em TODOS os caminhos possíveis do payload (n8n + UaZAPI)
+      const msgPayload = payload?.message || {};
+      const dataMsg = payload?.data?.message || {};
+      detectedContextInfo =
+        msgPayload?.content?.contextInfo ||
+        msgPayload?.contextInfo ||
+        msgPayload?.content?.extendedTextMessage?.contextInfo ||
+        dataMsg?.contextInfo ||
+        dataMsg?.extendedTextMessage?.contextInfo ||
+        dataMsg?.imageMessage?.contextInfo ||
+        dataMsg?.videoMessage?.contextInfo ||
+        rawPayloadData?.body?.message?.content?.contextInfo ||
+        rawPayloadData?.body?.message?.contextInfo ||
+        null;
+
+      detectedAdReply = detectedContextInfo?.externalAdReply;
+      detectedSourceID = detectedAdReply?.sourceID || null;
+
+      const sourceApp = detectedAdReply?.sourceApp ||
+                        detectedContextInfo?.entryPointConversionApp ||
+                        'facebook';
+
+      console.log('[META-TRACKING] contextInfo encontrado:', !!detectedContextInfo)
+      console.log('[META-TRACKING] externalAdReply encontrado:', !!detectedAdReply)
+      console.log('[META-TRACKING] sourceID:', detectedSourceID)
+      console.log('[META-TRACKING] sourceType:', detectedAdReply?.sourceType)
+      console.log('[META-TRACKING] conversionSource:', detectedContextInfo?.conversionSource)
+      console.log('[META-TRACKING] entryPoint:', detectedContextInfo?.entryPointConversionSource)
+      console.log('[META-TRACKING] hasFBAds (recursivo):', !!hasFBAds)
+      console.log('[META-TRACKING] hasMarketingContext (recursivo):', !!hasMarketingContext)
+
+      // Decisão: é de anúncio? Qualquer indicador basta
+      const isFromAd =
+        (detectedAdReply?.sourceType === 'ad' && detectedSourceID) ||
+        detectedContextInfo?.conversionSource === 'FB_Ads' ||
+        detectedContextInfo?.entryPointConversionSource === 'ctwa_ad' ||
+        hasFBAds ||
+        hasMarketingContext;
+
+      if (isFromAd) {
         detectedOrigem = 'marketing';
-        console.log(`[receive-message] DETECTADO COMO MARKETING VIA FB_Ads! (AdReply: ${!!hasAdReply}, context: ${!!hasMarketingContext})`);
+        if (sourceApp.toLowerCase().includes('instagram')) {
+          detectedFonte = 'instagram';
+        } else {
+          detectedFonte = 'facebook';
+        }
+        console.log(`[META-TRACKING] DETECTADO COMO MARKETING! fonte: ${detectedFonte}, sourceApp: ${sourceApp}, sourceID: ${detectedSourceID || 'N/A'}`);
+      } else {
+        console.log('[META-TRACKING] Lead classificado como orgânico')
       }
 
     } catch (e) {
       console.error('[receive-message] Erro na detecção de marketing:', e);
+    }
+
+    // ── Buscar criativo_id pelo sourceID (se detectado) ─────────────────────
+    let detectedCriativoId: string | null = null;
+    if (detectedSourceID && orgId) {
+      try {
+        // Primeiro tenta na tabela criativos
+        const { data: existingCriativo } = await supabaseAdmin
+          .from('criativos')
+          .select('id')
+          .eq('id_externo', detectedSourceID)
+          .eq('organization_id', orgId)
+          .maybeSingle();
+
+        if (existingCriativo) {
+          detectedCriativoId = existingCriativo.id;
+          console.log('[META-TRACKING] criativo_id vinculado (criativos):', detectedCriativoId);
+        } else {
+          // Fallback: buscar na meta_ads
+          const { data: adData } = await supabaseAdmin
+            .from('meta_ads')
+            .select('id')
+            .eq('meta_ad_id', detectedSourceID)
+            .eq('organization_id', orgId)
+            .maybeSingle();
+
+          if (adData) {
+            detectedCriativoId = adData.id;
+            console.log('[META-TRACKING] criativo_id vinculado (meta_ads):', detectedCriativoId);
+          }
+        }
+      } catch (e) {
+        console.error('[META-TRACKING] Erro ao buscar criativo:', e);
+      }
     }
 
     // ── Encontrar ou Criar Lead ──────────────────────────────────────────────
@@ -237,7 +349,7 @@ serve(async (req) => {
         return new Response(JSON.stringify({ message: 'Lead não encontrado e impossível criar (falta organization_id).' }), { status: 404, headers: corsHeaders });
       }
 
-      const contactName = rawPayloadData?.pushName || rawPayloadData?.data?.pushName || rawPayloadData?.chat?.name || rawPayloadData?.body?.message?.senderName || rawPayloadData?.body?.chat?.contactName || rawPayloadData?.body?.chat?.name || phoneWithCountryCode;
+      const contactName = rawPayloadData?.pushName || rawPayloadData?.data?.pushName || rawPayloadData?.chat?.name || rawPayloadData?.message?.senderName || rawPayloadData?.chat?.wa_name || rawPayloadData?.body?.message?.senderName || rawPayloadData?.body?.chat?.contactName || rawPayloadData?.body?.chat?.name || phoneWithCountryCode;
 
       const { data: newLead, error: createLeadError } = await supabaseAdmin
         .from('leads')
@@ -248,66 +360,78 @@ serve(async (req) => {
           usuario_id: userId,
           status: 'Ativo',
           posicao_pipeline: 1,
-          origem: detectedOrigem
+          origem: detectedOrigem,
+          ...(detectedOrigem === 'marketing' ? { ia_ativa: true } : {}),
+          ...(detectedFonte ? { fonte: detectedFonte, meta_ad_platform: detectedFonte } : {}),
+          ...(detectedSourceID ? { meta_ad_source_id: detectedSourceID } : {}),
+          ...(detectedCriativoId ? { criativo_id: detectedCriativoId } : {})
         })
         .select('id, organization_id, usuario_id, nome, telefone, ia_ativa, origem, criativo_id')
         .single();
 
       if (createLeadError) {
-        console.error('Erro ao registrar novo lead:', createLeadError);
-        return new Response(JSON.stringify({ message: 'Erro ao criar lead', error: createLeadError.message }), { status: 500, headers: corsHeaders });
-      }
+        console.warn(`[receive-message] Falha ao criar lead (${createLeadError.code}): ${createLeadError.message}. Buscando lead existente...`);
+        let retryQuery = supabaseAdmin
+          .from('leads')
+          .select('id, organization_id, usuario_id, nome, telefone, ia_ativa, origem, criativo_id')
+          .or(`telefone.eq.${phoneWithCountryCode},telefone.eq.${phoneWithCountryCode.substring(2)}`);
+        if (orgId) retryQuery = retryQuery.eq('organization_id', orgId);
+        const { data: existingLead } = await retryQuery.limit(1).maybeSingle();
 
-      lead = newLead;
-      console.log(`Novo lead registrado: ${contactName} / ${phoneWithCountryCode} (${detectedOrigem})`);
+        if (existingLead) {
+          lead = existingLead;
+          console.log(`[receive-message] Lead encontrado no retry: ${lead.id}`);
+        } else {
+          console.error('[receive-message] Lead não encontrado mesmo após retry:', createLeadError);
+          return new Response(JSON.stringify({ message: 'Erro ao criar lead', error: createLeadError.message }), { status: 500, headers: corsHeaders });
+        }
+      } else {
+        lead = newLead;
+        console.log(`Novo lead registrado: ${contactName} / ${phoneWithCountryCode} (${detectedOrigem})`);
+      }
     } else {
       // Origem do lead é definida apenas na criação — não reclassificar leads existentes
       // Contatos orgânicos podem clicar em anúncios depois, mas continuam orgânicos
     }
 
     // ── Captura de Criativo Meta Ads (Click-to-WhatsApp) ────────────────────
-    if (!fromMe && lead && !lead.criativo_id) {
+    // Se detectou marketing e o lead existe, garantir que origem/fonte/criativo estão atualizados
+    if (!fromMe && lead && detectedOrigem === 'marketing') {
       try {
-        const dataObj = payload?.data || {};
-        const msg = dataObj?.message || {};
-        const contextInfo = msg?.contextInfo
-          || msg?.extendedTextMessage?.contextInfo
-          || msg?.imageMessage?.contextInfo
-          || msg?.videoMessage?.contextInfo
-          || rawPayloadData?.message?.content?.contextInfo
-          || rawPayloadData?.message?.contextInfo
-          || rawPayloadData?.body?.message?.content?.contextInfo
-          || rawPayloadData?.body?.message?.contextInfo
-          || payload?.message?.content?.contextInfo
-          || payload?.message?.contextInfo
-          || null;
+        const leadUpdate: Record<string, any> = {
+          origem: 'marketing',
+          fonte: detectedFonte || 'facebook',
+          meta_ad_platform: detectedFonte || 'facebook',
+        };
 
-        const externalAdReply = contextInfo?.externalAdReply;
-        const sourceType = externalAdReply?.sourceType;
-        const sourceID = externalAdReply?.sourceID;
+        if (detectedSourceID) {
+          leadUpdate.meta_ad_source_id = detectedSourceID;
+        }
 
-        if (sourceType === 'ad' && sourceID) {
-          console.log(`[receive-message] Click-to-WhatsApp detectado! Ad ID: ${sourceID}, Platform: ${externalAdReply.sourceApp}`);
+        // Se já temos criativo_id da detecção anterior, usar
+        if (detectedCriativoId && !lead.criativo_id) {
+          leadUpdate.criativo_id = detectedCriativoId;
+        }
 
-          let criativoId: string | null = null;
+        // Se temos sourceID mas ainda não temos criativo, tentar criar
+        if (detectedSourceID && !lead.criativo_id && !detectedCriativoId) {
           try {
             const { data: existingCriativo } = await supabaseAdmin
               .from('criativos')
               .select('id')
-              .eq('id_externo', sourceID)
+              .eq('id_externo', detectedSourceID)
               .eq('organization_id', lead.organization_id)
-              .limit(1)
               .maybeSingle();
 
             if (existingCriativo) {
-              criativoId = existingCriativo.id;
-              console.log(`[receive-message] Criativo existente encontrado: ${criativoId}`);
-            } else {
+              leadUpdate.criativo_id = existingCriativo.id;
+              console.log(`[META-TRACKING] Criativo existente vinculado: ${existingCriativo.id}`);
+            } else if (detectedAdReply) {
               let metaNome: string | null = null;
               const { data: metaAd } = await supabaseAdmin
                 .from('meta_ads')
                 .select('nome')
-                .eq('meta_ad_id', sourceID)
+                .eq('meta_ad_id', detectedSourceID)
                 .eq('organization_id', lead.organization_id)
                 .maybeSingle();
               if (metaAd) metaNome = metaAd.nome;
@@ -316,63 +440,56 @@ serve(async (req) => {
                 .from('criativos')
                 .insert({
                   organization_id: lead.organization_id,
-                  id_externo: sourceID,
-                  nome: metaNome || externalAdReply.title || `Ad ${sourceID}`,
-                  titulo: externalAdReply.title || null,
-                  conteudo: externalAdReply.body || null,
-                  url_thumbnail: externalAdReply.thumbnailURL || null,
+                  id_externo: detectedSourceID,
+                  nome: metaNome || detectedAdReply.title || `Ad ${detectedSourceID}`,
+                  titulo: detectedAdReply.title || null,
+                  conteudo: detectedAdReply.body || null,
+                  url_thumbnail: detectedAdReply.thumbnailURL || null,
                   plataforma: 'meta',
-                  aplicativo: externalAdReply.sourceApp || null,
+                  aplicativo: detectedAdReply.sourceApp || null,
                 })
                 .select('id')
                 .single();
 
               if (createErr) {
-                console.error('[receive-message] Erro ao criar criativo:', createErr);
+                console.error('[META-TRACKING] Erro ao criar criativo:', createErr);
               } else {
-                criativoId = newCriativo.id;
-                console.log(`[receive-message] Criativo criado automaticamente: ${criativoId}`);
+                leadUpdate.criativo_id = newCriativo.id;
+                console.log(`[META-TRACKING] Criativo criado automaticamente: ${newCriativo.id}`);
               }
             }
           } catch (adLookupErr) {
-            console.error('[receive-message] Erro ao buscar/criar criativo:', adLookupErr);
+            console.error('[META-TRACKING] Erro ao buscar/criar criativo:', adLookupErr);
           }
-
-          const adMetadata = {
-            ad_source_id: sourceID,
-            ad_title: externalAdReply.title || null,
-            ad_body: externalAdReply.body || null,
-            ad_thumbnail: externalAdReply.thumbnailURL || null,
-            ad_platform: externalAdReply.sourceApp || null,
-            ctwa_clid: contextInfo?.ctwaClid || null,
-            captured_at: new Date().toISOString(),
-          };
-
-          const leadUpdate: Record<string, any> = {
-            origem: 'marketing',
-            fonte: externalAdReply.sourceApp || 'meta',
-          };
-          if (criativoId) leadUpdate.criativo_id = criativoId;
-
-          const { error: updateErr } = await supabaseAdmin
-            .from('leads')
-            .update(leadUpdate)
-            .eq('id', lead.id);
-
-          if (updateErr) {
-            console.error('[receive-message] Erro ao atualizar lead com dados do criativo:', updateErr);
-          } else {
-            console.log(`[receive-message] Lead ${lead.id} atualizado com criativo Meta Ads. Origem=marketing, Fonte=${leadUpdate.fonte}, CriativoID=${criativoId || 'N/A'}`);
-          }
-
-          try {
-            await supabaseAdmin
-              .from('debug_payloads')
-              .insert({ payload: { type: 'ctwa_ad_capture', lead_id: lead.id, ad_metadata: adMetadata } });
-          } catch (_) {}
         }
+
+        // Atualizar lead (mesmo se acabou de ser criado, para garantir consistência)
+        const { error: updateErr } = await supabaseAdmin
+          .from('leads')
+          .update(leadUpdate)
+          .eq('id', lead.id);
+
+        if (updateErr) {
+          console.error('[META-TRACKING] Erro ao atualizar lead:', updateErr);
+        } else {
+          console.log(`[META-TRACKING] Lead ${lead.id} atualizado: origem=marketing, fonte=${leadUpdate.fonte}, criativo=${leadUpdate.criativo_id || 'N/A'}, sourceID=${detectedSourceID || 'N/A'}`);
+        }
+
+        // Debug payload
+        try {
+          await supabaseAdmin.from('debug_payloads').insert({
+            payload: {
+              type: 'ctwa_ad_capture',
+              lead_id: lead.id,
+              sourceID: detectedSourceID,
+              fonte: detectedFonte,
+              criativo_id: leadUpdate.criativo_id || null,
+              ctwa_clid: detectedContextInfo?.ctwaClid || null,
+            }
+          });
+        } catch (_) {}
       } catch (adCaptureErr) {
-        console.error('[receive-message] Erro na captura de criativo Meta Ads:', adCaptureErr);
+        console.error('[META-TRACKING] Erro na captura de criativo Meta Ads:', adCaptureErr);
       }
     }
 
@@ -611,16 +728,52 @@ serve(async (req) => {
 
     // ── Dispara IA ──────────────────────────────────────────────────────────
     // Apenas dispara IA se a mensagem for de entrada e IA estiver ativa
-    if (direcao === 'entrada' && lead.ia_ativa === true) {
+    console.log('[IA-DISPATCH] Verificando condições para lead:', lead.id, 'telefone:', lead.telefone)
+    console.log('[IA-DISPATCH] direcao:', direcao)
+    console.log('[IA-DISPATCH] ia_ativa:', lead.ia_ativa, '(tipo:', typeof lead.ia_ativa, ')')
+    console.log('[IA-DISPATCH] fromMe:', fromMe)
+    console.log('[IA-DISPATCH] tipoConteudo:', tipoConteudo)
+
+    // ia_ativa pode ser true, false ou null.
+    // true = IA ativa (leads de marketing)
+    // null = nunca definido (leads orgânicos) → IA NÃO dispara
+    // false = desativado explicitamente (transbordo humano) → IA NÃO dispara
+    const iaAtiva = lead.ia_ativa === true;
+    const deveDisparar = direcao === 'entrada' && iaAtiva;
+    console.log('[IA-DISPATCH] Decisão final:', deveDisparar, '(iaAtiva:', iaAtiva, ')')
+
+    if (deveDisparar) {
         const payload = { lead_id: lead.id, organization_id: lead.organization_id, mensagem_usuario: text, tipo_mensagem: tipoConteudo, media_path: uploadedFilePath };
+        console.log('[IA-DISPATCH] Disparando whatsapp-ai-agent para lead:', lead.id)
         const aiRequest = supabaseAdmin.functions.invoke('whatsapp-ai-agent', {
           body: payload,
-        }).catch(console.error);
+        }).catch((err: any) => {
+          console.error('[IA-DISPATCH] Erro ao invocar whatsapp-ai-agent:', err)
+        });
 
         // @ts-ignore - Garante que o isolado não morra antes de disparar a promise de background
         if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
            // @ts-ignore
            EdgeRuntime.waitUntil(aiRequest);
+        }
+    } else {
+        const motivo = direcao !== 'entrada' ? 'mensagem de saída' : 'ia_ativa === false (transbordo humano)';
+        console.log('[IA-DISPATCH] IA NÃO disparada. Motivo:', motivo);
+
+        // Registrar log quando IA é ignorada em mensagem de entrada para debug
+        if (direcao === 'entrada' && !iaAtiva) {
+          try {
+            await supabaseAdmin.from('ai_execution_logs').insert({
+              organization_id: lead.organization_id,
+              lead_id: lead.id,
+              session_id: lead.telefone?.replace(/\D/g, '') || lead.id,
+              status: 'skipped',
+              etapa: 'bloqueado_receive_message',
+              detalhe: `IA não disparada: ia_ativa=${lead.ia_ativa} (transbordo humano ativo). Lead precisa ter IA reativada manualmente.`,
+            });
+          } catch (logErr) {
+            console.warn('[IA-DISPATCH] Falha ao registrar log de skip:', logErr);
+          }
         }
     }
 

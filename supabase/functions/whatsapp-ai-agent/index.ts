@@ -773,14 +773,6 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "lead_not_found" }, 404);
     }
 
-    // Filtro: IA atende APENAS leads de marketing ou o número de exceção 21977297413
-    const isExcecao = lead.telefone === '5521977297413' || lead.telefone === '21977297413';
-    if (lead.origem !== 'marketing' && !isExcecao) {
-      console.log(`[AI-Agent] Lead ${lead_id} bloqueado: Origem não é marketing (${lead.origem}) e não é exceção.`);
-      if (execLogId) await updateLog(execLogId, { status: "error", etapa: "bloqueado_origem", detalhe: `IA bloqueada: origem '${lead.origem}' não é marketing e não é número de exceção.`, duracao_ms: Date.now() - globalStart });
-      return jsonResponse({ ok: false, reason: "ia_bloqueada_origem_organico" });
-    }
-
     if (lead.ia_ativa === false) {
       if (execLogId) await updateLog(execLogId, { status: "error", etapa: "bloqueado", detalhe: "IA bloqueada (transbordo humano ativo).", duracao_ms: Date.now() - globalStart });
       return jsonResponse({ ok: false, reason: "ia_bloqueada" });
