@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useLeads, Lead } from "@/hooks/useLeads";
+import { Message } from "@/hooks/useConversations";
 import { addSeconds, isAfter, differenceInMinutes, differenceInHours } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -14,11 +15,12 @@ interface AiLockControlProps {
   lead: Lead;
   lastIncomingMessage?: string;
   lastIncomingMessageType?: string;
+  messages?: Message[];
 }
 
 
 
-export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageType }: AiLockControlProps) {
+export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageType, messages = [] }: AiLockControlProps) {
   const { updateLead } = useLeads();
   const [isLoading, setIsLoading] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
@@ -155,12 +157,25 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
 
     setIsDispatching(true);
     try {
+      // Montar histórico das últimas mensagens (excluindo a última de entrada que vai como mensagem_usuario)
+      const recentMessages = messages.slice(-20);
+      const lastIncomingIdx = recentMessages.findLastIndex(m => m.direcao === 'entrada');
+      const historyMessages = lastIncomingIdx > 0 ? recentMessages.slice(0, lastIncomingIdx) : recentMessages.slice(0, -1);
+
+      const historico_conversa = historyMessages
+        .filter(m => m.conteudo && m.tipo_conteudo === 'texto')
+        .map(m => ({
+          role: m.direcao === 'entrada' ? 'user' : 'assistant',
+          content: m.conteudo,
+        }));
+
       const { error } = await supabase.functions.invoke('whatsapp-ai-agent', {
         body: {
           lead_id: lead.id,
           organization_id: lead.organization_id,
           mensagem_usuario: lastIncomingMessage,
           tipo_mensagem: lastIncomingMessageType || 'texto',
+          historico_conversa: historico_conversa.length > 0 ? historico_conversa : null,
         },
       });
 
@@ -185,7 +200,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
           variant="outline"
           size="sm"
           className={cn(
-            "h-9 gap-2 transition-all border font-medium w-[140px] justify-center",
+            "h-7 gap-1.5 transition-all border font-medium w-[120px] justify-center text-xs",
             iaPermBlocked
               ? "bg-red-50 text-red-600 border-red-300 hover:bg-red-100 hover:text-red-700"
               : isBlocked
@@ -249,27 +264,6 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
                 >
                   <Trash2 className="h-4 w-4 mr-1" />
                   Remover
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Bloqueio temporário — só mostra se IA não está perm. bloqueada */}
-          {!iaPermBlocked && (
-            <div className="grid gap-2">
-              <Label htmlFor="duration">Adicionar/Editar Bloqueio (em segundos)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="duration"
-                  type="number"
-                  placeholder="Ex: 7200 (para 2 horas)"
-                  value={newDuration}
-                  onChange={(e) => setNewDuration(e.target.value)}
-                  disabled={isLoading}
-                />
-                <Button onClick={handleSaveBlock} disabled={isLoading} className="gap-1">
-                  {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Salvar
                 </Button>
               </div>
             </div>

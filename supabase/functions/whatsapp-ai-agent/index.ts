@@ -741,7 +741,7 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "invalid_json" }, 400);
   }
 
-  const { lead_id, organization_id: orgId, mensagem_usuario, tipo_mensagem = "texto", media_path = null } = body;
+  const { lead_id, organization_id: orgId, mensagem_usuario, tipo_mensagem = "texto", media_path = null, historico_conversa = null } = body;
   if (!lead_id || !orgId) return jsonResponse({ error: "lead_id e organization_id são obrigatórios" }, 400);
 
   const globalStart = Date.now();
@@ -894,7 +894,16 @@ Deno.serve(async (req: Request) => {
 
     // 5. Memória
     if (execLogId) await updateLog(execLogId, { status: "running", etapa: "carregando_memoria", detalhe: "Carregando histórico de conversa..." });
-    const memoria = await loadMemory(sessionId, orgId);
+    let memoria = await loadMemory(sessionId, orgId);
+
+    // Se a memoria_agente está vazia mas recebemos historico_conversa (disparo manual),
+    // usar o histórico real da conversa como contexto para a IA
+    if (memoria.length === 0 && Array.isArray(historico_conversa) && historico_conversa.length > 0) {
+      console.log(`[AI-Agent] Memoria vazia, usando historico_conversa fornecido (${historico_conversa.length} msgs)`);
+      memoria = historico_conversa
+        .filter((m: any) => m.role && m.content)
+        .map((m: any) => ({ role: m.role as string, content: m.content as string }));
+    }
 
     const dadosCliente = (aiConfig.prompt ?? "").trim();
     const promptBaseAgente = await loadPromptBase();

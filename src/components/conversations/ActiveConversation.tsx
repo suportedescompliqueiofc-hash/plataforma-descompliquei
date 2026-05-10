@@ -468,15 +468,15 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
       <header className="flex flex-col border-b bg-card shadow-sm z-10 flex-shrink-0">
-        <div className="flex items-center justify-between p-2 sm:p-3 gap-2">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="flex items-center justify-between p-2 gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={() => navigate('/crm/conversas')}><ChevronLeft className="h-5 w-5" /></Button>
-                <Avatar className="h-10 w-10 sm:h-11 sm:w-11 border bg-muted flex-shrink-0">
-                    <AvatarFallback className="bg-accent text-accent-foreground text-xs sm:text-sm font-medium">{getInitials(lead?.nome)}</AvatarFallback>
+                <Avatar className="h-9 w-9 border bg-muted flex-shrink-0">
+                    <AvatarFallback className="bg-accent text-accent-foreground text-xs font-medium">{getInitials(lead?.nome)}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-2">
-                        <p className="font-bold truncate text-base leading-tight">{lead?.nome || 'Lead'}</p>
+                    <div className="flex items-center gap-1.5">
+                        <p className="font-bold truncate text-sm leading-tight">{lead?.nome || 'Lead'}</p>
                         {activeCadence && (
                             <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px] px-1.5 py-0 h-4 border border-orange-200">
                                 <Zap className="h-2.5 w-2.5 mr-0.5" /> Em cadência
@@ -492,25 +492,25 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                             <Pencil className="h-3 w-3" />
                         </Button>
                     </div>
-                    <div className="flex items-center gap-2 mt-1 overflow-hidden">
-                        <span className="text-[10px] sm:text-xs text-muted-foreground flex items-center gap-1 shrink-0">
+                    <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 shrink-0">
                             <Phone className="h-2.5 w-2.5" />
                             {lead?.telefone}
                         </span>
-                        
+
                         {/* Badge de Origem */}
-                        <div className="flex items-center gap-1 bg-muted/50 px-1.5 py-0.5 rounded-md border border-border/40 shrink-0">
+                        <div className="flex items-center gap-0.5 bg-muted/50 px-1 py-0.5 rounded-md border border-border/40 shrink-0">
                             <Globe className="h-2.5 w-2.5 text-muted-foreground" />
                             <span className="text-[9px] font-bold uppercase text-muted-foreground">
-                                {lead?.origem === 'marketing' ? 'Marketing' : 'Orgânico'}
+                                {lead?.origem === 'marketing' ? 'Mkt' : 'Org'}
                             </span>
                         </div>
 
                         {/* Badge de Criativo com thumbnail */}
                         {lead?.criativo_id && leadAdInfo && (
-                            <div className="flex items-center gap-1.5 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-200 shrink-0 max-w-[180px] sm:max-w-[280px]">
+                            <div className="hidden sm:flex items-center gap-1 bg-orange-50 px-1 py-0.5 rounded-md border border-orange-200 shrink-0 max-w-[160px] lg:max-w-[220px]">
                                 {leadAdInfo.url_thumbnail ? (
-                                    <img src={leadAdInfo.url_thumbnail} className="w-5 h-5 rounded object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                    <img src={leadAdInfo.url_thumbnail} className="w-4 h-4 rounded object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                                 ) : (
                                     <Sparkles className="h-2.5 w-2.5 text-orange-500 flex-shrink-0" />
                                 )}
@@ -526,18 +526,18 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 </div>
             </div>
             
-            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {/* Botão Resumo IA com texto formatado */}
                 {lead?.resumo && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-9 gap-2 bg-[#FDF8F3] border-[#E9D5C3] text-[#A67C52] hover:bg-[#F9F1E8] hover:text-[#8B6441] rounded-full px-3"
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 bg-[#FDF8F3] border-[#E9D5C3] text-[#A67C52] hover:bg-[#F9F1E8] hover:text-[#8B6441] rounded-full px-2.5"
                             >
                                 <Sparkles className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline text-xs font-semibold">Resumo IA</span>
+                                <span className="hidden xl:inline text-xs font-semibold">Resumo IA</span>
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-80 p-4 shadow-xl border-primary/20 bg-background" align="end">
@@ -562,31 +562,31 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                   variant="outline"
                   size="sm"
                   className={cn(
-                    "h-9 gap-2 rounded-full px-3 text-xs font-semibold",
+                    "h-8 gap-1.5 rounded-full px-2.5 text-xs font-semibold",
                     isExportMode && "border-primary bg-primary/5 text-primary"
                   )}
                   onClick={isExportMode ? handleCancelExportSelection : handleStartExportSelection}
                 >
                   {isExportMode ? <X className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                  <span className="hidden sm:inline">{isExportMode ? "Cancelar Exportação" : "Exportar PDF"}</span>
+                  <span className="hidden xl:inline">{isExportMode ? "Cancelar" : "PDF"}</span>
                 </Button>
-                
-                <div className="flex items-center gap-2 pl-2 border-l ml-1">
-                    <div className="flex items-center gap-2">
-                        <Switch id="ai-toggle" checked={isAiActive} onCheckedChange={handleAiToggle} disabled={!lead} className="scale-75 sm:scale-90" />
-                        <Zap className={cn("h-4 w-4 transition-colors", isAiActive ? "text-primary fill-primary/20" : "text-muted-foreground")} />
+
+                <div className="flex items-center gap-1.5 pl-1.5 border-l ml-0.5">
+                    <div className="flex items-center gap-1.5">
+                        <Switch id="ai-toggle" checked={isAiActive} onCheckedChange={handleAiToggle} disabled={!lead} className="scale-75" />
+                        <Zap className={cn("h-3.5 w-3.5 transition-colors", isAiActive ? "text-primary fill-primary/20" : "text-muted-foreground")} />
                     </div>
                 </div>
             </div>
         </div>
 
-        <div className="flex items-center justify-between px-3 pb-2 gap-3 overflow-x-auto scrollbar-none bg-muted/5">
-            <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center justify-between px-2 pb-1.5 gap-2 overflow-x-auto scrollbar-none bg-muted/5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
                 {lead && stages.length > 0 && (
                     <Select value={lead.posicao_pipeline?.toString() || "1"} onValueChange={(v) => updateLead({ id: lead.id, posicao_pipeline: parseInt(v) })}>
-                    <SelectTrigger className="w-[120px] sm:w-[160px] h-7 text-[10px] sm:text-xs bg-background/50 border-none shadow-none hover:bg-muted/40 transition-colors">
+                    <SelectTrigger className="w-[110px] lg:w-[140px] h-7 text-[10px] bg-background/50 border-none shadow-none hover:bg-muted/40 transition-colors">
                         <SelectValue>
-                        {currentStage ? <div className="flex items-center gap-1.5 truncate"><span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage.cor }} />{currentStage.nome}</div> : "Etapa"}
+                        {currentStage ? <div className="flex items-center gap-1 truncate"><span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage.cor }} />{currentStage.nome}</div> : "Etapa"}
                         </SelectValue>
                     </SelectTrigger>
                     <SelectContent>{stages.map(stage => (<SelectItem key={stage.id} value={stage.posicao_ordem.toString()}>{stage.nome}</SelectItem>))}</SelectContent>
@@ -598,7 +598,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       variant={lead.is_qualified ? "default" : "outline"}
                       size="sm"
                       className={cn(
-                        "h-7 px-2 sm:px-3 text-[10px] sm:text-xs font-bold gap-1.5 transition-all duration-300 rounded-full uppercase tracking-wider",
+                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider",
                         lead.is_qualified
                           ? isDescompliqueiOrg && lead.lead_scoring
                             ? "border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
@@ -617,15 +617,15 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                         }
                       }}
                     >
-                      <UserCheck className={cn("h-3.5 w-3.5", lead.is_qualified ? "fill-current" : "")} />
-                      {lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? `Qualificado ${lead.lead_scoring}` : 'Qualificado'}
+                      <UserCheck className={cn("h-3 w-3", lead.is_qualified ? "fill-current" : "")} />
+                      {lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? `MQL ${lead.lead_scoring}` : 'MQL'}
                     </Button>
                     <div className="flex flex-col items-center">
                       <Button
                         variant={lead.is_scheduled ? "default" : "outline"}
                         size="sm"
                         className={cn(
-                          "h-7 px-2 sm:px-3 text-[10px] sm:text-xs font-bold gap-1.5 transition-all duration-300 rounded-full uppercase tracking-wider",
+                          "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider",
                           lead.is_scheduled
                             ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-[0_0_12px_-2px_rgba(59,130,246,0.4)] scale-105 active:scale-95"
                             : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
@@ -638,7 +638,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                           }
                         }}
                       >
-                        <CalendarCheck className={cn("h-3.5 w-3.5", lead.is_scheduled ? "fill-current" : "")} />
+                        <CalendarCheck className={cn("h-3 w-3", lead.is_scheduled ? "fill-current" : "")} />
                         Agendado
                       </Button>
                       {agendamentoAtivo && (
@@ -654,14 +654,14 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       variant={lead.is_closed ? "default" : "outline"}
                       size="sm"
                       className={cn(
-                        "h-7 px-2 sm:px-3 text-[10px] sm:text-xs font-bold gap-1.5 transition-all duration-300 rounded-full uppercase tracking-wider",
+                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider",
                         lead.is_closed
                           ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-[0_0_12px_-2px_rgba(139,92,246,0.4)] scale-105 active:scale-95"
                           : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
                       )}
                       onClick={() => updateLead({ id: lead.id, is_closed: !lead.is_closed })}
                     >
-                      <BadgeCheck className={cn("h-3.5 w-3.5", lead.is_closed ? "fill-current" : "")} />
+                      <BadgeCheck className={cn("h-3 w-3", lead.is_closed ? "fill-current" : "")} />
                       Fechado
                     </Button>
                   </>
@@ -669,20 +669,20 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
             </div>
             <div className="flex-1 flex justify-end min-w-0 overflow-hidden">
                 {lead && (
-                    <div className="flex items-center gap-2 scale-90 origin-right">
+                    <div className="flex items-center gap-1.5 scale-90 origin-right">
                         <TagManager leadId={lead.id} />
                         {onToggleQuickMessages && (
-                            <Button 
-                                variant={showQuickMessages ? "default" : "ghost"} 
-                                size="sm" 
+                            <Button
+                                variant={showQuickMessages ? "default" : "ghost"}
+                                size="sm"
                                 className={cn(
-                                    "h-7 px-2 rounded-full text-[10px] gap-1", 
+                                    "h-6 px-2 rounded-full text-[10px] gap-1",
                                     showQuickMessages ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                                )} 
+                                )}
                                 onClick={onToggleQuickMessages}
                             >
                                 <Zap className="h-3 w-3" />
-                                Mensagens Rápidas
+                                <span className="hidden lg:inline">Rápidas</span>
                             </Button>
                         )}
                     </div>
@@ -698,7 +698,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                     size="sm"
                     title={lead.excluir_metricas ? "Lead desconsiderado das métricas — clique para incluir" : "Desconsiderar das métricas"}
                     className={cn(
-                      "h-7 px-2 text-[10px] font-bold gap-1 rounded-full border transition-all duration-200",
+                      "h-6 px-1.5 text-[10px] font-bold gap-1 rounded-full border transition-all duration-200",
                       lead.excluir_metricas
                         ? "border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100"
                         : "border-border text-muted-foreground hover:border-amber-400 hover:text-amber-600"
@@ -706,9 +706,6 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                     onClick={() => updateLead({ id: lead.id, excluir_metricas: !lead.excluir_metricas })}
                   >
                     <EyeOff className="h-3 w-3" />
-                    <span className="hidden sm:inline">
-                      {lead.excluir_metricas ? "Fora das métricas" : "Métricas"}
-                    </span>
                   </Button>
                 )}
                 {lead && (
@@ -716,16 +713,15 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                     variant={showNotas ? "default" : "ghost"}
                     size="sm"
                     className={cn(
-                      "h-7 px-2 text-[10px] font-bold gap-1 rounded-full transition-all duration-200",
+                      "h-6 px-1.5 text-[10px] font-bold gap-1 rounded-full transition-all duration-200",
                       showNotas ? "bg-primary text-primary-foreground" : "text-muted-foreground"
                     )}
                     onClick={() => setShowNotas(!showNotas)}
                   >
                     <StickyNote className="h-3 w-3" />
-                    <span className="hidden sm:inline">Notas</span>
                   </Button>
                 )}
-                <div className="xs:block">{lead && <AiLockControl lead={lead} lastIncomingMessage={lastIncomingMessage?.conteudo} lastIncomingMessageType={lastIncomingMessage?.tipo_conteudo} />}</div>
+                <div className="xs:block">{lead && <AiLockControl lead={lead} lastIncomingMessage={lastIncomingMessage?.conteudo} lastIncomingMessageType={lastIncomingMessage?.tipo_conteudo} messages={messages} />}</div>
             </div>
         </div>
       </header>

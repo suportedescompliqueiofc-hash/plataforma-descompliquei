@@ -33,7 +33,7 @@ export default function Conversations() {
             {/* Painel Esquerdo: Lista - Largura adaptada para telas grandes */}
             <div className={cn(
               "flex-shrink-0 h-full border-r bg-card/50 transition-all duration-300",
-              leadId ? "hidden md:block w-72 xl:w-80 2xl:w-96" : "w-full md:w-72 xl:w-80 2xl:w-96"
+              leadId ? "hidden md:block w-64 lg:w-72 xl:w-80 2xl:w-96" : "w-full md:w-64 lg:w-72 xl:w-80 2xl:w-96"
             )}>
               <ConversationsList />
             </div>
@@ -67,7 +67,7 @@ export default function Conversations() {
 
         {/* Painel Direito Desktop: Mensagens Rápidas (Lateral) - Largura adaptada para telas grandes */}
         {!isMobile && showQuickMessages && leadId && (
-          <div className="hidden lg:block h-full flex-shrink-0 border-l bg-card w-72 xl:w-80 2xl:w-96">
+          <div className="hidden lg:block h-full flex-shrink-0 border-l bg-card w-64 xl:w-72 2xl:w-80">
             <QuickMessagesSidebar lead={lead || null} />
           </div>
         )}
