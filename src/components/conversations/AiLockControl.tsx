@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, Unlock, Loader2, Trash2, Save, RefreshCw, Bot } from "lucide-react";
+import { Clock, Unlock, Loader2, Trash2, Save, RefreshCw, Bot, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -12,14 +12,17 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface AiLockControlProps {
   lead: Lead;
+  lastIncomingMessage?: string;
+  lastIncomingMessageType?: string;
 }
 
 
 
-export function AiLockControl({ lead }: AiLockControlProps) {
+export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageType }: AiLockControlProps) {
   const { updateLead } = useLeads();
   const [isLoading, setIsLoading] = useState(false);
   const [isRestarting, setIsRestarting] = useState(false);
+  const [isDispatching, setIsDispatching] = useState(false);
   const [timeDisplay, setTimeDisplay] = useState<string | null>(null);
   const [isBlocked, setIsBlocked] = useState(false);
   const [newDuration, setNewDuration] = useState("");
@@ -144,6 +147,34 @@ export function AiLockControl({ lead }: AiLockControlProps) {
     }
   };
 
+  const handleDispatchAi = async () => {
+    if (!lastIncomingMessage) {
+      toast.warning("Nenhuma mensagem de entrada encontrada para enviar à IA.");
+      return;
+    }
+
+    setIsDispatching(true);
+    try {
+      const { error } = await supabase.functions.invoke('whatsapp-ai-agent', {
+        body: {
+          lead_id: lead.id,
+          organization_id: lead.organization_id,
+          mensagem_usuario: lastIncomingMessage,
+          tipo_mensagem: lastIncomingMessageType || 'texto',
+        },
+      });
+
+      if (error) throw error;
+      toast.success("IA disparada com sucesso! A resposta será enviada em instantes.");
+      setIsPopoverOpen(false);
+    } catch (err: any) {
+      console.error("Erro ao disparar IA:", err);
+      toast.error("Erro ao disparar a IA. Tente novamente.");
+    } finally {
+      setIsDispatching(false);
+    }
+  };
+
   // IA permanentemente desativada por transbordo humano
   const iaPermBlocked = lead.ia_ativa === false;
 
@@ -243,6 +274,26 @@ export function AiLockControl({ lead }: AiLockControlProps) {
               </div>
             </div>
           )}
+
+          {/* Disparar IA manualmente */}
+          <div className="pt-2 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 text-emerald-600 border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700"
+              onClick={handleDispatchAi}
+              disabled={isDispatching || !lastIncomingMessage}
+            >
+              {isDispatching
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <Sparkles className="h-4 w-4" />
+              }
+              Disparar IA
+            </Button>
+            <p className="text-xs text-muted-foreground mt-1.5 text-center">
+              Executa a IA para a última mensagem recebida
+            </p>
+          </div>
 
           {/* Reiniciar IA — sempre disponível */}
           <div className="pt-2 border-t">

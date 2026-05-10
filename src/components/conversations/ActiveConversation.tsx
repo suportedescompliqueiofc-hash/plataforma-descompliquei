@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
-import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply } from "lucide-react";
+import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply, StickyNote } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,13 +31,15 @@ import { useLeadCadence } from "@/hooks/useCadences";
 import { useMessages, useSendMessage, Message, Attachment, useDeleteMessage, useEditMessage, useSendAudioMessage, useSendMediaMessage } from "@/hooks/useConversations";
 import { useNotifications, useUpdateNotificationStatus } from "@/hooks/useNotifications";
 import { useStages } from "@/hooks/useStages";
-import { useMarketing } from "@/hooks/useMarketing";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { useBranding } from "@/contexts/BrandingContext";
 import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
 import { exportConversationPdf, type ConversationPdfMessage } from "@/lib/conversation-pdf";
 
 import { AudioMessage } from "./AudioMessage";
+import LeadNotas from "@/components/leads/LeadNotas";
 import { MediaMessage } from "./MediaMessage";
 import { FileMessage } from "./FileMessage";
 import { NotificationMessage } from "./NotificationMessage";
@@ -170,7 +172,20 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const { data: messages = [], isLoading: messagesLoading } = useMessages(leadId);
   const { data: notifications } = useNotifications(leadId);
   const { stages, isLoading: stagesLoading } = useStages();
-  const { criativos } = useMarketing();
+  // Query meta_ads for the lead's criativo (FK leads.criativo_id -> meta_ads.id)
+  const { data: leadAdInfo } = useQuery({
+    queryKey: ['lead_ad_header', lead?.criativo_id],
+    queryFn: async () => {
+      const { data } = await (supabase
+        .from('meta_ads') as any)
+        .select('id, nome, meta_ad_id, url_thumbnail')
+        .eq('id', lead!.criativo_id!)
+        .single();
+      return data;
+    },
+    enabled: !!lead?.criativo_id,
+    staleTime: 5 * 60 * 1000,
+  });
   const { mutate: sendMessage } = useSendMessage();
   const { mutate: sendAudio, isPending: isSendingAudio } = useSendAudioMessage();
   const { mutate: sendMedia, isPending: isSendingMedia } = useSendMediaMessage();
@@ -196,6 +211,9 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   // Edit Message State
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
+
+  // Notas Panel
+  const [showNotas, setShowNotas] = useState(false);
 
   // Scoring Modal
   const [showScoringModal, setShowScoringModal] = useState(false);
@@ -235,12 +253,8 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
   const groupedMessages = useMemo(() => groupMessagesByDay(messages), [messages]);
   
-  // Busca o nome do criativo associado
-  const creativeName = useMemo(() => {
-    if (!lead?.criativo_id || !criativos) return null;
-    const creative = criativos.find((c: any) => c.id === lead.criativo_id);
-    return creative?.nome || creative?.titulo || "Criativo Desconhecido";
-  }, [lead?.criativo_id, criativos]);
+  // Nome do criativo associado (via meta_ads)
+  const creativeName = leadAdInfo?.nome || (lead?.criativo_id ? `Criativo #${lead.criativo_id.slice(-6)}` : null);
 
   const messageIndexById = useMemo(
     () => new Map(messages.map((message, index) => [message.id, index])),
@@ -261,6 +275,13 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   useEffect(() => { if (lead) setIsAiActive(lead.ia_ativa ?? true); }, [lead]);
   // Map de mensagens por ID para lookup rápido de citações
   const messagesById = useMemo(() => new Map(messages.map(m => [m.id, m])), [messages]);
+
+  const lastIncomingMessage = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].direcao === 'entrada') return messages[i];
+    }
+    return null;
+  }, [messages]);
 
   useEffect(() => {
     setIsExportMode(false);
@@ -485,12 +506,19 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                             </span>
                         </div>
 
-                        {/* Badge de Criativo */}
-                        {creativeName && (
-                            <div className="flex items-center gap-1 bg-primary/5 px-1.5 py-0.5 rounded-md border border-primary/10 shrink-0 max-w-[120px] sm:max-w-[200px]">
-                                <Sparkles className="h-2.5 w-2.5 text-primary" />
-                                <span className="text-[9px] font-medium text-primary truncate">
-                                    {creativeName}
+                        {/* Badge de Criativo com thumbnail */}
+                        {lead?.criativo_id && leadAdInfo && (
+                            <div className="flex items-center gap-1.5 bg-orange-50 px-1.5 py-0.5 rounded-md border border-orange-200 shrink-0 max-w-[180px] sm:max-w-[280px]">
+                                {leadAdInfo.url_thumbnail ? (
+                                    <img src={leadAdInfo.url_thumbnail} className="w-5 h-5 rounded object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                ) : (
+                                    <Sparkles className="h-2.5 w-2.5 text-orange-500 flex-shrink-0" />
+                                )}
+                                <span className="text-[9px] font-medium text-orange-700 truncate">
+                                    {leadAdInfo.nome || 'Criativo'}
+                                </span>
+                                <span className="text-[8px] text-orange-500 font-mono flex-shrink-0">
+                                    #{leadAdInfo.meta_ad_id?.slice(-6)}
                                 </span>
                             </div>
                         )}
@@ -683,10 +711,31 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                     </span>
                   </Button>
                 )}
-                <div className="xs:block">{lead && <AiLockControl lead={lead} />}</div>
+                {lead && (
+                  <Button
+                    variant={showNotas ? "default" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "h-7 px-2 text-[10px] font-bold gap-1 rounded-full transition-all duration-200",
+                      showNotas ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                    )}
+                    onClick={() => setShowNotas(!showNotas)}
+                  >
+                    <StickyNote className="h-3 w-3" />
+                    <span className="hidden sm:inline">Notas</span>
+                  </Button>
+                )}
+                <div className="xs:block">{lead && <AiLockControl lead={lead} lastIncomingMessage={lastIncomingMessage?.conteudo} lastIncomingMessageType={lastIncomingMessage?.tipo_conteudo} />}</div>
             </div>
         </div>
       </header>
+
+      {/* Painel de Notas */}
+      {showNotas && lead && lead.organization_id && (
+        <div className="border-b bg-background px-4 py-3 flex-shrink-0 max-h-[40vh] overflow-y-auto">
+          <LeadNotas leadId={lead.id} organizationId={lead.organization_id} />
+        </div>
+      )}
 
       {isExportMode && (
         <div className="border-b bg-[#FFF4EE] px-3 py-3 text-[#7A3617] flex-shrink-0">
