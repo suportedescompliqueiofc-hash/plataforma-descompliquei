@@ -2,3 +2,6 @@ project_id = "noncbgdczgcboronmcah"
 
 [functions.receive-message]
 verify_jwt = false
+
+[functions.whatsapp-ai-agent]
+verify_jwt = false
