@@ -164,7 +164,46 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      const maxTentativas = sequenciaAtiva[sequenciaAtiva.length - 1].ordem;
+      const totalTentativasAtivas = sequenciaAtiva.length;
+
+      // Reset em massa: leads pausados que responderam após o último follow-up
+      // Supabase JS não suporta comparação coluna-a-coluna, então buscamos e filtramos em código
+      {
+        let resetSelectQuery = supabase
+          .from("leads")
+          .select("id, ultimo_contato, followup_ultima_tentativa")
+          .eq("organization_id", orgId)
+          .eq("followup_pausado", true)
+          .eq("ia_ativa", true)
+          .lt("posicao_pipeline", 4)
+          .not("followup_ultima_tentativa", "is", null)
+          .not("ultimo_contato", "is", null);
+
+        if (config.apenas_marketing) {
+          resetSelectQuery = resetSelectQuery.eq("origem", "marketing");
+        }
+
+        const { data: leadsPausados } = await resetSelectQuery;
+
+        if (leadsPausados && leadsPausados.length > 0) {
+          const idsParaResetar = leadsPausados
+            .filter((l) => new Date(l.ultimo_contato) > new Date(l.followup_ultima_tentativa))
+            .map((l) => l.id);
+
+          if (idsParaResetar.length > 0) {
+            await supabase
+              .from("leads")
+              .update({
+                followup_tentativas: 0,
+                followup_ultima_tentativa: null,
+                followup_pausado: false,
+              })
+              .in("id", idsParaResetar);
+
+            console.log(`[FOLLOWUP] Org ${orgId}: ${idsParaResetar.length} lead(s) pausado(s) resetado(s) (responderam após follow-up)`);
+          }
+        }
+      }
 
       // Buscar leads elegíveis
       let query = supabase
@@ -236,11 +275,31 @@ Deno.serve(async (req: Request) => {
 
           const tentativaAtual = (lead.followup_tentativas || 0) + 1;
 
-          // Encontrar config da tentativa atual na sequência
-          const configTentativa = sequenciaAtiva.find((s) => s.ordem === tentativaAtual);
-          if (!configTentativa) {
+          // Verificar se esgotou todas as tentativas ativas
+          if (tentativaAtual > totalTentativasAtivas) {
             await supabase.from("leads").update({ followup_pausado: true }).eq("id", lead.id);
-            console.log(`[FOLLOWUP] Lead ${lead.id}: esgotou tentativas (${tentativaAtual})`);
+            console.log(`[FOLLOWUP] Lead ${lead.id}: esgotou tentativas (${tentativaAtual} > ${totalTentativasAtivas})`);
+            continue;
+          }
+
+          // Dedup: pular se esta tentativa já foi processada (race condition entre crons)
+          const { data: logExistente } = await supabase
+            .from("ia_followup_log")
+            .select("id")
+            .eq("lead_id", lead.id)
+            .eq("tentativa", tentativaAtual)
+            .limit(1)
+            .maybeSingle();
+
+          if (logExistente) {
+            console.log(`[FOLLOWUP] Lead ${lead.id}: tentativa ${tentativaAtual} já processada, pulando (dedup)`);
+            continue;
+          }
+
+          // Buscar config da tentativa atual por índice (não por ordem)
+          const configTentativa = sequenciaAtiva[tentativaAtual - 1];
+          if (!configTentativa) {
+            console.log(`[FOLLOWUP] Lead ${lead.id}: config não encontrada para tentativa ${tentativaAtual}, pulando`);
             continue;
           }
 
@@ -353,7 +412,7 @@ Decida se deve enviar follow-up e gere a mensagem.`;
               motivo_ia: decisao.motivo,
             });
 
-            const isUltimaTentativaIgnorada = tentativaAtual >= sequenciaAtiva.length;
+            const isUltimaTentativaIgnorada = tentativaAtual >= totalTentativasAtivas;
             await supabase.from("leads").update({
               followup_tentativas: tentativaAtual,
               followup_ultima_tentativa: new Date().toISOString(),
@@ -361,8 +420,23 @@ Decida se deve enviar follow-up e gere a mensagem.`;
             }).eq("id", lead.id);
 
             ignorados_ia++;
-            console.log(`[FOLLOWUP] Lead ${lead.id}: IA ignorou (tentativa ${tentativaAtual}/${sequenciaAtiva.length})${isUltimaTentativaIgnorada ? " — última tentativa, pausando" : ""}`);
+            console.log(`[FOLLOWUP] Lead ${lead.id}: IA ignorou (tentativa ${tentativaAtual}/${totalTentativasAtivas})${isUltimaTentativaIgnorada ? " — última tentativa, pausando" : ""}`);
             continue;
+          }
+
+          // Guard: verificar se lead respondeu entre o início do processamento e agora
+          const { data: leadFresco } = await supabase
+            .from("leads")
+            .select("ultimo_contato")
+            .eq("id", lead.id)
+            .maybeSingle();
+
+          if (leadFresco?.ultimo_contato && referenciaData) {
+            const ultimoContatoFresco = new Date(leadFresco.ultimo_contato);
+            if (ultimoContatoFresco > referenciaData) {
+              console.log(`[FOLLOWUP] Lead ${lead.id}: lead respondeu durante processamento (ultimo_contato ${ultimoContatoFresco.toISOString()} > ref ${referenciaData.toISOString()}), cancelando envio`);
+              continue;
+            }
           }
 
           // Enviar mensagem via UazAPI
@@ -419,7 +493,7 @@ Decida se deve enviar follow-up e gere a mensagem.`;
           });
 
           // Atualizar lead — pausar SOMENTE se esgotou todas as tentativas
-          const isUltimaTentativa = tentativaAtual >= sequenciaAtiva.length;
+          const isUltimaTentativa = tentativaAtual >= totalTentativasAtivas;
           await supabase.from("leads").update({
             followup_tentativas: tentativaAtual,
             followup_ultima_tentativa: new Date().toISOString(),
@@ -427,7 +501,7 @@ Decida se deve enviar follow-up e gere a mensagem.`;
           }).eq("id", lead.id);
 
           enviados++;
-          console.log(`[FOLLOWUP] Lead ${lead.id}: mensagem enviada (tentativa ${tentativaAtual}/${sequenciaAtiva.length})${isUltimaTentativa ? " — última tentativa, pausando" : ""}`);
+          console.log(`[FOLLOWUP] Lead ${lead.id}: mensagem enviada (tentativa ${tentativaAtual}/${totalTentativasAtivas})${isUltimaTentativa ? " — última tentativa, pausando" : ""}`);
 
         } catch (leadErr: any) {
           erros++;
