@@ -213,11 +213,7 @@ function LeadCard({
           </p>
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex flex-col gap-1.5">
-              {lead.criativo_id ? (
-                <Badge className={`text-[10px] font-medium w-fit border-0 ${lead.meta_ad_platform === 'instagram' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'}`}>
-                  {lead.meta_ad_platform === 'instagram' ? '📸 IG Ads' : '👍 FB Ads'}
-                </Badge>
-              ) : lead.origem === 'marketing' ? (
+              {lead.origem === 'marketing' ? (
                 <Badge className="text-[10px] font-medium w-fit border-0 bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">
                   Marketing
                 </Badge>
@@ -284,11 +280,7 @@ function LeadCard({
           
           <div className="flex items-center justify-between pt-2 border-t">
             <div className="flex flex-col gap-1.5">
-              {lead.criativo_id ? (
-                <Badge className={`text-[10px] font-medium w-fit border-0 ${lead.meta_ad_platform === 'instagram' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'}`}>
-                  {lead.meta_ad_platform === 'instagram' ? '📸 IG Ads' : '👍 FB Ads'}
-                </Badge>
-              ) : lead.origem === 'marketing' ? (
+              {lead.origem === 'marketing' ? (
                 <Badge className="text-[10px] font-medium w-fit border-0 bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400">
                   Marketing
                 </Badge>

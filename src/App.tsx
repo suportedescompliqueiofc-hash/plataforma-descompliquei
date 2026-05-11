@@ -31,6 +31,7 @@ import Agendamentos from "./pages/Agendamentos";
 import Metas from "./pages/Metas";
 import CriativosBiblioteca from "./pages/CriativosBiblioteca";
 import CriativosPasta from "./pages/CriativosPasta";
+import Canvas from "./pages/Canvas";
 import SuperAdmin from "./pages/SuperAdmin";
 import AdminGuard from "./pages/admin-os/AdminGuard";
 import AdminLayout from "./pages/admin-os/AdminLayout";
@@ -248,6 +249,7 @@ const App = () => (
                 <Route path="/crm/marketing-trafego" element={<MarketingTrafego />} />
                 <Route path="/crm/criativos" element={<CriativosBiblioteca />} />
                 <Route path="/crm/criativos/:pastaId" element={<CriativosPasta />} />
+                <Route path="/crm/canvas" element={<Canvas />} />
                 <Route path="/crm/super-admin-crm" element={<SuperAdmin />} />
               </Route>
             </Route>

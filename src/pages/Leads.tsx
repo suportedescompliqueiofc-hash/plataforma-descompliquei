@@ -444,11 +444,7 @@ export default function Leads() {
                           </TableCell>
                           <TableCell><p className="text-sm text-muted-foreground">{lead.telefone}</p></TableCell>
                           <TableCell>
-                            {lead.criativo_id ? (
-                              <Badge className={`border-0 text-[11px] font-medium ${lead.meta_ad_platform === 'instagram' ? 'bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-400'}`}>
-                                {lead.meta_ad_platform === 'instagram' ? '📸 Instagram' : '👍 Facebook'}
-                              </Badge>
-                            ) : lead.origem === 'marketing' ? (
+                            {lead.origem === 'marketing' ? (
                               <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 border-0 text-[11px] font-medium">
                                 Marketing
                               </Badge>
