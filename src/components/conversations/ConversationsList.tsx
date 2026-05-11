@@ -164,6 +164,10 @@ const ConversationItem = ({
                 <Globe className="h-3 w-3 text-muted-foreground/60 shrink-0" title="Orgânico" />
               )}
               
+              {conversation.ia_ativa === true && (
+                <Bot className="h-3 w-3 text-violet-500 shrink-0" title="IA Ativa" />
+              )}
+
               {conversation.em_cadencia && (
                 <Zap className="h-3 w-3 text-orange-500 fill-orange-500/20 shrink-0" title="Em Cadência" />
               )}
