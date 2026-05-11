@@ -244,31 +244,44 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          // Verificar tempo desde última interação
-          let referenciaData: Date | null = lead.followup_ultima_tentativa
-            ? new Date(lead.followup_ultima_tentativa)
-            : lead.ultimo_contato
+          // Determinar referência de tempo correta por tentativa
+          let referenciaData: Date | null = null;
+
+          if ((lead.followup_tentativas || 0) === 0) {
+            // 1ª tentativa: usar último contato do lead
+            referenciaData = lead.ultimo_contato
               ? new Date(lead.ultimo_contato)
               : null;
 
-          // Fallback: buscar última mensagem do lead na tabela mensagens
-          if (!referenciaData) {
-            const { data: ultimaMensagem } = await supabase
-              .from("mensagens")
-              .select("criado_em")
-              .eq("lead_id", lead.id)
-              .order("criado_em", { ascending: false })
-              .limit(1)
-              .maybeSingle();
+            // Fallback: buscar última mensagem do lead na tabela mensagens
+            if (!referenciaData) {
+              const { data: ultimaMensagem } = await supabase
+                .from("mensagens")
+                .select("criado_em")
+                .eq("lead_id", lead.id)
+                .eq("direcao", "entrada")
+                .order("criado_em", { ascending: false })
+                .limit(1)
+                .maybeSingle();
 
-            if (ultimaMensagem) {
-              referenciaData = new Date(ultimaMensagem.criado_em);
+              if (ultimaMensagem) {
+                referenciaData = new Date(ultimaMensagem.criado_em);
+              }
             }
-          }
 
-          // Último fallback: usar criado_em do lead
-          if (!referenciaData) {
-            referenciaData = lead.criado_em ? new Date(lead.criado_em) : null;
+            // Último fallback: usar criado_em do lead
+            if (!referenciaData) {
+              referenciaData = lead.criado_em ? new Date(lead.criado_em) : null;
+            }
+          } else {
+            // Tentativas subsequentes: usar quando mandou o último follow-up
+            referenciaData = lead.followup_ultima_tentativa
+              ? new Date(lead.followup_ultima_tentativa)
+              : lead.ultimo_contato
+                ? new Date(lead.ultimo_contato)
+                : lead.criado_em
+                  ? new Date(lead.criado_em)
+                  : null;
           }
 
           if (!referenciaData) {
@@ -340,12 +353,15 @@ Decida se deve enviar follow-up e gere a mensagem.`;
               motivo_ia: decisao.motivo,
             });
 
+            const isUltimaTentativaIgnorada = tentativaAtual >= sequenciaAtiva.length;
             await supabase.from("leads").update({
               followup_tentativas: tentativaAtual,
               followup_ultima_tentativa: new Date().toISOString(),
+              ...(isUltimaTentativaIgnorada ? { followup_pausado: true } : {}),
             }).eq("id", lead.id);
 
             ignorados_ia++;
+            console.log(`[FOLLOWUP] Lead ${lead.id}: IA ignorou (tentativa ${tentativaAtual}/${sequenciaAtiva.length})${isUltimaTentativaIgnorada ? " — última tentativa, pausando" : ""}`);
             continue;
           }
 
@@ -402,14 +418,16 @@ Decida se deve enviar follow-up e gere a mensagem.`;
             mensagem_enviada: mensagem,
           });
 
-          // Atualizar lead
+          // Atualizar lead — pausar SOMENTE se esgotou todas as tentativas
+          const isUltimaTentativa = tentativaAtual >= sequenciaAtiva.length;
           await supabase.from("leads").update({
             followup_tentativas: tentativaAtual,
             followup_ultima_tentativa: new Date().toISOString(),
+            ...(isUltimaTentativa ? { followup_pausado: true } : {}),
           }).eq("id", lead.id);
 
           enviados++;
-          console.log(`[FOLLOWUP] Lead ${lead.id}: mensagem enviada (tentativa ${tentativaAtual})`);
+          console.log(`[FOLLOWUP] Lead ${lead.id}: mensagem enviada (tentativa ${tentativaAtual}/${sequenciaAtiva.length})${isUltimaTentativa ? " — última tentativa, pausando" : ""}`);
 
         } catch (leadErr: any) {
           erros++;
