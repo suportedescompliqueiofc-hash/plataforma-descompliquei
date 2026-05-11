@@ -328,12 +328,12 @@ export function AiFollowupConfig() {
                   </span>
                   <Input
                     type="number"
-                    min={5}
+                    min={1}
                     className="h-7 w-20 text-xs"
                     value={item.minutos}
                     onChange={(e) => {
                       const val = parseInt(e.target.value, 10);
-                      if (!isNaN(val) && val >= 5) {
+                      if (!isNaN(val) && val >= 1) {
                         updateSequenciaItem(item.ordem, { minutos: val });
                       }
                     }}

@@ -168,7 +168,7 @@ Deno.serve(async (req: Request) => {
       // Buscar leads elegíveis
       let query = supabase
         .from("leads")
-        .select("id, nome, telefone, resumo, procedimento_interesse, followup_tentativas, followup_ultima_tentativa, ultimo_contato, posicao_pipeline, ia_paused_until")
+        .select("id, nome, telefone, resumo, procedimento_interesse, followup_tentativas, followup_ultima_tentativa, ultimo_contato, posicao_pipeline, ia_paused_until, criado_em")
         .eq("organization_id", orgId)
         .eq("ia_ativa", true)
         .eq("followup_pausado", false)
@@ -214,13 +214,40 @@ Deno.serve(async (req: Request) => {
           }
 
           // Verificar tempo desde última interação
-          const referencia = lead.followup_ultima_tentativa || lead.ultimo_contato;
-          if (!referencia) {
-            console.log(`[FOLLOWUP] Lead ${lead.id}: sem referência de tempo, pulando`);
+          let referenciaData: Date | null = lead.followup_ultima_tentativa
+            ? new Date(lead.followup_ultima_tentativa)
+            : lead.ultimo_contato
+              ? new Date(lead.ultimo_contato)
+              : null;
+
+          // Fallback: buscar última mensagem do lead na tabela mensagens
+          if (!referenciaData) {
+            const { data: ultimaMensagem } = await supabase
+              .from("mensagens")
+              .select("criado_em")
+              .eq("lead_id", lead.id)
+              .order("criado_em", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (ultimaMensagem) {
+              referenciaData = new Date(ultimaMensagem.criado_em);
+            }
+          }
+
+          // Último fallback: usar criado_em do lead
+          if (!referenciaData) {
+            referenciaData = lead.criado_em ? new Date(lead.criado_em) : null;
+          }
+
+          if (!referenciaData) {
+            console.log(`[FOLLOWUP] Lead ${lead.id}: sem referência de tempo mesmo após fallbacks, pulando`);
             continue;
           }
 
-          const minutosDecorridos = (Date.now() - new Date(referencia).getTime()) / (1000 * 60);
+          console.log(`[FOLLOWUP] Lead ${lead.id}: referência de tempo = ${referenciaData.toISOString()}`);
+
+          const minutosDecorridos = (Date.now() - referenciaData.getTime()) / (1000 * 60);
           if (minutosDecorridos < configTentativa.minutos) {
             continue;
           }
