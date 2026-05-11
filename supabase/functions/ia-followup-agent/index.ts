@@ -169,12 +169,10 @@ Deno.serve(async (req: Request) => {
       // Buscar leads elegíveis
       let query = supabase
         .from("leads")
-        .select("id, nome, telefone, resumo, procedimento_interesse, followup_tentativas, followup_ultima_tentativa, ultimo_contato, posicao_pipeline, ia_paused_until, criado_em")
+        .select("id, nome, telefone, resumo, procedimento_interesse, followup_tentativas, followup_ultima_tentativa, followup_pausado, ultimo_contato, posicao_pipeline, ia_paused_until, criado_em")
         .eq("organization_id", orgId)
         .eq("ia_ativa", true)
-        .eq("followup_pausado", false)
-        .lt("posicao_pipeline", 4)
-        .lte("followup_tentativas", maxTentativas);
+        .lt("posicao_pipeline", 4);
 
       if (config.apenas_marketing) {
         query = query.eq("origem", "marketing");
@@ -204,6 +202,38 @@ Deno.serve(async (req: Request) => {
       for (const lead of leadsElegiveis) {
         try {
           processados++;
+
+          // Reset automático: se lead respondeu após o último follow-up, reiniciar ciclo
+          if (lead.followup_ultima_tentativa) {
+            const { data: ultimaMsgLeadReset } = await supabase
+              .from("mensagens")
+              .select("criado_em")
+              .eq("lead_id", lead.id)
+              .eq("direcao", "entrada")
+              .gt("criado_em", lead.followup_ultima_tentativa)
+              .order("criado_em", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (ultimaMsgLeadReset) {
+              await supabase.from("leads").update({
+                followup_tentativas: 0,
+                followup_ultima_tentativa: null,
+                followup_pausado: false,
+              }).eq("id", lead.id);
+
+              console.log(`[FOLLOWUP] Lead ${lead.id}: respondeu após follow-up, ciclo resetado`);
+              (lead as any).followup_tentativas = 0;
+              (lead as any).followup_ultima_tentativa = null;
+              (lead as any).followup_pausado = false;
+            }
+          }
+
+          // Se ainda está pausado após verificação de reset, pular
+          if (lead.followup_pausado) {
+            continue;
+          }
+
           const tentativaAtual = (lead.followup_tentativas || 0) + 1;
 
           // Encontrar config da tentativa atual na sequência
@@ -251,28 +281,6 @@ Deno.serve(async (req: Request) => {
           const minutosDecorridos = (Date.now() - referenciaData.getTime()) / (1000 * 60);
           if (minutosDecorridos < configTentativa.minutos) {
             continue;
-          }
-
-          // Buscar última mensagem do lead (entrada)
-          const { data: ultimaMsgLead } = await supabase
-            .from("mensagens")
-            .select("criado_em")
-            .eq("lead_id", lead.id)
-            .eq("direcao", "entrada")
-            .order("criado_em", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          // Se lead respondeu após último follow-up, resetar
-          if (ultimaMsgLead && lead.followup_ultima_tentativa) {
-            if (new Date(ultimaMsgLead.criado_em) > new Date(lead.followup_ultima_tentativa)) {
-              await supabase.from("leads").update({
-                followup_tentativas: 0,
-                followup_ultima_tentativa: null,
-              }).eq("id", lead.id);
-              console.log(`[FOLLOWUP] Lead ${lead.id}: respondeu após último follow-up, resetando`);
-              continue;
-            }
           }
 
           // Buscar últimas 10 mensagens para contexto
