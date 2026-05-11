@@ -548,15 +548,19 @@ serve(async (req) => {
         // Se já existe, apenas desativa a IA se a mensagem foi enviada pelo humano/instância
         if (fromMe) {
             await supabaseAdmin.from('leads').update({ ia_ativa: false } as any).eq('id', lead.id);
+            console.log(`[TRANSBORDO] ia_ativa desativada para lead ${lead.id} — mensagem humana duplicada (fromMe=true)`);
         }
         return new Response(JSON.stringify({ ok: true, skipped: 'duplicate_id' }), { status: 200, headers: corsHeaders });
       }
     }
 
     // A partir daqui, é uma nova mensagem.
-    // Se for enviada por você (fromMe), desativamos a IA.
+    // Se for enviada por humano (fromMe = agente via WhatsApp ou CRM), desativamos a IA.
+    // Isso garante transbordo: qualquer mensagem humana pausa a IA imediatamente.
     if (fromMe) {
       await supabaseAdmin.from('leads').update({ ia_ativa: false } as any).eq('id', lead.id);
+      lead = { ...lead, ia_ativa: false } as any; // Atualiza objeto local para evitar disparo da IA nesta mesma execução
+      console.log(`[TRANSBORDO] ia_ativa desativada para lead ${lead.id} — mensagem humana detectada (fromMe=true)`);
     }
     
     // ── Sincronização de Etiquetas (Tags) ──────────────────────────────────
