@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.whatsapp-ai-agent]
 verify_jwt = false
+
+[functions.ia-followup-agent]
+verify_jwt = false
