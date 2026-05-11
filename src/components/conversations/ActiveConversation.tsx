@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
-import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply, StickyNote } from "lucide-react";
+import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply, StickyNote, ShieldBan } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,6 +215,10 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   // Notas Panel
   const [showNotas, setShowNotas] = useState(false);
 
+  // Blacklist
+  const [showBlacklistConfirm, setShowBlacklistConfirm] = useState(false);
+  const [isBlacklisting, setIsBlacklisting] = useState(false);
+
   // Scoring Modal
   const [showScoringModal, setShowScoringModal] = useState(false);
   const [selectedScoring, setSelectedScoring] = useState<string | null>(null);
@@ -384,6 +388,35 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
     if (!lead) return;
     setIsAiActive(checked);
     updateLead({ id: lead.id, ia_ativa: checked });
+  };
+
+  const handleBlacklistLead = async () => {
+    if (!lead || !profile?.organization_id) return;
+    setIsBlacklisting(true);
+    try {
+      const { error } = await supabase.from('lead_blacklist').insert({
+        organization_id: profile.organization_id,
+        telefone: lead.telefone,
+        telefone_normalizado: lead.telefone.replace(/\D/g, ''),
+        motivo: 'Bloqueado manualmente via conversa',
+        blocked_by: profile.id,
+      });
+      if (error) {
+        if (error.code === '23505') {
+          toast.info('Este número já está na lista de bloqueio.');
+        } else {
+          throw error;
+        }
+      } else {
+        toast.success(`Número ${lead.telefone} bloqueado permanentemente.`);
+      }
+    } catch (e: any) {
+      console.error('Erro ao bloquear número:', e);
+      toast.error('Erro ao bloquear número: ' + (e.message || 'erro desconhecido'));
+    } finally {
+      setIsBlacklisting(false);
+      setShowBlacklistConfirm(false);
+    }
   };
 
   const handleStartExportSelection = () => {
@@ -692,6 +725,17 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 <div className="lg:hidden">
                     {leadId && <CadenceLeadSelector leadId={leadId} />}
                 </div>
+                {lead && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    title="Bloquear número permanentemente"
+                    className="h-6 px-1.5 text-[10px] font-bold gap-1 rounded-full border border-border text-muted-foreground hover:border-red-400 hover:text-red-600 transition-all duration-200"
+                    onClick={() => setShowBlacklistConfirm(true)}
+                  >
+                    <ShieldBan className="h-3 w-3" />
+                  </Button>
+                )}
                 {lead && (
                   <Button
                     variant="outline"
@@ -1135,6 +1179,33 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
           <AlertDialogFooter className="flex-row gap-2">
             <AlertDialogCancel className="flex-1 rounded-xl">Cancelar</AlertDialogCancel>
             <AlertDialogAction className="flex-1 bg-destructive hover:bg-destructive/90 rounded-xl" onClick={() => { if (deletingMessage) { deleteMessage({ messageId: deletingMessage.id, leadId, id_mensagem: deletingMessage.id_mensagem }); setDeletingMessage(null); } }}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showBlacklistConfirm} onOpenChange={setShowBlacklistConfirm}>
+        <AlertDialogContent className="w-[90vw] max-w-md rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldBan className="h-5 w-5 text-red-500" />
+              Bloquear número permanentemente?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              O número <strong>{lead?.telefone}</strong> será adicionado à lista de bloqueio.
+              Novas mensagens deste número serão ignoradas pelo sistema e nenhum lead será criado.
+              Esta ação pode ser revertida na página de configurações.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-2">
+            <AlertDialogCancel className="flex-1 rounded-xl" disabled={isBlacklisting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="flex-1 bg-red-600 hover:bg-red-700 rounded-xl"
+              onClick={handleBlacklistLead}
+              disabled={isBlacklisting}
+            >
+              {isBlacklisting ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ShieldBan className="h-4 w-4 mr-1" />}
+              Bloquear
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
