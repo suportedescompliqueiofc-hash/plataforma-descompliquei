@@ -9,18 +9,21 @@ import { Switch } from "@/components/ui/switch";
 import { useLeads } from "@/hooks/useLeads";
 import { useStages, Stage } from "@/hooks/useStages";
 import MaskedInput, { PhoneInput, CpfInput } from "@/components/MaskedInput";
-import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Pencil, MessageCircle, Briefcase, Globe } from "lucide-react";
+import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Pencil, MessageCircle, Briefcase, Globe, ImageOff, Megaphone } from "lucide-react";
 import { parse, format, differenceInYears, isValid, startOfDay, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { CreatableSelect } from "@/components/ui/CreatableSelect";
 import { useLeadSources } from "@/hooks/useLeadSources";
-import { useMarketing } from "@/hooks/useMarketing"; 
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useProfile } from "@/hooks/useProfile";
 import { VendaModal } from "@/components/vendas/VendaModal";
 import { FormattedText } from "@/components/FormattedText";
 import { TagManager } from "@/components/tags/TagManager";
 import { CardCriativoOrigem } from "@/components/leads/CardCriativoOrigem";
+import LeadNotas from "@/components/leads/LeadNotas";
 
 // --- Funções Auxiliares (mantidas) ---
 const calculateAge = (dobString: string | undefined): number | '' => {
@@ -81,7 +84,7 @@ const initialFormData = {
 
 // --- Componentes de UI ---
 
-const ViewContent = ({ lead, stages, creativeName }: { lead: any, stages: Stage[], creativeName?: string }) => {
+const ViewContent = ({ lead, stages, creativeName, creativeAd }: { lead: any, stages: Stage[], creativeName?: string, creativeAd?: any }) => {
   const currentStage = stages.find(s => s.posicao_ordem === lead?.posicao_pipeline); 
   return (
     <div className="space-y-6 py-4 max-h-[70vh] overflow-y-auto px-4">
@@ -112,7 +115,18 @@ const ViewContent = ({ lead, stages, creativeName }: { lead: any, stages: Stage[
             <span>{lead.fonte || 'Sem fonte'}</span>
           </div>
           
-          {creativeName && <div className="flex items-center gap-2 col-span-2 md:col-span-1"><Tag className="h-4 w-4 text-muted-foreground" /><span className="truncate" title={creativeName}>{creativeName}</span></div>}
+          {creativeName && (
+            <div className="flex items-center gap-2 col-span-2">
+              <Megaphone className="h-4 w-4 text-orange-500 flex-shrink-0" />
+              {creativeAd?.url_thumbnail && (
+                <img src={creativeAd.url_thumbnail} className="w-8 h-8 rounded object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              )}
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm truncate" title={creativeName}>{creativeName}</span>
+                {creativeAd?.meta_ad_id && <span className="text-[10px] text-muted-foreground font-mono">#{creativeAd.meta_ad_id.slice(-6)}</span>}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -156,7 +170,20 @@ const ViewContent = ({ lead, stages, creativeName }: { lead: any, stages: Stage[
 
 const FormContent = ({ formData, handleInputChange, handleSubmit, stages, handleClose, isEdit, handleSourceChange }: any) => {
   const { allSources } = useLeadSources();
-  const { criativos } = useMarketing();
+  const { profile: formProfile } = useProfile();
+  const formOrgId = formProfile?.organization_id;
+  const { data: metaAdsOptions = [] } = useQuery({
+    queryKey: ['meta_ads_select', formOrgId],
+    queryFn: async () => {
+      const { data } = await (supabase
+        .from('meta_ads') as any)
+        .select('id, nome, meta_ad_id, url_thumbnail, status')
+        .eq('organization_id', formOrgId!)
+        .order('criado_em', { ascending: false });
+      return data || [];
+    },
+    enabled: !!formOrgId,
+  });
   
   return (
     <form onSubmit={handleSubmit} className="space-y-4 py-4 max-h-[70vh] overflow-y-auto px-4">
@@ -213,15 +240,32 @@ const FormContent = ({ formData, handleInputChange, handleSubmit, stages, handle
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Criativo (Opcional)</Label>
+        <div className="col-span-2">
+          <Label className="flex items-center gap-1.5">
+            <Megaphone className="h-3.5 w-3.5 text-orange-500" />
+            Criativo (Anúncio Meta)
+          </Label>
           <Select value={formData.criativo_id} onValueChange={(value) => handleInputChange('criativo_id', value)}>
-            <SelectTrigger><SelectValue placeholder="Selecione o criativo" /></SelectTrigger>
-            <SelectContent>
+            <SelectTrigger className="h-auto min-h-[36px]">
+              <SelectValue placeholder="Selecione o criativo" />
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
               <SelectItem value="none">Nenhum</SelectItem>
-              {criativos.map((criativo: any) => (
-                <SelectItem key={criativo.id} value={criativo.id}>
-                  {criativo.nome || criativo.titulo || `Criativo ${criativo.id.substring(0, 8)}`}
+              {metaAdsOptions.map((ad: any) => (
+                <SelectItem key={ad.id} value={ad.id}>
+                  <div className="flex items-center gap-2 py-0.5">
+                    {ad.url_thumbnail ? (
+                      <img src={ad.url_thumbnail} className="w-7 h-7 rounded object-cover flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ) : (
+                      <div className="w-7 h-7 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                        <ImageOff className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm truncate max-w-[220px]">{ad.nome || 'Sem nome'}</span>
+                      <span className="text-[10px] text-muted-foreground font-mono">#{ad.meta_ad_id?.slice(-6)}</span>
+                    </div>
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -279,7 +323,20 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
   const { createLead, updateLead } = useLeads();
   const { stages } = useStages();
   const { allSources, createSource } = useLeadSources();
-  const { criativos } = useMarketing();
+  const { profile: currentProfile } = useProfile();
+  const currentOrgId = currentProfile?.organization_id;
+  const { data: metaAdsData = [] } = useQuery({
+    queryKey: ['meta_ads_select', currentOrgId],
+    queryFn: async () => {
+      const { data } = await (supabase
+        .from('meta_ads') as any)
+        .select('id, nome, meta_ad_id, url_thumbnail')
+        .eq('organization_id', currentOrgId!)
+        .order('criado_em', { ascending: false });
+      return data || [];
+    },
+    enabled: !!currentOrgId,
+  });
   const [formData, setFormData] = useState(initialFormData);
   const [currentMode, setCurrentMode] = useState(mode);
   const [isVendaModalOpen, setIsVendaModalOpen] = useState(false);
@@ -384,9 +441,10 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
   const currentStage = stages.find(s => s.posicao_ordem === lead?.posicao_pipeline); 
   const isContratoFechado = currentStage?.nome === 'Contrato Fechado' || currentStage?.nome === 'Procedimento Fechado';
   
-  const creativeName = lead?.criativo_id 
-    ? criativos.find((c: any) => c.id === lead.criativo_id)?.nome || criativos.find((c: any) => c.id === lead.criativo_id)?.titulo 
-    : undefined;
+  const creativeAd = lead?.criativo_id
+    ? metaAdsData.find((a: any) => a.id === lead.criativo_id)
+    : null;
+  const creativeName = creativeAd?.nome || (lead?.criativo_id ? `Criativo #${lead.criativo_id.slice(-6)}` : undefined);
 
   return (
     <>
@@ -399,7 +457,7 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
           </DialogHeader>
           
           {isView && lead ? (
-            <ViewContent lead={lead} stages={stages} creativeName={creativeName} />
+            <ViewContent lead={lead} stages={stages} creativeName={creativeName} creativeAd={creativeAd} />
           ) : (
             <FormContent
               formData={formData}
@@ -411,7 +469,14 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
               handleSourceChange={handleSourceChange}
             />
           )}
-          
+
+          {/* Notas do lead */}
+          {lead?.id && lead?.organization_id && (
+            <div className="border-t pt-4 mt-2">
+              <LeadNotas leadId={lead.id} organizationId={lead.organization_id} />
+            </div>
+          )}
+
           {isView && (
             <div className="flex justify-end gap-2 pt-4 border-t">
               <Button type="button" variant="outline" onClick={handleClose}>Fechar</Button>

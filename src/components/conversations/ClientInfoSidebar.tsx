@@ -1,5 +1,6 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Lead } from "@/hooks/useLeads";
+import LeadNotas from "@/components/leads/LeadNotas";
 
 interface ClientInfoSidebarProps {
   lead: Lead | null;
@@ -23,8 +24,14 @@ export function ClientInfoSidebar({ lead, open, onOpenChange }: ClientInfoSideba
               <p><strong>Nome:</strong> {lead.nome}</p>
               <p><strong>Telefone:</strong> {lead.telefone}</p>
               <p><strong>Email:</strong> {lead.email || 'N/A'}</p>
-              {/* Adicionar mais detalhes do lead aqui */}
             </div>
+
+            {/* Notas do lead */}
+            {lead.id && lead.organization_id && (
+              <div className="mt-6">
+                <LeadNotas leadId={lead.id} organizationId={lead.organization_id} />
+              </div>
+            )}
           ) : (
             <p>Nenhum cliente selecionado.</p>
           )}
