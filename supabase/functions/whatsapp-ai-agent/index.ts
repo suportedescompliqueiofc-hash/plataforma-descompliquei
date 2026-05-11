@@ -592,6 +592,8 @@ REGRAS:
 9. NUNCA divida listas com traços ("- ") — mantenha a lista inteira em um único bloco
 10. Prefira partes menores e mais naturais — como um humano digitaria no WhatsApp
 11. Máximo 1 ponto de exclamação ou interrogação por bloco
+12. NUNCA coloque emoji após um link — remova qualquer emoji que apareça imediatamente depois de uma URL
+13. NUNCA use o caractere "—" em nenhuma mensagem — substitua por vírgula, ponto ou reescreva a frase para eliminar o travessão
 
 FORMATAÇÃO WHATSAPP:
 - Use *texto* para negrito (nunca **)
