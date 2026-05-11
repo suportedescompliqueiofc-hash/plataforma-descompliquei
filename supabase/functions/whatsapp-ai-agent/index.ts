@@ -556,7 +556,7 @@ function humanizeAndSplit(rawText: string): string[] {
 // ── Divisão inteligente via GPT-4.1-mini ────────────────────────────────────
 
 async function humanizeAndSplitWithAI(texto: string): Promise<string[]> {
-  if (texto.length < 100) return [texto];
+  if (texto.length < 60) return [texto];
 
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey || openaiKey === XAI_API_KEY) {
