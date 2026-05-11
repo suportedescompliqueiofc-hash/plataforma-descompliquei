@@ -241,6 +241,7 @@ Deno.serve(async (req: Request) => {
       for (const lead of leadsElegiveis) {
         try {
           processados++;
+          console.log(`[FOLLOWUP] ── Lead ${lead.id} - ${lead.nome || "sem nome"} | tel: ${lead.telefone} | tentativas: ${lead.followup_tentativas || 0} | pausado: ${lead.followup_pausado} | ultimo_contato: ${lead.ultimo_contato} | followup_ultima_tentativa: ${lead.followup_ultima_tentativa}`);
 
           // Reset automático: se lead respondeu após o último follow-up, reiniciar ciclo
           if (lead.followup_ultima_tentativa) {
@@ -261,15 +262,14 @@ Deno.serve(async (req: Request) => {
                 followup_pausado: false,
               }).eq("id", lead.id);
 
-              console.log(`[FOLLOWUP] Lead ${lead.id}: respondeu após follow-up, ciclo resetado`);
-              (lead as any).followup_tentativas = 0;
-              (lead as any).followup_ultima_tentativa = null;
-              (lead as any).followup_pausado = false;
+              console.log(`[FOLLOWUP] Lead ${lead.id}: respondeu após follow-up, ciclo resetado — pulando nesta rodada`);
+              continue; // Pular: próximo cron pega o lead com estado fresh
             }
           }
 
           // Se ainda está pausado após verificação de reset, pular
           if (lead.followup_pausado) {
+            console.log(`[FOLLOWUP] Lead ${lead.id} - SKIP: ainda pausado após check de reset`);
             continue;
           }
 
@@ -279,20 +279,6 @@ Deno.serve(async (req: Request) => {
           if (tentativaAtual > totalTentativasAtivas) {
             await supabase.from("leads").update({ followup_pausado: true }).eq("id", lead.id);
             console.log(`[FOLLOWUP] Lead ${lead.id}: esgotou tentativas (${tentativaAtual} > ${totalTentativasAtivas})`);
-            continue;
-          }
-
-          // Dedup: pular se esta tentativa já foi processada (race condition entre crons)
-          const { data: logExistente } = await supabase
-            .from("ia_followup_log")
-            .select("id")
-            .eq("lead_id", lead.id)
-            .eq("tentativa", tentativaAtual)
-            .limit(1)
-            .maybeSingle();
-
-          if (logExistente) {
-            console.log(`[FOLLOWUP] Lead ${lead.id}: tentativa ${tentativaAtual} já processada, pulando (dedup)`);
             continue;
           }
 
@@ -348,12 +334,16 @@ Deno.serve(async (req: Request) => {
             continue;
           }
 
-          console.log(`[FOLLOWUP] Lead ${lead.id}: referência de tempo = ${referenciaData.toISOString()}`);
+          console.log(`[FOLLOWUP] Lead ${lead.id} - ref tempo: ${referenciaData.toISOString()} | tentativa: ${tentativaAtual}/${totalTentativasAtivas} | config minutos: ${configTentativa.minutos}`);
 
           const minutosDecorridos = (Date.now() - referenciaData.getTime()) / (1000 * 60);
+          console.log(`[FOLLOWUP] Lead ${lead.id} - tempo passado: ${minutosDecorridos.toFixed(1)}min, threshold: ${configTentativa.minutos}min, passa: ${minutosDecorridos >= configTentativa.minutos}`);
           if (minutosDecorridos < configTentativa.minutos) {
+            console.log(`[FOLLOWUP] Lead ${lead.id} - SKIP: tempo insuficiente (${minutosDecorridos.toFixed(1)}min < ${configTentativa.minutos}min)`);
             continue;
           }
+
+          console.log(`[FOLLOWUP] Lead ${lead.id} - tempo OK, buscando histórico e chamando IA...`);
 
           // Buscar últimas 10 mensagens para contexto
           const { data: historico } = await supabase
@@ -368,26 +358,103 @@ Deno.serve(async (req: Request) => {
             .map((m) => `${m.direcao === "entrada" ? "Lead" : "Atendente"}: ${m.conteudo || "[mídia]"}`)
             .join("\n");
 
-          // Chamar Claude Haiku para decidir
-          const systemPrompt = `Você é um analisador de conversas de WhatsApp. Analise o histórico da conversa e o perfil do lead e decida:
-1. Se vale a pena enviar um follow-up (não vale se: lead disse que não tem interesse, já agendou, pediu para não ser contactado, ou a conversa foi encerrada naturalmente)
-2. Se vale, gere uma mensagem de follow-up humanizada e natural
+          // Buscar follow-ups já enviados para este lead (evitar repetição)
+          const { data: followupsAnteriores } = await supabase
+            .from("ia_followup_log")
+            .select("tentativa, mensagem_enviada")
+            .eq("lead_id", lead.id)
+            .eq("status", "enviado")
+            .order("tentativa", { ascending: true });
 
-REGRAS DA MENSAGEM:
-- Curta (máximo 2 frases)
-- Natural, como um humano mandaria no WhatsApp
-- Não robótica, não comercial demais
-- Pode fazer referência ao que foi discutido
-- NÃO mencione que é um sistema automático
-- NÃO use "—" em nenhuma hipótese
-- Máximo 1 emoji se apropriado
-- Não use ponto final no final
+          const followupsAntigoFormatado = (followupsAnteriores || [])
+            .filter((f) => f.mensagem_enviada)
+            .map((f) => `- Tentativa ${f.tentativa}: "${f.mensagem_enviada}"`)
+            .join("\n");
 
-Retorne APENAS este JSON:
+          // Chamar GPT-4.1-mini para decidir
+          const systemPrompt = `Você é um especialista em reativação de leads para clínicas de estética e saúde.
+Sua função é analisar uma conversa de WhatsApp e decidir se deve enviar um follow-up para um lead que parou de responder durante o atendimento da IA.
+
+CONTEXTO:
+- O lead chegou por anúncio interessado em um procedimento estético
+- Uma IA conduziu um atendimento consultivo pelo WhatsApp
+- O lead parou de responder em algum ponto
+- A IA de atendimento ainda está ativa para esse lead
+- Se o lead responder ao follow-up, a conversa principal retoma normalmente
+
+OBJETIVO DO FOLLOW-UP:
+Reativar o lead na conversa de forma assertiva e profissional.
+Não é para vender, não é para pressionar - é para abrir a porta de volta.
+
+QUANDO ENVIAR (deve_enviar = true):
+- Lead parou de responder durante o diagnóstico ou apresentação
+- Lead sumiu sem motivo aparente no meio da conversa
+- A última mensagem no histórico é da IA (lead não respondeu)
+
+QUANDO NÃO ENVIAR (deve_enviar = false):
+- A última mensagem no histórico é do lead (ele acabou de responder - não há necessidade de follow)
+- Lead disse que não tem interesse ou pediu para não ser contactado
+- Handoff já foi feito (lead passou para equipe humana)
+- A conversa foi encerrada naturalmente
+
+COMO CONSTRUIR A MENSAGEM:
+
+Tom: consultivo e empático - como um profissional atencioso que genuinamente quer ajudar.
+Nunca soar como disparo automático, cobrança ou mensagem em massa.
+
+Tamanho: máximo 1 frase curta. Direta e humana.
+
+Nome do lead: use com moderação - apenas quando adicionar personalização real.
+Não comece toda mensagem com o nome. Varie.
+
+Referência à conversa: use contexto quando houver algo relevante (procedimento mencionado,
+dor relatada, resposta dada). Se não houver contexto suficiente, seja mais aberto e direto.
+Nunca force uma referência que não existe.
+
+Variação por tentativa - cada follow deve ter um ângulo diferente:
+- Tentativa 1: retomada leve, referência direta ao ponto onde parou
+- Tentativa 2: foco no resultado que o lead quer alcançar
+- Tentativa 3: ângulo de facilitação - abrir caminho para a próxima ação
+- Tentativa 4: escassez sutil ou urgência genuína relacionada ao contexto
+- Tentativa 5: última tentativa - direta, sem rodeios, respeito pela decisão
+
+Emoji: use apenas se o tom da conversa anterior foi leve e informal.
+Se a conversa foi mais séria ou emocional, zero emoji. Máximo 1 por mensagem.
+
+REGRA CRÍTICA DE NÃO-REPETIÇÃO:
+- Você receberá a lista de follow-ups já enviados para este lead
+- A nova mensagem DEVE ser completamente diferente das anteriores
+- Nunca repita a mesma ideia, estrutura ou abordagem de um follow-up anterior
+- Se já perguntou sobre dúvidas, não pergunte de novo sobre dúvidas
+- Mude o ângulo, o tom e a construção da frase a cada tentativa
+
+PROIBIDO em qualquer hipótese:
+- Repetir ou parafrasear qualquer follow-up já enviado para este lead
+- Usar "—" em nenhuma mensagem
+- Frases genéricas como "Ainda tem interesse?", "Posso te ajudar?", "Viu minha mensagem?"
+- Soar como sistema automático ou bot
+- Ponto final "." no final da mensagem (interrogação "?" é permitido e deve ser usado quando a mensagem é uma pergunta)
+- Duas perguntas na mesma mensagem
+- Mais de uma frase
+
+EXEMPLOS DE FOLLOW BOM:
+- "Ainda quero te ajudar a chegar nesse resultado, tá?"
+- "Ficou alguma dúvida sobre o que conversamos?"
+- "[Nome], qual seria o resultado ideal pra você nesse tratamento?"
+- "Quando você imagina se ver com esse resultado?"
+- "Só quero garantir que você tenha todas as informações antes de decidir"
+
+EXEMPLOS DE FOLLOW RUIM (nunca fazer):
+- "Oi! Ainda tem interesse no botox?"
+- "Olá, só passando para saber se viu minha mensagem"
+- "Posso te ajudar com alguma coisa?"
+- "Oi [Nome], tudo bem? Queria saber se ainda quer fazer o procedimento"
+
+Retorne APENAS este JSON sem nenhum texto adicional:
 {
   "deve_enviar": true/false,
-  "motivo": "motivo da decisão",
-  "mensagem": "mensagem a enviar (se deve_enviar = true)"
+  "motivo": "motivo objetivo da decisão em 1 frase",
+  "mensagem": "mensagem a enviar (apenas se deve_enviar = true)"
 }`;
 
           const userPrompt = `Lead: ${lead.nome || "Não informado"}
@@ -397,11 +464,11 @@ Tentativa de follow-up: ${tentativaAtual} de ${sequenciaAtiva.length}
 
 Últimas mensagens da conversa:
 ${historicoFormatado || "Sem histórico disponível"}
-
-Decida se deve enviar follow-up e gere a mensagem.`;
+${followupsAntigoFormatado ? `\nFollow-ups já enviados para este lead (NÃO repita nenhum deles):\n${followupsAntigoFormatado}` : ""}
+Analise o histórico, identifique onde a conversa travou e gere o follow-up mais adequado para reativar esse lead. A mensagem DEVE ser diferente de qualquer follow-up anterior.`;
 
           const decisao = await callFollowupAI(systemPrompt, userPrompt);
-          console.log(`[FOLLOWUP] Lead ${lead.id}: IA decidiu deve_enviar=${decisao.deve_enviar}, motivo="${decisao.motivo}"`);
+          console.log(`[FOLLOWUP] Lead ${lead.id} - decisão GPT: deve_enviar=${decisao.deve_enviar}, motivo="${decisao.motivo}", mensagem="${decisao.mensagem || "(vazio)"}"`);
 
           if (!decisao.deve_enviar) {
             await supabase.from("ia_followup_log").insert({
@@ -466,11 +533,15 @@ Decida se deve enviar follow-up e gere a mensagem.`;
           let uazapiRespJson: any = {};
           try { uazapiRespJson = JSON.parse(uazapiRespText); } catch { /* noop */ }
 
+          console.log(`[FOLLOWUP] Lead ${lead.id} - UazAPI status: ${uazapiRes.status}, body: ${uazapiRespText.substring(0, 500)}`);
+
           if (!uazapiRes.ok) {
+            console.error(`[FOLLOWUP] Lead ${lead.id} - UazAPI FALHA: status=${uazapiRes.status}, response=${uazapiRespText.substring(0, 300)}`);
             throw new Error(`UazAPI ${uazapiRes.status}: ${uazapiRespText.substring(0, 200)}`);
           }
 
           const waMessageId = uazapiRespJson?.id ?? uazapiRespJson?.messageid ?? uazapiRespJson?.message?.id ?? null;
+          console.log(`[FOLLOWUP] Lead ${lead.id} - UazAPI OK, waMessageId: ${waMessageId}`);
 
           // Salvar mensagem no CRM
           await supabase.from("mensagens").insert({

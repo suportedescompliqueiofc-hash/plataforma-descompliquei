@@ -105,7 +105,8 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
       "Isso vai:\n" +
       "• Reativar a IA (ia_ativa = true)\n" +
       "• Remover qualquer pausa ou bloqueio\n" +
-      "• Apagar toda a memória de conversa armazenada\n\n" +
+      "• Apagar toda a memória de conversa armazenada\n" +
+      "• Resetar o ciclo de follow-ups automáticos\n\n" +
       "A IA irá tratar a próxima mensagem como se fosse o primeiro contato."
     )) {
       return;
@@ -126,13 +127,16 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
         // Continua mesmo com erro na memória
       }
 
-      // 2. Reativar IA e remover todos os bloqueios
+      // 2. Reativar IA e remover todos os bloqueios + resetar follow-ups
       const { error: leadsErr } = await supabase
         .from("leads")
         .update({
           ia_ativa: true,
           ia_paused_until: null,
           ai_pending_since: null,
+          followup_tentativas: 0,
+          followup_ultima_tentativa: null,
+          followup_pausado: false,
           atualizado_em: new Date().toISOString(),
         } as any)
         .eq("id", lead.id);
