@@ -42,6 +42,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { AiLogsViewer } from "@/components/ai/AiLogsViewer";
+import { AiFollowupConfig } from "@/components/ai/AiFollowupConfig";
 import { useAiPrompt } from "@/hooks/useAiPrompt";
 
 type ProcedureItem = {
@@ -1476,6 +1477,8 @@ export default function AiSettings() {
           </div>
         </Card>
       </div>
+
+      <AiFollowupConfig />
 
       <div className="flex gap-4" style={{ minHeight: "520px" }}>
         <div className="flex flex-1 flex-col" style={{ minHeight: "520px" }}>
