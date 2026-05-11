@@ -386,7 +386,7 @@ serve(async (req) => {
           status: 'Ativo',
           posicao_pipeline: 1,
           origem: detectedOrigem,
-          ...(detectedOrigem === 'marketing' ? { ia_ativa: true } : {}),
+          ia_ativa: detectedOrigem === 'marketing' ? true : null,
           ...(detectedFonte ? { fonte: detectedFonte, meta_ad_platform: detectedFonte } : {}),
           ...(detectedSourceID ? { meta_ad_source_id: detectedSourceID } : {}),
           ...(detectedCriativoId ? { criativo_id: detectedCriativoId } : {})
