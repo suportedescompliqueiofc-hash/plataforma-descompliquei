@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY") ?? "";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -52,28 +52,29 @@ function dentroDoHorario(horario: any): boolean {
   return true;
 }
 
-async function callClaudeHaiku(systemPrompt: string, userPrompt: string): Promise<any> {
-  if (!ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY não configurada");
+async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise<any> {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY não configurada");
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "gpt-4.1-mini",
         max_tokens: 512,
-        temperature: 0.3,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
+        temperature: 0.4,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
       }),
       signal: controller.signal,
     });
@@ -82,11 +83,11 @@ async function callClaudeHaiku(systemPrompt: string, userPrompt: string): Promis
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Anthropic API ${response.status}: ${errText}`);
+      throw new Error(`OpenAI API ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
-    const content = data.content?.[0]?.text || "";
+    const content = data.choices?.[0]?.message?.content || "";
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("JSON não encontrado na resposta da IA");
@@ -319,7 +320,7 @@ ${historicoFormatado || "Sem histórico disponível"}
 
 Decida se deve enviar follow-up e gere a mensagem.`;
 
-          const decisao = await callClaudeHaiku(systemPrompt, userPrompt);
+          const decisao = await callFollowupAI(systemPrompt, userPrompt);
           console.log(`[FOLLOWUP] Lead ${lead.id}: IA decidiu deve_enviar=${decisao.deve_enviar}, motivo="${decisao.motivo}"`);
 
           if (!decisao.deve_enviar) {
@@ -406,13 +407,17 @@ Decida se deve enviar follow-up e gere a mensagem.`;
           erros++;
           console.error(`[FOLLOWUP] Erro no lead ${lead.id}:`, leadErr?.message);
 
-          await supabase.from("ia_followup_log").insert({
-            lead_id: lead.id,
-            organization_id: orgId,
-            tentativa: (lead.followup_tentativas || 0) + 1,
-            status: "erro",
-            motivo_ia: leadErr?.message?.substring(0, 500),
-          }).catch(() => {});
+          try {
+            await supabase.from("ia_followup_log").insert({
+              lead_id: lead.id,
+              organization_id: orgId,
+              tentativa: (lead.followup_tentativas || 0) + 1,
+              status: "erro",
+              motivo_ia: leadErr?.message?.substring(0, 500),
+            });
+          } catch (logErr: any) {
+            console.error("[FOLLOWUP] Erro ao inserir log de erro:", logErr?.message);
+          }
         }
       }
     }
