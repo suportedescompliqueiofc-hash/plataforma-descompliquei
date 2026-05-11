@@ -553,8 +553,91 @@ function humanizeAndSplit(rawText: string): string[] {
     .filter((message) => message.length > 0 && !isOnlyEmoji(message));
 }
 
-// Alias para compatibilidade
-const splitMessage = humanizeAndSplit;
+// ── Divisão inteligente via GPT-4.1-mini ────────────────────────────────────
+
+async function humanizeAndSplitWithAI(texto: string): Promise<string[]> {
+  if (texto.length < 100) return [texto];
+
+  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!openaiKey || openaiKey === XAI_API_KEY) {
+    console.log("[SPLIT-AI] OPENAI_API_KEY não configurada, usando fallback local");
+    return humanizeAndSplit(texto);
+  }
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        max_tokens: 1024,
+        temperature: 0.3,
+        messages: [
+          {
+            role: "system",
+            content: `Você é especialista em dividir mensagens do WhatsApp de forma natural e humanizada.
+
+REGRAS:
+1. Divida em partes lógicas com máximo 300 caracteres por parte
+2. NUNCA crie mensagens vazias
+3. Mantenha contexto e fluidez — cada parte deve fazer sentido sozinha
+4. Preserve emojis e formatação
+5. NUNCA corte no meio de palavras ou frases
+6. Quebre APENAS em: ponto final (.), exclamação (!), interrogação (?), ou quebra de linha
+7. NUNCA quebre por vírgula
+8. NÃO coloque ponto final no final das mensagens — mais humanizado
+9. NUNCA divida listas com traços ("- ") — mantenha a lista inteira em um único bloco
+10. Prefira partes menores e mais naturais — como um humano digitaria no WhatsApp
+11. Máximo 1 ponto de exclamação ou interrogação por bloco
+
+FORMATAÇÃO WHATSAPP:
+- Use *texto* para negrito (nunca **)
+- Preserve emojis exatamente como estão
+
+SAÍDA: Retorne APENAS o JSON, sem texto adicional:
+{"messages": ["parte 1", "parte 2", "parte 3"]}`,
+          },
+          {
+            role: "user",
+            content: `Divida esta mensagem:\n\n${texto}`,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("JSON não encontrado na resposta");
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    const messages: string[] = parsed.messages;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      throw new Error("Array de mensagens inválido ou vazio");
+    }
+
+    const validas = messages.filter((m) => typeof m === "string" && m.trim().length > 0);
+    if (validas.length === 0) throw new Error("Nenhuma mensagem válida após filtro");
+
+    console.log(`[SPLIT-AI] Sucesso: ${validas.length} partes via GPT-4.1-mini`);
+    return validas;
+  } catch (error: any) {
+    console.error("[SPLIT-AI] Erro, usando fallback local:", error?.message);
+    return humanizeAndSplit(texto);
+  }
+}
+
+// Alias para compatibilidade — agora usa divisão inteligente com fallback
+const splitMessage = humanizeAndSplitWithAI;
 
 async function transcribeAudio(mediaPath: string): Promise<string | null> {
   try {
@@ -1271,7 +1354,7 @@ Deno.serve(async (req: Request) => {
               : `55${telefoneDigits}`;
 
             const uazapiUrl = connNotif.uazapi_url.replace(/\/$/, "");
-            const partes = splitMessage(mensagemFinalParaLead).map(normalizeOutgoingMessage).filter((parte) => parte.length > 0);
+            const partes = (await splitMessage(mensagemFinalParaLead)).map(normalizeOutgoingMessage).filter((parte) => parte.length > 0);
 
             for (let pi = 0; pi < partes.length; pi++) {
               const parte = partes[pi];
@@ -1432,7 +1515,7 @@ Deno.serve(async (req: Request) => {
     const uazapiUrl = conn.uazapi_url.replace(/\/$/, ""); // remove trailing slash
     const uazapiToken = conn.uazapi_token;
 
-    const partes = splitMessage(textoFinal).map(normalizeOutgoingMessage).filter((parte) => parte.length > 0);
+    const partes = (await splitMessage(textoFinal)).map(normalizeOutgoingMessage).filter((parte) => parte.length > 0);
 
     if (execLogId) await updateLog(execLogId, {
       status: "running",
