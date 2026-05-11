@@ -126,7 +126,7 @@ serve(async (req) => {
         await supabaseAdmin.from('debug_payloads').insert({
           payload: {
             type: 'ad_context_capture',
-            telefone: payload?.chat?.phone || payload?.data?.key?.remoteJid,
+            telefone: cleanPhoneNumber(payload?.chat?.phone || payload?.data?.key?.remoteJid?.replace('@s.whatsapp.net', '') || ''),
             sourceID: _ctxInfo?.externalAdReply?.sourceID,
             sourceApp: _ctxInfo?.externalAdReply?.sourceApp,
             sourceType: _ctxInfo?.externalAdReply?.sourceType,
@@ -298,6 +298,31 @@ serve(async (req) => {
       console.error('[receive-message] Erro na detecção de marketing:', e);
     }
 
+    // ── Fallback: se outgoing e sem detecção, verificar ad_context_capture ──
+    // Cobre o caso onde a mensagem CTWA de entrada falhou ao criar o lead,
+    // e o atendente humano envia manualmente depois (fromMe=true, sem contexto).
+    if (fromMe && detectedOrigem === 'organico') {
+      try {
+        const { data: priorAdCtx } = await supabaseAdmin
+          .from('debug_payloads')
+          .select('payload')
+          .filter('payload->>type', 'eq', 'ad_context_capture')
+          .filter('payload->>telefone', 'eq', phoneWithCountryCode)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (priorAdCtx?.payload) {
+          detectedOrigem = 'marketing';
+          detectedFonte = priorAdCtx.payload.sourceApp || 'facebook';
+          detectedSourceID = priorAdCtx.payload.sourceID || null;
+          console.log(`[META-TRACKING] CTWA context recuperado de webhook anterior! Upgrading para marketing. sourceID: ${detectedSourceID}`);
+        }
+      } catch (e) {
+        console.warn('[META-TRACKING] Erro ao verificar ad_context_capture anterior:', e);
+      }
+    }
+
     // ── Buscar criativo_id pelo sourceID (se detectado) ─────────────────────
     let detectedCriativoId: string | null = null;
     if (detectedSourceID && orgId) {
@@ -396,13 +421,22 @@ serve(async (req) => {
 
     // ── Captura de Criativo Meta Ads (Click-to-WhatsApp) ────────────────────
     // Se detectou marketing e o lead existe, garantir que origem/fonte/criativo estão atualizados
-    if (!fromMe && lead && detectedOrigem === 'marketing') {
+    // Roda tanto para entrada quanto saída (fromMe), pois o fallback ad_context_capture
+    // pode ter detectado marketing em mensagens de saída
+    if (lead && detectedOrigem === 'marketing') {
       try {
         const leadUpdate: Record<string, any> = {
           origem: 'marketing',
           fonte: detectedFonte || 'facebook',
           meta_ad_platform: detectedFonte || 'facebook',
         };
+
+        // Se ia_ativa é null (orgânico, nunca setado), ativar para marketing
+        // Se ia_ativa é false (transbordo humano), NÃO reativar automaticamente
+        if (lead.ia_ativa === null || lead.ia_ativa === undefined) {
+          leadUpdate.ia_ativa = true;
+          console.log(`[META-TRACKING] ia_ativa setado para true (era null/undefined)`);
+        }
 
         if (detectedSourceID) {
           leadUpdate.meta_ad_source_id = detectedSourceID;
