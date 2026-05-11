@@ -18,6 +18,7 @@ import {
   Save,
   Sparkles,
   Trash2,
+  RefreshCw,
   Undo2,
   Wrench,
   X,
@@ -42,7 +43,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { AiLogsViewer } from "@/components/ai/AiLogsViewer";
-import { AiFollowupConfig } from "@/components/ai/AiFollowupConfig";
+import { AiFollowupTab } from "@/components/ai/AiFollowupTab";
+import { AiExecutionLogsTab } from "@/components/ai/AiExecutionLogsTab";
 import { useAiPrompt } from "@/hooks/useAiPrompt";
 
 type ProcedureItem = {
@@ -1139,6 +1141,7 @@ export default function AiSettings() {
   const [originalPrompt, setOriginalPrompt] = useState(
     buildPromptMarkdown(createEmptyFormData()),
   );
+  const [pageTab, setPageTab] = useState("config");
   const [activeTab, setActiveTab] = useState("base");
   const [parseWarning, setParseWarning] = useState<string | null>(null);
   const [originalParseWarning, setOriginalParseWarning] = useState<string | null>(
@@ -1454,6 +1457,38 @@ export default function AiSettings() {
         </div>
       </div>
 
+      {/* Page-level tabs */}
+      <div className="flex gap-1 border-b">
+        {[
+          { key: "config", label: "Configuracoes", icon: Wrench },
+          { key: "followup", label: "Follow-up", icon: RefreshCw },
+          { key: "logs", label: "Logs", icon: Activity },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            className={`flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
+              pageTab === tab.key
+                ? "border-[#E8500A] text-foreground"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
+            }`}
+            onClick={() => setPageTab(tab.key)}
+          >
+            <tab.icon className="h-4 w-4" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab: Follow-up */}
+      {pageTab === "followup" && <AiFollowupTab />}
+
+      {/* Tab: Logs */}
+      {pageTab === "logs" && <AiExecutionLogsTab />}
+
+      {/* Tab: Configurações — existing content */}
+      {pageTab === "config" && (
+      <>
       <div className="flex-shrink-0" style={{ height: "340px" }}>
         <Card className="flex h-full flex-col overflow-hidden border-sidebar-border bg-background/50 shadow-sm backdrop-blur-sm">
           <div className="flex flex-row items-center justify-between border-b bg-muted/20 px-4 py-2.5">
@@ -1477,8 +1512,6 @@ export default function AiSettings() {
           </div>
         </Card>
       </div>
-
-      <AiFollowupConfig />
 
       <div className="flex gap-4" style={{ minHeight: "520px" }}>
         <div className="flex flex-1 flex-col" style={{ minHeight: "520px" }}>
@@ -1803,6 +1836,8 @@ export default function AiSettings() {
           </Card>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
