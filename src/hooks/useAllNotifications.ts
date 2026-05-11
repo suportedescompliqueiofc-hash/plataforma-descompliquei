@@ -15,6 +15,10 @@ export interface Notification {
   mensagem: string;
   status: 'pendente' | 'resolvido';
   criado_em: string;
+  tipo?: string;
+  titulo?: string;
+  dados?: Record<string, any>;
+  lida?: boolean;
 }
 
 export interface NotificationWithLead extends Notification {
