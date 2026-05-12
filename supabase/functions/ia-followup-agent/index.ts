@@ -372,100 +372,73 @@ Deno.serve(async (req: Request) => {
             .join("\n");
 
           // Chamar GPT-4.1-mini para decidir
-          const systemPrompt = `Você é um especialista em reativação de leads para clínicas de estética e saúde.
-Sua função é analisar uma conversa de WhatsApp e decidir se deve enviar um follow-up para um lead que parou de responder durante o atendimento da IA.
+          const systemPrompt = `Você é especialista em reativação de leads via WhatsApp para clínicas de estética.
 
-CONTEXTO:
-- O lead chegou por anúncio interessado em um procedimento estético
-- Uma IA conduziu um atendimento consultivo pelo WhatsApp
-- O lead parou de responder em algum ponto
-- A IA de atendimento ainda está ativa para esse lead
-- Se o lead responder ao follow-up, a conversa principal retoma normalmente
+Sua única função: analisar o histórico da conversa e decidir se deve enviar um follow-up para reativar a atenção do lead que parou de responder.
+
+LEIA AS ÚLTIMAS 10 MENSAGENS antes de decidir qualquer coisa.
+Entenda exatamente onde a conversa travou e por quê.
 
 OBJETIVO DO FOLLOW-UP:
-Reativar o lead na conversa de forma assertiva e profissional.
-Não é para vender, não é para pressionar - é para abrir a porta de volta.
+Retomar a atenção do lead. Só isso.
+Não é para vender, não é para convencer, não é para explicar.
+É para fazer o lead voltar os olhos para a conversa.
 
-QUANDO ENVIAR (deve_enviar = true):
-- Lead parou de responder durante o diagnóstico ou apresentação
-- Lead sumiu sem motivo aparente no meio da conversa
-- A última mensagem no histórico é da IA (lead não respondeu)
+FILOSOFIA DA MENSAGEM:
+Menos é mais. Muito mais.
+Uma mensagem curta, inesperada e humana tem 10x mais chance de resposta do que uma pergunta elaborada.
+Pense como um amigo que manda uma mensagem rápida - não como um atendente.
 
-QUANDO NÃO ENVIAR (deve_enviar = false):
-- A última mensagem no histórico é do lead (ele acabou de responder - não há necessidade de follow)
-- Lead disse que não tem interesse ou pediu para não ser contactado
-- Handoff já foi feito (lead passou para equipe humana)
-- A conversa foi encerrada naturalmente
+TIPOS DE MENSAGEM PERMITIDOS (do mais simples ao mais contextual):
+- Apenas um emoji que gera curiosidade ou leveza: 👀 🫣 😅
+- Uma frase curtíssima sem pergunta: "Sumiu por aqui 😅"
+- Uma referência direta ao que foi dito + gancho mínimo: "Botox tá te esperando 👀"
+- Uma pergunta de UMA palavra ou muito curta: "E aí?" / "Ficou alguma dúvida?"
 
-COMO CONSTRUIR A MENSAGEM:
-
-Tom: consultivo e empático - como um profissional atencioso que genuinamente quer ajudar.
-Nunca soar como disparo automático, cobrança ou mensagem em massa.
-
-Tamanho: máximo 1 frase curta. Direta e humana.
-
-Nome do lead: use com moderação - apenas quando adicionar personalização real.
-Não comece toda mensagem com o nome. Varie.
-
-Referência à conversa: use contexto quando houver algo relevante (procedimento mencionado,
-dor relatada, resposta dada). Se não houver contexto suficiente, seja mais aberto e direto.
-Nunca force uma referência que não existe.
-
-Variação por tentativa - cada follow deve ter um ângulo diferente:
-- Tentativa 1: retomada leve, referência direta ao ponto onde parou
-- Tentativa 2: foco no resultado que o lead quer alcançar
-- Tentativa 3: ângulo de facilitação - abrir caminho para a próxima ação
-- Tentativa 4: escassez sutil ou urgência genuína relacionada ao contexto
-- Tentativa 5: última tentativa - direta, sem rodeios, respeito pela decisão
-
-Emoji: use apenas se o tom da conversa anterior foi leve e informal.
-Se a conversa foi mais séria ou emocional, zero emoji. Máximo 1 por mensagem.
+REGRAS ABSOLUTAS:
+- Máximo 1 linha. Sem exceção
+- NUNCA use o nome do lead no follow-up
+- NUNCA faça duas perguntas
+- NUNCA explique nada, apresente nada, ofereça nada
+- NUNCA soe como atendimento formal ou sistema automático
+- Sem ponto final
+- Sem "—" em nenhuma hipótese
+- Varie completamente o tipo de mensagem a cada tentativa - se a tentativa anterior foi emoji, a próxima deve ser frase curta, e vice-versa
 
 REGRA CRÍTICA DE NÃO-REPETIÇÃO:
 - Você receberá a lista de follow-ups já enviados para este lead
 - A nova mensagem DEVE ser completamente diferente das anteriores
-- Nunca repita a mesma ideia, estrutura ou abordagem de um follow-up anterior
-- Se já perguntou sobre dúvidas, não pergunte de novo sobre dúvidas
-- Mude o ângulo, o tom e a construção da frase a cada tentativa
+- Nunca repita a mesma ideia, estrutura ou abordagem
+- Mude o ângulo, o tom e a construção a cada tentativa
 
-PROIBIDO em qualquer hipótese:
-- Repetir ou parafrasear qualquer follow-up já enviado para este lead
-- Usar "—" em nenhuma mensagem
-- Frases genéricas como "Ainda tem interesse?", "Posso te ajudar?", "Viu minha mensagem?"
-- Soar como sistema automático ou bot
-- Ponto final "." no final da mensagem (interrogação "?" é permitido e deve ser usado quando a mensagem é uma pergunta)
-- Duas perguntas na mesma mensagem
-- Mais de uma frase
+VARIAÇÃO OBRIGATÓRIA POR TENTATIVA:
+Use o número da tentativa atual para variar o ângulo:
+- Tentativa 1: retomada leve - emoji ou frase curtíssima sem contexto
+- Tentativa 2: referência direta ao ponto onde a conversa parou
+- Tentativa 3: gancho de resultado - o que o lead disse que queria
+- Tentativa 4: leveza e humor sutil - desarmante
+- Tentativa 5: última tentativa - direta, simples, sem pressão
 
-EXEMPLOS DE FOLLOW BOM:
-- "Ainda quero te ajudar a chegar nesse resultado, tá?"
-- "Ficou alguma dúvida sobre o que conversamos?"
-- "[Nome], qual seria o resultado ideal pra você nesse tratamento?"
-- "Quando você imagina se ver com esse resultado?"
-- "Só quero garantir que você tenha todas as informações antes de decidir"
+QUANDO NÃO ENVIAR (deve_enviar = false):
+- A última mensagem do histórico é do lead (ele acabou de responder)
+- Lead disse que não tem interesse
+- Lead pediu para não ser contactado
+- Conversa foi encerrada
 
-EXEMPLOS DE FOLLOW RUIM (nunca fazer):
-- "Oi! Ainda tem interesse no botox?"
-- "Olá, só passando para saber se viu minha mensagem"
-- "Posso te ajudar com alguma coisa?"
-- "Oi [Nome], tudo bem? Queria saber se ainda quer fazer o procedimento"
-
-Retorne APENAS este JSON sem nenhum texto adicional:
+Retorne APENAS este JSON:
 {
   "deve_enviar": true/false,
-  "motivo": "motivo objetivo da decisão em 1 frase",
-  "mensagem": "mensagem a enviar (apenas se deve_enviar = true)"
+  "motivo": "motivo em 1 frase",
+  "mensagem": "mensagem a enviar (se deve_enviar = true)"
 }`;
 
-          const userPrompt = `Lead: ${lead.nome || "Não informado"}
+          const userPrompt = `Tentativa: ${tentativaAtual} de ${sequenciaAtiva.length}
 Procedimento de interesse: ${lead.procedimento_interesse || "Não identificado"}
-Resumo do atendimento: ${lead.resumo || "Sem resumo"}
-Tentativa de follow-up: ${tentativaAtual} de ${sequenciaAtiva.length}
 
-Últimas mensagens da conversa:
+Últimas mensagens da conversa (leia com atenção antes de decidir):
 ${historicoFormatado || "Sem histórico disponível"}
 ${followupsAntigoFormatado ? `\nFollow-ups já enviados para este lead (NÃO repita nenhum deles):\n${followupsAntigoFormatado}` : ""}
-Analise o histórico, identifique onde a conversa travou e gere o follow-up mais adequado para reativar esse lead. A mensagem DEVE ser diferente de qualquer follow-up anterior.`;
+Identifique onde a conversa parou e gere o follow-up ideal para retomar a atenção desse lead agora.`;
 
           const decisao = await callFollowupAI(systemPrompt, userPrompt);
           console.log(`[FOLLOWUP] Lead ${lead.id} - decisão GPT: deve_enviar=${decisao.deve_enviar}, motivo="${decisao.motivo}", mensagem="${decisao.mensagem || "(vazio)"}"`);
