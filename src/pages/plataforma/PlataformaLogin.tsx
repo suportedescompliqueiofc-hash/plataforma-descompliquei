@@ -37,11 +37,15 @@ export default function PlataformaLogin() {
     try {
       const { error } = await signIn(email, password);
       if (error) {
-        toast.error(error.message || 'Email ou senha incorretos', { closeButton: true });
+        const msg = error.message?.includes('fetch')
+          ? 'Servidor indisponível. Tente novamente em alguns segundos.'
+          : error.message || 'Email ou senha incorretos';
+        toast.error(msg, { closeButton: true });
       } else {
-        // Full reload: garante que PlataformaContext carrega do zero com o user correto
         window.location.href = '/';
       }
+    } catch {
+      toast.error('Não foi possível conectar ao servidor. Verifique sua conexão.', { closeButton: true });
     } finally {
       setLoading(false);
     }
