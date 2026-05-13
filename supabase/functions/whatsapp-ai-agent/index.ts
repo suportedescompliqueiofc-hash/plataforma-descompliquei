@@ -1067,9 +1067,6 @@ Deno.serve(async (req: Request) => {
 
     // --- promptFinal com os novos campos ---
     const promptFinal = promptBaseAgente
-      + (dadosCliente
-        ? `\n\n=== DADOS PERSONALIZADOS DA CLINICA ===\n${dadosCliente}`
-        : '')
       + horarioStr
       + pgtoStr
       + contraStr
@@ -1081,6 +1078,12 @@ Deno.serve(async (req: Request) => {
       + `4. Aja 100% como atendente humano da clinica.\n`
       + `5. SEMPRE responda ao lead com mensagem de texto apos usar qualquer ferramenta.`
       + emojiRegraStr
+      + (dadosCliente
+        ? `\n\n=== INSTRUCOES ESPECIFICAS DA CLINICA (PRIORIDADE MAXIMA) ===\n`
+          + `As instrucoes abaixo foram definidas pelo dono da clinica e TEM PRIORIDADE ABSOLUTA sobre qualquer regra geral acima. `
+          + `Se houver conflito entre uma regra geral e uma instrucao especifica, SEMPRE siga a instrucao especifica.\n\n`
+          + dadosCliente
+        : '')
       + `\n\n=== DATA E HORA ATUAL ===\n`
       + `Data: ${dataAtual}\nHora: ${horaAtual} (horario de Brasilia)`;
 
