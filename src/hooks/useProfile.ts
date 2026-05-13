@@ -85,8 +85,9 @@ export function useProfile() {
       return createdProfile as Profile;
     },
     enabled: !!user,
-    staleTime: 1000 * 60 * 5, // 5 minutos — impersonação usa window.location.href (full reload limpa cache)
-    retry: 1,
+    staleTime: 1000 * 60 * 5,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
   const { data: role, isLoading: isLoadingRole } = useQuery({

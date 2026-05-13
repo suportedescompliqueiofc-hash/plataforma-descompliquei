@@ -72,7 +72,8 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
   const fetchBranding = useCallback(async () => {
     if (!user || !profile?.organization_id) {
-      console.log('[BrandingContext] Waiting for orgId...', { user: !!user, profileOrg: profile?.organization_id });
+      applyBrandingToDOM(null);
+      setIsLoading(false);
       return;
     }
 
@@ -87,7 +88,6 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         setBranding(data as OrgBranding);
         applyBrandingToDOM(data as OrgBranding);
       } else {
-        // Sem branding configurado — aplicar padrão
         applyBrandingToDOM(null);
       }
     } catch (e) {
@@ -128,10 +128,8 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   }, [branding, profile]);
 
   useEffect(() => {
-    if (user && profile?.organization_id) {
-      fetchBranding();
-    }
-  }, [fetchBranding, user, profile?.organization_id]);
+    fetchBranding();
+  }, [fetchBranding]);
 
   return (
     <BrandingContext.Provider value={{ branding, isLoading, refetch: fetchBranding, updateBranding }}>

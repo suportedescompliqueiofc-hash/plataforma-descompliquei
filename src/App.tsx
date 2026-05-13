@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -99,13 +99,24 @@ function RootRedirect() {
   const { user, loading: authLoading } = useAuth();
   const { acesso, isContextLoading } = usePlataforma();
   const { role, isLoading: isLoadingProfile } = useProfile();
-  if (authLoading || (user && (isContextLoading || isLoadingProfile))) {
+  const [timedOut, setTimedOut] = useState(false);
+
+  const isStillLoading = authLoading || (user && (isContextLoading || isLoadingProfile));
+
+  useEffect(() => {
+    if (!isStillLoading) return;
+    const timer = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(timer);
+  }, [isStillLoading]);
+
+  if (isStillLoading && !timedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
+
   if (!user) return <Navigate to="/login" replace />;
   if (role === 'superadmin') return <Navigate to="/admin" replace />;
   return <Navigate to={getRedirectDestino(acesso)} replace />;

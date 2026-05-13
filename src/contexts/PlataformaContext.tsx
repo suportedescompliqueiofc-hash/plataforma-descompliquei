@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./AuthContext";
 import { useProfile } from "@/hooks/useProfile";
@@ -78,9 +78,10 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
   };
 
   const { role } = useProfile();
+  const roleRef = useRef(role);
+  roleRef.current = role;
 
   useEffect(() => {
-    // Enquanto auth ainda está carregando, aguarda
     if (authLoading) return;
 
     if (!user) {
@@ -88,11 +89,7 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
       setTenant(null);
       setAcesso(ACESSO_CRM_ONLY);
       setDiasRestantes(null);
-      // NÃO seta isContextLoading = false aqui.
-      // Todos os guards usam (user && isContextLoading), então
-      // isContextLoading = true sem user não bloqueia nada.
-      // Quando o user faz login, isContextLoading permanece true
-      // até loadPlatformData() completar — evitando race condition.
+      setIsContextLoading(false);
       return;
     }
 
@@ -158,7 +155,7 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
         }
 
         // Superadmin sempre tem acesso total a tudo
-        if (role === 'superadmin') {
+        if (roleRef.current === 'superadmin') {
           const { data: allPilares } = await supabase
             .from('platform_modules')
             .select('pilar_id')
@@ -199,7 +196,7 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
     }
 
     loadPlatformData();
-  }, [user, authLoading, role]);
+  }, [user, authLoading]);
 
   const markModuleComplete = async (moduleId: string) => {
     if (!user) return;
