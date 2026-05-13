@@ -1213,6 +1213,23 @@ Deno.serve(async (req: Request) => {
       console.log(`[AI-Agent] ✅ Fallback ${FALLBACK_MODEL} respondeu com sucesso após falha do ${modelo}`);
     }
 
+    if (!response?.choices?.[0]?.message) {
+      const rawResp = JSON.stringify(response ?? {}).substring(0, 300);
+      console.error("[AI-Agent] Resposta LLM sem choices:", rawResp);
+      if (execLogId) await updateLog(execLogId, {
+        status: "error", etapa: "erro_fatal",
+        erro_detalhe: `Resposta LLM inválida (sem choices). Raw: ${rawResp}`,
+        duracao_ms: Date.now() - globalStart,
+      });
+      const { data: orgErr } = await supabase.from("organizations").select("name").eq("id", orgId).maybeSingle();
+      await notifyAdminError({
+        orgName: orgErr?.name || orgId, orgId,
+        leadNome: lead.nome, leadTelefone: lead.telefone,
+        etapa: "erro_fatal", erro: `Resposta LLM inválida (sem choices). Raw: ${rawResp}`,
+        modelo: modeloUsado, duracaoMs: Date.now() - globalStart,
+      });
+      return jsonResponse({ ok: false, reason: "resposta_llm_invalida" }, 500);
+    }
     let aiResponse = response.choices[0].message;
 
     // --- Sanitizar resposta da IA: remove notas internas que nunca devem ir ao lead ---
@@ -1281,10 +1298,10 @@ Deno.serve(async (req: Request) => {
           tools: crmToolsDynamic,
           tool_choice: "auto",
         });
-        const retryContent = sanitizarRespostaIA(retryResponse.choices[0]?.message?.content);
+        const retryContent = sanitizarRespostaIA(retryResponse?.choices?.[0]?.message?.content);
         if (retryContent?.trim()) {
           textoFinal = retryContent;
-          aiResponse = retryResponse.choices[0].message;
+          aiResponse = retryResponse.choices[0]!.message;
         }
       } catch (retryErr: any) {
         console.error("[AI-Agent] Retry resposta vazia falhou:", retryErr?.message);
@@ -1420,6 +1437,10 @@ Deno.serve(async (req: Request) => {
         tools: crmToolsDynamic,
         tool_choice: "auto",
       });
+      if (!response?.choices?.[0]?.message) {
+        console.error("[AI-Agent] Resposta LLM sem choices após tool calls");
+        break;
+      }
       aiResponse = response.choices[0].message;
     }
 
@@ -1438,7 +1459,7 @@ Deno.serve(async (req: Request) => {
           model: modeloUsado,
           messages: allMsgs,
         });
-        const retryContent = sanitizarRespostaIA(retryResponse.choices[0]?.message?.content);
+        const retryContent = sanitizarRespostaIA(retryResponse?.choices?.[0]?.message?.content);
         if (retryContent?.trim()) {
           textoFinal = retryContent;
         }
