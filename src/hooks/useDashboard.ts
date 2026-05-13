@@ -339,8 +339,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
     },
     enabled: !!user && !!orgId && !!dateRange?.from,
     staleTime: 1000 * 60 * 5,
-    retry: 1,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 5000),
   });
 
-  return { metrics, isLoading, error, refetch };
+  return { metrics, isLoading: isLoading && !!orgId, error, refetch };
 }

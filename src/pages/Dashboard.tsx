@@ -171,10 +171,25 @@ export default function Dashboard() {
     );
   }
 
-  if (isLoading || !metrics) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 p-4 text-center">
+        <div className="bg-muted/50 p-6 rounded-full">
+          <RefreshCw className="h-10 w-10 text-muted-foreground" />
+        </div>
+        <h3 className="text-xl font-semibold">Não foi possível carregar os dados</h3>
+        <p className="text-sm text-muted-foreground">Verifique sua conexão e tente novamente.</p>
+        <Button onClick={() => refetch()} variant="outline" className="gap-2">
+          <RefreshCw className="h-4 w-4" /> Tentar Novamente
+        </Button>
       </div>
     );
   }
