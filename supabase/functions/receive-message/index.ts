@@ -302,15 +302,17 @@ serve(async (req) => {
     const DRA_TAYANE_ORG_ID = '2780f688-e00d-4d22-a8c5-67cbaea77d24';
     const INSTAGRAM_STANDARD_MSG = 'Olá! Tenho interesse e gostaria de mais informações, por favor.';
 
-    if (
-      detectedOrigem === 'organico' &&
-      !fromMe &&
-      orgId === DRA_TAYANE_ORG_ID &&
-      text?.trim() === INSTAGRAM_STANDARD_MSG
-    ) {
-      detectedOrigem = 'marketing';
-      detectedFonte = 'instagram';
-      console.log(`[META-TRACKING] Lead classificado como MARKETING (mensagem padrão Instagram — Dra Tayane)`);
+    if (orgId === DRA_TAYANE_ORG_ID) {
+      const textTrimmed = (text || '').trim().normalize('NFC');
+      const expected = INSTAGRAM_STANDARD_MSG.normalize('NFC');
+      const textMatch = textTrimmed === expected;
+      console.log(`[INSTAGRAM-DRA-TAYANE] orgId match: true | fromMe: ${fromMe} | detectedOrigem: ${detectedOrigem} | textMatch: ${textMatch} | textLen: ${textTrimmed.length} | expectedLen: ${expected.length} | text: "${textTrimmed.substring(0, 80)}"`);
+
+      if (detectedOrigem === 'organico' && !fromMe && textMatch) {
+        detectedOrigem = 'marketing';
+        detectedFonte = 'instagram';
+        console.log(`[INSTAGRAM-DRA-TAYANE] ✅ Lead classificado como MARKETING (mensagem padrão Instagram)`);
+      }
     }
 
     // ── Fallback: se outgoing e sem detecção, verificar ad_context_capture ──
