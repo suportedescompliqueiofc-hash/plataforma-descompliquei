@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -53,24 +53,22 @@ function dentroDoHorario(horario: any): boolean {
 }
 
 async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise<any> {
-  if (!OPENROUTER_API_KEY) {
-    throw new Error("OPENROUTER_API_KEY não configurada");
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY não configurada");
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://descompliquei.com.br",
-        "X-Title": "Descompliquei Follow-up",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-v4-flash",
+        model: "gpt-4.1-mini",
         max_tokens: 512,
         temperature: 0.4,
         messages: [
@@ -85,10 +83,19 @@ async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`OpenRouter API ${response.status}: ${errText}`);
+      throw new Error(`OpenAI API ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
+    console.log("[FOLLOWUP] OpenAI response:", JSON.stringify({
+      id: data.id,
+      model: data.model,
+      finish_reason: data.choices?.[0]?.finish_reason,
+      content_length: data.choices?.[0]?.message?.content?.length ?? 0,
+      content_preview: (data.choices?.[0]?.message?.content || "").substring(0, 300),
+      error: data.error,
+    }));
+
     const content = data.choices?.[0]?.message?.content || "";
 
     // Limpar markdown code fences (```json ... ```) que DeepSeek costuma adicionar
@@ -380,7 +387,7 @@ Deno.serve(async (req: Request) => {
             .map((f) => `- Tentativa ${f.tentativa}: "${f.mensagem_enviada}"`)
             .join("\n");
 
-          // Chamar DeepSeek v4 Flash (via OpenRouter) para decidir
+          // Chamar GPT-4.1-mini para decidir
           const systemPrompt = `Você analisa conversas de WhatsApp entre uma IA de atendimento de clínica de estética e um lead que parou de responder. Sua função é gerar UMA mensagem curtíssima para retomar o contato.
 
 LEIA TUDO ANTES DE ESCREVER:
