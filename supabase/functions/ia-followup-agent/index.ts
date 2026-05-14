@@ -457,7 +457,7 @@ PROIBIDO EM QUALQUER TENTATIVA:
 - Reformular com palavras diferentes algo já enviado
 - Mais de 10 palavras
 - Duas perguntas na mesma mensagem
-- Ponto final
+- Ponto final (.) — ponto de interrogação (?) é PERMITIDO e ENCORAJADO
 - "—" em nenhuma hipótese
 - O emoji 😊 em qualquer situação
 - Assumir gênero se não souber
