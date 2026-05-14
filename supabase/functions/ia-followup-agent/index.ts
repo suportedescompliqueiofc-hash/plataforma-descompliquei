@@ -91,8 +91,14 @@ async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
 
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON não encontrado na resposta da IA");
+    // Limpar markdown code fences (```json ... ```) que DeepSeek costuma adicionar
+    const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("[FOLLOWUP] Resposta IA sem JSON válido:", content.substring(0, 500));
+      throw new Error("JSON não encontrado na resposta da IA");
+    }
 
     return JSON.parse(jsonMatch[0]);
   } finally {
