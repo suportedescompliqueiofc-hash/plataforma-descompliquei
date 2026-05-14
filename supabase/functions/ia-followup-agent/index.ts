@@ -580,6 +580,14 @@ Identifique onde a conversa parou e gere o follow-up ideal para retomar a atenç
             id_mensagem: waMessageId,
           });
 
+          // Salvar na memoria_agente para manter contexto da IA de pré-atendimento
+          await supabase.from("memoria_agente").insert({
+            session_id: lead.id,
+            organization_id: orgId,
+            message: { role: "assistant", content: mensagem },
+          });
+          console.log(`[FOLLOWUP] Lead ${lead.id} - memoria_agente atualizada com follow-up`);
+
           // Log de follow-up
           await supabase.from("ia_followup_log").insert({
             lead_id: lead.id,
