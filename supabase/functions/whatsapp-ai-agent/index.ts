@@ -1084,6 +1084,10 @@ Deno.serve(async (req: Request) => {
           + `Se houver conflito entre uma regra geral e uma instrucao especifica, SEMPRE siga a instrucao especifica.\n\n`
           + dadosCliente
         : '')
+      + `\n\n=== MENSAGENS DE FOLLOW-UP ===\n`
+      + `No historico, mensagens marcadas com "[voce enviou esta mensagem de follow-up porque o lead nao respondeu]" sao mensagens que VOCE MESMA enviou automaticamente para retomar o contato. `
+      + `Trate-as como suas. NAO se desculpe por elas, NAO diga que se confundiu, NAO repita o que ja foi dito antes do follow-up. `
+      + `Quando o lead responder apos um follow-up, continue a conversa naturalmente de onde parou, como se voce tivesse acabado de mandar aquele lembrete e o lead respondeu.`
       + `\n\n=== DATA E HORA ATUAL ===\n`
       + `Data: ${dataAtual}\nHora: ${horaAtual} (horario de Brasilia)`;
 

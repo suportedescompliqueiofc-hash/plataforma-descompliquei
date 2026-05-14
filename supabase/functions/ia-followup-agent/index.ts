@@ -585,10 +585,11 @@ Identifique onde a conversa parou e gere o follow-up mais humano e eficaz possí
           });
 
           // Salvar na memoria_agente para manter contexto da IA de pré-atendimento
+          // Marca como [follow-up] para que a IA principal saiba que ela mesma enviou como retomada
           await supabase.from("memoria_agente").insert({
             session_id: lead.id,
             organization_id: orgId,
-            message: { role: "assistant", content: mensagem },
+            message: { role: "assistant", content: `[você enviou esta mensagem de follow-up porque o lead não respondeu] ${mensagem}` },
           });
           console.log(`[FOLLOWUP] Lead ${lead.id} - memoria_agente atualizada com follow-up`);
 
