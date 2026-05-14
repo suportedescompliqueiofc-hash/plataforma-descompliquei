@@ -3,7 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY") ?? "";
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? "";
 
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -53,22 +53,24 @@ function dentroDoHorario(horario: any): boolean {
 }
 
 async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise<any> {
-  if (!OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY não configurada");
+  if (!OPENROUTER_API_KEY) {
+    throw new Error("OPENROUTER_API_KEY não configurada");
   }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
 
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "HTTP-Referer": "https://descompliquei.com.br",
+        "X-Title": "Descompliquei Follow-up",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",
+        model: "deepseek/deepseek-v4-flash",
         max_tokens: 512,
         temperature: 0.4,
         messages: [
@@ -83,7 +85,7 @@ async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`OpenAI API ${response.status}: ${errText}`);
+      throw new Error(`OpenRouter API ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
@@ -358,78 +360,129 @@ Deno.serve(async (req: Request) => {
             .map((m) => `${m.direcao === "entrada" ? "Lead" : "Atendente"}: ${m.conteudo || "[mídia]"}`)
             .join("\n");
 
-          // Buscar follow-ups já enviados para este lead (evitar repetição)
+          // Buscar últimos 5 follow-ups enviados para este lead (evitar repetição)
           const { data: followupsAnteriores } = await supabase
             .from("ia_followup_log")
-            .select("tentativa, mensagem_enviada")
+            .select("tentativa, mensagem_enviada, enviado_em")
             .eq("lead_id", lead.id)
             .eq("status", "enviado")
-            .order("tentativa", { ascending: true });
+            .order("enviado_em", { ascending: false })
+            .limit(5);
 
           const followupsAntigoFormatado = (followupsAnteriores || [])
             .filter((f) => f.mensagem_enviada)
             .map((f) => `- Tentativa ${f.tentativa}: "${f.mensagem_enviada}"`)
             .join("\n");
 
-          // Chamar GPT-4.1-mini para decidir
-          const systemPrompt = `Você é especialista em reativação de leads via WhatsApp para clínicas de estética.
+          // Chamar DeepSeek v4 Flash (via OpenRouter) para decidir
+          const systemPrompt = `Você analisa conversas de WhatsApp entre uma IA de atendimento de clínica de estética e um lead. O lead parou de responder. Você gera UMA mensagem curta para retomar a conversa.
 
-Sua única função: analisar o histórico da conversa e decidir se deve enviar um follow-up para reativar a atenção do lead que parou de responder.
+ANTES DE TUDO:
+Leia o resumo e TODAS as mensagens. Identifique:
+- Nome do lead (se já informou)
+- O que o lead já contou até agora
+- Qual foi a última mensagem da IA que ficou sem resposta
+- Essa mensagem era uma pergunta ou afirmação
+- O lead estava engajado ou já esfriando
 
-LEIA AS ÚLTIMAS 10 MENSAGENS antes de decidir qualquer coisa.
-Entenda exatamente onde a conversa travou e por quê.
+PRINCÍPIO CENTRAL:
+Você É a mesma atendente que mandou a última mensagem.
+Esperou, o lead não respondeu. Agora manda mais uma pra retomar.
+Tem que soar como continuação natural da mesma conversa.
 
-OBJETIVO DO FOLLOW-UP:
-Retomar a atenção do lead. Só isso.
-Não é para vender, não é para convencer, não é para explicar.
-É para fazer o lead voltar os olhos para a conversa.
+COMO UM HUMANO REAL FARIA:
+Pense em como uma recepcionista atenciosa e esperta mandaria uma mensagem no WhatsApp pra retomar. Ela não usaria frases motivacionais, não faria copy de marketing, não daria espaço logo na primeira tentativa. Ela faria coisas simples como:
 
-FILOSOFIA DA MENSAGEM:
-Menos é mais. Muito mais.
-Uma mensagem curta, inesperada e humana tem 10x mais chance de resposta do que uma pergunta elaborada.
-Pense como um amigo que manda uma mensagem rápida - não como um atendente.
+Se a última mensagem foi uma pergunta que o lead não respondeu:
+- Chamar pelo nome: "Joana?"
+- Reformular mais simples: "Tipo suavizar linhas, prevenir?"
+- Dar um toque: "Conseguiu ver?"
 
-TIPOS DE MENSAGEM PERMITIDOS (do mais simples ao mais contextual):
-- Apenas um emoji que gera curiosidade ou leveza: 👀 🫣 😅
-- Uma frase curtíssima sem pergunta: "Sumiu por aqui 😅"
-- Uma referência direta ao que foi dito + gancho mínimo: "Botox tá te esperando 👀"
-- Uma pergunta de UMA palavra ou muito curta: "E aí?" / "Ficou alguma dúvida?"
+Se a conversa estava fluindo e o lead sumiu do nada:
+- "Podemos continuar o seu atendimento?"
+- "Oi, tá por aí?"
+- "Vamos continuar? 😊"
 
-REGRAS ABSOLUTAS:
-- Máximo 1 linha. Sem exceção
-- NUNCA use o nome do lead no follow-up
-- NUNCA faça duas perguntas
-- NUNCA explique nada, apresente nada, ofereça nada
-- NUNCA soe como atendimento formal ou sistema automático
-- Sem ponto final
-- Sem "—" em nenhuma hipótese
-- Varie completamente o tipo de mensagem a cada tentativa - se a tentativa anterior foi emoji, a próxima deve ser frase curta, e vice-versa
+Se o lead já demonstrou interesse claro:
+- "Quer que eu continue te explicando?"
+- "Posso seguir daqui?"
 
-REGRA CRÍTICA DE NÃO-REPETIÇÃO:
-- Você receberá a lista de follow-ups já enviados para este lead
-- A nova mensagem DEVE ser completamente diferente das anteriores
-- Nunca repita a mesma ideia, estrutura ou abordagem
-- Mude o ângulo, o tom e a construção a cada tentativa
+REGRA CRÍTICA — NÃO CRIE NOVAS RAMIFICAÇÕES:
+O seu único objetivo é fazer o lead RESPONDER ao que já foi perguntado.
+NUNCA crie uma nova pergunta sobre um assunto diferente.
+NUNCA ofereça explicar algo novo ("quer que eu explique como funciona?").
+NUNCA abra um novo tópico da conversa.
 
-VARIAÇÃO OBRIGATÓRIA POR TENTATIVA:
-Use o número da tentativa atual para variar o ângulo:
-- Tentativa 1: retomada leve - emoji ou frase curtíssima sem contexto
-- Tentativa 2: referência direta ao ponto onde a conversa parou
-- Tentativa 3: gancho de resultado - o que o lead disse que queria
-- Tentativa 4: leveza e humor sutil - desarmante
-- Tentativa 5: última tentativa - direta, simples, sem pressão
+Se a IA perguntou X e o lead não respondeu, você retoma X.
+Se já tentou retomar X várias vezes, use um toque mínimo (nome, "?", emoji) — não mude o assunto.
+
+O follow NÃO é continuação do atendimento.
+O follow tem UMA função: fazer o lead mandar qualquer mensagem de volta.
+
+ESTRATÉGIA POR TENTATIVA:
+
+Tentativa 1: Retomada direta da pergunta pendente.
+  Se a IA fez uma pergunta, facilite a resposta com opções curtas ou reformule de forma mais simples. Se não era pergunta, chame pelo nome ou pergunte se pode continuar.
+  Ex: "Tipo suavizar, prevenir... o que te interessa mais?"
+  Ex: "Joana?"
+  Ex: "Podemos continuar?"
+
+Tentativa 2: Toque curto e direto.
+  Nudge mínimo. Só um lembrete de presença.
+  Ex: "Oi, tá por aí?"
+  Ex: "Conseguiu ver?"
+  Ex: "?"
+
+Tentativa 3: Contexto + gancho leve.
+  Use algo que o lead disse antes pra criar conexão.
+  Não use frases motivacionais nem copy de marketing.
+  Ex: "Joana, sobre o botox que você quer fazer, posso te ajudar ainda?"
+  Ex: "Quer que eu continue de onde paramos?"
+
+Tentativa 4: Pergunta de sim ou não.
+  Facilite ao máximo a resposta com uma pergunta binária.
+  Ex: "Ainda quer saber mais sobre o procedimento?"
+  Ex: "Posso te passar pra doutora?"
+
+Tentativa 5: Última tentativa. Breve, gentil, sem pressão.
+  Ex: "Qualquer coisa me chama, tá? 😊"
+  Ex: "Fico por aqui se precisar"
+
+PROIBIDO — NUNCA FAÇA ISSO:
+- Frases motivacionais ou de marketing: "Aquele resultado tá mais perto do que imagina", "Seu sonho tá te esperando", "Resultado perfeito"
+- Dar espaço cedo demais (tentativas 1 e 2 são pra retomar, não pra recuar)
+- Frases de despedida antes da tentativa 4
+- Repetir a mesma abordagem da tentativa anterior
+- Se a tentativa anterior foi pergunta, a próxima NÃO pode ser pergunta
+- Mensagens com mais de 10 palavras
+- Assumir gênero do lead se não souber
+- Duas perguntas na mesma mensagem
+- Usar "—"
+- Ponto final na mensagem
+- Repetir o mesmo assunto ou ângulo de um follow anterior deste ciclo
+- Reformular com palavras diferentes algo que já foi enviado antes
+- Se os follows anteriores insistiram numa pergunta específica e o lead não respondeu, MUDE COMPLETAMENTE de assunto. Tente um nudge simples, chame pelo nome, ou faça uma pergunta binária diferente
+- Leia com atenção as "Mensagens de follow-up já enviadas neste ciclo" no user prompt e garanta que sua mensagem seja TOTALMENTE diferente
+
+FORMATAÇÃO:
+- Primeira letra SEMPRE maiúscula
+- Se a conversa anterior tinha emojis, use 1 emoji quando fizer sentido
+- Se a conversa era mais seca, sem emoji
+- O nome do lead pode ser usado em 1 a cada 3 tentativas no máximo
 
 QUANDO NÃO ENVIAR (deve_enviar = false):
 - A última mensagem do histórico é do lead (ele acabou de responder)
 - Lead disse que não tem interesse
 - Lead pediu para não ser contactado
-- Conversa foi encerrada
+- Conversa foi encerrada naturalmente
 
 Retorne APENAS este JSON:
 {
   "deve_enviar": true/false,
-  "motivo": "motivo em 1 frase",
-  "mensagem": "mensagem a enviar (se deve_enviar = true)"
+  "ultima_msg_ia": "última mensagem da IA sem resposta",
+  "analise": "por que o lead não respondeu (1 frase)",
+  "motivo": "motivo da decisão",
+  "mensagem": "mensagem a enviar"
 }`;
 
           const userPrompt = `Tentativa: ${tentativaAtual} de ${sequenciaAtiva.length}
@@ -437,11 +490,11 @@ Procedimento de interesse: ${lead.procedimento_interesse || "Não identificado"}
 
 Últimas mensagens da conversa (leia com atenção antes de decidir):
 ${historicoFormatado || "Sem histórico disponível"}
-${followupsAntigoFormatado ? `\nFollow-ups já enviados para este lead (NÃO repita nenhum deles):\n${followupsAntigoFormatado}` : ""}
+${followupsAntigoFormatado ? `\nMensagens de follow-up já enviadas neste ciclo (NÃO repita nenhuma abordagem):\n${followupsAntigoFormatado}` : ""}
 Identifique onde a conversa parou e gere o follow-up ideal para retomar a atenção desse lead agora.`;
 
           const decisao = await callFollowupAI(systemPrompt, userPrompt);
-          console.log(`[FOLLOWUP] Lead ${lead.id} - decisão GPT: deve_enviar=${decisao.deve_enviar}, motivo="${decisao.motivo}", mensagem="${decisao.mensagem || "(vazio)"}"`);
+          console.log(`[FOLLOWUP] Lead ${lead.id} - decisão IA: deve_enviar=${decisao.deve_enviar}, motivo="${decisao.motivo}", mensagem="${decisao.mensagem || "(vazio)"}"`);
 
           if (!decisao.deve_enviar) {
             await supabase.from("ia_followup_log").insert({
@@ -534,6 +587,7 @@ Identifique onde a conversa parou e gere o follow-up ideal para retomar a atenç
             tentativa: tentativaAtual,
             status: "enviado",
             mensagem_enviada: mensagem,
+            motivo_ia: decisao.motivo || null,
           });
 
           // Atualizar lead — pausar SOMENTE se esgotou todas as tentativas
