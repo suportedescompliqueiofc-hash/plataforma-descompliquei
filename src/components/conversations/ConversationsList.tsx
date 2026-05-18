@@ -404,7 +404,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas' }:
 
   const handleDeleteChat = () => {
     if (confirmDelete) {
-      deleteChat(confirmDelete.id, {
+      deleteChat({ leadId: confirmDelete.id, deleteLead: origemFilter === 'outbound' }, {
         onSuccess: () => {
           if (activeLeadId === confirmDelete.id) navigate(basePath);
           setConfirmDelete(null);

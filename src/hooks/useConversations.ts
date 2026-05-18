@@ -363,18 +363,33 @@ export function useDeleteChat() {
   const orgId = profile?.organization_id;
 
   return useMutation({
-    mutationFn: async (leadId: string) => {
+    mutationFn: async ({ leadId, deleteLead = false }: { leadId: string; deleteLead?: boolean }) => {
       const { error } = await supabase
         .from('mensagens')
         .delete()
         .eq('lead_id', leadId);
-      
+
       if (error) throw error;
+
+      if (deleteLead) {
+        await (supabase as any)
+          .from('outbound_prospectos')
+          .update({ whatsapp_lead_id: null })
+          .eq('whatsapp_lead_id', leadId);
+
+        const { error: leadErr } = await supabase
+          .from('leads')
+          .delete()
+          .eq('id', leadId);
+        if (leadErr) throw leadErr;
+      }
+
       return leadId;
     },
     onSuccess: (leadId) => {
       queryClient.invalidateQueries({ queryKey: ['conversations', orgId] });
       queryClient.invalidateQueries({ queryKey: ['messages', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['outbound_prospectos', orgId] });
       toast.success('Conversa excluída com sucesso.');
     },
     onError: (err: any) => {

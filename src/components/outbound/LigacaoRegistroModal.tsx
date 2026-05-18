@@ -70,6 +70,8 @@ export function LigacaoRegistroModal() {
   const [anotacao, setAnotacao] = useState("");
   const [proximaAcao, setProximaAcao] = useState("");
   const [proximaAcaoData, setProximaAcaoData] = useState("");
+  const [nomeSecretaria, setNomeSecretaria] = useState("");
+  const [nomeDecisor, setNomeDecisor] = useState("");
   const [alterarStage, setAlterarStage] = useState(false);
   const [novoStageId, setNovoStageId] = useState("");
   const [alterarScoring, setAlterarScoring] = useState(false);
@@ -104,6 +106,8 @@ export function LigacaoRegistroModal() {
       setAnotacao("");
       setProximaAcao("");
       setProximaAcaoData("");
+      setNomeSecretaria("");
+      setNomeDecisor("");
       setAlterarStage(false);
       setNovoStageId("");
       setAlterarScoring(false);
@@ -198,6 +202,8 @@ export function LigacaoRegistroModal() {
       anotacao: anotacao.trim() || null,
       proxima_acao: proximaAcao.trim() || null,
       proxima_acao_data: proximaAcaoData || null,
+      nome_secretaria: nomeSecretaria.trim() || undefined,
+      nome_decisor: nomeDecisor.trim() || undefined,
       alterar_stage: alterarStage,
       novo_stage_id: novoStageId || undefined,
       alterar_scoring: alterarScoring,
@@ -312,6 +318,7 @@ export function LigacaoRegistroModal() {
 
           {/* RESULTADO (só se atendeu) */}
           {status === "atendeu" && (
+            <>
             <div className="space-y-2">
               <Label>Resultado</Label>
               <div className="flex flex-wrap gap-2">
@@ -324,6 +331,17 @@ export function LigacaoRegistroModal() {
                 ))}
               </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nome da Secretária</Label>
+                <Input value={nomeSecretaria} onChange={e => setNomeSecretaria(e.target.value)} placeholder="Quem atendeu a ligação..." />
+              </div>
+              <div className="space-y-2">
+                <Label>Nome do Decisor</Label>
+                <Input value={nomeDecisor} onChange={e => setNomeDecisor(e.target.value)} placeholder="Dono(a) / diretor(a) da clínica..." />
+              </div>
+            </div>
+            </>
           )}
 
           {/* SCRIPT + DURAÇÃO */}

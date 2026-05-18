@@ -78,7 +78,21 @@ export default function OutboundProspectos() {
     usuario_id: "todos",
     canal_origem: "todos",
     proxima_acao: "todos",
+    cidade: "todos",
+    especialidade: "todos",
+    tentativas: "todos",
+    ultimo_contato: "todos",
   });
+
+  const cidadesUnicas = useMemo(() => {
+    const set = new Set(prospectos.map(p => p.cidade).filter(Boolean) as string[]);
+    return Array.from(set).sort();
+  }, [prospectos]);
+
+  const especialidadesUnicas = useMemo(() => {
+    const set = new Set(prospectos.map(p => p.especialidade).filter(Boolean) as string[]);
+    return Array.from(set).sort();
+  }, [prospectos]);
 
   useEffect(() => { setCurrentPage(1); }, [filters]);
 
@@ -92,6 +106,37 @@ export default function OutboundProspectos() {
       if (filters.scoring !== "todos" && p.lead_scoring !== filters.scoring) return false;
       if (filters.usuario_id !== "todos" && p.usuario_id !== filters.usuario_id) return false;
       if (filters.canal_origem !== "todos" && p.canal_origem !== filters.canal_origem) return false;
+      if (filters.cidade !== "todos" && p.cidade !== filters.cidade) return false;
+      if (filters.especialidade !== "todos" && p.especialidade !== filters.especialidade) return false;
+      if (filters.tentativas !== "todos") {
+        const t = p.total_tentativas || 0;
+        if (filters.tentativas === "0" && t !== 0) return false;
+        if (filters.tentativas === "1-3" && (t < 1 || t > 3)) return false;
+        if (filters.tentativas === "4-6" && (t < 4 || t > 6)) return false;
+        if (filters.tentativas === "7+" && t < 7) return false;
+      }
+      if (filters.ultimo_contato !== "todos") {
+        const now = new Date();
+        const todayStart = startOfDay(now);
+        if (filters.ultimo_contato === "nunca" && p.ultimo_contato) return false;
+        if (filters.ultimo_contato === "hoje" && (!p.ultimo_contato || new Date(p.ultimo_contato) < todayStart)) return false;
+        if (filters.ultimo_contato === "semana") {
+          const weekAgo = new Date(todayStart);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          if (!p.ultimo_contato || new Date(p.ultimo_contato) < weekAgo) return false;
+        }
+        if (filters.ultimo_contato === "mes") {
+          const monthAgo = new Date(todayStart);
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          if (!p.ultimo_contato || new Date(p.ultimo_contato) < monthAgo) return false;
+        }
+        if (filters.ultimo_contato === "mais30") {
+          if (!p.ultimo_contato) return false;
+          const d30 = new Date(todayStart);
+          d30.setDate(d30.getDate() - 30);
+          if (new Date(p.ultimo_contato) >= d30) return false;
+        }
+      }
       if (filters.proxima_acao !== "todos") {
         const now = new Date();
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -124,9 +169,9 @@ export default function OutboundProspectos() {
   const totalPages = Math.max(1, Math.ceil(filteredProspectos.length / ITEMS_PER_PAGE));
   const paginatedProspectos = filteredProspectos.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const hasActiveFilters = filters.search || filters.stage_id !== "todos" || filters.scoring !== "todos" || filters.usuario_id !== "todos" || filters.canal_origem !== "todos" || filters.proxima_acao !== "todos";
+  const hasActiveFilters = filters.search || filters.stage_id !== "todos" || filters.scoring !== "todos" || filters.usuario_id !== "todos" || filters.canal_origem !== "todos" || filters.proxima_acao !== "todos" || filters.cidade !== "todos" || filters.especialidade !== "todos" || filters.tentativas !== "todos" || filters.ultimo_contato !== "todos";
 
-  const clearFilters = () => setFilters({ search: "", stage_id: "todos", scoring: "todos", usuario_id: "todos", canal_origem: "todos", proxima_acao: "todos" });
+  const clearFilters = () => setFilters({ search: "", stage_id: "todos", scoring: "todos", usuario_id: "todos", canal_origem: "todos", proxima_acao: "todos", cidade: "todos", especialidade: "todos", tentativas: "todos", ultimo_contato: "todos" });
 
   const handleVer = (p: OutboundProspecto) => { setSelectedProspecto(p); setIsDetalheOpen(true); };
   const handleLigacao = (p: OutboundProspecto) => { openRegistrarLigacao(p); };
@@ -294,16 +339,16 @@ export default function OutboundProspectos() {
           <Input placeholder="Buscar nome, telefone, clínica..." className="pl-9 h-9" value={filters.search} onChange={e => setFilters(f => ({ ...f, search: e.target.value }))} />
         </div>
         <Select value={filters.stage_id} onValueChange={v => setFilters(f => ({ ...f, stage_id: v }))}>
-          <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Stage" /></SelectTrigger>
+          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Stage" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos os stages</SelectItem>
+            <SelectItem value="todos">Stage</SelectItem>
             {stages.map(s => <SelectItem key={s.id} value={s.id}><span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.cor }} />{s.nome}</span></SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filters.scoring} onValueChange={v => setFilters(f => ({ ...f, scoring: v }))}>
-          <SelectTrigger className="w-[130px] h-9"><SelectValue placeholder="Scoring" /></SelectTrigger>
+          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Scoring" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="todos">Scoring</SelectItem>
             <SelectItem value="A">A</SelectItem>
             <SelectItem value="B">B</SelectItem>
             <SelectItem value="C">C</SelectItem>
@@ -311,23 +356,62 @@ export default function OutboundProspectos() {
           </SelectContent>
         </Select>
         <Select value={filters.usuario_id} onValueChange={v => setFilters(f => ({ ...f, usuario_id: v }))}>
-          <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="SDR" /></SelectTrigger>
+          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="SDR" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos os SDRs</SelectItem>
+            <SelectItem value="todos">SDR</SelectItem>
             {users.map(u => <SelectItem key={u.id} value={u.id}>{u.nome_completo || "Sem nome"}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filters.canal_origem} onValueChange={v => setFilters(f => ({ ...f, canal_origem: v }))}>
-          <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Canal" /></SelectTrigger>
+          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Canal" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todos os canais</SelectItem>
+            <SelectItem value="todos">Canal</SelectItem>
             {Object.entries(CANAL_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Select value={filters.proxima_acao} onValueChange={v => setFilters(f => ({ ...f, proxima_acao: v }))}>
-          <SelectTrigger className="w-[150px] h-9"><SelectValue placeholder="Próx. Ação" /></SelectTrigger>
+        {cidadesUnicas.length > 0 && (
+          <Select value={filters.cidade} onValueChange={v => setFilters(f => ({ ...f, cidade: v }))}>
+            <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Cidade" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Cidade</SelectItem>
+              {cidadesUnicas.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        {especialidadesUnicas.length > 0 && (
+          <Select value={filters.especialidade} onValueChange={v => setFilters(f => ({ ...f, especialidade: v }))}>
+            <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Especialidade" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Especialidade</SelectItem>
+              {especialidadesUnicas.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
+        <Select value={filters.tentativas} onValueChange={v => setFilters(f => ({ ...f, tentativas: v }))}>
+          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Tentativas" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="todos">Todas</SelectItem>
+            <SelectItem value="todos">Tentativas</SelectItem>
+            <SelectItem value="0">Nunca ligou (0)</SelectItem>
+            <SelectItem value="1-3">1 a 3</SelectItem>
+            <SelectItem value="4-6">4 a 6</SelectItem>
+            <SelectItem value="7+">7 ou mais</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filters.ultimo_contato} onValueChange={v => setFilters(f => ({ ...f, ultimo_contato: v }))}>
+          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Últ. Contato" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Últ. Contato</SelectItem>
+            <SelectItem value="nunca">Nunca contatado</SelectItem>
+            <SelectItem value="hoje">Contatado hoje</SelectItem>
+            <SelectItem value="semana">Últimos 7 dias</SelectItem>
+            <SelectItem value="mes">Último mês</SelectItem>
+            <SelectItem value="mais30">Mais de 30 dias</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filters.proxima_acao} onValueChange={v => setFilters(f => ({ ...f, proxima_acao: v }))}>
+          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Próx. Ação" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Próx. Ação</SelectItem>
             <SelectItem value="hoje">Hoje</SelectItem>
             <SelectItem value="semana">Esta semana</SelectItem>
             <SelectItem value="atrasados">Atrasados</SelectItem>

@@ -29,6 +29,7 @@ interface ParsedRow {
   instagram: string;
   cidade: string;
   uf: string;
+  especialidade: string;
   avaliacoes: string;
   observacao: string;
   valid: boolean;
@@ -56,6 +57,11 @@ const KNOWN_HEADERS: Record<string, string> = {
   "avaliações": "avaliacoes",
   "avaliacoes": "avaliacoes",
   "google": "avaliacoes",
+  "especialidade": "especialidade",
+  "especialidades": "especialidade",
+  "área": "especialidade",
+  "area": "especialidade",
+  "segmento": "especialidade",
   "observação": "observacao",
   "observacao": "observacao",
   "obs": "observacao",
@@ -105,6 +111,7 @@ function parseRows(raw: string, existingPhones: Set<string>): { rows: ParsedRow[
         instagram: get("instagram"),
         cidade: get("cidade"),
         uf: get("uf"),
+        especialidade: get("especialidade"),
         avaliacoes: get("avaliacoes"),
         observacao: get("observacao"),
         valid: !!nome && telefone.length >= 10,
@@ -176,6 +183,7 @@ export function ImportProspectosModal({ open, onOpenChange }: Props) {
           telefone: r.telefone,
           clinica: r.nome,
           cidade: r.uf ? `${r.cidade} - ${r.uf}` : r.cidade || null,
+          especialidade: r.especialidade || null,
           canal_origem: canalOrigem || null,
           stage_id: stageId || null,
           usuario_id: usuarioId || null,
@@ -348,6 +356,7 @@ export function ImportProspectosModal({ open, onOpenChange }: Props) {
                     <TableHead className="text-xs">Instagram</TableHead>
                     <TableHead className="text-xs">Cidade</TableHead>
                     <TableHead className="text-xs">UF</TableHead>
+                    <TableHead className="text-xs">Especialidade</TableHead>
                     <TableHead className="text-xs">Avaliações</TableHead>
                     <TableHead className="text-xs">Status</TableHead>
                   </TableRow>
@@ -361,6 +370,7 @@ export function ImportProspectosModal({ open, onOpenChange }: Props) {
                       <TableCell className="text-xs text-blue-400">{r.instagram || "—"}</TableCell>
                       <TableCell className="text-xs">{r.cidade || "—"}</TableCell>
                       <TableCell className="text-xs font-medium">{r.uf || "—"}</TableCell>
+                      <TableCell className="text-xs">{r.especialidade || "—"}</TableCell>
                       <TableCell className="text-xs">{r.avaliacoes || "—"}</TableCell>
                       <TableCell>
                         {!r.valid ? (

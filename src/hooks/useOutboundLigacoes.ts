@@ -185,6 +185,12 @@ export function useCreateLigacao() {
       if (ligacao.alterar_scoring && ligacao.novo_scoring) {
         prospectoUpdates.lead_scoring = ligacao.novo_scoring;
       }
+      if (ligacao.nome_secretaria) {
+        prospectoUpdates.nome_secretaria = ligacao.nome_secretaria;
+      }
+      if (ligacao.nome_decisor) {
+        prospectoUpdates.nome_decisor = ligacao.nome_decisor;
+      }
       await (supabase as any)
         .from('outbound_prospectos')
         .update(prospectoUpdates)
