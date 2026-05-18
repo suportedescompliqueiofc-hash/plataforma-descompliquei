@@ -196,6 +196,24 @@ async function notifyAdminError(info: {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+const UNREADABLE_MSG_PATTERNS = [
+  /\[Undecryptable\]/i,
+  /\[view_once\]/i,
+  /não foi possível descriptografar/i,
+  /n[aã]o foi poss[ií]vel ler/i,
+  /mensagem indispon[ií]vel/i,
+  /abra o whatsapp no seu celular/i,
+];
+
+const UNREADABLE_REPLACEMENT =
+  "[SISTEMA: O lead enviou uma mensagem que não pôde ser lida (foto/vídeo de visualização única ou mensagem temporária). " +
+  "NÃO diga que não conseguiu ler. Continue a conversa normalmente ignorando esta mensagem, " +
+  "ou pergunte de forma natural e casual o que o lead queria dizer, como se você simplesmente não tivesse entendido.]";
+
+function isUnreadableMessage(text: string): boolean {
+  return UNREADABLE_MSG_PATTERNS.some((pattern) => pattern.test(text));
+}
+
 function normalizeOutgoingMessage(value: string): string {
   return value
     .trim()
@@ -643,11 +661,20 @@ const splitMessage = humanizeAndSplitWithAI;
 
 async function transcribeAudio(mediaPath: string): Promise<string | null> {
   try {
-    const bucket = "media-mensagens";
+    const audioBucket = "audio-mensagens";
+    const mediaBucket = "media-mensagens";
+    const bucket = mediaPath.startsWith(`${audioBucket}/`) ? audioBucket
+      : mediaPath.startsWith(`${mediaBucket}/`) ? mediaBucket
+      : audioBucket;
     const cleanPath = mediaPath.startsWith(`${bucket}/`) ? mediaPath.slice(bucket.length + 1) : mediaPath;
-    const { data: blob, error } = await supabase.storage.from(bucket).download(cleanPath);
+
+    let { data: blob, error } = await supabase.storage.from(bucket).download(cleanPath);
+    if ((error || !blob) && bucket === audioBucket) {
+      console.log(`[AI-Agent] Áudio não encontrado em ${audioBucket}, tentando ${mediaBucket}...`);
+      ({ data: blob, error } = await supabase.storage.from(mediaBucket).download(cleanPath));
+    }
     if (error || !blob) {
-      console.error("[AI-Agent] Erro ao baixar áudio:", error?.message);
+      console.error("[AI-Agent] Erro ao baixar áudio:", error?.message, `| path: ${cleanPath} | buckets tentados: ${bucket}, ${bucket === audioBucket ? mediaBucket : ''}`);
       return null;
     }
     const file = new File([blob], "audio.ogg", { type: "audio/ogg" });
@@ -936,7 +963,7 @@ Deno.serve(async (req: Request) => {
             if (execLogId) await updateLog(execLogId, { status: "running", etapa: "audio_transcrito", detalhe: `Áudio transcrito com sucesso: "${transcricao.slice(0, 80)}..."` });
           }
         } else if (msg.tipo_conteudo === "texto" && msg.conteudo) {
-          parts.push(msg.conteudo);
+          parts.push(isUnreadableMessage(msg.conteudo) ? UNREADABLE_REPLACEMENT : msg.conteudo);
         } else if (msg.tipo_conteudo === "imagem") {
           parts.push("[Imagem recebida - a IA não suporta processamento de imagens]");
         } else if (msg.conteudo) {
@@ -946,6 +973,9 @@ Deno.serve(async (req: Request) => {
       userMessageFinal = parts.join("\n");
     } else {
       userMessageFinal = mensagem_usuario || "";
+      if (userMessageFinal && isUnreadableMessage(userMessageFinal)) {
+        userMessageFinal = UNREADABLE_REPLACEMENT;
+      }
       if (tipo_mensagem === "audio" && media_path) {
         if (execLogId) await updateLog(execLogId, { status: "running", etapa: "transcrevendo_audio", detalhe: "Transcrevendo áudio via Whisper..." });
         const transcricao = await transcribeAudio(media_path);

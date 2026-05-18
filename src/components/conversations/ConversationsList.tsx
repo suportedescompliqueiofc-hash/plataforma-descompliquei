@@ -88,6 +88,7 @@ const ConversationItem = ({
   isSelected,
   onToggleSelection,
   messageSnippet,
+  basePath = '/crm/conversas',
 }: {
   conversation: Conversation,
   onDelete: (c: Conversation) => void,
@@ -95,6 +96,7 @@ const ConversationItem = ({
   isSelected: boolean,
   onToggleSelection: (id: string) => void,
   messageSnippet?: string,
+  basePath?: string,
 }) => {
   const { leadId } = useParams();
   const isActive = leadId === conversation.id;
@@ -131,7 +133,7 @@ const ConversationItem = ({
           )}
           
           {!isSelectionMode ? (
-            <Link to={`/crm/conversas/${conversation.id}`} className="shrink-0">
+            <Link to={`${basePath}/${conversation.id}`} className="shrink-0">
               <Avatar className="h-12 w-12 border border-border/20">
                 <AvatarFallback className={cn("text-sm font-semibold", isActive ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground")}>
                   {getInitials(conversation.nome)}
@@ -148,7 +150,7 @@ const ConversationItem = ({
         </div>
         
         <Link 
-          to={isSelectionMode ? "#" : `/crm/conversas/${conversation.id}`}
+          to={isSelectionMode ? "#" : `${basePath}/${conversation.id}`}
           className="flex-1 min-w-0 grid grid-rows-2 gap-y-0.5"
           onClick={(e) => isSelectionMode && e.preventDefault()}
         >
@@ -252,7 +254,12 @@ const ConversationItem = ({
   );
 };
 
-export function ConversationsList() {
+interface ConversationsListProps {
+  origemFilter?: string;
+  basePath?: string;
+}
+
+export function ConversationsList({ origemFilter, basePath = '/crm/conversas' }: ConversationsListProps = {}) {
   const navigate = useNavigate();
   const { leadId: activeLeadId } = useParams();
   const { data: conversations, isLoading } = useConversationsList();
@@ -363,9 +370,11 @@ export function ConversationsList() {
                     (isBefore(leadDate, end) || leadDate.getTime() === end.getTime());
       }
 
-      return nameMatch && originMatch && tagMatch && statusMatch && stageMatch && dateMatch;
+      const outboundMatch = !origemFilter || c.origem === origemFilter || (c as any).fonte === 'prospecao_ativa';
+
+      return nameMatch && originMatch && tagMatch && statusMatch && stageMatch && dateMatch && outboundMatch;
     });
-  }, [conversations, searchTerm, filters, messageSearchLeadIds]);
+  }, [conversations, searchTerm, filters, messageSearchLeadIds, origemFilter]);
 
   const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.status !== "all" || filters.stageId !== "all" || !!filters.dateRange;
 
@@ -397,7 +406,7 @@ export function ConversationsList() {
     if (confirmDelete) {
       deleteChat(confirmDelete.id, {
         onSuccess: () => {
-          if (activeLeadId === confirmDelete.id) navigate('/crm/conversas');
+          if (activeLeadId === confirmDelete.id) navigate(basePath);
           setConfirmDelete(null);
         }
       });
@@ -705,6 +714,7 @@ export function ConversationsList() {
                 isSelected={selectedIds.has(conversation.id)}
                 onToggleSelection={handleToggleSelection}
                 messageSnippet={messageSearchSnippets.get(conversation.id)}
+                basePath={basePath}
               />
             ))
           ) : (

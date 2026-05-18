@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, Users, GitBranch, BarChart3, Settings, LogOut, ChevronLeft,
   MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, ShieldCheck,
-  PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay, PenLine
+  PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay, PenLine,
+  Phone, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -32,6 +33,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
 
   const isSuperAdmin = role === 'superadmin';
   const isPlatformMode = location.pathname.startsWith('/plataforma');
+  const isOutboundMode = location.pathname.startsWith('/outbound');
 
   // Modais de segurança
   const [showExitOnboarding, setShowExitOnboarding] = useState(false);
@@ -79,8 +81,25 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },
     { title: "IA", icon: Bot, path: "/crm/ia" },
     { title: "Configurações", icon: Settings, path: "/crm/settings" },
+    ...(isDescompliqueiOrg ? [{ title: "Outbound", icon: Phone, path: "/outbound/painel" }] : []),
     { title: "Super Admin CRM", icon: ShieldCheck, path: "/crm/super-admin-crm", superadminOnly: true },
     ...(temPlataforma ? [{ title: "Plataforma", icon: PlayCircle, path: "/plataforma" }] : []),
+  ];
+
+  const outboundMenuItems = [
+    { title: "Painel", icon: LayoutDashboard, path: "/outbound/painel" },
+    { title: "Prospectos", icon: Users, path: "/outbound/prospectos" },
+    { title: "Pipeline", icon: GitBranch, path: "/outbound/pipeline" },
+    { title: "Ligações", icon: Phone, path: "/outbound/ligacoes" },
+    { title: "Agendamentos", icon: CalendarDays, path: "/outbound/agendamentos" },
+    { title: "Conversas", icon: MessageSquare, path: "/outbound/conversas" },
+    { title: "Vendas", icon: ShoppingCart, path: "/outbound/vendas" },
+    { title: "Scripts", icon: FileText, path: "/outbound/scripts" },
+    { title: "Cadências", icon: GitMerge, path: "/outbound/cadencias" },
+    { title: "Metas", icon: Target, path: "/outbound/metas" },
+    { title: "Configurações", icon: Settings, path: "/outbound/configuracoes" },
+    { isSeparator: true, title: "Voltar" },
+    { title: "Voltar ao CRM", icon: BarChart3, path: "/crm" },
   ];
 
   const temTrilha = (acesso.pilares_liberados?.length ?? 0) > 0;
@@ -105,6 +124,8 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
         if (item.accessKey && !acesso[item.accessKey]) return false;
         return true;
       })
+    : isOutboundMode
+    ? outboundMenuItems
     : crmMenuItems.filter(item => !item.superadminOnly || isSuperAdmin);
 
   const getInitials = (name?: string | null) => {
@@ -141,8 +162,8 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
             </Avatar>
             
           <div className={`flex flex-col transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'flex-1 min-w-0 opacity-100 overflow-hidden'}`}>
-              <h1 className="text-[11px] font-bold text-sidebar-foreground uppercase tracking-normal font-serif leading-none mb-0.5 truncate">{isPlatformMode ? 'Hub de Gestão Comercial' : branding?.brand_name || 'CRM'}</h1>
-              <p className="text-[9px] text-sidebar-primary tracking-wide uppercase font-medium truncate">{isPlatformMode ? branding?.brand_name || 'Descompliquei' : branding?.tagline || 'Gestão Inteligente'}</p>
+              <h1 className="text-[11px] font-bold text-sidebar-foreground uppercase tracking-normal font-serif leading-none mb-0.5 truncate">{isPlatformMode ? 'Hub de Gestão Comercial' : isOutboundMode ? 'Prospecção Ativa' : branding?.brand_name || 'CRM'}</h1>
+              <p className="text-[9px] text-sidebar-primary tracking-wide uppercase font-medium truncate">{isPlatformMode ? branding?.brand_name || 'Descompliquei' : isOutboundMode ? 'Outbound' : branding?.tagline || 'Gestão Inteligente'}</p>
             </div>
           </div>
           {toggleCollapse && !isCollapsed && (
@@ -172,7 +193,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
             const isActive = item.path && location.pathname.startsWith(item.path) && (item.path !== '/crm' || location.pathname === '/crm');
             const Icon = item.icon as any;
             
-            const linkClasses = `flex items-center gap-3 py-2.5 rounded-lg transition-all ${isCollapsed ? 'justify-center px-2' : 'px-3'} ${isActive ? (isPlatformMode ? 'bg-[#E85D24] text-white font-medium shadow-sm' : 'bg-sidebar-accent text-sidebar-primary font-medium border-l-2 border-sidebar-primary') : 'text-sidebar-foreground/70 hover:bg-[#1A1A1A] hover:text-sidebar-foreground'}`;
+            const linkClasses = `flex items-center gap-3 py-2.5 rounded-lg transition-all ${isCollapsed ? 'justify-center px-2' : 'px-3'} ${isActive ? ((isPlatformMode || isOutboundMode) ? 'bg-[#E85D24] text-white font-medium shadow-sm' : 'bg-sidebar-accent text-sidebar-primary font-medium border-l-2 border-sidebar-primary') : 'text-sidebar-foreground/70 hover:bg-[#1A1A1A] hover:text-sidebar-foreground'}`;
 
             const isAcessarCRM = item.title === 'Acessar CRM';
             const linkProps: any = isAcessarCRM ? { target: "_blank", rel: "noopener noreferrer" } : {};

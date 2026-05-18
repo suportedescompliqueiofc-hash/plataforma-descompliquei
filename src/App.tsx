@@ -33,6 +33,20 @@ import CriativosBiblioteca from "./pages/CriativosBiblioteca";
 import CriativosPasta from "./pages/CriativosPasta";
 import Canvas from "./pages/Canvas";
 import SuperAdmin from "./pages/SuperAdmin";
+
+// Outbound pages
+import OutboundPainel from "./pages/outbound/OutboundPainel";
+import OutboundProspectos from "./pages/outbound/OutboundProspectos";
+import OutboundPipeline from "./pages/outbound/OutboundPipeline";
+import OutboundLigacoes from "./pages/outbound/OutboundLigacoes";
+import OutboundAgendamentos from "./pages/outbound/OutboundAgendamentos";
+import OutboundConversas from "./pages/outbound/OutboundConversas";
+import OutboundVendas from "./pages/outbound/OutboundVendas";
+import OutboundScripts from "./pages/outbound/OutboundScripts";
+import OutboundCadencias from "./pages/outbound/OutboundCadencias";
+import OutboundMetas from "./pages/outbound/OutboundMetas";
+import OutboundConfiguracoes from "./pages/outbound/OutboundConfiguracoes";
+import { OutboundLayout } from "./components/outbound/OutboundLayout";
 import AdminGuard from "./pages/admin-os/AdminGuard";
 import AdminLayout from "./pages/admin-os/AdminLayout";
 import AdminDashboard from "./pages/admin-os/pages/AdminDashboard";
@@ -126,7 +140,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('sidebar-collapsed', false);
   const location = useLocation();
-  const isConversationsPage = location.pathname.startsWith('/crm/conversas');
+  const isConversationsPage = location.pathname.startsWith('/crm/conversas') || location.pathname.startsWith('/outbound/conversas');
   const isPlataformaRoute = location.pathname.startsWith('/plataforma');
 
   // Usar hook para verificar se é superadmin
@@ -262,6 +276,24 @@ const App = () => (
                 <Route path="/crm/criativos/:pastaId" element={<CriativosPasta />} />
                 <Route path="/crm/canvas" element={<Canvas />} />
                 <Route path="/crm/super-admin-crm" element={<SuperAdmin />} />
+              </Route>
+
+              {/* Outbound — Prospecção Ativa (Descompliquei) */}
+              <Route element={<ProtectedRoute />}>
+              <Route element={<OutboundLayout />}>
+                <Route path="/outbound/painel" element={<OutboundPainel />} />
+                <Route path="/outbound/prospectos" element={<OutboundProspectos />} />
+                <Route path="/outbound/pipeline" element={<OutboundPipeline />} />
+                <Route path="/outbound/ligacoes" element={<OutboundLigacoes />} />
+                <Route path="/outbound/agendamentos" element={<OutboundAgendamentos />} />
+                <Route path="/outbound/conversas" element={<OutboundConversas />} />
+                <Route path="/outbound/conversas/:leadId" element={<OutboundConversas />} />
+                <Route path="/outbound/vendas" element={<OutboundVendas />} />
+                <Route path="/outbound/scripts" element={<OutboundScripts />} />
+                <Route path="/outbound/cadencias" element={<OutboundCadencias />} />
+                <Route path="/outbound/metas" element={<OutboundMetas />} />
+                <Route path="/outbound/configuracoes" element={<OutboundConfiguracoes />} />
+              </Route>
               </Route>
             </Route>
             {/* Legados CRM */}

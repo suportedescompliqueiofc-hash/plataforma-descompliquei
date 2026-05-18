@@ -23,10 +23,12 @@ interface BulkCadenceDispatchModalProps {
   onOpenChange: (open: boolean) => void;
   cadence: Cadence | null;
   onConfirm: (leadIds: string[], minDelay: number, maxDelay: number) => Promise<void>;
+  origemFilter?: string;
 }
 
-export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfirm }: BulkCadenceDispatchModalProps) {
-  const { leads } = useLeads();
+export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfirm, origemFilter }: BulkCadenceDispatchModalProps) {
+  const { leads: allLeads } = useLeads();
+  const leads = useMemo(() => origemFilter ? allLeads.filter(l => l.origem === origemFilter || (l as any).fonte === 'prospecao_ativa') : allLeads, [allLeads, origemFilter]);
   const { stages, sources } = useLeadOptions();
   const { availableTags } = useTags();
   const [minDelay, setMinDelay] = useState(60);
