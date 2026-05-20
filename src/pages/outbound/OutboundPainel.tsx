@@ -133,8 +133,8 @@ export default function OutboundPainel() {
 
   const today = new Date();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(today),
-    to: endOfMonth(today),
+    from: startOfDay(today),
+    to: endOfDay(today),
   });
   const [sdrId, setSdrId] = useState<string | null>(null);
 
