@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Phone, Clock, User, MessageSquare, Calendar, FileText, History, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { Phone, Clock, User, Users, UserCheck, MessageSquare, Calendar, FileText, History, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow, format } from "date-fns";
@@ -242,9 +242,10 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-4">
-          <TabsList className="w-full grid grid-cols-6">
+          <TabsList className="w-full grid grid-cols-7">
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="ligacoes">Ligações</TabsTrigger>
+            <TabsTrigger value="nomes">Nomes</TabsTrigger>
             <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
             <TabsTrigger value="historico">Histórico</TabsTrigger>
             <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
@@ -441,6 +442,98 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
           </TabsContent>
 
           {/* AGENDAMENTOS */}
+          {/* NOMES */}
+          <TabsContent value="nomes" className="mt-4">
+            {(() => {
+              const nomesData = ligacoes
+                .filter((l: any) => l.nome_secretaria || l.nome_decisor)
+                .map((l: any) => ({
+                  id: l.id,
+                  tentativa: l.numero_tentativa,
+                  data: l.data_hora,
+                  secretaria: l.nome_secretaria || null,
+                  decisor: l.nome_decisor || null,
+                  contatoSecretaria: l.contato_secretaria || false,
+                  contatoDecisor: l.contato_decisor || false,
+                }));
+              // Also collect unique names
+              const secretarias = [...new Set(ligacoes.filter((l: any) => l.nome_secretaria).map((l: any) => l.nome_secretaria as string))];
+              const decisores = [...new Set(ligacoes.filter((l: any) => l.nome_decisor).map((l: any) => l.nome_decisor as string))];
+              // Fallback to prospecto-level names
+              if (secretarias.length === 0 && (prospecto as any).nome_secretaria) secretarias.push((prospecto as any).nome_secretaria);
+              if (decisores.length === 0 && (prospecto as any).nome_decisor) decisores.push((prospecto as any).nome_decisor);
+
+              if (secretarias.length === 0 && decisores.length === 0) {
+                return (
+                  <div className="text-center py-8">
+                    <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                    <p className="text-sm text-muted-foreground">Nenhum nome de secretária ou decisor registrado</p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="space-y-4">
+                  {decisores.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                          <UserCheck className="h-4 w-4 text-emerald-500" />
+                        </div>
+                        <p className="text-sm font-semibold">Decisores</p>
+                      </div>
+                      {decisores.map((nome, i) => (
+                        <div key={i} className="ml-9 px-3 py-2 rounded-lg border bg-emerald-500/5 border-emerald-500/20">
+                          <p className="text-sm font-medium">{nome}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {secretarias.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                          <Users className="h-4 w-4 text-blue-500" />
+                        </div>
+                        <p className="text-sm font-semibold">Secretárias</p>
+                      </div>
+                      {secretarias.map((nome, i) => (
+                        <div key={i} className="ml-9 px-3 py-2 rounded-lg border bg-blue-500/5 border-blue-500/20">
+                          <p className="text-sm font-medium">{nome}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {nomesData.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Histórico por ligação</p>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Ligação</TableHead>
+                            <TableHead className="text-xs">Data</TableHead>
+                            <TableHead className="text-xs">Secretária</TableHead>
+                            <TableHead className="text-xs">Decisor</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {nomesData.map((n: any) => (
+                            <TableRow key={n.id}>
+                              <TableCell className="text-xs font-medium">#{n.tentativa}</TableCell>
+                              <TableCell className="text-xs">{format(new Date(n.data), "dd/MM/yy HH:mm")}</TableCell>
+                              <TableCell className="text-sm">{n.secretaria || "—"}</TableCell>
+                              <TableCell className="text-sm">{n.decisor || "—"}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </TabsContent>
+
           <TabsContent value="agendamentos" className="mt-4">
             {prospectoAgendamentos.length === 0 ? (
               <div className="text-center py-8">

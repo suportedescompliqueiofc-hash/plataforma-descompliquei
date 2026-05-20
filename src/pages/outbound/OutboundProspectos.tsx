@@ -163,17 +163,22 @@ export default function OutboundProspectos() {
       if (!p.cidade) return;
       const parts = p.cidade.split(" - ");
       if (parts.length >= 2) {
-        cidadeSet.add(parts.slice(0, -1).join(" - ").trim());
-        ufSet.add(parts[parts.length - 1].trim());
+        const cidade = parts.slice(0, -1).join(" - ").trim();
+        const uf = parts[parts.length - 1].trim();
+        ufSet.add(uf);
+        // Only include cities that match the selected UF filter
+        if (filters.uf === "todos" || uf === filters.uf) {
+          cidadeSet.add(cidade);
+        }
       } else {
-        cidadeSet.add(p.cidade.trim());
+        if (filters.uf === "todos") cidadeSet.add(p.cidade.trim());
       }
     });
     return {
       cidadesUnicas: Array.from(cidadeSet).sort(),
       ufsUnicas: Array.from(ufSet).sort(),
     };
-  }, [prospectos]);
+  }, [prospectos, filters.uf]);
 
   const especialidadesUnicas = useMemo(() => {
     const set = new Set(prospectos.map(p => p.especialidade).filter(Boolean) as string[]);
@@ -460,7 +465,7 @@ export default function OutboundProspectos() {
         {ufsUnicas.length > 0 && (
           <SearchableFilter
             value={filters.uf}
-            onValueChange={v => setFilters(f => ({ ...f, uf: v }))}
+            onValueChange={v => setFilters(f => ({ ...f, uf: v, cidade: "todos" }))}
             placeholder="UF"
             options={ufsUnicas.map(u => ({ value: u, label: u }))}
           />

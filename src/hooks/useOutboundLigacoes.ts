@@ -217,6 +217,10 @@ export function useCreateLigacao() {
         anotacao: ligacao.anotacao || null,
         proxima_acao: ligacao.proxima_acao || null,
         proxima_acao_data: ligacao.proxima_acao_data ? new Date(ligacao.proxima_acao_data).toISOString() : null,
+        contato_secretaria: ligacao.contato_secretaria || false,
+        contato_decisor: ligacao.contato_decisor || false,
+        nome_secretaria: ligacao.nome_secretaria || null,
+        nome_decisor: ligacao.nome_decisor || null,
       };
 
       const { data, error } = await (supabase as any)

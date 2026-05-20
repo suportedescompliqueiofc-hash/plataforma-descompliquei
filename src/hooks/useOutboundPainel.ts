@@ -13,9 +13,11 @@ export interface FunilData {
   ligacoes: number;
   leads_contatados: number;
   conexoes: number;
+  decisores: number;
   calls_agendadas: number;
   fechamentos: number;
   tx_atendimento: number;
+  tx_decisor: number;
   tx_agendamento: number;
   tx_fechamento: number;
 }
@@ -104,9 +106,10 @@ export interface MetricaHorario {
 }
 
 export interface LeadsContatoBreakdown {
-  total: number;
-  novos: number;
-  recontatos: number;
+  total: number; // leads únicos no período
+  total_contatos: number; // soma de leads únicos por dia (conta repetições entre dias)
+  novos: number; // leads cujo primeiro contato all-time é dentro do período
+  recontatados: number; // leads cujo primeiro contato all-time é anterior ao período
 }
 
 export interface PersistenciaFaixa {
@@ -172,7 +175,7 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
 
       let ligacoesQuery = (supabase as any)
         .from('outbound_ligacoes')
-        .select('id, data_hora, status, resultado, usuario_id, script_id, numero_tentativa, duracao_segundos, prospecto_id')
+        .select('id, data_hora, status, resultado, usuario_id, script_id, numero_tentativa, duracao_segundos, prospecto_id, contato_decisor, contato_secretaria')
         .eq('organization_id', orgId)
         .gte('data_hora', inicioISO)
         .lte('data_hora', fimISO);
@@ -221,6 +224,7 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         ligacoes.map(l => l.prospecto_id).filter(Boolean)
       ).size;
       const conexoes = ligacoes.filter(l => l.status === 'atendeu').length;
+      const decisoresContatados = ligacoes.filter(l => l.contato_decisor === true).length;
       const callsAgendadas = ligacoes.filter(l => (l.resultado || '').includes('agendou_call')).length;
 
       const ganhoStageIds = new Set(
@@ -234,14 +238,31 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
       });
       const fechamentos = prospectosNoPeriodo.filter((p: any) => ganhoStageIds.has(p.id)).length;
 
+      // IDs de prospectos por etapa do funil (para drill-down)
+      const idsLeadsContatados = Array.from(new Set(ligacoes.map((l: any) => l.prospecto_id).filter(Boolean)));
+      const idsConexoes = Array.from(new Set(ligacoes.filter((l: any) => l.status === 'atendeu').map((l: any) => l.prospecto_id).filter(Boolean)));
+      const idsDecisores = Array.from(new Set(ligacoes.filter((l: any) => l.contato_decisor === true).map((l: any) => l.prospecto_id).filter(Boolean)));
+      const idsCalls = Array.from(new Set(ligacoes.filter((l: any) => (l.resultado || '').includes('agendou_call')).map((l: any) => l.prospecto_id).filter(Boolean)));
+      const idsFechamentos = prospectosNoPeriodo.filter((p: any) => ganhoStageIds.has(p.id)).map((p: any) => p.id);
+
+      const funilProspectoIds = {
+        leads_contatados: idsLeadsContatados as string[],
+        conexoes: idsConexoes as string[],
+        decisores: idsDecisores as string[],
+        calls_agendadas: idsCalls as string[],
+        fechamentos: idsFechamentos as string[],
+      };
+
       const funil: FunilData = {
         ligacoes: totalLigacoes,
         leads_contatados: leadsContatados,
         conexoes,
+        decisores: decisoresContatados,
         calls_agendadas: callsAgendadas,
         fechamentos,
         tx_atendimento: totalLigacoes > 0 ? Math.round((conexoes / totalLigacoes) * 1000) / 10 : 0,
-        tx_agendamento: conexoes > 0 ? Math.round((callsAgendadas / conexoes) * 1000) / 10 : 0,
+        tx_decisor: conexoes > 0 ? Math.round((decisoresContatados / conexoes) * 1000) / 10 : 0,
+        tx_agendamento: decisoresContatados > 0 ? Math.round((callsAgendadas / decisoresContatados) * 1000) / 10 : 0,
         tx_fechamento: callsAgendadas > 0 ? Math.round((fechamentos / callsAgendadas) * 1000) / 10 : 0,
       };
 
@@ -269,10 +290,10 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         sdrMap.get(l.usuario_id)!.ligacoes.push(l);
       });
 
-      const { data: perfisData } = await supabase
-        .from('perfis')
-        .select('id, nome_completo')
-        .eq('organization_id', orgId);
+      const userIds = Array.from(new Set(ligacoes.map((l: any) => l.usuario_id).filter(Boolean)));
+      const { data: perfisData } = userIds.length > 0
+        ? await supabase.from('perfis').select('id, nome_completo').in('id', userIds)
+        : { data: [] };
       const perfisMap = new Map((perfisData || []).map(p => [p.id, p.nome_completo || 'Sem nome']));
 
       const sdrPerformance: SdrPerformance[] = Array.from(sdrMap.entries())
@@ -533,21 +554,31 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
 
       // Prospectos contatados no período
       const prospectosNoPeriodoIds = new Set(ligacoes.map((l: any) => l.prospecto_id).filter(Boolean));
-      let novos = 0;
-      let recontatos = 0;
-      prospectosNoPeriodoIds.forEach(pid => {
-        const primeiro = primeiroContatoMap.get(pid);
-        if (primeiro && new Date(primeiro) >= inicio) {
-          novos++;
-        } else {
-          recontatos++;
+      let recontatados = 0;
+      prospectosNoPeriodoIds.forEach((pid) => {
+        const primeiroContato = primeiroContatoMap.get(pid);
+        if (primeiroContato && new Date(primeiroContato) < inicio) {
+          recontatados++;
         }
       });
+      const novosCount = prospectosNoPeriodoIds.size - recontatados;
+
+      // Total de contatos: soma de leads únicos por dia (um lead contatado em 3 dias = conta 3x)
+      const leadsPorDiaMap = new Map<string, Set<string>>();
+      ligacoes.forEach((l: any) => {
+        if (!l.prospecto_id) return;
+        const dia = l.data_hora.slice(0, 10);
+        if (!leadsPorDiaMap.has(dia)) leadsPorDiaMap.set(dia, new Set());
+        leadsPorDiaMap.get(dia)!.add(l.prospecto_id);
+      });
+      let totalContatos = 0;
+      leadsPorDiaMap.forEach((leads) => { totalContatos += leads.size; });
 
       const breakdown: LeadsContatoBreakdown = {
         total: prospectosNoPeriodoIds.size,
-        novos,
-        recontatos,
+        total_contatos: totalContatos,
+        novos: novosCount,
+        recontatados,
       };
 
       // Persistência: agrupar ALL-TIME ligações por prospecto
@@ -663,7 +694,7 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         leadsMaisContatados,
       };
 
-      return { funil, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios, analisePersistencia };
+      return { funil, funilProspectoIds, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios, analisePersistencia };
     },
     enabled: !!orgId,
     staleTime: 60_000,

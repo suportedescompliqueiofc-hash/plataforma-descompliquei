@@ -189,20 +189,6 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden flex flex-col">
-      {showBanner && (
-        <div className="bg-primary/95 text-primary-foreground text-xs sm:text-sm font-medium py-1.5 px-4 text-center shadow-md z-[60] relative flex items-center justify-center gap-4">
-          <span>🛡️ <strong>Acesso Master Ativo</strong> — Atuando na conta do cliente neste CRM.</span>
-          <Button
-            variant="secondary"
-            size="sm"
-            className="h-6 text-[10px] px-2 py-0 font-bold uppercase tracking-wider"
-            onClick={handleReturnToMaster}
-            disabled={isReturning}
-          >
-            {isReturning ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : 'Voltar para Master'}
-          </Button>
-        </div>
-      )}
       {isPlataformaRoute && diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 7 && (
         <div className="bg-orange-500 text-white text-xs sm:text-sm font-medium py-1.5 px-4 text-center shadow-md z-[60] relative">
           ⚠️ <strong>Seu acesso expira em {diasRestantes === 0 ? 'hoje' : `${diasRestantes} dia${diasRestantes === 1 ? '' : 's'}`}.</strong> Entre em contato para renovar.

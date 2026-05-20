@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, Phone, PhoneOff, PhoneMissed, Voicemail, XCircle, Ban } from "lucide-react";
+import { Loader2, Search, Phone, PhoneOff, PhoneMissed, Voicemail, XCircle, Ban, UserCheck, Users } from "lucide-react";
 import { useLigacaoModal } from "@/contexts/LigacaoContext";
 import { useCreateLigacao } from "@/hooks/useOutboundLigacoes";
 import { useOutboundProspectos, OutboundProspecto } from "@/hooks/useOutboundProspectos";
@@ -43,6 +43,15 @@ const RESULTADO_OPTIONS_DEFAULT = [
 
 const SCORING_OPTIONS = ["A", "B", "C", "D"];
 
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  // Remove country code 55 if present
+  const local = digits.startsWith('55') && digits.length >= 12 ? digits.slice(2) : digits;
+  if (local.length === 11) return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  if (local.length === 10) return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  return phone;
+}
+
 export function LigacaoRegistroModal() {
   const { isModalOpen, prospecto: preSelectedProspecto, closeModal } = useLigacaoModal();
   const createLigacao = useCreateLigacao();
@@ -71,6 +80,8 @@ export function LigacaoRegistroModal() {
   const [anotacao, setAnotacao] = useState("");
   const [proximaAcao, setProximaAcao] = useState("");
   const [proximaAcaoData, setProximaAcaoData] = useState("");
+  const [contatoSecretaria, setContatoSecretaria] = useState(false);
+  const [contatoDecisor, setContatoDecisor] = useState(false);
   const [nomeSecretaria, setNomeSecretaria] = useState("");
   const [nomeDecisor, setNomeDecisor] = useState("");
   const [alterarStage, setAlterarStage] = useState(false);
@@ -108,6 +119,8 @@ export function LigacaoRegistroModal() {
       setAnotacao("");
       setProximaAcao("");
       setProximaAcaoData("");
+      setContatoSecretaria(false);
+      setContatoDecisor(false);
       setNomeSecretaria("");
       setNomeDecisor("");
       setAlterarStage(false);
@@ -205,8 +218,10 @@ export function LigacaoRegistroModal() {
       anotacao: anotacao.trim() || null,
       proxima_acao: proximaAcao.trim() || null,
       proxima_acao_data: proximaAcaoData || null,
-      nome_secretaria: nomeSecretaria.trim() || undefined,
-      nome_decisor: nomeDecisor.trim() || undefined,
+      contato_secretaria: contatoSecretaria,
+      contato_decisor: contatoDecisor,
+      nome_secretaria: contatoSecretaria && nomeSecretaria.trim() ? nomeSecretaria.trim() : undefined,
+      nome_decisor: contatoDecisor && nomeDecisor.trim() ? nomeDecisor.trim() : undefined,
       alterar_stage: alterarStage,
       novo_stage_id: novoStageId || undefined,
       alterar_scoring: alterarScoring,
@@ -250,7 +265,8 @@ export function LigacaoRegistroModal() {
                 <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
                   <div>
                     <p className="text-sm font-medium">{selectedProspecto.nome}</p>
-                    <p className="text-xs text-muted-foreground">{selectedProspecto.clinica} • {selectedProspecto.telefone}</p>
+                    <p className="text-xs text-muted-foreground">{selectedProspecto.clinica}</p>
+                    <p className="text-base font-bold text-foreground mt-1">{formatPhone(selectedProspecto.telefone)}</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={() => setProspectoId("")}>Trocar</Button>
                 </div>
@@ -266,7 +282,7 @@ export function LigacaoRegistroModal() {
                         <button key={p.id} className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/50 text-left transition-colors" onClick={() => { setProspectoId(p.id); setSearchTerm(""); }}>
                           <div>
                             <p className="text-sm font-medium">{p.nome}</p>
-                            <p className="text-xs text-muted-foreground">{p.clinica} • {p.telefone}</p>
+                            <p className="text-xs text-muted-foreground">{p.clinica} • <span className="font-semibold text-foreground">{formatPhone(p.telefone)}</span></p>
                           </div>
                           <Badge variant="outline" className="text-xs">{p.total_tentativas} lig.</Badge>
                         </button>
@@ -279,7 +295,8 @@ export function LigacaoRegistroModal() {
           ) : (
             <div className="p-3 rounded-lg border bg-muted/30">
               <p className="text-sm font-medium">{preSelectedProspecto.nome}</p>
-              <p className="text-xs text-muted-foreground">{preSelectedProspecto.clinica} • {preSelectedProspecto.telefone} • {preSelectedProspecto.total_tentativas} ligações anteriores</p>
+              <p className="text-xs text-muted-foreground">{preSelectedProspecto.clinica} • {preSelectedProspecto.total_tentativas} ligações anteriores</p>
+              <p className="text-base font-bold text-foreground mt-1">{formatPhone(preSelectedProspecto.telefone)}</p>
             </div>
           )}
 
@@ -373,15 +390,44 @@ export function LigacaoRegistroModal() {
                 </Button>
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Nome da Secretária</Label>
-                <Input value={nomeSecretaria} onChange={e => setNomeSecretaria(e.target.value)} placeholder="Quem atendeu a ligação..." />
+            <div className="space-y-3">
+              <Label>Quem atendeu?</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setContatoSecretaria(prev => !prev)}
+                  className={cn("flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all",
+                    contatoSecretaria ? "bg-blue-500/20 text-blue-400 border-blue-500/40 ring-2 ring-blue-500/30 ring-offset-1 ring-offset-background" : "border-border/50 text-muted-foreground hover:bg-muted/50")}
+                >
+                  <Users className="h-4 w-4" />
+                  Secretária
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContatoDecisor(prev => !prev)}
+                  className={cn("flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all",
+                    contatoDecisor ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 ring-2 ring-emerald-500/30 ring-offset-1 ring-offset-background" : "border-border/50 text-muted-foreground hover:bg-muted/50")}
+                >
+                  <UserCheck className="h-4 w-4" />
+                  Decisor
+                </button>
               </div>
-              <div className="space-y-2">
-                <Label>Nome do Decisor</Label>
-                <Input value={nomeDecisor} onChange={e => setNomeDecisor(e.target.value)} placeholder="Dono(a) / diretor(a) da clínica..." />
-              </div>
+              {(contatoSecretaria || contatoDecisor) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {contatoSecretaria && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nome da Secretária</Label>
+                      <Input value={nomeSecretaria} onChange={e => setNomeSecretaria(e.target.value)} placeholder="Quem atendeu a ligação..." />
+                    </div>
+                  )}
+                  {contatoDecisor && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nome do Decisor</Label>
+                      <Input value={nomeDecisor} onChange={e => setNomeDecisor(e.target.value)} placeholder="Dono(a) / diretor(a) da clínica..." />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             </>
           )}

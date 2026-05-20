@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Phone, PhoneOff, PhoneMissed, Voicemail, XCircle, Ban, Plus } from "lucide-react";
+import { Loader2, Phone, PhoneOff, PhoneMissed, Voicemail, XCircle, Ban, Plus, UserCheck, Users } from "lucide-react";
 import { OutboundLigacao, useUpdateLigacao } from "@/hooks/useOutboundLigacoes";
 import { useOutboundScripts } from "@/hooks/useOutboundScripts";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,10 @@ export function EditLigacaoModal({ open, onOpenChange, ligacao }: Props) {
   const [anotacao, setAnotacao] = useState("");
   const [proximaAcao, setProximaAcao] = useState("");
   const [proximaAcaoData, setProximaAcaoData] = useState("");
+  const [contatoSecretaria, setContatoSecretaria] = useState(false);
+  const [contatoDecisor, setContatoDecisor] = useState(false);
+  const [nomeSecretaria, setNomeSecretaria] = useState("");
+  const [nomeDecisor, setNomeDecisor] = useState("");
 
   useEffect(() => {
     if (open && ligacao) {
@@ -62,6 +66,10 @@ export function EditLigacaoModal({ open, onOpenChange, ligacao }: Props) {
       setAnotacao(ligacao.anotacao || "");
       setProximaAcao(ligacao.proxima_acao || "");
       setProximaAcaoData(ligacao.proxima_acao_data ? ligacao.proxima_acao_data.slice(0, 16) : "");
+      setContatoSecretaria((ligacao as any).contato_secretaria || false);
+      setContatoDecisor((ligacao as any).contato_decisor || false);
+      setNomeSecretaria((ligacao as any).nome_secretaria || "");
+      setNomeDecisor((ligacao as any).nome_decisor || "");
     }
   }, [open, ligacao]);
 
@@ -81,6 +89,10 @@ export function EditLigacaoModal({ open, onOpenChange, ligacao }: Props) {
       anotacao: anotacao.trim() || null,
       proxima_acao: proximaAcao.trim() || null,
       proxima_acao_data: proximaAcaoData ? new Date(proximaAcaoData).toISOString() : null,
+      contato_secretaria: contatoSecretaria,
+      contato_decisor: contatoDecisor,
+      nome_secretaria: contatoSecretaria && nomeSecretaria.trim() ? nomeSecretaria.trim() : null,
+      nome_decisor: contatoDecisor && nomeDecisor.trim() ? nomeDecisor.trim() : null,
     });
 
     onOpenChange(false);
@@ -166,6 +178,49 @@ export function EditLigacaoModal({ open, onOpenChange, ligacao }: Props) {
                   Adicionar
                 </Button>
               </div>
+            </div>
+          )}
+
+          {/* QUEM ATENDEU (só se atendeu) */}
+          {status === "atendeu" && (
+            <div className="space-y-3">
+              <Label>Quem atendeu?</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setContatoSecretaria(prev => !prev)}
+                  className={cn("flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all",
+                    contatoSecretaria ? "bg-blue-500/20 text-blue-400 border-blue-500/40 ring-2 ring-blue-500/30 ring-offset-1 ring-offset-background" : "border-border/50 text-muted-foreground hover:bg-muted/50")}
+                >
+                  <Users className="h-4 w-4" />
+                  Secretária
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setContatoDecisor(prev => !prev)}
+                  className={cn("flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all",
+                    contatoDecisor ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40 ring-2 ring-emerald-500/30 ring-offset-1 ring-offset-background" : "border-border/50 text-muted-foreground hover:bg-muted/50")}
+                >
+                  <UserCheck className="h-4 w-4" />
+                  Decisor
+                </button>
+              </div>
+              {(contatoSecretaria || contatoDecisor) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {contatoSecretaria && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nome da Secretária</Label>
+                      <Input value={nomeSecretaria} onChange={e => setNomeSecretaria(e.target.value)} placeholder="Quem atendeu a ligação..." />
+                    </div>
+                  )}
+                  {contatoDecisor && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nome do Decisor</Label>
+                      <Input value={nomeDecisor} onChange={e => setNomeDecisor(e.target.value)} placeholder="Dono(a) / diretor(a) da clínica..." />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import {
   LayoutDashboard, Phone, PhoneCall, Calendar, DollarSign,
   ChevronRight, ArrowRight, Users, TrendingUp, BarChart3, Target,
-  Clock, AlertTriangle, Timer, Hourglass,
+  Clock, AlertTriangle, Timer, Hourglass, UserCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,10 @@ import { useNavigate } from "react-router-dom";
 import { useProfile } from "@/hooks/useProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { useOutboundProspectos } from "@/hooks/useOutboundProspectos";
+import { ProspectoDetalheModal } from "@/components/outbound/ProspectoDetalheModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 const RESULTADO_LABELS: Record<string, string> = {
   sem_interesse: "Sem interesse",
@@ -55,11 +59,11 @@ const SCORING_COLORS: Record<string, string> = {
   D: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-function FunilCard({ icon: Icon, label, value, iconColor }: {
-  icon: any; label: string; value: number; iconColor: string;
+function FunilCard({ icon: Icon, label, value, iconColor, onClick }: {
+  icon: any; label: string; value: number; iconColor: string; onClick?: () => void;
 }) {
   return (
-    <Card className="flex-1 min-w-[140px]">
+    <Card className={cn("flex-1 min-w-[140px]", onClick && "cursor-pointer hover:border-primary/50 hover:shadow-md transition-all")} onClick={onClick}>
       <CardContent className="p-4 text-center">
         <div className="mx-auto w-10 h-10 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: iconColor + '20' }}>
           <Icon className="h-5 w-5" style={{ color: iconColor }} />
@@ -146,6 +150,7 @@ export default function OutboundPainel() {
   const orgId = profile?.organization_id;
 
   const funil = data?.funil;
+  const funilProspectoIds = data?.funilProspectoIds;
   const sdrPerformance = data?.sdrPerformance || [];
   const metricas = data?.metricas;
   const metricasTempo = data?.metricasTempo;
@@ -155,6 +160,27 @@ export default function OutboundPainel() {
   const distribuicao = data?.distribuicao || [];
   const scriptComparativo = data?.scriptComparativo || [];
   const fila = data?.fila || [];
+
+  // Drill-down dos cards do funil
+  const { prospectos: allProspectos } = useOutboundProspectos();
+  const [drilldownOpen, setDrilldownOpen] = useState(false);
+  const [drilldownTitle, setDrilldownTitle] = useState("");
+  const [drilldownIds, setDrilldownIds] = useState<string[]>([]);
+  const [detalheProspecto, setDetalheProspecto] = useState<any>(null);
+  const [detalheOpen, setDetalheOpen] = useState(false);
+
+  const drilldownProspectos = useMemo(() => {
+    if (!drilldownIds.length) return [];
+    return drilldownIds
+      .map(id => allProspectos.find(p => p.id === id))
+      .filter(Boolean) as any[];
+  }, [drilldownIds, allProspectos]);
+
+  const openDrilldown = (title: string, ids: string[]) => {
+    setDrilldownTitle(title);
+    setDrilldownIds(ids);
+    setDrilldownOpen(true);
+  };
 
   // Ações pendentes para alerta no topo
   const { data: acoesPendentes = [] } = useQuery({
@@ -288,35 +314,60 @@ export default function OutboundPainel() {
           </div>
         ) : funil ? (
           <div className="flex items-center gap-0 overflow-x-auto pb-2">
-            <Card className="flex-1 min-w-[160px]">
+            {analisePersistencia && analisePersistencia.breakdown.total_contatos !== funil.leads_contatados && (
+              <>
+                <Card className="flex-1 min-w-[140px] cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" onClick={() => funilProspectoIds && openDrilldown("Total de contatos", funilProspectoIds.leads_contatados)}>
+                  <CardContent className="p-4 text-center">
+                    <div className="mx-auto w-10 h-10 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: '#14b8a620' }}>
+                      <BarChart3 className="h-5 w-5" style={{ color: '#14b8a6' }} />
+                    </div>
+                    <p className="text-2xl font-bold">{analisePersistencia.breakdown.total_contatos}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total de contatos</p>
+                  </CardContent>
+                </Card>
+                <div className="flex flex-col items-center justify-center px-1 text-muted-foreground/40">
+                  <span className="text-lg">|</span>
+                </div>
+              </>
+            )}
+            <Card className="flex-1 min-w-[140px] cursor-pointer hover:border-primary/50 hover:shadow-md transition-all" onClick={() => funilProspectoIds && openDrilldown("Leads contatados", funilProspectoIds.leads_contatados)}>
               <CardContent className="p-4 text-center">
                 <div className="mx-auto w-10 h-10 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: '#8b5cf620' }}>
                   <Users className="h-5 w-5" style={{ color: '#8b5cf6' }} />
                 </div>
                 <p className="text-2xl font-bold">{funil.leads_contatados}</p>
                 <p className="text-xs text-muted-foreground mt-1">Leads contatados</p>
-                {analisePersistencia && (
-                  <div className="flex items-center justify-center gap-2 mt-2">
-                    <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-500 bg-emerald-500/10">
-                      {analisePersistencia.breakdown.novos} novos
-                    </Badge>
-                    <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500 bg-amber-500/10">
-                      {analisePersistencia.breakdown.recontatos} recontatos
-                    </Badge>
-                  </div>
-                )}
+                {analisePersistencia && (() => {
+                  const isSingleDay = dateRange?.from && dateRange?.to &&
+                    format(dateRange.from, 'yyyy-MM-dd') === format(dateRange.to, 'yyyy-MM-dd');
+                  if (!isSingleDay) return null;
+                  return (
+                    <div className="flex items-center justify-center gap-2 mt-2">
+                      <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-500 bg-emerald-500/10">
+                        {analisePersistencia.breakdown.novos} novos
+                      </Badge>
+                      {analisePersistencia.breakdown.recontatados > 0 && (
+                        <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500 bg-amber-500/10">
+                          {analisePersistencia.breakdown.recontatados} recontatados
+                        </Badge>
+                      )}
+                    </div>
+                  );
+                })()}
               </CardContent>
             </Card>
             <div className="flex flex-col items-center justify-center px-1 text-muted-foreground/40">
               <span className="text-lg">|</span>
             </div>
-            <FunilCard icon={Phone} label="Ligações" value={funil.ligacoes} iconColor="#6366f1" />
+            <FunilCard icon={Phone} label="Ligações" value={funil.ligacoes} iconColor="#6366f1" onClick={() => funilProspectoIds && openDrilldown("Ligações — Leads contatados", funilProspectoIds.leads_contatados)} />
             <FunilArrow rate={funil.tx_atendimento} />
-            <FunilCard icon={PhoneCall} label="Conexões" value={funil.conexoes} iconColor="#22c55e" />
+            <FunilCard icon={PhoneCall} label="Conexões" value={funil.conexoes} iconColor="#22c55e" onClick={() => funilProspectoIds && openDrilldown("Conexões", funilProspectoIds.conexoes)} />
+            <FunilArrow rate={funil.tx_decisor} />
+            <FunilCard icon={UserCheck} label="Decisores" value={funil.decisores} iconColor="#14b8a6" onClick={() => funilProspectoIds && openDrilldown("Decisores contatados", funilProspectoIds.decisores)} />
             <FunilArrow rate={funil.tx_agendamento} />
-            <FunilCard icon={Calendar} label="Calls agendadas" value={funil.calls_agendadas} iconColor="#3b82f6" />
+            <FunilCard icon={Calendar} label="Calls agendadas" value={funil.calls_agendadas} iconColor="#3b82f6" onClick={() => funilProspectoIds && openDrilldown("Calls agendadas", funilProspectoIds.calls_agendadas)} />
             <FunilArrow rate={funil.tx_fechamento} />
-            <FunilCard icon={DollarSign} label="Fechamentos" value={funil.fechamentos} iconColor="#E85D24" />
+            <FunilCard icon={DollarSign} label="Fechamentos" value={funil.fechamentos} iconColor="#E85D24" onClick={() => funilProspectoIds && openDrilldown("Fechamentos", funilProspectoIds.fechamentos)} />
           </div>
         ) : null}
       </div>
@@ -1002,6 +1053,69 @@ export default function OutboundPainel() {
           )}
         </CardContent>
       </Card>
+
+      {/* Drilldown Modal */}
+      <Dialog open={drilldownOpen} onOpenChange={setDrilldownOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {drilldownTitle}
+              <Badge variant="secondary" className="text-xs">{drilldownProspectos.length}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto flex-1 -mx-6 px-6">
+            {drilldownProspectos.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">Nenhum lead encontrado</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lead</TableHead>
+                    <TableHead>Clínica</TableHead>
+                    <TableHead>Especialidade</TableHead>
+                    <TableHead>Telefone</TableHead>
+                    <TableHead className="text-center">Stage</TableHead>
+                    <TableHead className="text-center">Scoring</TableHead>
+                    <TableHead className="text-center">Ligações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {drilldownProspectos.map((p: any) => (
+                    <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetalheProspecto(p); setDetalheOpen(true); }}>
+                      <TableCell className="font-medium">{p.nome}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.clinica || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.especialidade || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{p.telefone}</TableCell>
+                      <TableCell className="text-center">
+                        {p.stage_nome ? (
+                          <Badge variant="outline" className="text-[10px]" style={{ borderColor: p.stage_cor || undefined, color: p.stage_cor || undefined }}>
+                            {p.stage_nome}
+                          </Badge>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {p.lead_scoring ? (
+                          <Badge variant="outline" className={cn("text-[10px]", SCORING_COLORS[p.lead_scoring])}>
+                            {p.lead_scoring}
+                          </Badge>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-center">{p.total_tentativas}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <ProspectoDetalheModal
+        open={detalheOpen}
+        onOpenChange={setDetalheOpen}
+        prospecto={detalheProspecto}
+        onEdit={() => {}}
+      />
     </div>
   );
 }
