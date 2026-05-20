@@ -150,6 +150,7 @@ export default function OutboundPainel() {
   const metricas = data?.metricas;
   const metricasTempo = data?.metricasTempo;
   const analiseHorarios = data?.analiseHorarios;
+  const analisePersistencia = data?.analisePersistencia;
   const evolucao = data?.evolucao || [];
   const distribuicao = data?.distribuicao || [];
   const scriptComparativo = data?.scriptComparativo || [];
@@ -287,7 +288,25 @@ export default function OutboundPainel() {
           </div>
         ) : funil ? (
           <div className="flex items-center gap-0 overflow-x-auto pb-2">
-            <FunilCard icon={Users} label="Leads contatados" value={funil.leads_contatados} iconColor="#8b5cf6" />
+            <Card className="flex-1 min-w-[160px]">
+              <CardContent className="p-4 text-center">
+                <div className="mx-auto w-10 h-10 rounded-xl flex items-center justify-center mb-2" style={{ backgroundColor: '#8b5cf620' }}>
+                  <Users className="h-5 w-5" style={{ color: '#8b5cf6' }} />
+                </div>
+                <p className="text-2xl font-bold">{funil.leads_contatados}</p>
+                <p className="text-xs text-muted-foreground mt-1">Leads contatados</p>
+                {analisePersistencia && (
+                  <div className="flex items-center justify-center gap-2 mt-2">
+                    <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-500 bg-emerald-500/10">
+                      {analisePersistencia.breakdown.novos} novos
+                    </Badge>
+                    <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-500 bg-amber-500/10">
+                      {analisePersistencia.breakdown.recontatos} recontatos
+                    </Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             <div className="flex flex-col items-center justify-center px-1 text-muted-foreground/40">
               <span className="text-lg">|</span>
             </div>
@@ -346,6 +365,146 @@ export default function OutboundPainel() {
           )}
         </CardContent>
       </Card>
+
+      {/* Seção — Persistência e Recontatos */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Persistência de Contato</h2>
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : analisePersistencia ? (
+          <div className="space-y-4">
+            {/* Cards de médias */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MetricCard icon={Clock} label="Dias médios p/ 1ª conexão" value={analisePersistencia.mediaDiasParaConexao > 0 ? `${analisePersistencia.mediaDiasParaConexao}` : '—'} />
+              <MetricCard icon={Phone} label="Tentativas p/ 1ª conexão" value={analisePersistencia.mediaTentativasParaConexao > 0 ? `${analisePersistencia.mediaTentativasParaConexao}` : '—'} />
+              <MetricCard icon={Calendar} label="Dias médios p/ agendamento" value={analisePersistencia.mediaDiasParaAgendamento > 0 ? `${analisePersistencia.mediaDiasParaAgendamento}` : '—'} />
+              <MetricCard icon={Target} label="Tentativas p/ agendamento" value={analisePersistencia.mediaTentativasParaAgendamento > 0 ? `${analisePersistencia.mediaTentativasParaAgendamento}` : '—'} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Tabela: Conversão por faixa de dias */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Conversão por Dias de Contato</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {analisePersistencia.porFaixa.every(f => f.leads === 0) ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Sem dados suficientes</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Dias de contato</TableHead>
+                            <TableHead className="text-xs text-right">Leads</TableHead>
+                            <TableHead className="text-xs text-right">Tentativas</TableHead>
+                            <TableHead className="text-xs text-right">Média/Lead</TableHead>
+                            <TableHead className="text-xs text-right">Conexões</TableHead>
+                            <TableHead className="text-xs text-right">Agend.</TableHead>
+                            <TableHead className="text-xs text-right">Tx Result.+</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {analisePersistencia.porFaixa.filter(f => f.leads > 0).map(f => (
+                            <TableRow key={f.faixa}>
+                              <TableCell className="text-sm font-medium">{f.faixa}</TableCell>
+                              <TableCell className="text-sm text-right">{f.leads}</TableCell>
+                              <TableCell className="text-sm text-right">{f.total_tentativas}</TableCell>
+                              <TableCell className="text-sm text-right">{f.media_tentativas}</TableCell>
+                              <TableCell className="text-sm text-right">{f.conexoes}</TableCell>
+                              <TableCell className="text-sm text-right">{f.agendamentos}</TableCell>
+                              <TableCell className="text-sm text-right font-medium">{f.tx_resultado_positivo}%</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Tabela: Leads mais contatados */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Leads Mais Contatados</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {analisePersistencia.leadsMaisContatados.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-8">Sem dados</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Lead</TableHead>
+                            <TableHead className="text-xs text-right">Dias</TableHead>
+                            <TableHead className="text-xs text-right">Tentativas</TableHead>
+                            <TableHead className="text-xs">Melhor Resultado</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {analisePersistencia.leadsMaisContatados.map((lead, i) => (
+                            <TableRow key={i}>
+                              <TableCell>
+                                <div>
+                                  <p className="text-sm font-medium">{lead.nome}</p>
+                                  {lead.clinica && <p className="text-xs text-muted-foreground">{lead.clinica}</p>}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-sm text-right font-mono">{lead.dias}</TableCell>
+                              <TableCell className="text-sm text-right font-mono">{lead.tentativas}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={`text-[10px] ${
+                                  lead.resultado === 'Agendou call' ? 'border-[#E85D24]/50 text-[#E85D24] bg-[#E85D24]/10' :
+                                  lead.resultado === 'Qualificado' ? 'border-purple-500/50 text-purple-500 bg-purple-500/10' :
+                                  lead.resultado === 'Atendeu' ? 'border-emerald-500/50 text-emerald-500 bg-emerald-500/10' :
+                                  'border-zinc-500/50 text-zinc-400'
+                                }`}>
+                                  {lead.resultado}
+                                </Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Gráfico de barras: Leads por faixa de dias */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Distribuição de Leads por Dias de Contato</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {analisePersistencia.porFaixa.every(f => f.leads === 0) ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Sem dados</p>
+                ) : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={analisePersistencia.porFaixa.filter(f => f.leads > 0)} margin={{ left: 0, right: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="faixa" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }}
+                        labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <Bar dataKey="leads" name="Leads" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="conexoes" name="Conexões" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="agendamentos" name="Agendamentos" fill="#E85D24" radius={[4, 4, 0, 0]} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        ) : null}
+      </div>
 
       {/* Seção 3 — Métricas secundárias */}
       <div>

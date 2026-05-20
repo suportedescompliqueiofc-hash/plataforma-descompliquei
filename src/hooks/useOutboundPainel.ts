@@ -103,6 +103,35 @@ export interface MetricaHorario {
   tx_resultado_positivo: number;
 }
 
+export interface LeadsContatoBreakdown {
+  total: number;
+  novos: number;
+  recontatos: number;
+}
+
+export interface PersistenciaFaixa {
+  faixa: string;
+  dias_unicos: number; // min days in this bucket
+  leads: number;
+  total_tentativas: number;
+  media_tentativas: number;
+  conexoes: number;
+  qualificados: number;
+  agendamentos: number;
+  tx_atendimento: number;
+  tx_resultado_positivo: number;
+}
+
+export interface AnalisePersistencia {
+  breakdown: LeadsContatoBreakdown;
+  porFaixa: PersistenciaFaixa[];
+  mediaDiasParaConexao: number;
+  mediaTentativasParaConexao: number;
+  mediaDiasParaAgendamento: number;
+  mediaTentativasParaAgendamento: number;
+  leadsMaisContatados: { nome: string; clinica: string | null; dias: number; tentativas: number; resultado: string }[];
+}
+
 export interface AnaliseHorarios {
   porHora: MetricaHorario[];
   melhorHoraConexao: string | null;
@@ -161,19 +190,30 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         .eq('organization_id', orgId)
         .in('status', ['aprovado', 'em_teste']);
 
-      const [ligRes, prospRes, scriptRes] = await Promise.all([
+      // Todas as ligações (all-time) para análise de persistência e novos vs recontatos
+      let allTimeLigQuery = (supabase as any)
+        .from('outbound_ligacoes')
+        .select('id, data_hora, status, resultado, prospecto_id')
+        .eq('organization_id', orgId)
+        .order('data_hora', { ascending: true });
+      if (sdrId) allTimeLigQuery = allTimeLigQuery.eq('usuario_id', sdrId);
+
+      const [ligRes, prospRes, scriptRes, allTimeLigRes] = await Promise.all([
         ligacoesQuery,
         prospectosQuery,
         scriptsQuery,
+        allTimeLigQuery,
       ]);
 
       if (ligRes.error) throw ligRes.error;
       if (prospRes.error) throw prospRes.error;
       if (scriptRes.error) throw scriptRes.error;
+      if (allTimeLigRes.error) throw allTimeLigRes.error;
 
       const ligacoes: any[] = ligRes.data || [];
       const prospectos: any[] = prospRes.data || [];
       const scripts: any[] = scriptRes.data || [];
+      const allTimeLigacoes: any[] = allTimeLigRes.data || [];
 
       // --- FUNIL ---
       const totalLigacoes = ligacoes.length;
@@ -482,7 +522,148 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         horasMaisEficientes,
       };
 
-      return { funil, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios };
+      // --- ANÁLISE DE PERSISTÊNCIA (NOVOS vs RECONTATOS) ---
+      // Primeiro contato de cada prospecto (all-time)
+      const primeiroContatoMap = new Map<string, string>(); // prospecto_id → first data_hora
+      allTimeLigacoes.forEach((l: any) => {
+        if (!primeiroContatoMap.has(l.prospecto_id)) {
+          primeiroContatoMap.set(l.prospecto_id, l.data_hora); // already sorted asc
+        }
+      });
+
+      // Prospectos contatados no período
+      const prospectosNoPeriodoIds = new Set(ligacoes.map((l: any) => l.prospecto_id).filter(Boolean));
+      let novos = 0;
+      let recontatos = 0;
+      prospectosNoPeriodoIds.forEach(pid => {
+        const primeiro = primeiroContatoMap.get(pid);
+        if (primeiro && new Date(primeiro) >= inicio) {
+          novos++;
+        } else {
+          recontatos++;
+        }
+      });
+
+      const breakdown: LeadsContatoBreakdown = {
+        total: prospectosNoPeriodoIds.size,
+        novos,
+        recontatos,
+      };
+
+      // Persistência: agrupar ALL-TIME ligações por prospecto
+      const leadPersistMap = new Map<string, { ligs: any[]; diasSet: Set<string> }>();
+      allTimeLigacoes.forEach((l: any) => {
+        if (!l.prospecto_id) return;
+        if (!leadPersistMap.has(l.prospecto_id)) {
+          leadPersistMap.set(l.prospecto_id, { ligs: [], diasSet: new Set() });
+        }
+        const entry = leadPersistMap.get(l.prospecto_id)!;
+        entry.ligs.push(l);
+        entry.diasSet.add(l.data_hora.slice(0, 10));
+      });
+
+      // Faixas de dias de contato
+      const faixasDias = [
+        { faixa: '1 dia', min: 1, max: 1 },
+        { faixa: '2 dias', min: 2, max: 2 },
+        { faixa: '3 dias', min: 3, max: 3 },
+        { faixa: '4–5 dias', min: 4, max: 5 },
+        { faixa: '6–10 dias', min: 6, max: 10 },
+        { faixa: '10+ dias', min: 11, max: Infinity },
+      ];
+
+      const porFaixa: PersistenciaFaixa[] = faixasDias.map(f => {
+        const leadsNaFaixa: { ligs: any[]; diasSet: Set<string> }[] = [];
+        leadPersistMap.forEach((data) => {
+          const dias = data.diasSet.size;
+          if (dias >= f.min && dias <= f.max) leadsNaFaixa.push(data);
+        });
+
+        const totalLeads = leadsNaFaixa.length;
+        const totalTentativas = leadsNaFaixa.reduce((s, d) => s + d.ligs.length, 0);
+        const totalConexoes = leadsNaFaixa.reduce((s, d) => s + d.ligs.filter((l: any) => l.status === 'atendeu').length, 0);
+        const totalQual = leadsNaFaixa.reduce((s, d) => s + d.ligs.filter((l: any) => (l.resultado || '').includes('qualificado')).length, 0);
+        const totalAgend = leadsNaFaixa.reduce((s, d) => s + d.ligs.filter((l: any) => (l.resultado || '').includes('agendou_call')).length, 0);
+
+        return {
+          faixa: f.faixa,
+          dias_unicos: f.min,
+          leads: totalLeads,
+          total_tentativas: totalTentativas,
+          media_tentativas: totalLeads > 0 ? Math.round((totalTentativas / totalLeads) * 10) / 10 : 0,
+          conexoes: totalConexoes,
+          qualificados: totalQual,
+          agendamentos: totalAgend,
+          tx_atendimento: totalTentativas > 0 ? Math.round((totalConexoes / totalTentativas) * 1000) / 10 : 0,
+          tx_resultado_positivo: totalConexoes > 0 ? Math.round(((totalQual + totalAgend) / totalConexoes) * 1000) / 10 : 0,
+        };
+      });
+
+      // Médias de dias/tentativas para atingir resultados
+      let somasDiasConexao = 0, countConexao = 0;
+      let somasTentConexao = 0;
+      let somasDiasAgend = 0, countAgend = 0;
+      let somasTentAgend = 0;
+
+      leadPersistMap.forEach((data) => {
+        const ligs = data.ligs;
+        // Primeira conexão
+        const primeiraConexao = ligs.find((l: any) => l.status === 'atendeu');
+        if (primeiraConexao) {
+          const idx = ligs.indexOf(primeiraConexao);
+          const diasAte = new Set(ligs.slice(0, idx + 1).map((l: any) => l.data_hora.slice(0, 10))).size;
+          somasDiasConexao += diasAte;
+          somasTentConexao += idx + 1;
+          countConexao++;
+        }
+        // Primeiro agendamento
+        const primeiroAgend = ligs.find((l: any) => (l.resultado || '').includes('agendou_call'));
+        if (primeiroAgend) {
+          const idx = ligs.indexOf(primeiroAgend);
+          const diasAte = new Set(ligs.slice(0, idx + 1).map((l: any) => l.data_hora.slice(0, 10))).size;
+          somasDiasAgend += diasAte;
+          somasTentAgend += idx + 1;
+          countAgend++;
+        }
+      });
+
+      // Top leads mais contatados (no período)
+      const prospectosNomeMap = new Map<string, { nome: string; clinica: string | null }>();
+      prospectos.forEach((p: any) => prospectosNomeMap.set(p.id, { nome: p.nome, clinica: p.clinica }));
+
+      const leadsMaisContatados = Array.from(leadPersistMap.entries())
+        .filter(([pid]) => prospectosNoPeriodoIds.has(pid))
+        .map(([pid, data]) => {
+          const info = prospectosNomeMap.get(pid);
+          const temConexao = data.ligs.some((l: any) => l.status === 'atendeu');
+          const temAgend = data.ligs.some((l: any) => (l.resultado || '').includes('agendou_call'));
+          const temQual = data.ligs.some((l: any) => (l.resultado || '').includes('qualificado'));
+          let resultado = 'Sem resultado';
+          if (temAgend) resultado = 'Agendou call';
+          else if (temQual) resultado = 'Qualificado';
+          else if (temConexao) resultado = 'Atendeu';
+          return {
+            nome: info?.nome || 'Desconhecido',
+            clinica: info?.clinica || null,
+            dias: data.diasSet.size,
+            tentativas: data.ligs.length,
+            resultado,
+          };
+        })
+        .sort((a, b) => b.tentativas - a.tentativas)
+        .slice(0, 10);
+
+      const analisePersistencia: AnalisePersistencia = {
+        breakdown,
+        porFaixa,
+        mediaDiasParaConexao: countConexao > 0 ? Math.round((somasDiasConexao / countConexao) * 10) / 10 : 0,
+        mediaTentativasParaConexao: countConexao > 0 ? Math.round((somasTentConexao / countConexao) * 10) / 10 : 0,
+        mediaDiasParaAgendamento: countAgend > 0 ? Math.round((somasDiasAgend / countAgend) * 10) / 10 : 0,
+        mediaTentativasParaAgendamento: countAgend > 0 ? Math.round((somasTentAgend / countAgend) * 10) / 10 : 0,
+        leadsMaisContatados,
+      };
+
+      return { funil, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios, analisePersistencia };
     },
     enabled: !!orgId,
     staleTime: 60_000,
