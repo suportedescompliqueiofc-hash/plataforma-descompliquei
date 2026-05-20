@@ -88,6 +88,30 @@ export interface FilaAcao {
   stage_cor: string | null;
 }
 
+export interface MetricaHorario {
+  hora: number;
+  horaLabel: string;
+  ligacoes: number;
+  conexoes: number;
+  tx_atendimento: number;
+  qualificados: number;
+  agendamentos: number;
+  tx_qualificacao: number;
+  tx_agendamento: number;
+  duracao_media_seg: number;
+  resultados_positivos: number; // qualificado + agendou_call
+  tx_resultado_positivo: number;
+}
+
+export interface AnaliseHorarios {
+  porHora: MetricaHorario[];
+  melhorHoraConexao: string | null;
+  melhorHoraAgendamento: string | null;
+  melhorHoraQualificacao: string | null;
+  picoLigacoes: string | null;
+  horasMaisEficientes: string[]; // top 3 by tx_resultado_positivo
+}
+
 function getDateRange(periodo: PeriodoFiltro): { inicio: Date; fim: Date } {
   const now = new Date();
   switch (periodo.tipo) {
@@ -387,7 +411,78 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         distribuicao_faixas: distribuicaoFaixas,
       };
 
-      return { funil, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila };
+      // --- ANÁLISE POR HORÁRIO ---
+      const horaMap = new Map<number, { ligacoes: any[] }>();
+      for (let h = 0; h < 24; h++) horaMap.set(h, { ligacoes: [] });
+
+      ligacoes.forEach((l: any) => {
+        const hora = new Date(l.data_hora).getHours();
+        horaMap.get(hora)!.ligacoes.push(l);
+      });
+
+      const porHora: MetricaHorario[] = Array.from(horaMap.entries())
+        .map(([hora, data]) => {
+          const ligs = data.ligacoes;
+          const total = ligs.length;
+          const con = ligs.filter((l: any) => l.status === 'atendeu').length;
+          const qual = ligs.filter((l: any) => (l.resultado || '').includes('qualificado')).length;
+          const agend = ligs.filter((l: any) => (l.resultado || '').includes('agendou_call')).length;
+          const positivos = ligs.filter((l: any) => {
+            const r = l.resultado || '';
+            return r.includes('qualificado') || r.includes('agendou_call');
+          }).length;
+          const ligsComDur = ligs.filter((l: any) => l.duracao_segundos != null && l.duracao_segundos > 0);
+          const durMedia = ligsComDur.length > 0
+            ? Math.round(ligsComDur.reduce((s: number, l: any) => s + l.duracao_segundos, 0) / ligsComDur.length)
+            : 0;
+
+          return {
+            hora,
+            horaLabel: `${hora.toString().padStart(2, '0')}:00`,
+            ligacoes: total,
+            conexoes: con,
+            tx_atendimento: total > 0 ? Math.round((con / total) * 1000) / 10 : 0,
+            qualificados: qual,
+            agendamentos: agend,
+            tx_qualificacao: con > 0 ? Math.round((qual / con) * 1000) / 10 : 0,
+            tx_agendamento: con > 0 ? Math.round((agend / con) * 1000) / 10 : 0,
+            duracao_media_seg: durMedia,
+            resultados_positivos: positivos,
+            tx_resultado_positivo: con > 0 ? Math.round((positivos / con) * 1000) / 10 : 0,
+          };
+        })
+        .filter(h => h.ligacoes > 0)
+        .sort((a, b) => a.hora - b.hora);
+
+      // Determinar melhores horários (mínimo 3 ligações para relevância)
+      const horasRelevantes = porHora.filter(h => h.ligacoes >= 3);
+      const melhorConexao = horasRelevantes.length > 0
+        ? horasRelevantes.reduce((best, h) => h.tx_atendimento > best.tx_atendimento ? h : best)
+        : null;
+      const melhorAgend = horasRelevantes.length > 0
+        ? horasRelevantes.reduce((best, h) => h.tx_agendamento > best.tx_agendamento ? h : best)
+        : null;
+      const melhorQual = horasRelevantes.length > 0
+        ? horasRelevantes.reduce((best, h) => h.tx_qualificacao > best.tx_qualificacao ? h : best)
+        : null;
+      const picoLig = porHora.length > 0
+        ? porHora.reduce((best, h) => h.ligacoes > best.ligacoes ? h : best)
+        : null;
+      const horasMaisEficientes = [...horasRelevantes]
+        .sort((a, b) => b.tx_resultado_positivo - a.tx_resultado_positivo)
+        .slice(0, 3)
+        .map(h => h.horaLabel);
+
+      const analiseHorarios: AnaliseHorarios = {
+        porHora,
+        melhorHoraConexao: melhorConexao && melhorConexao.tx_atendimento > 0 ? melhorConexao.horaLabel : null,
+        melhorHoraAgendamento: melhorAgend && melhorAgend.tx_agendamento > 0 ? melhorAgend.horaLabel : null,
+        melhorHoraQualificacao: melhorQual && melhorQual.tx_qualificacao > 0 ? melhorQual.horaLabel : null,
+        picoLigacoes: picoLig ? picoLig.horaLabel : null,
+        horasMaisEficientes,
+      };
+
+      return { funil, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios };
     },
     enabled: !!orgId,
     staleTime: 60_000,

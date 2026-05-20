@@ -149,6 +149,7 @@ export default function OutboundPainel() {
   const sdrPerformance = data?.sdrPerformance || [];
   const metricas = data?.metricas;
   const metricasTempo = data?.metricasTempo;
+  const analiseHorarios = data?.analiseHorarios;
   const evolucao = data?.evolucao || [];
   const distribuicao = data?.distribuicao || [];
   const scriptComparativo = data?.scriptComparativo || [];
@@ -469,6 +470,181 @@ export default function OutboundPainel() {
             </div>
           </div>
         ) : null}
+      </div>
+
+      {/* Seção — Análise por Horário */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Análise por Horário de Ligação</h2>
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : analiseHorarios && analiseHorarios.porHora.length > 0 ? (
+          <div className="space-y-4">
+            {/* Destaques */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="mx-auto w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center mb-2">
+                    <Phone className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <p className="text-xl font-bold">{analiseHorarios.picoLigacoes || '—'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Pico de ligações</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="mx-auto w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center mb-2">
+                    <PhoneCall className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <p className="text-xl font-bold">{analiseHorarios.melhorHoraConexao || '—'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Melhor hora p/ conexão</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="mx-auto w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center mb-2">
+                    <Target className="h-5 w-5 text-purple-500" />
+                  </div>
+                  <p className="text-xl font-bold">{analiseHorarios.melhorHoraQualificacao || '—'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Melhor hora p/ qualificação</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-4 text-center">
+                  <div className="mx-auto w-10 h-10 rounded-xl bg-[#E85D24]/10 flex items-center justify-center mb-2">
+                    <Calendar className="h-5 w-5 text-[#E85D24]" />
+                  </div>
+                  <p className="text-xl font-bold">{analiseHorarios.melhorHoraAgendamento || '—'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Melhor hora p/ agendamento</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Horários mais eficientes */}
+            {analiseHorarios.horasMaisEficientes.length > 0 && (
+              <div className="flex items-center gap-2 p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
+                <TrendingUp className="h-5 w-5 text-emerald-500 shrink-0" />
+                <p className="text-sm">
+                  <span className="font-medium text-emerald-500">Horários mais eficientes:</span>{' '}
+                  <span className="text-muted-foreground">
+                    {analiseHorarios.horasMaisEficientes.join(', ')} — maior taxa de resultados positivos (qualificações + agendamentos)
+                  </span>
+                </p>
+              </div>
+            )}
+
+            {/* Gráfico de barras + Tabela detalhada */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Gráfico: Ligações e Conexões por hora */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Volume por Horário</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={analiseHorarios.porHora} margin={{ left: 0, right: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="horaLabel" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }}
+                        labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                      />
+                      <Bar dataKey="ligacoes" name="Ligações" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="conexoes" name="Conexões" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="agendamentos" name="Agendamentos" fill="#E85D24" radius={[4, 4, 0, 0]} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Gráfico: Taxas por hora */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Taxas de Conversão por Horário</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={analiseHorarios.porHora} margin={{ left: 0, right: 10 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="horaLabel" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" unit="%" />
+                      <RechartsTooltip
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }}
+                        labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                        formatter={(value: number) => [`${value}%`]}
+                      />
+                      <Line type="monotone" dataKey="tx_atendimento" name="Tx Atendimento" stroke="#22c55e" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="tx_qualificacao" name="Tx Qualificação" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="tx_agendamento" name="Tx Agendamento" stroke="#E85D24" strokeWidth={2} dot={{ r: 3 }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Tabela detalhada por horário */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Detalhamento por Horário</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Horário</TableHead>
+                        <TableHead className="text-xs text-right">Ligações</TableHead>
+                        <TableHead className="text-xs text-right">Conexões</TableHead>
+                        <TableHead className="text-xs text-right">Tx Atend.</TableHead>
+                        <TableHead className="text-xs text-right">Qualif.</TableHead>
+                        <TableHead className="text-xs text-right">Tx Qualif.</TableHead>
+                        <TableHead className="text-xs text-right">Agend.</TableHead>
+                        <TableHead className="text-xs text-right">Tx Agend.</TableHead>
+                        <TableHead className="text-xs text-right">Duração Média</TableHead>
+                        <TableHead className="text-xs text-right">Resultado+</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {analiseHorarios.porHora.map(h => {
+                        const isTop = analiseHorarios.horasMaisEficientes.includes(h.horaLabel);
+                        return (
+                          <TableRow key={h.hora} className={isTop ? 'bg-emerald-500/5 border-l-2 border-l-emerald-500' : ''}>
+                            <TableCell className="text-sm font-medium">
+                              {h.horaLabel}
+                              {isTop && <Badge variant="outline" className="ml-2 text-[10px] border-emerald-500/50 text-emerald-500">Top</Badge>}
+                            </TableCell>
+                            <TableCell className="text-sm text-right">{h.ligacoes}</TableCell>
+                            <TableCell className="text-sm text-right">{h.conexoes}</TableCell>
+                            <TableCell className="text-sm text-right">{h.tx_atendimento}%</TableCell>
+                            <TableCell className="text-sm text-right">{h.qualificados}</TableCell>
+                            <TableCell className="text-sm text-right">{h.tx_qualificacao}%</TableCell>
+                            <TableCell className="text-sm text-right">{h.agendamentos}</TableCell>
+                            <TableCell className="text-sm text-right font-medium">{h.tx_agendamento}%</TableCell>
+                            <TableCell className="text-sm text-right font-mono">{fmtTempo(h.duracao_media_seg)}</TableCell>
+                            <TableCell className="text-sm text-right">
+                              <span className="font-medium">{h.resultados_positivos}</span>
+                              <span className="text-muted-foreground text-xs ml-1">({h.tx_resultado_positivo}%)</span>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-6 text-center text-sm text-muted-foreground">
+              Sem dados de ligação no período selecionado
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Seção 4 + 5 — Gráficos lado a lado */}
