@@ -228,6 +228,8 @@ export function LigacaoRegistroModal() {
       novo_scoring: novoScoring || undefined,
     } as any);
 
+    toast.success('Ligação registrada com sucesso!');
+
     if (isAgendouCall) {
       const prosp = prospectos.find(p => p.id === prospectoId);
       if (prosp) {
@@ -245,7 +247,24 @@ export function LigacaoRegistroModal() {
       }
     }
 
-    closeModal();
+    // Reset form for next registration, but keep modal open with same prospecto
+    setStatus("");
+    setResultados([]);
+    setCustomResultado("");
+    setScriptId("");
+    setDuracaoMin("");
+    setDuracaoSeg("");
+    setAnotacao("");
+    setProximaAcao("");
+    setProximaAcaoData("");
+    setContatoSecretaria(false);
+    setContatoDecisor(false);
+    setNomeSecretaria("");
+    setNomeDecisor("");
+    setAlterarStage(false);
+    setNovoStageId("");
+    setAlterarScoring(false);
+    setNovoScoring("");
   };
 
   return (
