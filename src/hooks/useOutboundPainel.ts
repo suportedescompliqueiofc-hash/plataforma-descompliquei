@@ -694,7 +694,20 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         leadsMaisContatados,
       };
 
-      return { funil, funilProspectoIds, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios, analisePersistencia };
+      // --- ÚLTIMA LIGAÇÃO POR PROSPECTO (para drilldown) ---
+      const lastLigacaoMap = new Map<string, { sdr_nome: string; horario: string }>();
+      ligacoes.forEach((l: any) => {
+        if (!l.prospecto_id) return;
+        const existing = lastLigacaoMap.get(l.prospecto_id);
+        if (!existing || l.data_hora > existing.horario) {
+          lastLigacaoMap.set(l.prospecto_id, {
+            sdr_nome: perfisMap.get(l.usuario_id) || 'Sem nome',
+            horario: l.data_hora,
+          });
+        }
+      });
+
+      return { funil, funilProspectoIds, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios, analisePersistencia, lastLigacaoMap };
     },
     enabled: !!orgId,
     staleTime: 60_000,

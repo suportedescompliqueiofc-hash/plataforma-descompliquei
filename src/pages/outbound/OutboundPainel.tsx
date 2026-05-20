@@ -160,6 +160,7 @@ export default function OutboundPainel() {
   const distribuicao = data?.distribuicao || [];
   const scriptComparativo = data?.scriptComparativo || [];
   const fila = data?.fila || [];
+  const lastLigacaoMap = data?.lastLigacaoMap as Map<string, { sdr_nome: string; horario: string }> | undefined;
 
   // Drill-down dos cards do funil
   const { prospectos: allProspectos } = useOutboundProspectos();
@@ -173,8 +174,13 @@ export default function OutboundPainel() {
     if (!drilldownIds.length) return [];
     return drilldownIds
       .map(id => allProspectos.find(p => p.id === id))
-      .filter(Boolean) as any[];
-  }, [drilldownIds, allProspectos]);
+      .filter(Boolean)
+      .sort((a: any, b: any) => {
+        const timeA = lastLigacaoMap?.get(a.id)?.horario || '';
+        const timeB = lastLigacaoMap?.get(b.id)?.horario || '';
+        return timeB.localeCompare(timeA);
+      }) as any[];
+  }, [drilldownIds, allProspectos, lastLigacaoMap]);
 
   const openDrilldown = (title: string, ids: string[]) => {
     setDrilldownTitle(title);
@@ -1074,35 +1080,28 @@ export default function OutboundPainel() {
                     <TableHead>Clínica</TableHead>
                     <TableHead>Especialidade</TableHead>
                     <TableHead>Telefone</TableHead>
-                    <TableHead className="text-center">Stage</TableHead>
-                    <TableHead className="text-center">Scoring</TableHead>
+                    <TableHead>SDR</TableHead>
+                    <TableHead>Última ligação</TableHead>
                     <TableHead className="text-center">Ligações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {drilldownProspectos.map((p: any) => (
+                  {drilldownProspectos.map((p: any) => {
+                    const lastLig = lastLigacaoMap?.get(p.id);
+                    return (
                     <TableRow key={p.id} className="cursor-pointer hover:bg-muted/50" onClick={() => { setDetalheProspecto(p); setDetalheOpen(true); }}>
                       <TableCell className="font-medium">{p.nome}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{p.clinica || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{p.especialidade || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{p.telefone}</TableCell>
-                      <TableCell className="text-center">
-                        {p.stage_nome ? (
-                          <Badge variant="outline" className="text-[10px]" style={{ borderColor: p.stage_cor || undefined, color: p.stage_cor || undefined }}>
-                            {p.stage_nome}
-                          </Badge>
-                        ) : "—"}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {p.lead_scoring ? (
-                          <Badge variant="outline" className={cn("text-[10px]", SCORING_COLORS[p.lead_scoring])}>
-                            {p.lead_scoring}
-                          </Badge>
-                        ) : "—"}
+                      <TableCell className="text-sm text-muted-foreground">{lastLig?.sdr_nome || "—"}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {lastLig?.horario ? format(new Date(lastLig.horario), "dd/MM HH:mm") : "—"}
                       </TableCell>
                       <TableCell className="text-center">{p.total_tentativas}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
