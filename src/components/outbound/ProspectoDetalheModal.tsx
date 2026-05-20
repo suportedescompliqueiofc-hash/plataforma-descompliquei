@@ -235,9 +235,10 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
         </DialogHeader>
 
         <Tabs value={tab} onValueChange={setTab} className="mt-4">
-          <TabsList className="w-full grid grid-cols-5">
+          <TabsList className="w-full grid grid-cols-6">
             <TabsTrigger value="resumo">Resumo</TabsTrigger>
             <TabsTrigger value="ligacoes">Ligações</TabsTrigger>
+            <TabsTrigger value="anotacoes">Anotações</TabsTrigger>
             <TabsTrigger value="historico">Histórico</TabsTrigger>
             <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
             <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
@@ -285,7 +286,6 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
                     <TableHead>#</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Resultado</TableHead>
-                    <TableHead>Anotação</TableHead>
                     <TableHead>SDR</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -296,13 +296,49 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
                       <TableCell className="font-mono text-xs">{l.numero_tentativa}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{STATUS_LABELS[l.status] || l.status}</Badge></TableCell>
                       <TableCell className="text-xs">{l.resultado ? RESULTADO_LABELS[l.resultado] || l.resultado : "—"}</TableCell>
-                      <TableCell className="text-xs max-w-[200px] truncate">{l.anotacao || "—"}</TableCell>
                       <TableCell className="text-xs">{l.perfil_nome || "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             )}
+          </TabsContent>
+
+          {/* ANOTAÇÕES */}
+          <TabsContent value="anotacoes" className="mt-4">
+            {ligacoesLoading ? (
+              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}</div>
+            ) : (() => {
+              const ligacoesComAnotacao = ligacoes.filter(l => l.anotacao && l.anotacao.trim());
+              return ligacoesComAnotacao.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">Nenhuma anotação registrada nas ligações</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {ligacoesComAnotacao.map(l => (
+                    <div key={l.id} className="rounded-lg border bg-card p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span className="text-xs font-medium">
+                            Ligação #{l.numero_tentativa} — {STATUS_LABELS[l.status] || l.status}
+                            {l.resultado ? ` → ${RESULTADO_LABELS[l.resultado] || l.resultado}` : ""}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{l.perfil_nome || "—"}</span>
+                          <span>•</span>
+                          <span>{format(new Date(l.data_hora), "dd/MM/yyyy HH:mm")}</span>
+                        </div>
+                      </div>
+                      <p className="text-sm whitespace-pre-line bg-muted/40 rounded-md p-3 leading-relaxed">{l.anotacao}</p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
           </TabsContent>
 
           {/* HISTÓRICO */}

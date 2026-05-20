@@ -13,10 +13,11 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 interface DateRangePickerProps extends React.HTMLAttributes<HTMLDivElement> {
   date: DateRange | undefined;
   setDate: (date: DateRange | undefined) => void;
-  hideQuickSelect?: boolean; // Nova prop
+  hideQuickSelect?: boolean;
+  placeholder?: string;
 }
 
-export function DateRangePicker({ className, date, setDate, hideQuickSelect = false }: DateRangePickerProps) {
+export function DateRangePicker({ className, date, setDate, hideQuickSelect = false, placeholder }: DateRangePickerProps) {
   const [activePeriod, setActivePeriod] = React.useState<'day' | 'week' | 'month' | 'year' | 'custom'>('month');
 
   React.useEffect(() => {
@@ -138,7 +139,7 @@ export function DateRangePicker({ className, date, setDate, hideQuickSelect = fa
                 format(date.from, "LLL dd, y", { locale: ptBR })
               )
             ) : (
-              <span>Período Personalizado</span>
+              <span>{placeholder || "Período Personalizado"}</span>
             )}
           </Button>
         </PopoverTrigger>

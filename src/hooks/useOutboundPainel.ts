@@ -11,12 +11,11 @@ export interface PeriodoFiltro {
 
 export interface FunilData {
   ligacoes: number;
+  leads_contatados: number;
   conexoes: number;
-  qualificados: number;
   calls_agendadas: number;
   fechamentos: number;
   tx_atendimento: number;
-  tx_qualificacao: number;
   tx_agendamento: number;
   tx_fechamento: number;
 }
@@ -24,10 +23,10 @@ export interface FunilData {
 export interface SdrPerformance {
   usuario_id: string;
   nome: string;
+  leads_contatados: number;
   ligacoes: number;
   conexoes: number;
   tx_atendimento: number;
-  qualificados: number;
   calls_agendadas: number;
   fechamentos: number;
 }
@@ -37,6 +36,21 @@ export interface MetricasSecundarias {
   media_tentativas_qualificar: number;
   ligacoes_por_dia: number;
   show_rate: number;
+}
+
+export interface MetricasTempo {
+  tempo_total_seg: number;
+  tempo_total_conexoes_seg: number;
+  media_duracao_geral_seg: number;
+  media_duracao_conexoes_seg: number;
+  mediana_duracao_conexoes_seg: number;
+  maior_ligacao_seg: number;
+  menor_conexao_seg: number;
+  ligacoes_curtas: number; // < 30s
+  ligacoes_medias: number; // 30s–120s
+  ligacoes_longas: number; // > 120s
+  tempo_por_sdr: { nome: string; total_seg: number; media_seg: number; ligacoes: number }[];
+  distribuicao_faixas: { faixa: string; count: number }[];
 }
 
 export interface EvolucaoDiaria {
@@ -139,8 +153,10 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
 
       // --- FUNIL ---
       const totalLigacoes = ligacoes.length;
+      const leadsContatados = new Set(
+        ligacoes.map(l => l.prospecto_id).filter(Boolean)
+      ).size;
       const conexoes = ligacoes.filter(l => l.status === 'atendeu').length;
-      const qualificadosLig = ligacoes.filter(l => l.resultado === 'qualificado').length;
       const callsAgendadas = ligacoes.filter(l => l.resultado === 'agendou_call').length;
 
       const ganhoStageIds = new Set(
@@ -156,17 +172,32 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
 
       const funil: FunilData = {
         ligacoes: totalLigacoes,
+        leads_contatados: leadsContatados,
         conexoes,
-        qualificados: qualificadosLig,
         calls_agendadas: callsAgendadas,
         fechamentos,
         tx_atendimento: totalLigacoes > 0 ? Math.round((conexoes / totalLigacoes) * 1000) / 10 : 0,
-        tx_qualificacao: conexoes > 0 ? Math.round((qualificadosLig / conexoes) * 1000) / 10 : 0,
         tx_agendamento: conexoes > 0 ? Math.round((callsAgendadas / conexoes) * 1000) / 10 : 0,
         tx_fechamento: callsAgendadas > 0 ? Math.round((fechamentos / callsAgendadas) * 1000) / 10 : 0,
       };
 
       // --- SDR PERFORMANCE ---
+      // Atribuir cada lead ao SDR que fez a última ligação (sem duplicar entre SDRs)
+      const leadOwnerMap = new Map<string, { sdrId: string; dataHora: string }>();
+      ligacoes.forEach(l => {
+        if (!l.usuario_id || !l.prospecto_id) return;
+        const current = leadOwnerMap.get(l.prospecto_id);
+        if (!current || l.data_hora > current.dataHora) {
+          leadOwnerMap.set(l.prospecto_id, { sdrId: l.usuario_id, dataHora: l.data_hora });
+        }
+      });
+
+      const sdrLeadsMap = new Map<string, Set<string>>();
+      leadOwnerMap.forEach(({ sdrId }, prospectoId) => {
+        if (!sdrLeadsMap.has(sdrId)) sdrLeadsMap.set(sdrId, new Set());
+        sdrLeadsMap.get(sdrId)!.add(prospectoId);
+      });
+
       const sdrMap = new Map<string, { ligacoes: any[] }>();
       ligacoes.forEach(l => {
         if (!l.usuario_id) return;
@@ -187,10 +218,10 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
           return {
             usuario_id: uid,
             nome: perfisMap.get(uid) || 'Sem nome',
+            leads_contatados: sdrLeadsMap.get(uid)?.size || 0,
             ligacoes: ligs.length,
             conexoes: con,
             tx_atendimento: ligs.length > 0 ? Math.round((con / ligs.length) * 1000) / 10 : 0,
-            qualificados: ligs.filter(l => l.resultado === 'qualificado').length,
             calls_agendadas: ligs.filter(l => l.resultado === 'agendou_call').length,
             fechamentos: 0,
           };
@@ -281,7 +312,82 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
           stage_cor: p.outbound_stages?.cor || null,
         }));
 
-      return { funil, sdrPerformance, metricas, evolucao, distribuicao, scriptComparativo, fila };
+      // --- MÉTRICAS DE TEMPO ---
+      const ligsComDuracao = ligacoes.filter(l => l.duracao_segundos != null && l.duracao_segundos > 0);
+      const conexoesComDuracao = ligacoes.filter(l => l.status === 'atendeu' && l.duracao_segundos != null && l.duracao_segundos > 0);
+
+      const tempoTotalSeg = ligsComDuracao.reduce((s: number, l: any) => s + l.duracao_segundos, 0);
+      const tempoTotalConexoesSeg = conexoesComDuracao.reduce((s: number, l: any) => s + l.duracao_segundos, 0);
+
+      const mediaDuracaoGeral = ligsComDuracao.length > 0 ? Math.round(tempoTotalSeg / ligsComDuracao.length) : 0;
+      const mediaDuracaoConexoes = conexoesComDuracao.length > 0 ? Math.round(tempoTotalConexoesSeg / conexoesComDuracao.length) : 0;
+
+      // Mediana das conexões
+      const duracaoConexoesSorted = conexoesComDuracao.map((l: any) => l.duracao_segundos).sort((a: number, b: number) => a - b);
+      let medianaConexoes = 0;
+      if (duracaoConexoesSorted.length > 0) {
+        const mid = Math.floor(duracaoConexoesSorted.length / 2);
+        medianaConexoes = duracaoConexoesSorted.length % 2 !== 0
+          ? duracaoConexoesSorted[mid]
+          : Math.round((duracaoConexoesSorted[mid - 1] + duracaoConexoesSorted[mid]) / 2);
+      }
+
+      const maiorLigacao = ligsComDuracao.length > 0 ? Math.max(...ligsComDuracao.map((l: any) => l.duracao_segundos)) : 0;
+      const menorConexao = conexoesComDuracao.length > 0 ? Math.min(...conexoesComDuracao.map((l: any) => l.duracao_segundos)) : 0;
+
+      const ligacoesCurtas = ligsComDuracao.filter((l: any) => l.duracao_segundos < 30).length;
+      const ligacoesMedias = ligsComDuracao.filter((l: any) => l.duracao_segundos >= 30 && l.duracao_segundos <= 120).length;
+      const ligacoesLongas = ligsComDuracao.filter((l: any) => l.duracao_segundos > 120).length;
+
+      // Faixas detalhadas de distribuição
+      const faixas = [
+        { faixa: '0–15s', min: 0, max: 15 },
+        { faixa: '16–30s', min: 16, max: 30 },
+        { faixa: '31–60s', min: 31, max: 60 },
+        { faixa: '1–2min', min: 61, max: 120 },
+        { faixa: '2–5min', min: 121, max: 300 },
+        { faixa: '5–10min', min: 301, max: 600 },
+        { faixa: '10min+', min: 601, max: Infinity },
+      ];
+      const distribuicaoFaixas = faixas.map(f => ({
+        faixa: f.faixa,
+        count: ligsComDuracao.filter((l: any) => l.duracao_segundos >= f.min && l.duracao_segundos <= f.max).length,
+      }));
+
+      // Tempo por SDR
+      const sdrTempoMap = new Map<string, { total: number; count: number }>();
+      ligsComDuracao.forEach((l: any) => {
+        if (!l.usuario_id) return;
+        const cur = sdrTempoMap.get(l.usuario_id) || { total: 0, count: 0 };
+        cur.total += l.duracao_segundos;
+        cur.count += 1;
+        sdrTempoMap.set(l.usuario_id, cur);
+      });
+      const tempoPorSdr = Array.from(sdrTempoMap.entries())
+        .map(([uid, d]) => ({
+          nome: perfisMap.get(uid) || 'Sem nome',
+          total_seg: d.total,
+          media_seg: Math.round(d.total / d.count),
+          ligacoes: d.count,
+        }))
+        .sort((a, b) => b.total_seg - a.total_seg);
+
+      const metricasTempo: MetricasTempo = {
+        tempo_total_seg: tempoTotalSeg,
+        tempo_total_conexoes_seg: tempoTotalConexoesSeg,
+        media_duracao_geral_seg: mediaDuracaoGeral,
+        media_duracao_conexoes_seg: mediaDuracaoConexoes,
+        mediana_duracao_conexoes_seg: medianaConexoes,
+        maior_ligacao_seg: maiorLigacao,
+        menor_conexao_seg: menorConexao,
+        ligacoes_curtas: ligacoesCurtas,
+        ligacoes_medias: ligacoesMedias,
+        ligacoes_longas: ligacoesLongas,
+        tempo_por_sdr: tempoPorSdr,
+        distribuicao_faixas: distribuicaoFaixas,
+      };
+
+      return { funil, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila };
     },
     enabled: !!orgId,
     staleTime: 60_000,

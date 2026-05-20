@@ -9,6 +9,7 @@ export interface OutboundScript {
   organization_id: string;
   usuario_id: string | null;
   nome: string;
+  descricao: string | null;
   objetivo: string;
   status: string;
   conteudo: string;
@@ -109,6 +110,10 @@ export function useOutboundScripts() {
 
   const deleteScript = useMutation({
     mutationFn: async (id: string) => {
+      // Limpar referências de FK antes de excluir
+      await (supabase as any).from('outbound_ligacoes').update({ script_id: null }).eq('script_id', id);
+      await (supabase as any).from('outbound_prospectos').update({ script_id: null }).eq('script_id', id);
+      await (supabase as any).from('outbound_script_prospectos').delete().eq('script_id', id);
       const { error } = await (supabase as any).from('outbound_scripts').delete().eq('id', id);
       if (error) throw error;
     },

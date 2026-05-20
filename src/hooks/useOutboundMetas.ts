@@ -15,6 +15,7 @@ export interface OutboundMeta {
   data_inicio: string;
   data_fim: string;
   ativo: boolean;
+  meta_leads_contatados: number | null;
   meta_ligacoes: number | null;
   meta_conexoes: number | null;
   meta_qualificados: number | null;
@@ -26,6 +27,7 @@ export interface OutboundMeta {
 }
 
 export interface MetaRealizado {
+  leads_contatados: number;
   ligacoes: number;
   conexoes: number;
   qualificados: number;
@@ -268,11 +270,11 @@ export function useMetaRealizado(meta: OutboundMeta | null) {
   return useQuery({
     queryKey: ['outbound_meta_realizado', meta?.id, meta?.data_inicio, meta?.data_fim, meta?.usuario_id],
     queryFn: async (): Promise<MetaRealizado> => {
-      if (!meta || !orgId) return { ligacoes: 0, conexoes: 0, qualificados: 0, calls_agendadas: 0, fechamentos: 0, receita: 0 };
+      if (!meta || !orgId) return { leads_contatados: 0, ligacoes: 0, conexoes: 0, qualificados: 0, calls_agendadas: 0, fechamentos: 0, receita: 0 };
 
       let ligQuery = (supabase as any)
         .from('outbound_ligacoes')
-        .select('status, resultado')
+        .select('status, resultado, prospecto_id')
         .eq('organization_id', orgId)
         .gte('data_hora', meta.data_inicio)
         .lte('data_hora', meta.data_fim);
@@ -293,7 +295,9 @@ export function useMetaRealizado(meta: OutboundMeta | null) {
       const ligs: any[] = ligRes.data || [];
       const prosps: any[] = prospRes.data || [];
 
+      const uniqueProspectos = new Set(ligs.map((l: any) => l.prospecto_id));
       return {
+        leads_contatados: uniqueProspectos.size,
         ligacoes: ligs.length,
         conexoes: ligs.filter(l => l.status === 'atendeu').length,
         qualificados: ligs.filter(l => l.resultado === 'qualificado').length,

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, FileText, Search, Trash2, UserPlus, Phone, TrendingUp, CheckCircle, Calendar, XCircle, BarChart3 } from "lucide-react";
+import { Plus, FileText, Search, Trash2, UserPlus, Phone, TrendingUp, CheckCircle, Calendar, XCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Bar, BarChart, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, Cell } from "recharts";
@@ -46,24 +46,9 @@ const STATUS_LIGACAO_LABELS: Record<string, string> = {
 };
 const BAR_COLORS = ["#6366f1", "#22c55e", "#3b82f6", "#f59e0b", "#14b8a6", "#ef4444", "#8b5cf6"];
 
-function VariableHighlightedText({ text }: { text: string }) {
-  const parts = text.split(/({{[^}]+}})/g);
-  return (
-    <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed">
-      {parts.map((part, i) =>
-        part.startsWith("{{") ? (
-          <span key={i} className="bg-[#E85D24]/15 text-[#E85D24] rounded px-1 font-semibold">{part}</span>
-        ) : (
-          <span key={i}>{part}</span>
-        )
-      )}
-    </pre>
-  );
-}
-
 // ─── SCRIPT DETAIL ─────────────────────────────────────
-function ScriptDetail({ script }: { script: OutboundScript }) {
-  const { updateScript } = useOutboundScripts();
+function ScriptDetail({ script, onDeleted }: { script: OutboundScript; onDeleted: () => void }) {
+  const { updateScript, deleteScript } = useOutboundScripts();
   const { associacoes, isLoading: assocLoading, associar, desassociar } = useScriptProspectos(script.id);
   const { data: metricas } = useScriptMetricas(script.id);
   const { data: ligacoes = [] } = useScriptLigacoes(script.id);
@@ -71,18 +56,18 @@ function ScriptDetail({ script }: { script: OutboundScript }) {
 
   const [tab, setTab] = useState("script");
   const [nome, setNome] = useState(script.nome);
+  const [descricao, setDescricao] = useState(script.descricao || "");
   const [objetivo, setObjetivo] = useState(script.objetivo);
   const [status, setStatus] = useState(script.status);
-  const [conteudo, setConteudo] = useState(script.conteudo);
   const [saving, setSaving] = useState(false);
   const [showAssociar, setShowAssociar] = useState(false);
   const [assocSearch, setAssocSearch] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Reset ao trocar de script
-  useState(() => { setNome(script.nome); setObjetivo(script.objetivo); setStatus(script.status); setConteudo(script.conteudo); setTab("script"); });
+  useState(() => { setNome(script.nome); setDescricao(script.descricao || ""); setObjetivo(script.objetivo); setStatus(script.status); setTab("script"); });
 
-  const hasChanges = nome !== script.nome || objetivo !== script.objetivo || status !== script.status || conteudo !== script.conteudo;
-  const contentChanged = conteudo !== script.conteudo;
+  const hasChanges = nome !== script.nome || descricao !== (script.descricao || "") || objetivo !== script.objetivo || status !== script.status;
 
   const handleSave = async () => {
     setSaving(true);
@@ -90,10 +75,9 @@ function ScriptDetail({ script }: { script: OutboundScript }) {
       await updateScript.mutateAsync({
         id: script.id,
         nome: nome.trim(),
+        descricao: descricao.trim() || null,
         objetivo,
         status,
-        conteudo,
-        incrementVersion: contentChanged,
       } as any);
     } finally { setSaving(false); }
   };
@@ -121,9 +105,11 @@ function ScriptDetail({ script }: { script: OutboundScript }) {
             <div className="flex items-center gap-2 mt-1">
               <Badge variant="outline" className={OBJETIVO_COLORS[script.objetivo]}>{OBJETIVO_LABELS[script.objetivo]}</Badge>
               <Badge variant="outline" className={STATUS_COLORS[script.status]}>{STATUS_LABELS[script.status]}</Badge>
-              <span className="text-xs text-muted-foreground">v{script.versao}</span>
             </div>
           </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => setShowDeleteConfirm(true)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -134,54 +120,50 @@ function ScriptDetail({ script }: { script: OutboundScript }) {
           <TabsTrigger value="desempenho">Desempenho</TabsTrigger>
         </TabsList>
 
-        {/* ABA SCRIPT */}
+        {/* ABA SCRIPT — Simplificada: nome, descrição, objetivo, status */}
         <TabsContent value="script" className="flex-1 overflow-y-auto px-5 pb-5 mt-3 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nome</Label>
               <Input value={nome} onChange={e => setNome(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Objetivo</Label>
-              <Select value={objetivo} onValueChange={setObjetivo}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(OBJETIVO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Objetivo</Label>
+                <Select value={objetivo} onValueChange={setObjetivo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(OBJETIVO_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(STATUS_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Conteúdo do Script</Label>
-              <span className="text-xs text-muted-foreground">Variáveis: {"{{nome}}"}, {"{{clinica}}"}, {"{{especialidade}}"}</span>
-            </div>
-            <Textarea value={conteudo} onChange={e => setConteudo(e.target.value)} rows={16} className="font-mono text-sm" placeholder="Escreva o script de prospecção..." />
+            <Label>Descrição</Label>
+            <Textarea
+              value={descricao}
+              onChange={e => setDescricao(e.target.value)}
+              rows={4}
+              className="text-sm"
+              placeholder="Descreva o objetivo e contexto de uso deste script..."
+            />
           </div>
-
-          {conteudo && (
-            <div className="space-y-2">
-              <Label className="text-muted-foreground">Preview</Label>
-              <div className="border rounded-lg p-4 bg-muted/30 max-h-60 overflow-y-auto">
-                <VariableHighlightedText text={conteudo} />
-              </div>
-            </div>
-          )}
 
           <div className="flex gap-2 pt-2">
             <Button onClick={handleSave} disabled={!hasChanges || saving || !nome.trim()} className="bg-[#E85D24] hover:bg-[#E85D24]/90">
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Salvar Alterações{contentChanged ? ` (v${script.versao + 1})` : ""}
+              Salvar Alterações
             </Button>
             <Button variant="outline" onClick={() => setShowAssociar(true)}>
               <UserPlus className="h-4 w-4 mr-2" /> Associar a Prospectos
@@ -322,6 +304,24 @@ function ScriptDetail({ script }: { script: OutboundScript }) {
         </TabsContent>
       </Tabs>
 
+      {/* CONFIRM DELETE SCRIPT */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir script "{script.nome}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação é irreversível. O script será removido permanentemente, incluindo todas as associações com prospectos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction className="bg-destructive hover:bg-destructive/90" onClick={() => { deleteScript.mutate(script.id); onDeleted(); }}>
+              Excluir Permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* MODAL ASSOCIAR PROSPECTO */}
       <Dialog open={showAssociar} onOpenChange={setShowAssociar}>
         <DialogContent className="max-w-md max-h-[70vh]">
@@ -362,7 +362,7 @@ export default function OutboundScripts() {
   // Form novo script
   const [newNome, setNewNome] = useState("");
   const [newObjetivo, setNewObjetivo] = useState("abertura");
-  const [newConteudo, setNewConteudo] = useState("");
+  const [newDescricao, setNewDescricao] = useState("");
 
   const filteredScripts = useMemo(() => {
     return scripts.filter(s => {
@@ -375,11 +375,17 @@ export default function OutboundScripts() {
   const selectedScript = scripts.find(s => s.id === selectedId) || null;
 
   const handleCreate = async () => {
-    if (!newNome.trim() || !newConteudo.trim()) return;
-    const result = await createScript.mutateAsync({ nome: newNome.trim(), objetivo: newObjetivo, conteudo: newConteudo.trim(), status: "rascunho" });
+    if (!newNome.trim()) return;
+    const result = await createScript.mutateAsync({
+      nome: newNome.trim(),
+      objetivo: newObjetivo,
+      descricao: newDescricao.trim() || null,
+      conteudo: "",
+      status: "rascunho",
+    });
     setSelectedId(result.id);
     setShowNew(false);
-    setNewNome(""); setNewObjetivo("abertura"); setNewConteudo("");
+    setNewNome(""); setNewObjetivo("abertura"); setNewDescricao("");
   };
 
   return (
@@ -438,7 +444,7 @@ export default function OutboundScripts() {
       {/* COLUNA DIREITA — DETALHE */}
       <div className="flex-1 flex flex-col min-h-0">
         {selectedScript ? (
-          <ScriptDetail key={selectedScript.id} script={selectedScript} />
+          <ScriptDetail key={selectedScript.id} script={selectedScript} onDeleted={() => setSelectedId(null)} />
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-2">
@@ -468,13 +474,13 @@ export default function OutboundScripts() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Conteúdo *</Label>
-              <Textarea value={newConteudo} onChange={e => setNewConteudo(e.target.value)} rows={10} className="font-mono text-sm" placeholder="Escreva o script..." />
+              <Label>Descrição</Label>
+              <Textarea value={newDescricao} onChange={e => setNewDescricao(e.target.value)} rows={3} className="text-sm" placeholder="Descreva o objetivo e contexto de uso deste script..." />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNew(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!newNome.trim() || !newConteudo.trim() || createScript.isPending} className="bg-[#E85D24] hover:bg-[#E85D24]/90">
+            <Button onClick={handleCreate} disabled={!newNome.trim() || createScript.isPending} className="bg-[#E85D24] hover:bg-[#E85D24]/90">
               {createScript.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Criar Script
             </Button>

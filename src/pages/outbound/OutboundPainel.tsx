@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import {
-  LayoutDashboard, Phone, PhoneCall, Trophy, Calendar, DollarSign,
+  LayoutDashboard, Phone, PhoneCall, Calendar, DollarSign,
   ChevronRight, ArrowRight, Users, TrendingUp, BarChart3, Target,
-  Clock, AlertTriangle,
+  Clock, AlertTriangle, Timer, Hourglass,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,9 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
-  ResponsiveContainer, Legend,
+  ResponsiveContainer, Legend, BarChart, Bar, Cell,
 } from "recharts";
-import { format, isBefore, startOfDay, startOfMonth, endOfMonth } from "date-fns";
+import { format, isBefore, startOfDay, startOfMonth, endOfMonth, endOfDay, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
@@ -22,6 +22,9 @@ import { useOutboundPainel, PeriodoFiltro } from "@/hooks/useOutboundPainel";
 import { useOrgUsers } from "@/hooks/useOrgUsers";
 import { useLigacaoModal } from "@/contexts/LigacaoContext";
 import { useNavigate } from "react-router-dom";
+import { useProfile } from "@/hooks/useProfile";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 const RESULTADO_LABELS: Record<string, string> = {
   sem_interesse: "Sem interesse",
@@ -139,13 +142,55 @@ export default function OutboundPainel() {
 
   const { data, isLoading } = useOutboundPainel(periodo, sdrId);
 
+  const { profile } = useProfile();
+  const orgId = profile?.organization_id;
+
   const funil = data?.funil;
   const sdrPerformance = data?.sdrPerformance || [];
   const metricas = data?.metricas;
+  const metricasTempo = data?.metricasTempo;
   const evolucao = data?.evolucao || [];
   const distribuicao = data?.distribuicao || [];
   const scriptComparativo = data?.scriptComparativo || [];
   const fila = data?.fila || [];
+
+  // Ações pendentes para alerta no topo
+  const { data: acoesPendentes = [] } = useQuery({
+    queryKey: ['outbound_acoes_alerta', orgId],
+    queryFn: async () => {
+      if (!orgId) return [];
+      const end = endOfDay(new Date());
+      const { data: res, error } = await (supabase as any)
+        .from('outbound_prospectos')
+        .select('id, nome, clinica, proxima_acao, proxima_acao_data, outbound_stages:stage_id(tipo)')
+        .eq('organization_id', orgId)
+        .not('proxima_acao_data', 'is', null)
+        .lte('proxima_acao_data', end.toISOString())
+        .order('proxima_acao_data', { ascending: true });
+      if (error) throw error;
+      return (res || []).filter((p: any) => p.outbound_stages?.tipo === 'ativo');
+    },
+    enabled: !!orgId,
+    staleTime: 60_000,
+  });
+
+  const acoesPendentesAtrasadas = acoesPendentes.filter((p: any) =>
+    isBefore(new Date(p.proxima_acao_data), startOfDay(new Date()))
+  );
+  const acoesPendentesHoje = acoesPendentes.filter((p: any) =>
+    !isBefore(new Date(p.proxima_acao_data), startOfDay(new Date()))
+  );
+
+  // Helper to format seconds as human-readable
+  const fmtTempo = (seg: number): string => {
+    if (seg < 60) return `${seg}s`;
+    const min = Math.floor(seg / 60);
+    const sec = seg % 60;
+    if (min < 60) return sec > 0 ? `${min}m ${sec}s` : `${min}m`;
+    const hrs = Math.floor(min / 60);
+    const remMin = min % 60;
+    return remMin > 0 ? `${hrs}h ${remMin}m` : `${hrs}h`;
+  };
 
   return (
     <div className="space-y-6 p-1">
@@ -178,20 +223,76 @@ export default function OutboundPainel() {
         </div>
       </div>
 
+      {/* Alerta de ações pendentes */}
+      {acoesPendentes.length > 0 && (
+        <div className="space-y-2">
+          {acoesPendentesAtrasadas.length > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-red-500/30 bg-red-500/5">
+              <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-5 w-5 text-red-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-red-500">
+                  {acoesPendentesAtrasadas.length} {acoesPendentesAtrasadas.length === 1 ? 'ação atrasada' : 'ações atrasadas'}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {acoesPendentesAtrasadas.slice(0, 3).map((p: any) => p.nome).join(', ')}
+                  {acoesPendentesAtrasadas.length > 3 ? ` e mais ${acoesPendentesAtrasadas.length - 3}` : ''}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 text-xs border-red-500/30 text-red-500 hover:bg-red-500/10"
+                onClick={() => navigate('/outbound/prospectos')}
+              >
+                Ver prospectos
+              </Button>
+            </div>
+          )}
+          {acoesPendentesHoje.length > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
+              <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                <Clock className="h-5 w-5 text-amber-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-500">
+                  {acoesPendentesHoje.length} {acoesPendentesHoje.length === 1 ? 'ação para hoje' : 'ações para hoje'}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {acoesPendentesHoje.slice(0, 3).map((p: any) => p.nome).join(', ')}
+                  {acoesPendentesHoje.length > 3 ? ` e mais ${acoesPendentesHoje.length - 3}` : ''}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 text-xs border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                onClick={() => navigate('/outbound/prospectos')}
+              >
+                Ver prospectos
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Seção 1 — Funil */}
       <div>
         <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Funil de Prospecção</h2>
         {isLoading ? (
-          <div className="grid grid-cols-5 gap-3">
-            {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
+          <div className="grid grid-cols-6 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         ) : funil ? (
           <div className="flex items-center gap-0 overflow-x-auto pb-2">
+            <FunilCard icon={Users} label="Leads contatados" value={funil.leads_contatados} iconColor="#8b5cf6" />
+            <div className="flex flex-col items-center justify-center px-1 text-muted-foreground/40">
+              <span className="text-lg">|</span>
+            </div>
             <FunilCard icon={Phone} label="Ligações" value={funil.ligacoes} iconColor="#6366f1" />
             <FunilArrow rate={funil.tx_atendimento} />
             <FunilCard icon={PhoneCall} label="Conexões" value={funil.conexoes} iconColor="#22c55e" />
-            <FunilArrow rate={funil.tx_qualificacao} />
-            <FunilCard icon={Trophy} label="Qualificados" value={funil.qualificados} iconColor="#f59e0b" />
             <FunilArrow rate={funil.tx_agendamento} />
             <FunilCard icon={Calendar} label="Calls agendadas" value={funil.calls_agendadas} iconColor="#3b82f6" />
             <FunilArrow rate={funil.tx_fechamento} />
@@ -209,7 +310,7 @@ export default function OutboundPainel() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <SkeletonTable rows={3} cols={7} />
+            <SkeletonTable rows={3} cols={8} />
           ) : sdrPerformance.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">Nenhuma ligação registrada no período</p>
           ) : (
@@ -218,10 +319,10 @@ export default function OutboundPainel() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs">SDR</TableHead>
+                    <TableHead className="text-xs text-right">Leads</TableHead>
                     <TableHead className="text-xs text-right">Ligações</TableHead>
                     <TableHead className="text-xs text-right">Conexões</TableHead>
                     <TableHead className="text-xs text-right">Tx Atend.</TableHead>
-                    <TableHead className="text-xs text-right">Qualificados</TableHead>
                     <TableHead className="text-xs text-right">Calls</TableHead>
                     <TableHead className="text-xs text-right">Fechamentos</TableHead>
                   </TableRow>
@@ -230,10 +331,10 @@ export default function OutboundPainel() {
                   {sdrPerformance.map(sdr => (
                     <TableRow key={sdr.usuario_id}>
                       <TableCell className="text-sm font-medium">{sdr.nome}</TableCell>
+                      <TableCell className="text-sm text-right">{sdr.leads_contatados}</TableCell>
                       <TableCell className="text-sm text-right">{sdr.ligacoes}</TableCell>
                       <TableCell className="text-sm text-right">{sdr.conexoes}</TableCell>
                       <TableCell className="text-sm text-right">{sdr.tx_atendimento}%</TableCell>
-                      <TableCell className="text-sm text-right">{sdr.qualificados}</TableCell>
                       <TableCell className="text-sm text-right">{sdr.calls_agendadas}</TableCell>
                       <TableCell className="text-sm text-right">{sdr.fechamentos}</TableCell>
                     </TableRow>
@@ -262,6 +363,114 @@ export default function OutboundPainel() {
         ) : null}
       </div>
 
+      {/* Seção — Análise de Tempo de Ligação */}
+      <div>
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Análise de Tempo de Ligação</h2>
+        {isLoading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+          </div>
+        ) : metricasTempo ? (
+          <div className="space-y-4">
+            {/* Cards principais */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MetricCard icon={Hourglass} label="Tempo total em ligação" value={fmtTempo(metricasTempo.tempo_total_seg)} />
+              <MetricCard icon={Timer} label="Tempo total em conexões" value={fmtTempo(metricasTempo.tempo_total_conexoes_seg)} />
+              <MetricCard icon={Clock} label="Duração média (todas)" value={fmtTempo(metricasTempo.media_duracao_geral_seg)} />
+              <MetricCard icon={PhoneCall} label="Duração média (conexões)" value={fmtTempo(metricasTempo.media_duracao_conexoes_seg)} />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MetricCard icon={TrendingUp} label="Mediana das conexões" value={fmtTempo(metricasTempo.mediana_duracao_conexoes_seg)} />
+              <MetricCard icon={Clock} label="Maior ligação" value={fmtTempo(metricasTempo.maior_ligacao_seg)} />
+              <MetricCard icon={Phone} label="Menor conexão" value={fmtTempo(metricasTempo.menor_conexao_seg)} />
+              <Card>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#E85D24]/10 flex items-center justify-center shrink-0">
+                    <BarChart3 className="h-5 w-5 text-[#E85D24]" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-red-400">{metricasTempo.ligacoes_curtas} curtas</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-xs font-medium text-amber-400">{metricasTempo.ligacoes_medias} médias</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-xs font-medium text-emerald-400">{metricasTempo.ligacoes_longas} longas</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">&lt;30s · 30s–2min · &gt;2min</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Gráfico de distribuição por faixa + Tempo por SDR */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Distribuição por Faixa de Duração</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {metricasTempo.distribuicao_faixas.every(f => f.count === 0) ? (
+                    <p className="text-sm text-muted-foreground text-center py-10">Sem dados de duração</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={metricasTempo.distribuicao_faixas} layout="vertical" margin={{ left: 10, right: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
+                        <YAxis type="category" dataKey="faixa" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={55} />
+                        <RechartsTooltip
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }}
+                          labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
+                          formatter={(value: number) => [`${value} ligações`, 'Quantidade']}
+                        />
+                        <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                          {metricasTempo.distribuicao_faixas.map((_, i) => (
+                            <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold">Tempo por SDR</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {metricasTempo.tempo_por_sdr.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-10">Sem dados de duração</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">SDR</TableHead>
+                            <TableHead className="text-xs text-right">Ligações</TableHead>
+                            <TableHead className="text-xs text-right">Tempo Total</TableHead>
+                            <TableHead className="text-xs text-right">Média/Lig.</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {metricasTempo.tempo_por_sdr.map(sdr => (
+                            <TableRow key={sdr.nome}>
+                              <TableCell className="text-sm font-medium">{sdr.nome}</TableCell>
+                              <TableCell className="text-sm text-right">{sdr.ligacoes}</TableCell>
+                              <TableCell className="text-sm text-right font-mono">{fmtTempo(sdr.total_seg)}</TableCell>
+                              <TableCell className="text-sm text-right font-mono">{fmtTempo(sdr.media_seg)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {/* Seção 4 + 5 — Gráficos lado a lado */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Evolução diária */}
@@ -277,12 +486,12 @@ export default function OutboundPainel() {
             ) : (
               <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={evolucao}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="dia" tick={{ fontSize: 11 }} stroke="#888" />
-                  <YAxis tick={{ fontSize: 11 }} stroke="#888" allowDecimals={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="dia" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" allowDecimals={false} />
                   <RechartsTooltip
-                    contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #333', borderRadius: 8, fontSize: 12 }}
-                    labelStyle={{ color: '#aaa' }}
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }}
+                    labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
                   />
                   <Line type="monotone" dataKey="ligacoes" name="Ligações" stroke="#6366f1" strokeWidth={2} dot={false} />
                   <Line type="monotone" dataKey="conexoes" name="Conexões" stroke="#22c55e" strokeWidth={2} dot={false} />

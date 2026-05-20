@@ -160,7 +160,7 @@ export function useCreateLigacao() {
         duracao_segundos: ligacao.duracao_segundos || null,
         anotacao: ligacao.anotacao || null,
         proxima_acao: ligacao.proxima_acao || null,
-        proxima_acao_data: ligacao.proxima_acao_data || null,
+        proxima_acao_data: ligacao.proxima_acao_data ? new Date(ligacao.proxima_acao_data).toISOString() : null,
       };
 
       const { data, error } = await (supabase as any)
@@ -174,10 +174,12 @@ export function useCreateLigacao() {
       const sdrId = ligacao.usuario_id || user?.id;
       const prospectoUpdates: any = {
         proxima_acao: ligacao.proxima_acao || null,
-        proxima_acao_data: ligacao.proxima_acao_data || null,
+        proxima_acao_data: ligacao.proxima_acao_data ? new Date(ligacao.proxima_acao_data).toISOString() : null,
         usuario_id: sdrId,
         ultimo_contato: new Date().toISOString(),
         total_tentativas: nextTentativa,
+        ultimo_status: ligacao.status || null,
+        ultimo_resultado: ligacao.resultado || null,
       };
       if (ligacao.alterar_stage && ligacao.novo_stage_id) {
         prospectoUpdates.stage_id = ligacao.novo_stage_id;

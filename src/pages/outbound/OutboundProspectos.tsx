@@ -1,15 +1,16 @@
 import { useState, useMemo, useEffect } from "react";
-import { Search, Plus, Upload, Phone, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, Trash2, Users, UserPlus, GitMerge, CheckSquare } from "lucide-react";
+import { Search, Plus, Upload, Phone, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Eye, Trash2, Users, UserPlus, GitMerge, CheckSquare, ChevronsUpDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { formatDistanceToNow, startOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
@@ -25,6 +26,73 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useProfile } from "@/hooks/useProfile";
+import { cn } from "@/lib/utils";
+
+// Searchable filter component using Popover + Command (cmdk)
+function SearchableFilter({
+  value,
+  onValueChange,
+  placeholder,
+  options,
+}: {
+  value: string;
+  onValueChange: (v: string) => void;
+  placeholder: string;
+  options: { value: string; label: string; icon?: React.ReactNode }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = value === "todos"
+    ? placeholder
+    : options.find(o => o.value === value)?.label || value;
+  const isActive = value !== "todos";
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "h-9 px-3 text-sm font-normal justify-between gap-1 min-w-0",
+            isActive && "border-[#E85D24]/40 bg-[#E85D24]/5 text-[#E85D24]"
+          )}
+        >
+          <span className="truncate max-w-[150px]">{selectedLabel}</span>
+          <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[220px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={`Buscar ${placeholder.toLowerCase()}...`} />
+          <CommandList>
+            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="todos"
+                onSelect={() => { onValueChange("todos"); setOpen(false); }}
+              >
+                <Check className={cn("mr-2 h-4 w-4", value === "todos" ? "opacity-100" : "opacity-0")} />
+                Todos
+              </CommandItem>
+              {options.map(opt => (
+                <CommandItem
+                  key={opt.value}
+                  value={opt.label}
+                  onSelect={() => { onValueChange(opt.value); setOpen(false); }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === opt.value ? "opacity-100" : "opacity-0")} />
+                  {opt.icon}
+                  {opt.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const ITEMS_PER_PAGE = 25;
 
@@ -71,6 +139,8 @@ export default function OutboundProspectos() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[]; names: string[] } | null>(null);
   const [isBulkActing, setIsBulkActing] = useState(false);
 
+  const [ultimoContatoRange, setUltimoContatoRange] = useState<DateRange | undefined>(undefined);
+
   const [filters, setFilters] = useState({
     search: "",
     stage_id: "todos",
@@ -79,14 +149,30 @@ export default function OutboundProspectos() {
     canal_origem: "todos",
     proxima_acao: "todos",
     cidade: "todos",
+    uf: "todos",
     especialidade: "todos",
     tentativas: "todos",
-    ultimo_contato: "todos",
+    ultimo_status: "todos",
   });
 
-  const cidadesUnicas = useMemo(() => {
-    const set = new Set(prospectos.map(p => p.cidade).filter(Boolean) as string[]);
-    return Array.from(set).sort();
+  // Extract pure city names and UFs from "Cidade - UF" format
+  const { cidadesUnicas, ufsUnicas } = useMemo(() => {
+    const cidadeSet = new Set<string>();
+    const ufSet = new Set<string>();
+    prospectos.forEach(p => {
+      if (!p.cidade) return;
+      const parts = p.cidade.split(" - ");
+      if (parts.length >= 2) {
+        cidadeSet.add(parts.slice(0, -1).join(" - ").trim());
+        ufSet.add(parts[parts.length - 1].trim());
+      } else {
+        cidadeSet.add(p.cidade.trim());
+      }
+    });
+    return {
+      cidadesUnicas: Array.from(cidadeSet).sort(),
+      ufsUnicas: Array.from(ufSet).sort(),
+    };
   }, [prospectos]);
 
   const especialidadesUnicas = useMemo(() => {
@@ -106,7 +192,18 @@ export default function OutboundProspectos() {
       if (filters.scoring !== "todos" && p.lead_scoring !== filters.scoring) return false;
       if (filters.usuario_id !== "todos" && p.usuario_id !== filters.usuario_id) return false;
       if (filters.canal_origem !== "todos" && p.canal_origem !== filters.canal_origem) return false;
-      if (filters.cidade !== "todos" && p.cidade !== filters.cidade) return false;
+      if (filters.cidade !== "todos") {
+        if (!p.cidade) return false;
+        const parts = p.cidade.split(" - ");
+        const cidadePura = parts.length >= 2 ? parts.slice(0, -1).join(" - ").trim() : p.cidade.trim();
+        if (cidadePura !== filters.cidade) return false;
+      }
+      if (filters.uf !== "todos") {
+        if (!p.cidade) return false;
+        const parts = p.cidade.split(" - ");
+        const uf = parts.length >= 2 ? parts[parts.length - 1].trim() : "";
+        if (uf !== filters.uf) return false;
+      }
       if (filters.especialidade !== "todos" && p.especialidade !== filters.especialidade) return false;
       if (filters.tentativas !== "todos") {
         const t = p.total_tentativas || 0;
@@ -115,26 +212,15 @@ export default function OutboundProspectos() {
         if (filters.tentativas === "4-6" && (t < 4 || t > 6)) return false;
         if (filters.tentativas === "7+" && t < 7) return false;
       }
-      if (filters.ultimo_contato !== "todos") {
-        const now = new Date();
-        const todayStart = startOfDay(now);
-        if (filters.ultimo_contato === "nunca" && p.ultimo_contato) return false;
-        if (filters.ultimo_contato === "hoje" && (!p.ultimo_contato || new Date(p.ultimo_contato) < todayStart)) return false;
-        if (filters.ultimo_contato === "semana") {
-          const weekAgo = new Date(todayStart);
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          if (!p.ultimo_contato || new Date(p.ultimo_contato) < weekAgo) return false;
-        }
-        if (filters.ultimo_contato === "mes") {
-          const monthAgo = new Date(todayStart);
-          monthAgo.setMonth(monthAgo.getMonth() - 1);
-          if (!p.ultimo_contato || new Date(p.ultimo_contato) < monthAgo) return false;
-        }
-        if (filters.ultimo_contato === "mais30") {
-          if (!p.ultimo_contato) return false;
-          const d30 = new Date(todayStart);
-          d30.setDate(d30.getDate() - 30);
-          if (new Date(p.ultimo_contato) >= d30) return false;
+      if (filters.ultimo_status !== "todos" && p.ultimo_status !== filters.ultimo_status) return false;
+      if (ultimoContatoRange?.from) {
+        if (!p.ultimo_contato) return false;
+        const d = new Date(p.ultimo_contato);
+        if (d < startOfDay(ultimoContatoRange.from)) return false;
+        if (ultimoContatoRange.to) {
+          const endOfTo = new Date(ultimoContatoRange.to);
+          endOfTo.setHours(23, 59, 59, 999);
+          if (d > endOfTo) return false;
         }
       }
       if (filters.proxima_acao !== "todos") {
@@ -164,14 +250,14 @@ export default function OutboundProspectos() {
       if (!b.ultimo_contato) return -1;
       return new Date(b.ultimo_contato).getTime() - new Date(a.ultimo_contato).getTime();
     });
-  }, [prospectos, filters, dateRange]);
+  }, [prospectos, filters, dateRange, ultimoContatoRange]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProspectos.length / ITEMS_PER_PAGE));
   const paginatedProspectos = filteredProspectos.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
-  const hasActiveFilters = filters.search || filters.stage_id !== "todos" || filters.scoring !== "todos" || filters.usuario_id !== "todos" || filters.canal_origem !== "todos" || filters.proxima_acao !== "todos" || filters.cidade !== "todos" || filters.especialidade !== "todos" || filters.tentativas !== "todos" || filters.ultimo_contato !== "todos";
+  const hasActiveFilters = filters.search || filters.stage_id !== "todos" || filters.scoring !== "todos" || filters.usuario_id !== "todos" || filters.canal_origem !== "todos" || filters.proxima_acao !== "todos" || filters.cidade !== "todos" || filters.uf !== "todos" || filters.especialidade !== "todos" || filters.tentativas !== "todos" || filters.ultimo_status !== "todos" || !!ultimoContatoRange?.from;
 
-  const clearFilters = () => setFilters({ search: "", stage_id: "todos", scoring: "todos", usuario_id: "todos", canal_origem: "todos", proxima_acao: "todos", cidade: "todos", especialidade: "todos", tentativas: "todos", ultimo_contato: "todos" });
+  const clearFilters = () => { setFilters({ search: "", stage_id: "todos", scoring: "todos", usuario_id: "todos", canal_origem: "todos", proxima_acao: "todos", cidade: "todos", uf: "todos", especialidade: "todos", tentativas: "todos", ultimo_status: "todos" }); setUltimoContatoRange(undefined); };
 
   const handleVer = (p: OutboundProspecto) => { setSelectedProspecto(p); setIsDetalheOpen(true); };
   const handleLigacao = (p: OutboundProspecto) => { openRegistrarLigacao(p); };
@@ -338,85 +424,103 @@ export default function OutboundProspectos() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar nome, telefone, clínica..." className="pl-9 h-9" value={filters.search} onChange={e => setFilters(f => ({ ...f, search: e.target.value }))} />
         </div>
-        <Select value={filters.stage_id} onValueChange={v => setFilters(f => ({ ...f, stage_id: v }))}>
-          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Stage" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Stage</SelectItem>
-            {stages.map(s => <SelectItem key={s.id} value={s.id}><span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.cor }} />{s.nome}</span></SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filters.scoring} onValueChange={v => setFilters(f => ({ ...f, scoring: v }))}>
-          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Scoring" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Scoring</SelectItem>
-            <SelectItem value="A">A</SelectItem>
-            <SelectItem value="B">B</SelectItem>
-            <SelectItem value="C">C</SelectItem>
-            <SelectItem value="D">D</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filters.usuario_id} onValueChange={v => setFilters(f => ({ ...f, usuario_id: v }))}>
-          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="SDR" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">SDR</SelectItem>
-            {users.map(u => <SelectItem key={u.id} value={u.id}>{u.nome_completo || "Sem nome"}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select value={filters.canal_origem} onValueChange={v => setFilters(f => ({ ...f, canal_origem: v }))}>
-          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Canal" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Canal</SelectItem>
-            {Object.entries(CANAL_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <SearchableFilter
+          value={filters.stage_id}
+          onValueChange={v => setFilters(f => ({ ...f, stage_id: v }))}
+          placeholder="Stage"
+          options={stages.map(s => ({
+            value: s.id,
+            label: s.nome,
+            icon: <span className="w-2 h-2 rounded-full mr-1 shrink-0" style={{ backgroundColor: s.cor }} />,
+          }))}
+        />
+        <SearchableFilter
+          value={filters.scoring}
+          onValueChange={v => setFilters(f => ({ ...f, scoring: v }))}
+          placeholder="Scoring"
+          options={[
+            { value: "A", label: "A — Lead dos sonhos" },
+            { value: "B", label: "B — Qualificado" },
+            { value: "C", label: "C — Em desenvolvimento" },
+            { value: "D", label: "D — Fora do ICP" },
+          ]}
+        />
+        <SearchableFilter
+          value={filters.usuario_id}
+          onValueChange={v => setFilters(f => ({ ...f, usuario_id: v }))}
+          placeholder="SDR"
+          options={users.map(u => ({ value: u.id, label: u.nome_completo || "Sem nome" }))}
+        />
+        <SearchableFilter
+          value={filters.canal_origem}
+          onValueChange={v => setFilters(f => ({ ...f, canal_origem: v }))}
+          placeholder="Canal"
+          options={Object.entries(CANAL_LABELS).map(([k, v]) => ({ value: k, label: v }))}
+        />
+        {ufsUnicas.length > 0 && (
+          <SearchableFilter
+            value={filters.uf}
+            onValueChange={v => setFilters(f => ({ ...f, uf: v }))}
+            placeholder="UF"
+            options={ufsUnicas.map(u => ({ value: u, label: u }))}
+          />
+        )}
         {cidadesUnicas.length > 0 && (
-          <Select value={filters.cidade} onValueChange={v => setFilters(f => ({ ...f, cidade: v }))}>
-            <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Cidade" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Cidade</SelectItem>
-              {cidadesUnicas.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableFilter
+            value={filters.cidade}
+            onValueChange={v => setFilters(f => ({ ...f, cidade: v }))}
+            placeholder="Cidade"
+            options={cidadesUnicas.map(c => ({ value: c, label: c }))}
+          />
         )}
         {especialidadesUnicas.length > 0 && (
-          <Select value={filters.especialidade} onValueChange={v => setFilters(f => ({ ...f, especialidade: v }))}>
-            <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Especialidade" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Especialidade</SelectItem>
-              {especialidadesUnicas.map(e => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <SearchableFilter
+            value={filters.especialidade}
+            onValueChange={v => setFilters(f => ({ ...f, especialidade: v }))}
+            placeholder="Especialidade"
+            options={especialidadesUnicas.map(e => ({ value: e, label: e }))}
+          />
         )}
-        <Select value={filters.tentativas} onValueChange={v => setFilters(f => ({ ...f, tentativas: v }))}>
-          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Tentativas" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Tentativas</SelectItem>
-            <SelectItem value="0">Nunca ligou (0)</SelectItem>
-            <SelectItem value="1-3">1 a 3</SelectItem>
-            <SelectItem value="4-6">4 a 6</SelectItem>
-            <SelectItem value="7+">7 ou mais</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filters.ultimo_contato} onValueChange={v => setFilters(f => ({ ...f, ultimo_contato: v }))}>
-          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Últ. Contato" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Últ. Contato</SelectItem>
-            <SelectItem value="nunca">Nunca contatado</SelectItem>
-            <SelectItem value="hoje">Contatado hoje</SelectItem>
-            <SelectItem value="semana">Últimos 7 dias</SelectItem>
-            <SelectItem value="mes">Último mês</SelectItem>
-            <SelectItem value="mais30">Mais de 30 dias</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filters.proxima_acao} onValueChange={v => setFilters(f => ({ ...f, proxima_acao: v }))}>
-          <SelectTrigger className="w-auto h-9"><SelectValue placeholder="Próx. Ação" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Próx. Ação</SelectItem>
-            <SelectItem value="hoje">Hoje</SelectItem>
-            <SelectItem value="semana">Esta semana</SelectItem>
-            <SelectItem value="atrasados">Atrasados</SelectItem>
-          </SelectContent>
-        </Select>
+        <SearchableFilter
+          value={filters.tentativas}
+          onValueChange={v => setFilters(f => ({ ...f, tentativas: v }))}
+          placeholder="Tentativas"
+          options={[
+            { value: "0", label: "Nunca ligou (0)" },
+            { value: "1-3", label: "1 a 3" },
+            { value: "4-6", label: "4 a 6" },
+            { value: "7+", label: "7 ou mais" },
+          ]}
+        />
+        <SearchableFilter
+          value={filters.ultimo_status}
+          onValueChange={v => setFilters(f => ({ ...f, ultimo_status: v }))}
+          placeholder="Status Ligação"
+          options={[
+            { value: "atendeu", label: "Atendeu" },
+            { value: "nao_atendeu", label: "Não atendeu" },
+            { value: "ocupado", label: "Ocupado" },
+            { value: "caixa_postal", label: "Caixa postal" },
+            { value: "numero_errado", label: "Nº errado" },
+            { value: "recusou", label: "Recusou" },
+          ]}
+        />
+        <DateRangePicker
+          date={ultimoContatoRange}
+          setDate={setUltimoContatoRange}
+          placeholder="Últ. Contato"
+          hideQuickSelect
+        />
+        <SearchableFilter
+          value={filters.proxima_acao}
+          onValueChange={v => setFilters(f => ({ ...f, proxima_acao: v }))}
+          placeholder="Próx. Ação"
+          options={[
+            { value: "hoje", label: "Hoje" },
+            { value: "semana", label: "Esta semana" },
+            { value: "atrasados", label: "Atrasados" },
+          ]}
+        />
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-muted-foreground">
             <X className="h-4 w-4 mr-1" /> Limpar

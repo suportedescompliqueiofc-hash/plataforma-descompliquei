@@ -26,6 +26,8 @@ export interface OutboundProspecto {
   motivo_perda: string | null;
   observacoes: string | null;
   ultimo_contato: string | null;
+  ultimo_status: string | null;
+  ultimo_resultado: string | null;
   proxima_acao: string | null;
   proxima_acao_data: string | null;
   total_tentativas: number;

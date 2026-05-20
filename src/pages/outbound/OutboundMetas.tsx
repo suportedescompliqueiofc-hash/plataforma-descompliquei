@@ -1,6 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
-  Target, Phone, PhoneCall, Trophy, Calendar, DollarSign, Banknote,
+  Target, Phone, PhoneCall, Trophy, Calendar, DollarSign, Banknote, Users,
   Plus, Pencil, Trash2, Loader2, TrendingUp, Rocket, ChevronLeft,
   ChevronRight, BarChart3, ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
@@ -352,6 +352,7 @@ interface MetaFormData {
   data_inicio: string;
   data_fim: string;
   ativo: boolean;
+  meta_leads_contatados: string;
   meta_ligacoes: string;
   meta_conexoes: string;
   meta_qualificados: string;
@@ -364,7 +365,7 @@ interface MetaFormData {
 const emptyForm: MetaFormData = {
   nome: '', tipo: 'org', usuario_id: null, periodo_tipo: 'mensal',
   data_inicio: '', data_fim: '', ativo: true,
-  meta_ligacoes: '', meta_conexoes: '', meta_qualificados: '',
+  meta_leads_contatados: '', meta_ligacoes: '', meta_conexoes: '', meta_qualificados: '',
   meta_calls_agendadas: '', meta_show_rate: '', meta_fechamentos: '', meta_receita: '',
 };
 
@@ -388,6 +389,7 @@ function MetaFormModal({ open, onOpenChange, editMeta, users, onSubmit, saving }
         data_inicio: editMeta.data_inicio?.slice(0, 10) || '',
         data_fim: editMeta.data_fim?.slice(0, 10) || '',
         ativo: editMeta.ativo,
+        meta_leads_contatados: editMeta.meta_leads_contatados?.toString() || '',
         meta_ligacoes: editMeta.meta_ligacoes?.toString() || '',
         meta_conexoes: editMeta.meta_conexoes?.toString() || '',
         meta_qualificados: editMeta.meta_qualificados?.toString() || '',
@@ -401,8 +403,12 @@ function MetaFormModal({ open, onOpenChange, editMeta, users, onSubmit, saving }
     }
   };
 
+  // Reset form when modal opens or editMeta changes
+  useEffect(() => {
+    if (open) resetForm();
+  }, [open, editMeta]);
+
   const handleOpenChange = (o: boolean) => {
-    if (o) resetForm();
     onOpenChange(o);
   };
 
@@ -472,6 +478,10 @@ function MetaFormModal({ open, onOpenChange, editMeta, users, onSubmit, saving }
           <div className="border-t pt-3">
             <Label className="text-xs text-muted-foreground uppercase tracking-wider">Metas quantitativas (deixe vazio para ignorar)</Label>
             <div className="grid grid-cols-2 gap-3 mt-2">
+              <div className="space-y-1">
+                <Label className="text-xs">Leads contatados</Label>
+                <Input type="number" min={0} value={form.meta_leads_contatados} onChange={e => set('meta_leads_contatados', e.target.value)} className="h-9 text-sm" placeholder="0" />
+              </div>
               <div className="space-y-1">
                 <Label className="text-xs">Ligações</Label>
                 <Input type="number" min={0} value={form.meta_ligacoes} onChange={e => set('meta_ligacoes', e.target.value)} className="h-9 text-sm" placeholder="0" />
@@ -589,6 +599,7 @@ export default function OutboundMetas() {
       data_inicio: form.data_inicio,
       data_fim: form.data_fim,
       ativo: form.ativo,
+      meta_leads_contatados: form.meta_leads_contatados ? parseInt(form.meta_leads_contatados) : null,
       meta_ligacoes: form.meta_ligacoes ? parseInt(form.meta_ligacoes) : null,
       meta_conexoes: form.meta_conexoes ? parseInt(form.meta_conexoes) : null,
       meta_qualificados: form.meta_qualificados ? parseInt(form.meta_qualificados) : null,
@@ -611,6 +622,7 @@ export default function OutboundMetas() {
   };
 
   const progressCards = metaDoMes && realizado ? [
+    { icon: Users, iconColor: "#0ea5e9", label: "Leads contatados", realizado: realizado.leads_contatados, meta: metaDoMes.meta_leads_contatados },
     { icon: Phone, iconColor: "#6366f1", label: "Ligações", realizado: realizado.ligacoes, meta: metaDoMes.meta_ligacoes },
     { icon: PhoneCall, iconColor: "#22c55e", label: "Conexões", realizado: realizado.conexoes, meta: metaDoMes.meta_conexoes },
     { icon: Trophy, iconColor: "#f59e0b", label: "Qualificados", realizado: realizado.qualificados, meta: metaDoMes.meta_qualificados },
@@ -649,6 +661,9 @@ export default function OutboundMetas() {
                   <span className="text-xs text-muted-foreground">
                     {PERIODO_LABELS[metaDoMes.periodo_tipo]} · {metaDoMes.usuario_id ? `SDR: ${metaDoMes.perfil_nome}` : 'Organização'}
                   </span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:text-[#E85D24]" onClick={() => { setEditMetaData(metaDoMes); setModalOpen(true); }}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground mt-1">Nenhuma meta ativa para este mês</p>

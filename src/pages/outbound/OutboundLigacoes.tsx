@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Phone, PhoneCall, Calendar, TrendingUp, AlertTriangle, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock } from "lucide-react";
+import { Phone, PhoneCall, Calendar, TrendingUp, AlertTriangle, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { useOutboundProspectos, OutboundProspecto } from "@/hooks/useOutboundPro
 import { useOutboundScripts } from "@/hooks/useOutboundScripts";
 import { useOrgUsers } from "@/hooks/useOrgUsers";
 import { useLigacaoModal } from "@/contexts/LigacaoContext";
+import { ProspectoDetalheModal } from "@/components/outbound/ProspectoDetalheModal";
 
 const ITEMS_PER_PAGE = 25;
 
@@ -67,6 +68,10 @@ export default function OutboundLigacoes() {
   const { activeScripts } = useOutboundScripts();
   const { users } = useOrgUsers();
   const { openRegistrarLigacao } = useLigacaoModal();
+
+  // Estado para modal de detalhe do prospecto (Fila do Dia clicável)
+  const [selectedProspecto, setSelectedProspecto] = useState<OutboundProspecto | null>(null);
+  const [detalheOpen, setDetalheOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
@@ -217,14 +222,33 @@ export default function OutboundLigacoes() {
             {filaDoDia.map(p => {
               const isOverdue = isBefore(new Date(p.proxima_acao_data!), startOfDay(new Date()));
               return (
-                <Card key={p.id} className={`transition-all hover:shadow-md ${isOverdue ? 'border-red-500/50' : ''}`}>
+                <Card
+                  key={p.id}
+                  className={`transition-all hover:shadow-md cursor-pointer ${isOverdue ? 'border-red-500/50' : ''}`}
+                  onClick={() => { setSelectedProspecto(p); setDetalheOpen(true); }}
+                >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-sm font-semibold">{p.nome}</p>
                         <p className="text-xs text-muted-foreground">{p.clinica} • {p.telefone}</p>
                       </div>
-                      {isOverdue && <Badge className="bg-red-500 text-white text-[10px]">ATRASADO</Badge>}
+                      <div className="flex items-center gap-1.5">
+                        {isOverdue && <Badge className="bg-red-500 text-white text-[10px]">ATRASADO</Badge>}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                              onClick={(e) => { e.stopPropagation(); setSelectedProspecto(p); setDetalheOpen(true); }}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Ver detalhes</TooltipContent>
+                        </Tooltip>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -233,7 +257,7 @@ export default function OutboundLigacoes() {
                           <Badge variant="outline" className="text-[10px]" style={{ backgroundColor: `${p.stage_cor}20`, color: p.stage_cor, borderColor: `${p.stage_cor}40` }}>{p.stage_nome}</Badge>
                         )}
                       </div>
-                      <Button size="sm" className="h-7 text-xs bg-[#E85D24] hover:bg-[#E85D24]/90" onClick={() => openRegistrarLigacao(p)}>
+                      <Button size="sm" className="h-7 text-xs bg-[#E85D24] hover:bg-[#E85D24]/90" onClick={(e) => { e.stopPropagation(); openRegistrarLigacao(p); }}>
                         <Phone className="h-3 w-3 mr-1" /> Ligar
                       </Button>
                     </div>
@@ -374,6 +398,14 @@ export default function OutboundLigacoes() {
           </div>
         )}
       </div>
+
+      {/* Modal de detalhe do prospecto */}
+      <ProspectoDetalheModal
+        prospecto={selectedProspecto}
+        open={detalheOpen}
+        onOpenChange={(open) => { setDetalheOpen(open); if (!open) setSelectedProspecto(null); }}
+        onEdit={() => {}}
+      />
     </div>
   );
 }
