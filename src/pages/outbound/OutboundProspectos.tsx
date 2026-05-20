@@ -141,19 +141,20 @@ export default function OutboundProspectos() {
 
   const [ultimoContatoRange, setUltimoContatoRange] = useState<DateRange | undefined>(undefined);
 
-  const [filters, setFilters] = useState({
-    search: "",
-    stage_id: "todos",
-    scoring: "todos",
-    usuario_id: "todos",
-    canal_origem: "todos",
-    proxima_acao: "todos",
-    cidade: "todos",
-    uf: "todos",
-    especialidade: "todos",
-    tentativas: "todos",
-    ultimo_status: "todos",
+  const [filters, setFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('outbound_prospectos_filters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { search: "", stage_id: "todos", scoring: "todos", usuario_id: "todos", canal_origem: "todos", proxima_acao: "todos", cidade: "todos", uf: "todos", especialidade: "todos", tentativas: "todos", ultimo_status: "todos", ...parsed };
+      }
+    } catch {}
+    return { search: "", stage_id: "todos", scoring: "todos", usuario_id: "todos", canal_origem: "todos", proxima_acao: "todos", cidade: "todos", uf: "todos", especialidade: "todos", tentativas: "todos", ultimo_status: "todos" };
   });
+
+  useEffect(() => {
+    localStorage.setItem('outbound_prospectos_filters', JSON.stringify(filters));
+  }, [filters]);
 
   // Extract pure city names and UFs from "Cidade - UF" format
   const { cidadesUnicas, ufsUnicas } = useMemo(() => {
