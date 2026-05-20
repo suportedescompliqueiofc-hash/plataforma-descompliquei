@@ -111,7 +111,7 @@ export function useAllOutboundLigacoes() {
     hoje.setHours(0, 0, 0, 0);
     const ligacoesHoje = ligacoes.filter(l => new Date(l.data_hora) >= hoje);
     const conexoesHoje = ligacoesHoje.filter(l => l.status === 'atendeu');
-    const callsAgendadas = ligacoesHoje.filter(l => l.resultado === 'agendou_call');
+    const callsAgendadas = ligacoesHoje.filter(l => (l.resultado || '').includes('agendou_call'));
     const taxaAtendimento = ligacoesHoje.length > 0
       ? Math.round((conexoesHoje.length / ligacoesHoje.length) * 100)
       : 0;
@@ -124,6 +124,62 @@ export function useAllOutboundLigacoes() {
   }, [ligacoes]);
 
   return { ligacoes, isLoading, metricasDoDia };
+}
+
+export function useUpdateLigacao() {
+  const { profile } = useProfile();
+  const queryClient = useQueryClient();
+  const orgId = profile?.organization_id;
+
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<OutboundLigacao> & { id: string }) => {
+      const { data, error } = await (supabase as any)
+        .from('outbound_ligacoes')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_data: any, variables: any) => {
+      queryClient.invalidateQueries({ queryKey: ['outbound_ligacoes', variables.prospecto_id] });
+      queryClient.invalidateQueries({ queryKey: ['outbound_ligacoes_all', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['outbound_prospectos', orgId] });
+      toast.success('Ligação atualizada');
+    },
+    onError: (err: any) => toast.error('Erro ao atualizar ligação: ' + err.message),
+  });
+}
+
+export function useDeleteLigacao() {
+  const { profile } = useProfile();
+  const queryClient = useQueryClient();
+  const orgId = profile?.organization_id;
+
+  return useMutation({
+    mutationFn: async ({ id, prospecto_id }: { id: string; prospecto_id: string }) => {
+      // Remove historico entry referencing this ligação
+      await (supabase as any)
+        .from('outbound_historico')
+        .delete()
+        .eq('metadados->>ligacao_id', id);
+      const { error } = await (supabase as any)
+        .from('outbound_ligacoes')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { prospecto_id };
+    },
+    onSuccess: (_data: any, variables: any) => {
+      queryClient.invalidateQueries({ queryKey: ['outbound_ligacoes', variables.prospecto_id] });
+      queryClient.invalidateQueries({ queryKey: ['outbound_ligacoes_all', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['outbound_prospectos', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['outbound_historico', variables.prospecto_id] });
+      toast.success('Ligação removida');
+    },
+    onError: (err: any) => toast.error('Erro ao remover ligação: ' + err.message),
+  });
 }
 
 export function useCreateLigacao() {

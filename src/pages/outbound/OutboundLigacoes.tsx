@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Phone, PhoneCall, Calendar, TrendingUp, AlertTriangle, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Eye } from "lucide-react";
+import { Phone, PhoneCall, Calendar, TrendingUp, AlertTriangle, Search, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Clock, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -8,11 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow, format, isToday, isBefore, startOfDay, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
-import { useAllOutboundLigacoes, OutboundLigacao } from "@/hooks/useOutboundLigacoes";
+import { useAllOutboundLigacoes, useDeleteLigacao, OutboundLigacao } from "@/hooks/useOutboundLigacoes";
+import { EditLigacaoModal } from "@/components/outbound/EditLigacaoModal";
 import { useOutboundProspectos, OutboundProspecto } from "@/hooks/useOutboundProspectos";
 import { useOutboundScripts } from "@/hooks/useOutboundScripts";
 import { useOrgUsers } from "@/hooks/useOrgUsers";
@@ -69,9 +72,16 @@ export default function OutboundLigacoes() {
   const { users } = useOrgUsers();
   const { openRegistrarLigacao } = useLigacaoModal();
 
+  const deleteLigacao = useDeleteLigacao();
+
   // Estado para modal de detalhe do prospecto (Fila do Dia clicável)
   const [selectedProspecto, setSelectedProspecto] = useState<OutboundProspecto | null>(null);
   const [detalheOpen, setDetalheOpen] = useState(false);
+
+  // Estado para editar/excluir ligação
+  const [editLigacao, setEditLigacao] = useState<OutboundLigacao | null>(null);
+  const [editLigacaoOpen, setEditLigacaoOpen] = useState(false);
+  const [deleteLigacaoTarget, setDeleteLigacaoTarget] = useState<OutboundLigacao | null>(null);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [filters, setFilters] = useState({
@@ -104,7 +114,7 @@ export default function OutboundLigacoes() {
         if (!(l.prospecto_nome || "").toLowerCase().includes(s) && !(l.prospecto_clinica || "").toLowerCase().includes(s)) return false;
       }
       if (filters.status !== "todos" && l.status !== filters.status) return false;
-      if (filters.resultado !== "todos" && l.resultado !== filters.resultado) return false;
+      if (filters.resultado !== "todos" && !(l.resultado || '').includes(filters.resultado)) return false;
       if (filters.usuario_id !== "todos" && l.usuario_id !== filters.usuario_id) return false;
       if (filters.script_id !== "todos" && l.script_id !== filters.script_id) return false;
       if (dateRange?.from) {
@@ -147,7 +157,7 @@ export default function OutboundLigacoes() {
       {(() => {
         const totalLig = filteredLigacoes.length;
         const conexoes = filteredLigacoes.filter(l => l.status === 'atendeu').length;
-        const callsAgendadas = filteredLigacoes.filter(l => l.resultado === 'agendou_call').length;
+        const callsAgendadas = filteredLigacoes.filter(l => (l.resultado || '').includes('agendou_call')).length;
         const taxaAtend = totalLig > 0 ? Math.round((conexoes / totalLig) * 100) : 0;
         return (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -330,16 +340,17 @@ export default function OutboundLigacoes() {
                 <TableHead>Duração</TableHead>
                 <TableHead>SDR</TableHead>
                 <TableHead>Anotação</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 Array.from({ length: 8 }).map((_, i) => (
-                  <TableRow key={i}>{Array.from({ length: 9 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
+                  <TableRow key={i}>{Array.from({ length: 10 }).map((__, j) => <TableCell key={j}><Skeleton className="h-5 w-full" /></TableCell>)}</TableRow>
                 ))
               ) : paginatedLigacoes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                     {hasActiveFilters ? "Nenhuma ligação encontrada com esses filtros" : "Nenhuma ligação registrada"}
                   </TableCell>
                 </TableRow>
@@ -360,7 +371,13 @@ export default function OutboundLigacoes() {
                       <Badge variant="outline" className={`text-xs ${STATUS_COLORS[l.status] || ""}`}>{STATUS_LABELS[l.status] || l.status}</Badge>
                     </TableCell>
                     <TableCell className="text-xs">
-                      {l.resultado ? RESULTADO_LABELS[l.resultado] || l.resultado : "—"}
+                      {l.resultado ? (
+                        <div className="flex flex-wrap gap-1">
+                          {l.resultado.split(',').map((r: string) => (
+                            <span key={r} className="inline-block">{RESULTADO_LABELS[r.trim()] || r.trim()}</span>
+                          ))}
+                        </div>
+                      ) : "—"}
                     </TableCell>
                     <TableCell className="text-xs">{l.script_nome || "—"}</TableCell>
                     <TableCell className="text-xs font-mono">{formatDuracao(l.duracao_segundos)}</TableCell>
@@ -374,6 +391,21 @@ export default function OutboundLigacoes() {
                           <TooltipContent side="left" className="max-w-sm"><p className="text-xs whitespace-pre-wrap">{l.anotacao}</p></TooltipContent>
                         </Tooltip>
                       ) : <span className="text-xs text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => { setEditLigacao(l); setEditLigacaoOpen(true); }}>
+                            <Pencil className="h-3.5 w-3.5 mr-2" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-500 focus:text-red-500" onClick={() => setDeleteLigacaoTarget(l)}>
+                            <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -406,6 +438,39 @@ export default function OutboundLigacoes() {
         onOpenChange={(open) => { setDetalheOpen(open); if (!open) setSelectedProspecto(null); }}
         onEdit={() => {}}
       />
+
+      {/* Edit Ligação Modal */}
+      <EditLigacaoModal
+        open={editLigacaoOpen}
+        onOpenChange={(v) => { setEditLigacaoOpen(v); if (!v) setEditLigacao(null); }}
+        ligacao={editLigacao}
+      />
+
+      {/* Delete Ligação Confirmation */}
+      <AlertDialog open={!!deleteLigacaoTarget} onOpenChange={(v) => { if (!v) setDeleteLigacaoTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir ligação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. O registro da ligação será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={async () => {
+                if (deleteLigacaoTarget) {
+                  await deleteLigacao.mutateAsync({ id: deleteLigacaoTarget.id, prospecto_id: deleteLigacaoTarget.prospecto_id });
+                  setDeleteLigacaoTarget(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

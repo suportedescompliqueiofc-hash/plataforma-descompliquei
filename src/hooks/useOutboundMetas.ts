@@ -179,8 +179,8 @@ export function useMetaRealizadoDiario(inicio?: string, fim?: string, usuarioId?
         if (entry) {
           entry.ligacoes++;
           if (l.status === 'atendeu') entry.conexoes++;
-          if (l.resultado === 'qualificado') entry.qualificados++;
-          if (l.resultado === 'agendou_call') entry.calls_agendadas++;
+          if ((l.resultado || '').includes('qualificado')) entry.qualificados++;
+          if ((l.resultado || '').includes('agendou_call')) entry.calls_agendadas++;
         }
       });
 
@@ -243,8 +243,8 @@ export function useMetaHistoricoMensal(meses: number = 6) {
         if (entry) {
           entry.ligacoes++;
           if (l.status === 'atendeu') entry.conexoes++;
-          if (l.resultado === 'qualificado') entry.qualificados++;
-          if (l.resultado === 'agendou_call') entry.calls_agendadas++;
+          if ((l.resultado || '').includes('qualificado')) entry.qualificados++;
+          if ((l.resultado || '').includes('agendou_call')) entry.calls_agendadas++;
         }
       });
 
@@ -300,8 +300,8 @@ export function useMetaRealizado(meta: OutboundMeta | null) {
         leads_contatados: uniqueProspectos.size,
         ligacoes: ligs.length,
         conexoes: ligs.filter(l => l.status === 'atendeu').length,
-        qualificados: ligs.filter(l => l.resultado === 'qualificado').length,
-        calls_agendadas: ligs.filter(l => l.resultado === 'agendou_call').length,
+        qualificados: ligs.filter(l => (l.resultado || '').includes('qualificado')).length,
+        calls_agendadas: ligs.filter(l => (l.resultado || '').includes('agendou_call')).length,
         fechamentos: prosps.filter(p => p.outbound_stages?.tipo === 'ganho').length,
         receita: 0,
       };

@@ -157,7 +157,7 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         ligacoes.map(l => l.prospecto_id).filter(Boolean)
       ).size;
       const conexoes = ligacoes.filter(l => l.status === 'atendeu').length;
-      const callsAgendadas = ligacoes.filter(l => l.resultado === 'agendou_call').length;
+      const callsAgendadas = ligacoes.filter(l => (l.resultado || '').includes('agendou_call')).length;
 
       const ganhoStageIds = new Set(
         prospectos
@@ -222,7 +222,7 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
             ligacoes: ligs.length,
             conexoes: con,
             tx_atendimento: ligs.length > 0 ? Math.round((con / ligs.length) * 1000) / 10 : 0,
-            calls_agendadas: ligs.filter(l => l.resultado === 'agendou_call').length,
+            calls_agendadas: ligs.filter(l => (l.resultado || '').includes('agendou_call')).length,
             fechamentos: 0,
           };
         })
@@ -251,7 +251,7 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
           dia: format(day, 'dd/MM'),
           ligacoes: dayLigs.length,
           conexoes: dayLigs.filter(l => l.status === 'atendeu').length,
-          calls: dayLigs.filter(l => l.resultado === 'agendou_call').length,
+          calls: dayLigs.filter(l => (l.resultado || '').includes('agendou_call')).length,
         };
       });
 
@@ -269,8 +269,8 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
       const scriptComparativo: ScriptComparativo[] = scripts.map((s: any) => {
         const sLigs = ligacoes.filter(l => l.script_id === s.id);
         const sCon = sLigs.filter(l => l.status === 'atendeu').length;
-        const sQual = sLigs.filter(l => l.resultado === 'qualificado').length;
-        const sCall = sLigs.filter(l => l.resultado === 'agendou_call').length;
+        const sQual = sLigs.filter(l => (l.resultado || '').includes('qualificado')).length;
+        const sCall = sLigs.filter(l => (l.resultado || '').includes('agendou_call')).length;
         return {
           id: s.id,
           nome: s.nome,

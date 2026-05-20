@@ -6,11 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Phone, Clock, User, MessageSquare, Calendar, FileText, History, ExternalLink, Pencil } from "lucide-react";
+import { Phone, Clock, User, MessageSquare, Calendar, FileText, History, ExternalLink, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { formatDistanceToNow, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { OutboundProspecto } from "@/hooks/useOutboundProspectos";
-import { useOutboundLigacoes } from "@/hooks/useOutboundLigacoes";
+import { useOutboundLigacoes, useDeleteLigacao, OutboundLigacao } from "@/hooks/useOutboundLigacoes";
+import { EditLigacaoModal } from "./EditLigacaoModal";
 import { useOutboundHistorico } from "@/hooks/useOutboundHistorico";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,6 +113,10 @@ function InfoRow({ label, value }: { label: string; value: string | null | undef
 export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }: Props) {
   const [tab, setTab] = useState("resumo");
   const [isCreatingLead, setIsCreatingLead] = useState(false);
+  const [editLigacao, setEditLigacao] = useState<OutboundLigacao | null>(null);
+  const [editLigacaoOpen, setEditLigacaoOpen] = useState(false);
+  const [deleteLigacaoId, setDeleteLigacaoId] = useState<string | null>(null);
+  const deleteLigacaoMutation = useDeleteLigacao();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { profile } = useProfile();
@@ -287,6 +294,7 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
                     <TableHead>Status</TableHead>
                     <TableHead>Resultado</TableHead>
                     <TableHead>SDR</TableHead>
+                    <TableHead className="w-10"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -295,8 +303,31 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
                       <TableCell className="text-xs">{format(new Date(l.data_hora), "dd/MM/yy HH:mm")}</TableCell>
                       <TableCell className="font-mono text-xs">{l.numero_tentativa}</TableCell>
                       <TableCell><Badge variant="outline" className="text-xs">{STATUS_LABELS[l.status] || l.status}</Badge></TableCell>
-                      <TableCell className="text-xs">{l.resultado ? RESULTADO_LABELS[l.resultado] || l.resultado : "—"}</TableCell>
+                      <TableCell className="text-xs">
+                        {l.resultado ? (
+                          <div className="flex flex-wrap gap-1">
+                            {l.resultado.split(',').map((r: string) => (
+                              <span key={r}>{RESULTADO_LABELS[r.trim()] || r.trim()}</span>
+                            ))}
+                          </div>
+                        ) : "—"}
+                      </TableCell>
                       <TableCell className="text-xs">{l.perfil_nome || "—"}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => { setEditLigacao(l); setEditLigacaoOpen(true); }}>
+                              <Pencil className="h-3.5 w-3.5 mr-2" /> Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-red-500 focus:text-red-500" onClick={() => setDeleteLigacaoId(l.id)}>
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -324,7 +355,7 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
                           <Phone className="h-3.5 w-3.5 text-muted-foreground" />
                           <span className="text-xs font-medium">
                             Ligação #{l.numero_tentativa} — {STATUS_LABELS[l.status] || l.status}
-                            {l.resultado ? ` → ${RESULTADO_LABELS[l.resultado] || l.resultado}` : ""}
+                            {l.resultado ? ` → ${l.resultado.split(',').map((r: string) => RESULTADO_LABELS[r.trim()] || r.trim()).join(', ')}` : ""}
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -443,6 +474,39 @@ export function ProspectoDetalheModal({ open, onOpenChange, prospecto, onEdit }:
           </TabsContent>
         </Tabs>
       </DialogContent>
+
+      {/* Edit Ligação Modal */}
+      <EditLigacaoModal
+        open={editLigacaoOpen}
+        onOpenChange={(v) => { setEditLigacaoOpen(v); if (!v) setEditLigacao(null); }}
+        ligacao={editLigacao}
+      />
+
+      {/* Delete Ligação Confirmation */}
+      <AlertDialog open={!!deleteLigacaoId} onOpenChange={(v) => { if (!v) setDeleteLigacaoId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir ligação?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa ação não pode ser desfeita. O registro da ligação será removido permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-500 hover:bg-red-600"
+              onClick={async () => {
+                if (deleteLigacaoId && prospecto) {
+                  await deleteLigacaoMutation.mutateAsync({ id: deleteLigacaoId, prospecto_id: prospecto.id });
+                  setDeleteLigacaoId(null);
+                }
+              }}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

@@ -210,13 +210,18 @@ export function useScriptMetricas(scriptId: string | null) {
       const rows = data || [];
       const total = rows.length;
       const atendeu = rows.filter((r: any) => r.status === 'atendeu').length;
-      const qualificados = rows.filter((r: any) => r.resultado === 'qualificado').length;
-      const agendamentos = rows.filter((r: any) => r.resultado === 'agendou_call').length;
+      const qualificados = rows.filter((r: any) => (r.resultado || '').includes('qualificado')).length;
+      const agendamentos = rows.filter((r: any) => (r.resultado || '').includes('agendou_call')).length;
       const recusas = rows.filter((r: any) => r.status === 'recusou').length;
 
       const distribuicao: Record<string, number> = {};
       rows.filter((r: any) => r.resultado).forEach((r: any) => {
-        distribuicao[r.resultado] = (distribuicao[r.resultado] || 0) + 1;
+        // Suporta múltiplos resultados separados por vírgula
+        const parts = (r.resultado as string).split(',');
+        parts.forEach((p: string) => {
+          const key = p.trim();
+          if (key) distribuicao[key] = (distribuicao[key] || 0) + 1;
+        });
       });
 
       return {

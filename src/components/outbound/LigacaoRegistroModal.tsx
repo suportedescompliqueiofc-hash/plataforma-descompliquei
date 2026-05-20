@@ -31,7 +31,7 @@ const STATUS_OPTIONS = [
   { value: "recusou", label: "Recusou", icon: Ban, color: "bg-red-500/20 text-red-500 border-red-500/40 hover:bg-red-500/30" },
 ];
 
-const RESULTADO_OPTIONS = [
+const RESULTADO_OPTIONS_DEFAULT = [
   { value: "sem_interesse", label: "Sem interesse" },
   { value: "qualificado", label: "Qualificado" },
   { value: "agendou_call", label: "Agendou call" },
@@ -63,7 +63,8 @@ export function LigacaoRegistroModal() {
   const [prospectoId, setProspectoId] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [status, setStatus] = useState("");
-  const [resultado, setResultado] = useState("");
+  const [resultados, setResultados] = useState<string[]>([]);
+  const [customResultado, setCustomResultado] = useState("");
   const [scriptId, setScriptId] = useState("");
   const [duracaoMin, setDuracaoMin] = useState("");
   const [duracaoSeg, setDuracaoSeg] = useState("");
@@ -99,7 +100,8 @@ export function LigacaoRegistroModal() {
         setSearchTerm("");
       }
       setStatus("");
-      setResultado("");
+      setResultados([]);
+      setCustomResultado("");
       setScriptId("");
       setDuracaoMin("");
       setDuracaoSeg("");
@@ -190,13 +192,14 @@ export function LigacaoRegistroModal() {
     if (!prospectoId || !status) return;
 
     const duracaoTotal = (parseInt(duracaoMin || "0") * 60) + parseInt(duracaoSeg || "0");
-    const isAgendouCall = status === "atendeu" && resultado === "agendou_call";
+    const resultadoFinal = status === "atendeu" && resultados.length > 0 ? resultados.join(",") : null;
+    const isAgendouCall = status === "atendeu" && resultados.includes("agendou_call");
 
     await createLigacao.mutateAsync({
       prospecto_id: prospectoId,
       usuario_id: sdrId || user?.id,
       status,
-      resultado: status === "atendeu" ? resultado || null : null,
+      resultado: resultadoFinal,
       script_id: scriptId || null,
       duracao_segundos: duracaoTotal > 0 ? duracaoTotal : null,
       anotacao: anotacao.trim() || null,
@@ -306,7 +309,7 @@ export function LigacaoRegistroModal() {
                 const Icon = opt.icon;
                 const isSelected = status === opt.value;
                 return (
-                  <button key={opt.value} onClick={() => { setStatus(opt.value); if (opt.value !== "atendeu") setResultado(""); }}
+                  <button key={opt.value} onClick={() => { setStatus(opt.value); if (opt.value !== "atendeu") { setResultados([]); setCustomResultado(""); } }}
                     className={cn("flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all text-xs font-medium", isSelected ? opt.color + " ring-2 ring-offset-1 ring-offset-background" : "border-border/50 text-muted-foreground hover:bg-muted/50")}>
                     <Icon className="h-5 w-5" />
                     {opt.label}
@@ -320,15 +323,54 @@ export function LigacaoRegistroModal() {
           {status === "atendeu" && (
             <>
             <div className="space-y-2">
-              <Label>Resultado</Label>
+              <Label>Resultado <span className="text-xs text-muted-foreground font-normal">(selecione um ou mais)</span></Label>
               <div className="flex flex-wrap gap-2">
-                {RESULTADO_OPTIONS.map(r => (
-                  <button key={r.value} onClick={() => setResultado(r.value)}
-                    className={cn("px-3 py-1.5 rounded-full border text-xs font-medium transition-all",
-                      resultado === r.value ? "bg-[#E85D24] text-white border-[#E85D24]" : "border-border/50 text-muted-foreground hover:bg-muted/50")}>
-                    {r.label}
+                {RESULTADO_OPTIONS_DEFAULT.map(r => {
+                  const isSelected = resultados.includes(r.value);
+                  return (
+                    <button key={r.value} onClick={() => setResultados(prev => isSelected ? prev.filter(v => v !== r.value) : [...prev, r.value])}
+                      className={cn("px-3 py-1.5 rounded-full border text-xs font-medium transition-all",
+                        isSelected ? "bg-[#E85D24] text-white border-[#E85D24]" : "border-border/50 text-muted-foreground hover:bg-muted/50")}>
+                      {r.label}
+                    </button>
+                  );
+                })}
+                {resultados.filter(r => !RESULTADO_OPTIONS_DEFAULT.some(o => o.value === r)).map(custom => (
+                  <button key={custom} onClick={() => setResultados(prev => prev.filter(v => v !== custom))}
+                    className="px-3 py-1.5 rounded-full border text-xs font-medium bg-[#E85D24] text-white border-[#E85D24] transition-all">
+                    {custom} ×
                   </button>
                 ))}
+              </div>
+              <div className="flex gap-2 items-center">
+                <Input
+                  value={customResultado}
+                  onChange={e => setCustomResultado(e.target.value)}
+                  placeholder="Adicionar resultado personalizado..."
+                  className="h-8 text-xs flex-1"
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && customResultado.trim()) {
+                      e.preventDefault();
+                      const val = customResultado.trim().toLowerCase().replace(/\s+/g, '_');
+                      if (!resultados.includes(val)) setResultados(prev => [...prev, val]);
+                      setCustomResultado("");
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={!customResultado.trim()}
+                  onClick={() => {
+                    const val = customResultado.trim().toLowerCase().replace(/\s+/g, '_');
+                    if (val && !resultados.includes(val)) setResultados(prev => [...prev, val]);
+                    setCustomResultado("");
+                  }}
+                >
+                  Adicionar
+                </Button>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
