@@ -918,6 +918,7 @@ export default function OutboundPainel() {
                       <TableRow>
                         <TableHead className="text-xs">Horário</TableHead>
                         <TableHead className="text-xs text-right">Ligações</TableHead>
+                        <TableHead className="text-xs text-right">Leads</TableHead>
                         <TableHead className="text-xs text-right">Conexões</TableHead>
                         <TableHead className="text-xs text-right">Tx Atend.</TableHead>
                         <TableHead className="text-xs text-right">Qualif.</TableHead>
@@ -938,6 +939,7 @@ export default function OutboundPainel() {
                               {isTop && <Badge variant="outline" className="ml-2 text-[10px] border-emerald-500/50 text-emerald-500">Top</Badge>}
                             </TableCell>
                             <TableCell className="text-sm text-right">{h.ligacoes}</TableCell>
+                            <TableCell className="text-sm text-right font-medium text-[#E85D24]">{h.leads_contatados}</TableCell>
                             <TableCell className="text-sm text-right">{h.conexoes}</TableCell>
                             <TableCell className="text-sm text-right">{h.tx_atendimento}%</TableCell>
                             <TableCell className="text-sm text-right">{h.qualificados}</TableCell>

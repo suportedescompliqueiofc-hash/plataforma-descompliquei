@@ -94,6 +94,7 @@ export interface MetricaHorario {
   hora: number;
   horaLabel: string;
   ligacoes: number;
+  leads_contatados: number;
   conexoes: number;
   tx_atendimento: number;
   qualificados: number;
@@ -520,10 +521,13 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
             ? Math.round(ligsComDur.reduce((s: number, l: any) => s + l.duracao_segundos, 0) / ligsComDur.length)
             : 0;
 
+          const leadsUnicosHora = new Set(ligs.map((l: any) => l.prospecto_id).filter(Boolean)).size;
+
           return {
             hora,
             horaLabel: `${hora.toString().padStart(2, '0')}:00`,
             ligacoes: total,
+            leads_contatados: leadsUnicosHora,
             conexoes: con,
             tx_atendimento: total > 0 ? Math.round((con / total) * 1000) / 10 : 0,
             qualificados: qual,
