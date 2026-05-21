@@ -161,6 +161,7 @@ export default function OutboundPainel() {
   const scriptComparativo = data?.scriptComparativo || [];
   const fila = data?.fila || [];
   const lastLigacaoMap = data?.lastLigacaoMap as Map<string, { sdr_nome: string; horario: string }> | undefined;
+  const ritmoLigacoes = data?.ritmoLigacoes;
 
   // Drill-down dos cards do funil
   const { prospectos: allProspectos } = useOutboundProspectos();
@@ -418,6 +419,97 @@ export default function OutboundPainel() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Seção — Ritmo de Ligações */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <Timer className="h-4 w-4 text-[#E85D24]" /> Ritmo de Ligações
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <SkeletonTable rows={3} cols={7} />
+          ) : !ritmoLigacoes || ritmoLigacoes.por_sdr.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhuma ligação registrada no período</p>
+          ) : (
+            <div className="space-y-4">
+              {/* Cards gerais */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="p-3 rounded-lg border bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.geral_lig_por_hora}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Ligações / hora</p>
+                </div>
+                <div className="p-3 rounded-lg border bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.geral_lig_por_minuto}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Ligações / minuto</p>
+                </div>
+                <div className="p-3 rounded-lg border bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.horas_ativas_total > 0 ? `${Math.floor(ritmoLigacoes.horas_ativas_total)}h${Math.round((ritmoLigacoes.horas_ativas_total % 1) * 60)}m` : '—'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Tempo ativo total</p>
+                </div>
+                <div className="p-3 rounded-lg border bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-foreground">{funil?.ligacoes || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Total de ligações</p>
+                </div>
+              </div>
+
+              {/* Tabela por SDR */}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">SDR</TableHead>
+                      <TableHead className="text-xs text-right">Ligações</TableHead>
+                      <TableHead className="text-xs text-right">Lig/hora</TableHead>
+                      <TableHead className="text-xs text-right">Lig/min</TableHead>
+                      <TableHead className="text-xs text-right">Tempo ativo</TableHead>
+                      <TableHead className="text-xs text-right">Primeira</TableHead>
+                      <TableHead className="text-xs text-right">Última</TableHead>
+                      <TableHead className="text-xs">Distribuição por hora</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ritmoLigacoes.por_sdr.map(sdr => (
+                      <TableRow key={sdr.usuario_id}>
+                        <TableCell className="text-sm font-medium">{sdr.nome}</TableCell>
+                        <TableCell className="text-sm text-right font-semibold">{sdr.ligacoes}</TableCell>
+                        <TableCell className="text-sm text-right">
+                          <span className="font-semibold text-[#E85D24]">{sdr.lig_por_hora}</span>
+                        </TableCell>
+                        <TableCell className="text-sm text-right">{sdr.lig_por_minuto}</TableCell>
+                        <TableCell className="text-sm text-right">
+                          {sdr.horas_ativas > 0 ? `${Math.floor(sdr.horas_ativas)}h${Math.round((sdr.horas_ativas % 1) * 60)}m` : '—'}
+                        </TableCell>
+                        <TableCell className="text-sm text-right text-muted-foreground">
+                          {sdr.primeira_ligacao ? format(new Date(sdr.primeira_ligacao), 'HH:mm') : '—'}
+                        </TableCell>
+                        <TableCell className="text-sm text-right text-muted-foreground">
+                          {sdr.ultima_ligacao ? format(new Date(sdr.ultima_ligacao), 'HH:mm') : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-end gap-[2px] h-6">
+                            {sdr.por_hora.map(h => {
+                              const maxCount = Math.max(...sdr.por_hora.map(x => x.count));
+                              const height = maxCount > 0 ? Math.max((h.count / maxCount) * 24, 2) : 2;
+                              return (
+                                <div key={h.hora} title={`${h.hora} — ${h.count} lig.`}
+                                  className="w-[6px] rounded-t bg-[#E85D24]/70 hover:bg-[#E85D24] transition-colors cursor-default"
+                                  style={{ height: `${height}px` }}
+                                />
+                              );
+                            })}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>

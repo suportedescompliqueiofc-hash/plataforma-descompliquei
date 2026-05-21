@@ -135,6 +135,25 @@ export interface AnalisePersistencia {
   leadsMaisContatados: { nome: string; clinica: string | null; dias: number; tentativas: number; resultado: string }[];
 }
 
+export interface RitmoSdr {
+  usuario_id: string;
+  nome: string;
+  ligacoes: number;
+  primeira_ligacao: string;
+  ultima_ligacao: string;
+  horas_ativas: number; // horas entre primeira e última ligação
+  lig_por_hora: number;
+  lig_por_minuto: number;
+  por_hora: { hora: string; count: number }[];
+}
+
+export interface RitmoLigacoes {
+  geral_lig_por_hora: number;
+  geral_lig_por_minuto: number;
+  horas_ativas_total: number;
+  por_sdr: RitmoSdr[];
+}
+
 export interface AnaliseHorarios {
   porHora: MetricaHorario[];
   melhorHoraConexao: string | null;
@@ -694,6 +713,56 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         leadsMaisContatados,
       };
 
+      // --- RITMO DE LIGAÇÕES POR SDR ---
+      const ritmoSdrs: RitmoSdr[] = Array.from(sdrMap.entries()).map(([uid, data]) => {
+        const ligs = data.ligacoes.sort((a: any, b: any) => a.data_hora.localeCompare(b.data_hora));
+        const primeira = ligs[0]?.data_hora || '';
+        const ultima = ligs[ligs.length - 1]?.data_hora || '';
+        const diffMs = primeira && ultima ? new Date(ultima).getTime() - new Date(primeira).getTime() : 0;
+        const horasAtivas = Math.max(diffMs / (1000 * 60 * 60), 0);
+        const ligPorHora = horasAtivas > 0 ? Math.round((ligs.length / horasAtivas) * 10) / 10 : ligs.length;
+        const minutosAtivos = horasAtivas * 60;
+        const ligPorMinuto = minutosAtivos > 0 ? Math.round((ligs.length / minutosAtivos) * 100) / 100 : 0;
+
+        // Distribuição por hora do dia
+        const horaMap = new Map<number, number>();
+        ligs.forEach((l: any) => {
+          const h = new Date(l.data_hora).getHours();
+          horaMap.set(h, (horaMap.get(h) || 0) + 1);
+        });
+        const porHoraArr = Array.from(horaMap.entries())
+          .map(([h, count]) => ({ hora: `${h.toString().padStart(2, '0')}:00`, count }))
+          .sort((a, b) => a.hora.localeCompare(b.hora));
+
+        return {
+          usuario_id: uid,
+          nome: perfisMap.get(uid) || 'Sem nome',
+          ligacoes: ligs.length,
+          primeira_ligacao: primeira,
+          ultima_ligacao: ultima,
+          horas_ativas: Math.round(horasAtivas * 100) / 100,
+          lig_por_hora: ligPorHora,
+          lig_por_minuto: ligPorMinuto,
+          por_hora: porHoraArr,
+        };
+      }).sort((a, b) => b.ligacoes - a.ligacoes);
+
+      const allSorted = ligacoes.sort((a: any, b: any) => a.data_hora.localeCompare(b.data_hora));
+      const primeiraGeral = allSorted[0]?.data_hora || '';
+      const ultimaGeral = allSorted[allSorted.length - 1]?.data_hora || '';
+      const diffGeralMs = primeiraGeral && ultimaGeral ? new Date(ultimaGeral).getTime() - new Date(primeiraGeral).getTime() : 0;
+      const horasAtivasTotal = Math.max(diffGeralMs / (1000 * 60 * 60), 0);
+      const geralLigPorHora = horasAtivasTotal > 0 ? Math.round((ligacoes.length / horasAtivasTotal) * 10) / 10 : ligacoes.length;
+      const geralMinutos = horasAtivasTotal * 60;
+      const geralLigPorMinuto = geralMinutos > 0 ? Math.round((ligacoes.length / geralMinutos) * 100) / 100 : 0;
+
+      const ritmoLigacoes: RitmoLigacoes = {
+        geral_lig_por_hora: geralLigPorHora,
+        geral_lig_por_minuto: geralLigPorMinuto,
+        horas_ativas_total: Math.round(horasAtivasTotal * 100) / 100,
+        por_sdr: ritmoSdrs,
+      };
+
       // --- ÚLTIMA LIGAÇÃO POR PROSPECTO (para drilldown) ---
       const lastLigacaoMap = new Map<string, { sdr_nome: string; horario: string }>();
       ligacoes.forEach((l: any) => {
@@ -707,7 +776,7 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
         }
       });
 
-      return { funil, funilProspectoIds, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios, analisePersistencia, lastLigacaoMap };
+      return { funil, funilProspectoIds, sdrPerformance, metricas, metricasTempo, evolucao, distribuicao, scriptComparativo, fila, analiseHorarios, analisePersistencia, lastLigacaoMap, ritmoLigacoes };
     },
     enabled: !!orgId,
     staleTime: 60_000,
