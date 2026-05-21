@@ -439,22 +439,30 @@ export default function OutboundPainel() {
           ) : (
             <div className="space-y-4">
               {/* Cards gerais */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <div className="p-3 rounded-lg border bg-muted/30 text-center">
                   <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.geral_lig_por_hora}</p>
                   <p className="text-xs text-muted-foreground mt-1">Ligações / hora</p>
+                </div>
+                <div className="p-3 rounded-lg border bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-[#E85D24]">{ritmoLigacoes.geral_leads_por_hora}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Leads / hora</p>
                 </div>
                 <div className="p-3 rounded-lg border bg-muted/30 text-center">
                   <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.geral_lig_por_minuto}</p>
                   <p className="text-xs text-muted-foreground mt-1">Ligações / minuto</p>
                 </div>
                 <div className="p-3 rounded-lg border bg-muted/30 text-center">
-                  <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.horas_ativas_total > 0 ? `${Math.floor(ritmoLigacoes.horas_ativas_total)}h${Math.round((ritmoLigacoes.horas_ativas_total % 1) * 60)}m` : '—'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Tempo ativo total</p>
+                  <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.horas_ativas_total}h</p>
+                  <p className="text-xs text-muted-foreground mt-1">Horas ativas</p>
                 </div>
                 <div className="p-3 rounded-lg border bg-muted/30 text-center">
                   <p className="text-2xl font-bold text-foreground">{funil?.ligacoes || 0}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Total de ligações</p>
+                  <p className="text-xs text-muted-foreground mt-1">Total ligações</p>
+                </div>
+                <div className="p-3 rounded-lg border bg-muted/30 text-center">
+                  <p className="text-2xl font-bold text-foreground">{ritmoLigacoes.total_leads_contatados}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Leads contatados</p>
                 </div>
               </div>
 
@@ -465,12 +473,14 @@ export default function OutboundPainel() {
                     <TableRow>
                       <TableHead className="text-xs">SDR</TableHead>
                       <TableHead className="text-xs text-right">Ligações</TableHead>
+                      <TableHead className="text-xs text-right">Leads</TableHead>
                       <TableHead className="text-xs text-right">Lig/hora</TableHead>
+                      <TableHead className="text-xs text-right">Leads/hora</TableHead>
                       <TableHead className="text-xs text-right">Lig/min</TableHead>
-                      <TableHead className="text-xs text-right">Tempo ativo</TableHead>
+                      <TableHead className="text-xs text-right">Horas ativas</TableHead>
                       <TableHead className="text-xs text-right">Primeira</TableHead>
                       <TableHead className="text-xs text-right">Última</TableHead>
-                      <TableHead className="text-xs">Distribuição por hora</TableHead>
+                      <TableHead className="text-xs">Distribuição</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -478,13 +488,15 @@ export default function OutboundPainel() {
                       <TableRow key={sdr.usuario_id}>
                         <TableCell className="text-sm font-medium">{sdr.nome}</TableCell>
                         <TableCell className="text-sm text-right font-semibold">{sdr.ligacoes}</TableCell>
+                        <TableCell className="text-sm text-right">{sdr.leads_contatados}</TableCell>
                         <TableCell className="text-sm text-right">
                           <span className="font-semibold text-[#E85D24]">{sdr.lig_por_hora}</span>
                         </TableCell>
-                        <TableCell className="text-sm text-right">{sdr.lig_por_minuto}</TableCell>
                         <TableCell className="text-sm text-right">
-                          {sdr.horas_ativas > 0 ? `${Math.floor(sdr.horas_ativas)}h${Math.round((sdr.horas_ativas % 1) * 60)}m` : '—'}
+                          <span className="font-semibold text-[#E85D24]">{sdr.leads_por_hora}</span>
                         </TableCell>
+                        <TableCell className="text-sm text-right">{sdr.lig_por_minuto}</TableCell>
+                        <TableCell className="text-sm text-right">{sdr.horas_ativas}h</TableCell>
                         <TableCell className="text-sm text-right text-muted-foreground">
                           {sdr.primeira_ligacao ? format(new Date(sdr.primeira_ligacao), 'HH:mm') : '—'}
                         </TableCell>

@@ -139,18 +139,22 @@ export interface RitmoSdr {
   usuario_id: string;
   nome: string;
   ligacoes: number;
+  leads_contatados: number;
   primeira_ligacao: string;
   ultima_ligacao: string;
-  horas_ativas: number; // horas entre primeira e última ligação
+  horas_ativas: number; // quantidade de horas distintas em que efetivamente ligou
   lig_por_hora: number;
+  leads_por_hora: number;
   lig_por_minuto: number;
   por_hora: { hora: string; count: number }[];
 }
 
 export interface RitmoLigacoes {
   geral_lig_por_hora: number;
+  geral_leads_por_hora: number;
   geral_lig_por_minuto: number;
   horas_ativas_total: number;
+  total_leads_contatados: number;
   por_sdr: RitmoSdr[];
 }
 
@@ -714,13 +718,24 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
       };
 
       // --- RITMO DE LIGAÇÕES POR SDR ---
+      // Horas ativas = horas distintas em que efetivamente foram feitas ligações
       const ritmoSdrs: RitmoSdr[] = Array.from(sdrMap.entries()).map(([uid, data]) => {
         const ligs = data.ligacoes.sort((a: any, b: any) => a.data_hora.localeCompare(b.data_hora));
         const primeira = ligs[0]?.data_hora || '';
         const ultima = ligs[ligs.length - 1]?.data_hora || '';
-        const diffMs = primeira && ultima ? new Date(ultima).getTime() - new Date(primeira).getTime() : 0;
-        const horasAtivas = Math.max(diffMs / (1000 * 60 * 60), 0);
+
+        // Horas distintas efetivas (ex: "2026-05-21-09", "2026-05-21-10")
+        const horasDistintas = new Set<string>();
+        const leadsSet = new Set<string>();
+        ligs.forEach((l: any) => {
+          const d = new Date(l.data_hora);
+          horasDistintas.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`);
+          if (l.prospecto_id) leadsSet.add(l.prospecto_id);
+        });
+        const horasAtivas = horasDistintas.size;
+        const leadsContatados = leadsSet.size;
         const ligPorHora = horasAtivas > 0 ? Math.round((ligs.length / horasAtivas) * 10) / 10 : ligs.length;
+        const leadsPorHora = horasAtivas > 0 ? Math.round((leadsContatados / horasAtivas) * 10) / 10 : leadsContatados;
         const minutosAtivos = horasAtivas * 60;
         const ligPorMinuto = minutosAtivos > 0 ? Math.round((ligs.length / minutosAtivos) * 100) / 100 : 0;
 
@@ -738,28 +753,38 @@ export function useOutboundPainel(periodo: PeriodoFiltro, sdrId: string | null) 
           usuario_id: uid,
           nome: perfisMap.get(uid) || 'Sem nome',
           ligacoes: ligs.length,
+          leads_contatados: leadsContatados,
           primeira_ligacao: primeira,
           ultima_ligacao: ultima,
-          horas_ativas: Math.round(horasAtivas * 100) / 100,
+          horas_ativas: horasAtivas,
           lig_por_hora: ligPorHora,
+          leads_por_hora: leadsPorHora,
           lig_por_minuto: ligPorMinuto,
           por_hora: porHoraArr,
         };
       }).sort((a, b) => b.ligacoes - a.ligacoes);
 
-      const allSorted = ligacoes.sort((a: any, b: any) => a.data_hora.localeCompare(b.data_hora));
-      const primeiraGeral = allSorted[0]?.data_hora || '';
-      const ultimaGeral = allSorted[allSorted.length - 1]?.data_hora || '';
-      const diffGeralMs = primeiraGeral && ultimaGeral ? new Date(ultimaGeral).getTime() - new Date(primeiraGeral).getTime() : 0;
-      const horasAtivasTotal = Math.max(diffGeralMs / (1000 * 60 * 60), 0);
+      // Geral
+      const horasDistintasGeral = new Set<string>();
+      const leadsGeralSet = new Set<string>();
+      ligacoes.forEach((l: any) => {
+        const d = new Date(l.data_hora);
+        horasDistintasGeral.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`);
+        if (l.prospecto_id) leadsGeralSet.add(l.prospecto_id);
+      });
+      const horasAtivasTotal = horasDistintasGeral.size;
+      const totalLeadsContatados = leadsGeralSet.size;
       const geralLigPorHora = horasAtivasTotal > 0 ? Math.round((ligacoes.length / horasAtivasTotal) * 10) / 10 : ligacoes.length;
+      const geralLeadsPorHora = horasAtivasTotal > 0 ? Math.round((totalLeadsContatados / horasAtivasTotal) * 10) / 10 : totalLeadsContatados;
       const geralMinutos = horasAtivasTotal * 60;
       const geralLigPorMinuto = geralMinutos > 0 ? Math.round((ligacoes.length / geralMinutos) * 100) / 100 : 0;
 
       const ritmoLigacoes: RitmoLigacoes = {
         geral_lig_por_hora: geralLigPorHora,
+        geral_leads_por_hora: geralLeadsPorHora,
         geral_lig_por_minuto: geralLigPorMinuto,
-        horas_ativas_total: Math.round(horasAtivasTotal * 100) / 100,
+        horas_ativas_total: horasAtivasTotal,
+        total_leads_contatados: totalLeadsContatados,
         por_sdr: ritmoSdrs,
       };
 
