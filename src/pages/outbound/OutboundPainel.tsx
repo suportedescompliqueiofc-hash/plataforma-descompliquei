@@ -939,7 +939,7 @@ export default function OutboundPainel() {
                               {isTop && <Badge variant="outline" className="ml-2 text-[10px] border-emerald-500/50 text-emerald-500">Top</Badge>}
                             </TableCell>
                             <TableCell className="text-sm text-right">{h.ligacoes}</TableCell>
-                            <TableCell className="text-sm text-right font-medium text-[#E85D24]">{h.leads_contatados}</TableCell>
+                            <TableCell className="text-sm text-right font-medium text-[#E85D24]">{h.leads_contatados ?? 0}</TableCell>
                             <TableCell className="text-sm text-right">{h.conexoes}</TableCell>
                             <TableCell className="text-sm text-right">{h.tx_atendimento}%</TableCell>
                             <TableCell className="text-sm text-right">{h.qualificados}</TableCell>
