@@ -1,15 +1,10 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Bot, BookOpen, BrainCircuit, Activity, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ProductAccess {
-  acesso_crm: boolean;
-  acesso_cerebro: boolean;
-  acesso_sessoes_taticas: boolean;
-  acesso_materiais: boolean;
-  acesso_ia_comercial: boolean;
-  pilares_liberados: string[];
-  ias_liberadas: string[];
+  acesso_crm: boolean; acesso_cerebro: boolean; acesso_sessoes_taticas: boolean;
+  acesso_materiais: boolean; acesso_ia_comercial: boolean;
+  pilares_liberados: string[]; ias_liberadas: string[];
 }
 
 interface Props {
@@ -36,92 +31,87 @@ export default function AbaVisaoGeral({ client, progress, modulosConcluidos, iaT
   const hasPlatformMetrics = hasTrilha || hasIA || hasMateriais;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Informações básicas */}
-      <Card>
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="text-sm font-bold uppercase tracking-wider">Informações do Cliente</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Informações do Cliente</p>
+        </div>
+        <div className="p-5 grid grid-cols-2 md:grid-cols-3 gap-4">
           {[
             { label: 'Clínica', value: client.clinic_name },
             { label: 'Especialidade', value: client.specialty },
             { label: 'Cidade / UF', value: client.city_state },
             { label: 'WhatsApp', value: client.whatsapp },
             { label: 'Produto', value: client.product_name || '—' },
-            { label: 'Expiração', value: client.trial_ends_at ? new Date(client.trial_ends_at).toLocaleDateString('pt-BR') : client.product_name ? '♾️ Vitalício' : '—' },
+            { label: 'Expiração', value: client.trial_ends_at ? new Date(client.trial_ends_at).toLocaleDateString('pt-BR') : client.product_name ? 'Vitalício' : '—' },
           ].map(f => (
             <div key={f.label}>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">{f.label}</p>
-              <p className="text-sm text-foreground mt-0.5">{f.value || '—'}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-0.5">{f.label}</p>
+              <p className="text-sm text-foreground">{f.value || '—'}</p>
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Métricas — só mostra se o produto tem acesso a features de plataforma */}
+      {/* Métricas de plataforma */}
       {hasPlatformMetrics && (
-        <div className={`grid grid-cols-2 ${[hasTrilha, hasTrilha, hasIA, hasMateriais].filter(Boolean).length <= 2 ? 'md:grid-cols-2' : 'md:grid-cols-4'} gap-4`}>
-          {hasTrilha && (
-            <Card>
-              <CardContent className="p-4 text-center">
-                <BookOpen className="h-5 w-5 mx-auto mb-1 text-[#E85D24]" />
-                <p className="text-2xl font-black text-[#E85D24]">{progress}%</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Progresso</p>
-              </CardContent>
-            </Card>
-          )}
-          {hasTrilha && (
-            <Card>
-              <CardContent className="p-4 text-center">
-                <BookOpen className="h-5 w-5 mx-auto mb-1 text-blue-600" />
-                <p className="text-2xl font-black text-blue-600">{modulosConcluidos}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Módulos Concluídos</p>
-              </CardContent>
-            </Card>
-          )}
+        <div className={cn('grid gap-3', [hasTrilha, hasTrilha, hasIA, hasMateriais].filter(Boolean).length <= 2 ? 'grid-cols-2' : 'grid-cols-2 md:grid-cols-4')}>
+          {hasTrilha && [
+            { icon: BookOpen, value: `${progress}%`, label: 'Progresso' },
+            { icon: BookOpen, value: modulosConcluidos, label: 'Módulos Concluídos' },
+          ].map(m => (
+            <div key={m.label} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 flex flex-col items-center text-center gap-1">
+              <div className="p-2 rounded-xl bg-muted">
+                <m.icon className="h-4 w-4 text-muted-foreground" />
+              </div>
+              <p className="text-2xl font-black tabular-nums font-display text-foreground">{m.value}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{m.label}</p>
+            </div>
+          ))}
           {hasIA && (
-            <Card>
-              <CardContent className="p-4 text-center">
-                <Bot className="h-5 w-5 mx-auto mb-1 text-purple-600" />
-                <p className="text-2xl font-black text-purple-600">{iaTotal}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">IAs Usadas</p>
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 flex flex-col items-center text-center gap-1">
+              <div className="p-2 rounded-xl bg-muted"><Bot className="h-4 w-4 text-muted-foreground" /></div>
+              <p className="text-2xl font-black tabular-nums font-display text-foreground">{iaTotal}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">IAs Usadas</p>
+            </div>
           )}
           {hasMateriais && (
-            <Card>
-              <CardContent className="p-4 text-center">
-                <BrainCircuit className="h-5 w-5 mx-auto mb-1 text-emerald-600" />
-                <p className="text-2xl font-black text-emerald-600">{materiaisTotal}</p>
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">Materiais Gerados</p>
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 flex flex-col items-center text-center gap-1">
+              <div className="p-2 rounded-xl bg-muted"><BrainCircuit className="h-4 w-4 text-muted-foreground" /></div>
+              <p className="text-2xl font-black tabular-nums font-display text-foreground">{materiaisTotal}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Materiais Gerados</p>
+            </div>
           )}
         </div>
       )}
 
       {/* Atividade recente */}
-      <Card>
-        <CardHeader className="pb-3 border-b border-border">
-          <CardTitle className="text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-            <Activity className="h-4 w-4 text-[#E85D24]" /> Últimas Atividades
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0 divide-y divide-border">
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-muted">
+              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Últimas Atividades</p>
+          </div>
+        </div>
+        <div className="divide-y divide-border/40">
           {recentActivity.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground text-center">Nenhuma atividade registrada.</p>
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <p className="text-sm text-muted-foreground">Nenhuma atividade registrada.</p>
+            </div>
           ) : recentActivity.map((item, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3">
-              <div className={`h-2 w-2 rounded-full shrink-0 ${item.tipo === 'ia' ? 'bg-purple-500' : 'bg-blue-500'}`} />
+            <div key={i} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/20 transition-colors">
+              <div className={cn('h-2 w-2 rounded-full shrink-0', item.tipo === 'ia' ? 'bg-purple-500' : 'bg-blue-500')} />
               <p className="text-sm text-foreground flex-1">{item.descricao}</p>
-              <span className="text-[11px] text-muted-foreground shrink-0 flex items-center gap-1">
+              <span className="text-[11px] text-muted-foreground/60 shrink-0 flex items-center gap-1">
                 <Clock className="h-3 w-3" />{timeAgo(item.date)}
               </span>
             </div>
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

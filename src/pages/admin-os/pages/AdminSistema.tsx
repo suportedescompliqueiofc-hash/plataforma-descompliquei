@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,49 +10,22 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface TableCounts {
-  users: number;
-  progress: number;
-  history: number;
-  cerebro: number;
-  materiais: number;
-  modules: number;
+  users: number; progress: number; history: number; cerebro: number; materiais: number; modules: number;
 }
 
 interface IALog {
-  id: string;
-  created_at: string;
-  user_id: string;
-  ia_slug: string;
-  input_data: string;
-  output_text: string;
-  platform_users?: { clinic_name: string };
+  id: string; created_at: string; user_id: string; ia_slug: string;
+  input_data: string; output_text: string; platform_users?: { clinic_name: string };
 }
 
 export default function AdminSistema() {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  
-  // Status
-  const [tableCounts, setTableCounts] = useState<TableCounts>({
-    users: 0, progress: 0, history: 0, cerebro: 0, materiais: 0, modules: 0
-  });
-  const [testResult, setTestResult] = useState<{status: 'idle'|'loading'|'ok'|'error', msg: string}>({status: 'idle', msg: ''});
-
-  // Configs
-  const [configs, setConfigs] = useState({
-    platform_name: '',
-    support_whatsapp: '',
-    support_email: '',
-    welcome_message: '',
-    xai_model: 'grok-3-mini'
-  });
+  const [tableCounts, setTableCounts] = useState<TableCounts>({ users: 0, progress: 0, history: 0, cerebro: 0, materiais: 0, modules: 0 });
+  const [testResult, setTestResult] = useState<{ status: 'idle' | 'loading' | 'ok' | 'error'; msg: string }>({ status: 'idle', msg: '' });
+  const [configs, setConfigs] = useState({ platform_name: '', support_whatsapp: '', support_email: '', welcome_message: '', xai_model: 'grok-3-mini' });
   const [savingConfig, setSavingConfig] = useState(false);
-
-  // Logs
   const [iaLogs, setIaLogs] = useState<IALog[]>([]);
-  
-  // Maintenance
-  const [maintenanceLoading, setMaintenanceLoading] = useState<'cache'|'reindex'|null>(null);
+  const [maintenanceLoading, setMaintenanceLoading] = useState<'cache' | 'reindex' | null>(null);
 
   useEffect(() => {
     document.title = 'Sistema · Admin OS | Descompliquei';
@@ -64,45 +35,28 @@ export default function AdminSistema() {
   async function loadAll() {
     setLoading(true);
     try {
-      // 1. Table Counts (using exact count to not fetch data)
       const tables = ['platform_users', 'platform_progress', 'platform_ia_history', 'platform_cerebro', 'platform_materiais', 'platform_modules'];
       const counts: any = {};
-      
       for (const table of tables) {
         const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
-        counts[table.split('_')[1] || table] = count || 0; // Simple mapping
+        counts[table.split('_')[1] || table] = count || 0;
       }
-      setTableCounts({
-        users: counts['users'] || 0,
-        progress: counts['progress'] || 0,
-        history: counts['ia'] || counts['history'] || 0,
-        cerebro: counts['cerebro'] || 0,
-        materiais: counts['materiais'] || 0,
-        modules: counts['modules'] || 0
-      });
+      setTableCounts({ users: counts['users'] || 0, progress: counts['progress'] || 0, history: counts['ia'] || counts['history'] || 0, cerebro: counts['cerebro'] || 0, materiais: counts['materiais'] || 0, modules: counts['modules'] || 0 });
 
-      // 2. Load Configs
       const { data: cfgData } = await supabase.from('admin_system_config').select('key, value');
       if (cfgData) {
         const newCfg = { ...configs };
-        cfgData.forEach(c => {
-          if (c.key in newCfg) (newCfg as any)[c.key] = c.value;
-        });
+        cfgData.forEach(c => { if (c.key in newCfg) (newCfg as any)[c.key] = c.value; });
         setConfigs(newCfg);
       }
 
-      // 3. Load Error Logs
       const { data: logsData } = await supabase
-        .from('platform_ia_history')
-        .select(`*, platform_users(clinic_name)`)
+        .from('platform_ia_history').select(`*, platform_users(clinic_name)`)
         .or('output_text.ilike.%error%,output_text.is.null')
-        .order('created_at', { ascending: false })
-        .limit(20);
-        
+        .order('created_at', { ascending: false }).limit(20);
       if (logsData) setIaLogs(logsData);
-
     } catch (err: any) {
-      if (err.name !== 'AbortError') toast({ title: 'Erro', description: 'Falha ao carregar dados do sistema.', variant: 'destructive' });
+      if (err.name !== 'AbortError') toast.error('Falha ao carregar dados do sistema.');
     } finally {
       setLoading(false);
     }
@@ -114,9 +68,9 @@ export default function AdminSistema() {
       const updates = Object.entries(configs).map(([key, value]) => ({ key, value }));
       const { error } = await supabase.from('admin_system_config').upsert(updates, { onConflict: 'key' });
       if (error) throw error;
-      toast({ title: 'Sucesso', description: 'Configurações atualizadas com sucesso!' });
+      toast.success('Configurações atualizadas com sucesso!');
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast.error(err.message);
     } finally {
       setSavingConfig(false);
     }
@@ -130,8 +84,7 @@ export default function AdminSistema() {
         body: { messages: [{ role: 'user', content: 'Say OK' }], model: configs.xai_model }
       });
       if (error) throw error;
-      const ms = Date.now() - start;
-      setTestResult({ status: 'ok', msg: `Conexão OK · resposta em ${ms}ms` });
+      setTestResult({ status: 'ok', msg: `Conexão OK · resposta em ${Date.now() - start}ms` });
     } catch (err: any) {
       setTestResult({ status: 'error', msg: `Erro: ${err.message}` });
     }
@@ -140,30 +93,26 @@ export default function AdminSistema() {
   async function clearOldLogs() {
     if (!confirm('Excluir logs de erro com mais de 30 dias?')) return;
     try {
-      const { error } = await supabase
-        .from('platform_ia_history')
-        .delete()
+      const { error } = await supabase.from('platform_ia_history').delete()
         .lt('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
         .or('output_text.ilike.%error%,output_text.is.null');
       if (error) throw error;
-      toast({ title: 'Sucesso', description: 'Logs antigos limpos.' });
+      toast.success('Logs antigos limpos.');
       loadAll();
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast.error(err.message);
     }
   }
 
   async function handleMaintenance(action: 'cache' | 'reindex') {
     if (action === 'cache' && !confirm('Forçar recarregamento invalida o cache atual dos módulos. Confirmar?')) return;
-    if (action === 'reindex' && !confirm('Reindexar progresso vai recalcular o GCA/PCA de todos os clientes. Pode levar alguns segundos. Confirmar?')) return;
-    
+    if (action === 'reindex' && !confirm('Reindexar progresso vai recalcular o GCA/PCA de todos os clientes. Confirmar?')) return;
     setMaintenanceLoading(action);
     try {
-      // Aqui integrariamos com uma edge function futuramente. Por enquanto mock de sucesso.
-      await new Promise(r => setTimeout(r, 1500)); 
-      toast({ title: 'Sucesso', description: action === 'cache' ? 'Cache de módulos invalidado.' : 'Progresso reindexado com sucesso.' });
+      await new Promise(r => setTimeout(r, 1500));
+      toast.success(action === 'cache' ? 'Cache de módulos invalidado.' : 'Progresso reindexado com sucesso.');
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast.error(err.message);
     } finally {
       setMaintenanceLoading(null);
     }
@@ -172,99 +121,129 @@ export default function AdminSistema() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-[#E85D24]" />
+        <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
     <div className="space-y-8 pb-10">
+      {/* HEADER */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground uppercase tracking-tight">Sistema & Configurações</h1>
-        <p className="text-sm text-muted-foreground mt-1">Status técnico e configurações gerais da plataforma</p>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="p-1.5 rounded-lg bg-muted">
+            <Settings className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Sistema & Configurações</h1>
+        </div>
+        <p className="text-[13px] text-muted-foreground ml-10">Status técnico e configurações gerais da plataforma</p>
       </div>
 
-      {/* SEÇÃO 1: STATUS DO SISTEMA */}
+      {/* STATUS DO SISTEMA */}
       <section className="space-y-4">
-        <h2 className="text-lg font-bold flex items-center gap-2 border-b border-border pb-2"><Activity className="h-5 w-5 text-[#E85D24]" /> Status do Sistema</h2>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Status do Sistema</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2"><Server className="h-4 w-4"/> Conexão xAI</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Status</span>
-                {testResult.status === 'ok' ? <Badge className="bg-green-500">Conectada</Badge> : testResult.status === 'error' ? <Badge variant="destructive">Erro</Badge> : <Badge variant="outline">Aguardando Teste</Badge>}
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Modelo</span>
-                <span className="text-sm text-muted-foreground">{configs.xai_model}</span>
-              </div>
-              <div className="pt-2">
-                <Button variant="outline" size="sm" className="w-full" onClick={testXAI} disabled={testResult.status === 'loading'}>
-                  {testResult.status === 'loading' ? <Loader2 className="h-4 w-4 animate-spin mr-2"/> : <RefreshCw className="h-4 w-4 mr-2"/>}
-                  Testar Conexão
-                </Button>
-                {testResult.msg && <p className={`text-xs mt-2 text-center ${testResult.status === 'error' ? 'text-red-500' : 'text-green-500'}`}>{testResult.msg}</p>}
-              </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2"><Database className="h-4 w-4"/> Supabase</CardTitle>
-            </CardHeader>
-            <CardContent>
+          {/* Conexão xAI */}
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-muted"><Server className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Conexão xAI</p>
+              </div>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Status</span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${testResult.status === 'ok' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' : testResult.status === 'error' ? 'bg-red-500/10 text-red-600 border-red-500/20' : 'bg-muted text-muted-foreground border-border/40'}`}>
+                  {testResult.status === 'ok' ? 'Conectada' : testResult.status === 'error' ? 'Erro' : 'Aguardando'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Modelo</span>
+                <span className="text-xs font-mono text-muted-foreground">{configs.xai_model}</span>
+              </div>
+              <Button variant="outline" size="sm" className="w-full h-8 rounded-lg text-xs border-border/60 gap-1.5" onClick={testXAI} disabled={testResult.status === 'loading'}>
+                {testResult.status === 'loading' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                Testar Conexão
+              </Button>
+              {testResult.msg && (
+                <p className={`text-[11px] text-center ${testResult.status === 'error' ? 'text-red-500' : 'text-emerald-600'}`}>{testResult.msg}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Supabase */}
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-muted"><Database className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Supabase</p>
+              </div>
+            </div>
+            <div className="p-5">
               <div className="flex items-center justify-between mb-4">
-                <span className="text-sm font-medium">Status</span>
-                <Badge className="bg-green-500">Conectado</Badge>
+                <span className="text-sm text-muted-foreground">Status</span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Conectado</span>
               </div>
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Usuários:</span> <span className="font-mono">{tableCounts.users}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Progresso:</span> <span className="font-mono">{tableCounts.progress}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Histórico IA:</span> <span className="font-mono">{tableCounts.history}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Módulos:</span> <span className="font-mono">{tableCounts.modules}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Materiais:</span> <span className="font-mono">{tableCounts.materiais}</span></div>
-                <div className="flex justify-between text-xs"><span className="text-muted-foreground">Cérebro:</span> <span className="font-mono">{tableCounts.cerebro}</span></div>
+              <div className="space-y-1.5">
+                {[
+                  { label: 'Usuários', value: tableCounts.users },
+                  { label: 'Progresso', value: tableCounts.progress },
+                  { label: 'Histórico IA', value: tableCounts.history },
+                  { label: 'Módulos', value: tableCounts.modules },
+                  { label: 'Materiais', value: tableCounts.materiais },
+                  { label: 'Cérebro', value: tableCounts.cerebro },
+                ].map(row => (
+                  <div key={row.label} className="flex justify-between items-center">
+                    <span className="text-xs text-muted-foreground">{row.label}</span>
+                    <span className="text-xs font-mono tabular-nums text-foreground font-bold">{row.value}</span>
+                  </div>
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-bold text-muted-foreground uppercase flex items-center gap-2"><Key className="h-4 w-4"/> Variáveis de Ambiente</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">VITE_SUPABASE_URL</span>
-                {import.meta.env.VITE_SUPABASE_URL ? <CheckCircle2 className="h-4 w-4 text-green-500"/> : <AlertTriangle className="h-4 w-4 text-red-500"/>}
+          {/* Variáveis de ambiente */}
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-muted"><Key className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Variáveis de Ambiente</p>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">VITE_SUPABASE_ANON_KEY</span>
-                {import.meta.env.VITE_SUPABASE_ANON_KEY ? <CheckCircle2 className="h-4 w-4 text-green-500"/> : <AlertTriangle className="h-4 w-4 text-red-500"/>}
-              </div>
-            </CardContent>
-          </Card>
-
+            </div>
+            <div className="p-5 space-y-3">
+              {[
+                { label: 'VITE_SUPABASE_URL', ok: !!import.meta.env.VITE_SUPABASE_URL },
+                { label: 'VITE_SUPABASE_ANON_KEY', ok: !!import.meta.env.VITE_SUPABASE_ANON_KEY },
+              ].map(v => (
+                <div key={v.label} className="flex items-center justify-between">
+                  <span className="text-xs font-mono text-muted-foreground truncate">{v.label}</span>
+                  {v.ok
+                    ? <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    : <AlertTriangle className="h-4 w-4 text-red-500 shrink-0" />
+                  }
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* SEÇÃO 2: CONFIGURAÇÕES */}
-      <section className="space-y-4 pt-4">
-        <h2 className="text-lg font-bold flex items-center gap-2 border-b border-border pb-2"><Settings className="h-5 w-5 text-[#E85D24]" /> Configurações Gerais</h2>
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* CONFIGURAÇÕES GERAIS */}
+      <section className="space-y-4">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Configurações Gerais</p>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="p-6 space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nome da Plataforma</label>
-                <Input value={configs.platform_name} onChange={e => setConfigs({...configs, platform_name: e.target.value})} />
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Nome da Plataforma</label>
+                <Input className="h-10 rounded-lg border-border/60 text-sm" value={configs.platform_name} onChange={e => setConfigs({...configs, platform_name: e.target.value})} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Modelo xAI Padrão</label>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Modelo xAI Padrão</label>
                 <Select value={configs.xai_model} onValueChange={v => setConfigs({...configs, xai_model: v})}>
-                  <SelectTrigger><SelectValue/></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-lg border-border/60"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="grok-4-1-fast-reasoning">grok-4-1-fast-reasoning</SelectItem>
                     <SelectItem value="grok-3-mini">grok-3-mini</SelectItem>
@@ -274,97 +253,88 @@ export default function AdminSistema() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">WhatsApp de Suporte</label>
-                <Input value={configs.support_whatsapp} onChange={e => setConfigs({...configs, support_whatsapp: e.target.value})} placeholder="Ex: 5511999999999" />
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">WhatsApp de Suporte</label>
+                <Input className="h-10 rounded-lg border-border/60 text-sm" value={configs.support_whatsapp} onChange={e => setConfigs({...configs, support_whatsapp: e.target.value})} placeholder="5511999999999" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Email de Suporte</label>
-                <Input type="email" value={configs.support_email} onChange={e => setConfigs({...configs, support_email: e.target.value})} placeholder="suporte@descompliquei.com" />
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Email de Suporte</label>
+                <Input className="h-10 rounded-lg border-border/60 text-sm" type="email" value={configs.support_email} onChange={e => setConfigs({...configs, support_email: e.target.value})} placeholder="suporte@descompliquei.com" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Mensagem de Boas-vindas</label>
-              <Textarea value={configs.welcome_message} onChange={e => setConfigs({...configs, welcome_message: e.target.value})} rows={3} />
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Mensagem de Boas-vindas</label>
+              <Textarea className="rounded-lg border-border/60 text-sm" value={configs.welcome_message} onChange={e => setConfigs({...configs, welcome_message: e.target.value})} rows={3} />
             </div>
-            <div className="flex justify-end pt-2">
-              <Button onClick={saveConfigs} disabled={savingConfig} className="bg-[#E85D24] text-white">
-                {savingConfig ? <Loader2 className="h-4 w-4 mr-2 animate-spin"/> : null}
-                Salvar Configurações
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="flex items-center justify-end px-6 py-4 border-t border-border/40 bg-muted/20">
+            <Button onClick={saveConfigs} disabled={savingConfig} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5">
+              {savingConfig ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : null}
+              Salvar Configurações
+            </Button>
+          </div>
+        </div>
       </section>
 
-      {/* SEÇÃO 3: LOGS DE ERRO */}
-      <section className="space-y-4 pt-4">
-        <div className="flex items-center justify-between border-b border-border pb-2">
-          <h2 className="text-lg font-bold flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-[#E85D24]" /> Logs de Erro (IAs)</h2>
-          <Button variant="outline" size="sm" onClick={clearOldLogs} className="text-muted-foreground hover:text-red-500">
-            <Trash2 className="h-4 w-4 mr-2"/> Limpar &gt; 30 dias
+      {/* LOGS DE ERRO */}
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Logs de Erro (IAs)</p>
+          <Button variant="outline" size="sm" className="h-7 rounded-lg text-[11px] border-border/60 gap-1.5 text-muted-foreground hover:text-red-500" onClick={clearOldLogs}>
+            <Trash2 className="h-3 w-3" /> Limpar &gt; 30 dias
           </Button>
         </div>
-        <Card>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="bg-muted/50 border-b border-border">
-                <tr>
-                  <th className="p-3 font-semibold text-muted-foreground">Data/Hora</th>
-                  <th className="p-3 font-semibold text-muted-foreground">Cliente</th>
-                  <th className="p-3 font-semibold text-muted-foreground">IA</th>
-                  <th className="p-3 font-semibold text-muted-foreground">Erro</th>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/40 bg-muted/20">
+                  {['Data/Hora', 'Cliente', 'IA', 'Erro'].map(h => (
+                    <th key={h} className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/40">
                 {iaLogs.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="p-4 text-center text-muted-foreground">Nenhum log de erro encontrado.</td>
+                  <tr><td colSpan={4} className="px-5 py-8 text-center text-sm text-muted-foreground">Nenhum log de erro encontrado.</td></tr>
+                ) : iaLogs.map(log => (
+                  <tr key={log.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-5 py-3 text-[11px] text-muted-foreground tabular-nums whitespace-nowrap">{format(new Date(log.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}</td>
+                    <td className="px-5 py-3 font-medium text-[13px]">{log.platform_users?.clinic_name || 'Desconhecido'}</td>
+                    <td className="px-5 py-3">
+                      <span className="text-[10px] font-mono bg-muted/60 px-2 py-0.5 rounded-md border border-border/40 text-muted-foreground">{log.ia_slug}</span>
+                    </td>
+                    <td className="px-5 py-3 text-[11px] text-red-500/80 max-w-[280px] truncate" title={log.output_text || 'Erro desconhecido'}>
+                      {log.output_text || 'Sem resposta / Timeout'}
+                    </td>
                   </tr>
-                ) : (
-                  iaLogs.map(log => (
-                    <tr key={log.id} className="border-b border-border/50 hover:bg-muted/20">
-                      <td className="p-3 whitespace-nowrap">{format(new Date(log.created_at), "dd/MM/yyyy HH:mm", {locale: ptBR})}</td>
-                      <td className="p-3 font-medium">{log.platform_users?.clinic_name || 'Desconhecido'}</td>
-                      <td className="p-3"><Badge variant="outline">{log.ia_slug}</Badge></td>
-                      <td className="p-3 text-red-500 max-w-[300px] truncate" title={log.output_text || 'Erro desconhecido'}>{log.output_text || 'Sem resposta / Timeout'}</td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
       </section>
 
-      {/* SEÇÃO 4: MANUTENÇÃO */}
-      <section className="space-y-4 pt-4">
-        <h2 className="text-lg font-bold flex items-center gap-2 border-b border-border pb-2"><RefreshCw className="h-5 w-5 text-[#E85D24]" /> Manutenção</h2>
+      {/* MANUTENÇÃO */}
+      <section className="space-y-4">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Manutenção</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Card className="hover:border-blue-500/50 transition-colors">
-            <CardContent className="p-6 text-center space-y-4">
-              <RefreshCw className="h-8 w-8 text-blue-500 mx-auto" />
-              <div>
-                <h3 className="font-bold">Recarregar Módulos</h3>
-                <p className="text-xs text-muted-foreground mt-1">Invalida o cache e força a plataforma a buscar módulos atualizados do banco.</p>
+          {[
+            { action: 'cache' as const, icon: RefreshCw, iconColor: 'text-blue-500', bg: 'bg-blue-500/10', title: 'Recarregar Módulos', desc: 'Invalida o cache e força a plataforma a buscar módulos atualizados do banco.' },
+            { action: 'reindex' as const, icon: Database, iconColor: 'text-purple-500', bg: 'bg-purple-500/10', title: 'Reindexar Progresso', desc: 'Recalcula os totais de GCA e PCA de todos os clientes baseando-se no histórico.' },
+          ].map(m => (
+            <div key={m.action} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6 flex flex-col items-center text-center gap-4">
+              <div className={`p-3 rounded-xl ${m.bg}`}>
+                <m.icon className={`h-6 w-6 ${m.iconColor}`} />
               </div>
-              <Button variant="outline" className="w-full" onClick={() => handleMaintenance('cache')} disabled={maintenanceLoading !== null}>
-                {maintenanceLoading === 'cache' ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Forçar Recarregamento'}
-              </Button>
-            </CardContent>
-          </Card>
-          
-          <Card className="hover:border-purple-500/50 transition-colors">
-            <CardContent className="p-6 text-center space-y-4">
-              <Database className="h-8 w-8 text-purple-500 mx-auto" />
               <div>
-                <h3 className="font-bold">Reindexar Progresso</h3>
-                <p className="text-xs text-muted-foreground mt-1">Recalcula os totais de GCA e PCA de todos os clientes baseando-se no histórico.</p>
+                <p className="font-bold text-foreground">{m.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">{m.desc}</p>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => handleMaintenance('reindex')} disabled={maintenanceLoading !== null}>
-                {maintenanceLoading === 'reindex' ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Reindexar Agora'}
+              <Button variant="outline" className="w-full h-9 rounded-lg text-xs border-border/60" onClick={() => handleMaintenance(m.action)} disabled={maintenanceLoading !== null}>
+                {maintenanceLoading === m.action ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : m.action === 'cache' ? 'Forçar Recarregamento' : 'Reindexar Agora'}
               </Button>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
         </div>
       </section>
     </div>

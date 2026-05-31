@@ -95,8 +95,10 @@ const FUNCIONALIDADES = [
 
 // ─── componente ───────────────────────────────────────────────────────────────
 
-export default function AdminAcessoCliente() {
-  const { orgId } = useParams<{ orgId: string }>();
+export default function AdminAcessoCliente({ orgId: propOrgId }: { orgId?: string } = {}) {
+  const { orgId: paramOrgId } = useParams<{ orgId: string }>();
+  const orgId = propOrgId ?? paramOrgId;
+  const embedded = !!propOrgId; // quando usado como aba, esconde header/back
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -107,6 +109,21 @@ export default function AdminAcessoCliente() {
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [pilares, setPilares] = useState<Pilar[]>([]);
   const [ias, setIas] = useState<IAConfig[]>([]);
+
+  // overrides por cliente (null = herda do produto)
+  const [featureOverrides, setFeatureOverrides] = useState<{
+    acesso_cerebro: boolean | null;
+    acesso_crm: boolean | null;
+    acesso_sessoes_taticas: boolean | null;
+    acesso_materiais: boolean | null;
+    acesso_ia_comercial: boolean | null;
+    pilares_liberados: string[] | null;
+    ias_liberadas: string[] | null;
+  }>({
+    acesso_cerebro: null, acesso_crm: null, acesso_sessoes_taticas: null,
+    acesso_materiais: null, acesso_ia_comercial: null,
+    pilares_liberados: null, ias_liberadas: null,
+  });
 
   // form editável
   const [form, setForm] = useState({
@@ -151,7 +168,10 @@ export default function AdminAcessoCliente() {
         supabase
           .from('platform_tenants')
           .select(`organization_id, plan, status, trial_ends_at, monthly_fee, notes,
-                   product_id, access_starts_at, organizations(name)`)
+                   product_id, access_starts_at, organizations(name),
+                   acesso_cerebro, acesso_crm, acesso_sessoes_taticas,
+                   acesso_materiais, acesso_ia_comercial,
+                   pilares_liberados, ias_liberadas`)
           .eq('organization_id', orgId)
           .maybeSingle(),
         supabase.from('platform_pilares').select('id, nome, icone').order('ordem_index'),
@@ -223,6 +243,15 @@ export default function AdminAcessoCliente() {
         status: clienteData.status,
         notes: clienteData.notes ?? '',
       });
+      setFeatureOverrides({
+        acesso_cerebro:         t.acesso_cerebro         ?? null,
+        acesso_crm:             t.acesso_crm             ?? null,
+        acesso_sessoes_taticas: t.acesso_sessoes_taticas ?? null,
+        acesso_materiais:       t.acesso_materiais       ?? null,
+        acesso_ia_comercial:    t.acesso_ia_comercial    ?? null,
+        pilares_liberados:      t.pilares_liberados      ?? null,
+        ias_liberadas:          t.ias_liberadas          ?? null,
+      });
     } catch (err: any) {
       toast.error('Erro ao carregar cliente: ' + err.message);
     } finally {
@@ -232,7 +261,7 @@ export default function AdminAcessoCliente() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // ── ao selecionar produto: preencher defaults ───────────────────────────────
+  // ── ao selecionar produto: preencher defaults e resetar overrides ──────────
   function handleSelectProduto(prodId: string) {
     const prod = produtos.find(p => p.id === prodId);
     if (!prod) { setForm(f => ({ ...f, product_id: prodId })); return; }
@@ -247,7 +276,24 @@ export default function AdminAcessoCliente() {
       access_starts_at: starts,
       trial_ends_at: expiry,
     }));
+    // Ao trocar produto, limpa overrides (herda defaults do novo produto)
+    setFeatureOverrides({
+      acesso_cerebro: null, acesso_crm: null, acesso_sessoes_taticas: null,
+      acesso_materiais: null, acesso_ia_comercial: null,
+      pilares_liberados: null, ias_liberadas: null,
+    });
   }
+
+  // ── valores efetivos: override do tenant ?? padrão do produto ──────────────
+  const effectiveFeatures = {
+    acesso_cerebro:         featureOverrides.acesso_cerebro         ?? produtoSelecionado?.acesso_cerebro         ?? false,
+    acesso_crm:             featureOverrides.acesso_crm             ?? produtoSelecionado?.acesso_crm             ?? false,
+    acesso_sessoes_taticas: featureOverrides.acesso_sessoes_taticas ?? produtoSelecionado?.acesso_sessoes_taticas ?? false,
+    acesso_materiais:       featureOverrides.acesso_materiais       ?? produtoSelecionado?.acesso_materiais       ?? false,
+    acesso_ia_comercial:    featureOverrides.acesso_ia_comercial    ?? produtoSelecionado?.acesso_ia_comercial    ?? false,
+    pilares_liberados:      featureOverrides.pilares_liberados      ?? produtoSelecionado?.pilares_liberados      ?? [],
+    ias_liberadas:          featureOverrides.ias_liberadas          ?? produtoSelecionado?.ias_liberadas          ?? [],
+  };
 
   // ── salvar alterações principais ────────────────────────────────────────────
   async function handleSave() {
@@ -257,10 +303,17 @@ export default function AdminAcessoCliente() {
       const { error: tenantErr } = await supabase
         .from('platform_tenants')
         .update({
-          product_id: form.product_id || null,
-          access_starts_at: form.access_starts_at || null,
-          trial_ends_at: form.trial_ends_at || null,
-          status: form.status,
+          product_id:             form.product_id || null,
+          access_starts_at:       form.access_starts_at || null,
+          trial_ends_at:          form.trial_ends_at || null,
+          status:                 form.status,
+          acesso_cerebro:         featureOverrides.acesso_cerebro,
+          acesso_crm:             featureOverrides.acesso_crm,
+          acesso_sessoes_taticas: featureOverrides.acesso_sessoes_taticas,
+          acesso_materiais:       featureOverrides.acesso_materiais,
+          acesso_ia_comercial:    featureOverrides.acesso_ia_comercial,
+          pilares_liberados:      featureOverrides.pilares_liberados,
+          ias_liberadas:          featureOverrides.ias_liberadas,
         })
         .eq('organization_id', orgId);
 
@@ -325,40 +378,42 @@ export default function AdminAcessoCliente() {
     <div className="space-y-6 max-w-4xl">
 
       {/* HEADER */}
-      <div className="space-y-3">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <button onClick={() => navigate('/admin')} className="hover:text-foreground transition-colors">Admin OS</button>
-          <ChevronRight className="h-3 w-3 opacity-40" />
-          <button onClick={() => navigate('/admin/acessos')} className="hover:text-foreground transition-colors">Gestão de Acessos</button>
-          <ChevronRight className="h-3 w-3 opacity-40" />
-          <span className="text-foreground font-medium truncate max-w-[200px]">{nomeExibido}</span>
-        </div>
-
-        {/* Título + badge + botão voltar */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-foreground">{nomeExibido}</h1>
-            <span
-              className="text-xs font-semibold px-2.5 py-1 rounded-full border"
-              style={{ borderColor: badgeStyle.border, color: badgeStyle.color, background: badgeStyle.bg }}
-            >
-              {BADGE_LABELS[badge]}
-              {diasRestantes !== null && badge !== 'bloqueado' && (
-                <span className="ml-1 opacity-70">
-                  {diasRestantes < 0
-                    ? `· ${Math.abs(diasRestantes)}d atrás`
-                    : diasRestantes === 9999 ? '' : `· ${diasRestantes}d`}
-                </span>
-              )}
-            </span>
+      {!embedded && (
+        <div className="space-y-3">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <button onClick={() => navigate('/admin')} className="hover:text-foreground transition-colors">Admin OS</button>
+            <ChevronRight className="h-3 w-3 opacity-40" />
+            <button onClick={() => navigate('/admin/acessos')} className="hover:text-foreground transition-colors">Gestão de Acessos</button>
+            <ChevronRight className="h-3 w-3 opacity-40" />
+            <span className="text-foreground font-medium truncate max-w-[200px]">{nomeExibido}</span>
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => navigate('/admin/acessos')}>
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Voltar
-          </Button>
+
+          {/* Título + badge + botão voltar */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl font-bold text-foreground">{nomeExibido}</h1>
+              <span
+                className="text-xs font-semibold px-2.5 py-1 rounded-full border"
+                style={{ borderColor: badgeStyle.border, color: badgeStyle.color, background: badgeStyle.bg }}
+              >
+                {BADGE_LABELS[badge]}
+                {diasRestantes !== null && badge !== 'bloqueado' && (
+                  <span className="ml-1 opacity-70">
+                    {diasRestantes < 0
+                      ? `· ${Math.abs(diasRestantes)}d atrás`
+                      : diasRestantes === 9999 ? '' : `· ${diasRestantes}d`}
+                  </span>
+                )}
+              </span>
+            </div>
+            <Button variant="outline" size="sm" className="gap-1.5 shrink-0" onClick={() => navigate('/admin/acessos')}>
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Voltar
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* SEÇÃO 1 — Informações do Cliente */}
       <Card>
@@ -495,74 +550,119 @@ export default function AdminAcessoCliente() {
       {/* SEÇÃO 3 — Funcionalidades Ativas */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-bold uppercase tracking-widest text-[#E85D24]">
-            Funcionalidades Ativas
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-bold uppercase tracking-widest text-[#E85D24]">
+              Funcionalidades Ativas
+            </CardTitle>
+            {produtoSelecionado && (
+              <span className="text-[10px] text-muted-foreground">Clique para ativar/desativar por cliente</span>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {!produtoSelecionado ? (
             <p className="text-sm text-muted-foreground italic">Selecione um produto para ver as funcionalidades.</p>
           ) : (
             <div className="space-y-5">
-              {/* Funcionalidades toggle */}
+              {/* Funcionalidades toggle — clicáveis */}
               <div className="flex flex-wrap gap-2">
                 {FUNCIONALIDADES.map(f => {
-                  const on = produtoSelecionado[f.key as keyof Produto] as boolean;
+                  const on = effectiveFeatures[f.key as keyof typeof effectiveFeatures] as boolean;
+                  const isOverridden = featureOverrides[f.key as keyof typeof featureOverrides] !== null;
                   return (
-                    <span
+                    <button
                       key={f.key}
-                      className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border"
+                      type="button"
+                      onClick={() => setFeatureOverrides(prev => ({
+                        ...prev,
+                        [f.key]: !on,
+                      }))}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border transition-all cursor-pointer hover:opacity-80"
                       style={{
                         borderColor: on ? '#22c55e' : 'hsl(var(--border))',
                         color: on ? '#16a34a' : 'hsl(var(--muted-foreground))',
                         background: on ? 'rgba(34,197,94,0.08)' : 'transparent',
+                        outline: isOverridden ? '2px solid #E85D24' : 'none',
+                        outlineOffset: '2px',
                       }}
+                      title={isOverridden ? 'Customizado para este cliente' : 'Padrão do produto'}
                     >
                       {on
                         ? <Check className="h-3 w-3" />
                         : <XIcon className="h-3 w-3 opacity-40" />}
                       <f.icon className="h-3 w-3" />
                       {f.label}
-                    </span>
+                    </button>
                   );
                 })}
               </div>
 
-              {/* Pilares */}
-              {produtoSelecionado.pilares_liberados.length > 0 && (
-                <div className="space-y-1.5">
+              {/* Pilares — checkboxes */}
+              {pilares.length > 0 && (
+                <div className="space-y-2">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium flex items-center gap-1.5">
                     <Layers className="h-3.5 w-3.5" /> Pilares liberados
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {produtoSelecionado.pilares_liberados.map(pid => {
-                      const pilar = pilares.find(p => p.id === pid);
-                      if (!pilar) return null;
+                    {pilares.map(pilar => {
+                      const active = effectiveFeatures.pilares_liberados.includes(pilar.id);
                       return (
-                        <span key={pid} className="text-xs px-2.5 py-1 rounded-full border border-border bg-muted/40 text-foreground font-medium">
-                          {pilar.icone && <span className="mr-1">{pilar.icone}</span>}
-                          {pilar.nome}
-                        </span>
+                        <button
+                          key={pilar.id}
+                          type="button"
+                          onClick={() => {
+                            const current = effectiveFeatures.pilares_liberados;
+                            const next = active
+                              ? current.filter(id => id !== pilar.id)
+                              : [...current, pilar.id];
+                            setFeatureOverrides(prev => ({ ...prev, pilares_liberados: next }));
+                          }}
+                          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all cursor-pointer hover:opacity-80"
+                          style={{
+                            borderColor: active ? '#22c55e' : 'hsl(var(--border))',
+                            color: active ? '#16a34a' : 'hsl(var(--muted-foreground))',
+                            background: active ? 'rgba(34,197,94,0.08)' : 'transparent',
+                          }}
+                        >
+                          {active ? <Check className="h-3 w-3" /> : <XIcon className="h-3 w-3 opacity-30" />}
+                          <span className="font-medium">{pilar.nome}</span>
+                        </button>
                       );
                     })}
                   </div>
                 </div>
               )}
 
-              {/* IAs */}
-              {produtoSelecionado.ias_liberadas.length > 0 && (
-                <div className="space-y-1.5">
+              {/* IAs — checkboxes */}
+              {ias.length > 0 && (
+                <div className="space-y-2">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium flex items-center gap-1.5">
                     <Zap className="h-3.5 w-3.5" /> IAs liberadas
                   </p>
                   <div className="flex flex-wrap gap-1.5">
-                    {produtoSelecionado.ias_liberadas.map(iaId => {
-                      const ia = ias.find(i => i.id === iaId);
-                      if (!ia) return null;
+                    {ias.map(ia => {
+                      const active = effectiveFeatures.ias_liberadas.includes(ia.id);
                       return (
-                        <span key={iaId} className="text-xs px-2.5 py-1 rounded-full border border-border bg-muted/40 text-foreground font-medium">
-                          {ia.name}
-                        </span>
+                        <button
+                          key={ia.id}
+                          type="button"
+                          onClick={() => {
+                            const current = effectiveFeatures.ias_liberadas;
+                            const next = active
+                              ? current.filter(id => id !== ia.id)
+                              : [...current, ia.id];
+                            setFeatureOverrides(prev => ({ ...prev, ias_liberadas: next }));
+                          }}
+                          className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all cursor-pointer hover:opacity-80"
+                          style={{
+                            borderColor: active ? '#22c55e' : 'hsl(var(--border))',
+                            color: active ? '#16a34a' : 'hsl(var(--muted-foreground))',
+                            background: active ? 'rgba(34,197,94,0.08)' : 'transparent',
+                          }}
+                        >
+                          {active ? <Check className="h-3 w-3" /> : <XIcon className="h-3 w-3 opacity-30" />}
+                          <span className="font-medium">{ia.name}</span>
+                        </button>
                       );
                     })}
                   </div>

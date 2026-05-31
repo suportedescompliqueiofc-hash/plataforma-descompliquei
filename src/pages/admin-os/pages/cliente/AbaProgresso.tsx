@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { BookOpen, CheckCircle2, ChevronDown, ChevronRight, Circle, Loader2, Brain, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type StepName = 'aprenda' | 'construa' | 'valide' | 'finalize';
 
@@ -207,8 +207,8 @@ function renderBlockResponse(row: ResponseRow & { block?: BlockRow }) {
     case 'criacao_oferta': {
       const values = response.values || {};
       return (
-        <div className="rounded-lg border border-[#E85D24]/20 bg-[#E85D24]/5 p-4">
-          <p className="mb-3 text-xs font-bold uppercase tracking-wider text-[#E85D24]">Resumo da oferta</p>
+        <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Resumo da oferta</p>
           <div className="grid gap-2 md:grid-cols-2">
             {Object.entries(values).filter(([, value]) => hasValue(value)).map(([key, value]) => (
               <div key={key}>
@@ -266,18 +266,16 @@ function renderBlockResponse(row: ResponseRow & { block?: BlockRow }) {
 
 function ModuleStepIndicator({ completedCount }: { completedCount: number }) {
   if (completedCount >= 4) {
-    return <CheckCircle2 className="h-4 w-4 text-[#E85D24]" />;
+    return <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />;
   }
-
   if (completedCount > 0) {
     return (
-      <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-full border border-[#E85D24]/50">
-        <div className="absolute inset-y-0 left-0 w-1/2 bg-[#E85D24]" />
+      <div className="relative h-4 w-4 shrink-0 overflow-hidden rounded-full border border-foreground/30">
+        <div className="absolute inset-y-0 left-0 w-1/2 bg-foreground/40" />
       </div>
     );
   }
-
-  return <Circle className="h-4 w-4 text-muted-foreground/40" />;
+  return <Circle className="h-4 w-4 text-muted-foreground/40 shrink-0" />;
 }
 
 function getNormalizedStepState(steps: Set<StepName>, moduleCompleted: boolean) {
@@ -369,12 +367,12 @@ export default function AbaProgresso({ clientId, progressData, progressDetails }
 
   if (visibleModules.length === 0) {
     return (
-      <Card>
-        <CardContent className="p-8 text-center text-sm text-muted-foreground">
-          <BookOpen className="mx-auto mb-3 h-10 w-10 opacity-20" />
-          Este cliente ainda nao iniciou nenhum modulo.
-        </CardContent>
-      </Card>
+      <div className="flex flex-col items-center justify-center py-12 text-center rounded-2xl border border-border/60 bg-card">
+        <div className="p-3 rounded-xl bg-muted/40 mb-3">
+          <BookOpen className="h-6 w-6 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">Este cliente ainda não iniciou nenhum módulo.</p>
+      </div>
     );
   }
 
@@ -390,79 +388,84 @@ export default function AbaProgresso({ clientId, progressData, progressDetails }
         const responseState = responsesByModule[moduleItem.id];
 
         return (
-          <Card key={moduleItem.id} className={`border ${completed ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border'}`}>
-            <CardContent className="p-4">
+          <div key={moduleItem.id} className={cn(
+            'rounded-2xl border shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden',
+            completed ? 'border-emerald-500/20 bg-emerald-500/[0.03]' : 'border-border/60 bg-card'
+          )}>
+            <div className="p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <ModuleStepIndicator completedCount={completedCount} />
-                    <p className="truncate text-sm font-bold text-foreground">
-                      Modulo {moduleItem.id} - {moduleItem.title}
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {moduleItem.title}
                     </p>
                   </div>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
+                  <p className="mt-1 text-[11px] text-muted-foreground/70 ml-6">
                     {completed && progress?.completed_at
-                      ? `Concluido em ${formatDate(progress.completed_at)}`
+                      ? `Concluído em ${formatDate(progress.completed_at)}`
                       : completedCount > 0
                         ? `${Math.round((completedCount / 4) * 100)}% concluído`
                         : 'Nenhuma etapa iniciada'}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
+                  <div className="mt-2.5 flex flex-wrap gap-1.5 ml-6">
                     {(['aprenda', 'construa', 'valide', 'finalize'] as StepName[]).map((step) => {
                       const stepDone = normalizedSteps[step];
                       return (
-                        <Badge key={step} className={`border text-[10px] ${stepDone ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-border bg-muted text-muted-foreground'}`}>
+                        <span key={step} className={cn(
+                          'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
+                          stepDone
+                            ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20'
+                            : 'bg-muted text-muted-foreground border-border/40'
+                        )}>
                           {stepDone ? `✓ ${STEP_LABELS[step]}` : STEP_LABELS[step]}
-                        </Badge>
+                        </span>
                       );
                     })}
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 shrink-0 border-[#E85D24]/40 text-xs text-[#E85D24] hover:bg-[#E85D24]/10"
-                  onClick={() => toggleModule(moduleItem.id)}
-                >
-                  {expanded ? <ChevronDown className="mr-1 h-3.5 w-3.5" /> : <ChevronRight className="mr-1 h-3.5 w-3.5" />}
-                  Ver respostas do Construa
+                <Button variant="outline" size="sm"
+                  className="h-7 shrink-0 text-[11px] border-border/60 gap-1"
+                  onClick={() => toggleModule(moduleItem.id)}>
+                  {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  Ver respostas
                 </Button>
               </div>
 
               {expanded && (
-                <div className="mt-4 border-t border-border pt-4">
+                <div className="mt-4 border-t border-border/40 pt-4">
                   {responseState?.loading ? (
-                    <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin text-[#E85D24]" />
-                      Carregando respostas...
+                    <div className="flex items-center justify-center py-6 text-sm text-muted-foreground gap-2">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Carregando respostas...
                     </div>
                   ) : !responseState || responseState.rows.length === 0 ? (
-                    <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                      Nenhuma resposta do Construa registrada neste modulo.
+                    <div className="rounded-xl border border-dashed border-border/60 p-6 text-center text-sm text-muted-foreground">
+                      Nenhuma resposta registrada neste módulo.
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {responseState.rows.map((row) => (
-                        <div key={row.id} className="rounded-xl border border-border bg-background p-4">
+                        <div key={row.id} className="rounded-xl border border-border/60 bg-muted/20 p-4">
                           <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-2">
-                                <FileText className="h-4 w-4 text-[#E85D24]" />
-                                <p className="font-semibold text-foreground">{row.block?.titulo || 'Bloco sem titulo'}</p>
-                                <Badge variant="outline" className="text-[10px]">
+                                <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                                <p className="font-semibold text-foreground text-sm">{row.block?.titulo || 'Bloco sem título'}</p>
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border/40">
                                   {BLOCK_TYPE_LABELS[row.block?.tipo || ''] || row.block?.tipo || 'Bloco'}
-                                </Badge>
+                                </span>
                                 {row.block?.salvar_no_cerebro && (
-                                  <Badge className="border-0 bg-sky-500/15 text-[10px] text-sky-700">
-                                    <Brain className="mr-1 h-3 w-3" />
-                                    🧠 Sincronizado com Cerebro
-                                  </Badge>
+                                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-blue-500/10 text-blue-700 border-blue-500/20 flex items-center gap-1">
+                                    <Brain className="h-3 w-3" /> Cérebro
+                                  </span>
                                 )}
                               </div>
-                              <p className="mt-1 text-[11px] text-muted-foreground">Atualizado em {formatDate(row.updated_at)}</p>
+                              <p className="mt-1 text-[11px] text-muted-foreground/60">Atualizado em {formatDate(row.updated_at)}</p>
                             </div>
-                            {row.completed && <Badge className="border-0 bg-emerald-500/20 text-[10px] text-emerald-700">Completo</Badge>}
+                            {row.completed && (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-700 border-emerald-500/20">Completo</span>
+                            )}
                           </div>
                           {renderBlockResponse(row)}
                         </div>
@@ -471,8 +474,8 @@ export default function AbaProgresso({ clientId, progressData, progressDetails }
                   )}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         );
       })}
     </div>

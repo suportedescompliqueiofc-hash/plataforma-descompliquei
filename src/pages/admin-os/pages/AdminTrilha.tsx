@@ -198,6 +198,7 @@ interface SortablePillarHeaderProps {
   onAddModule: () => void;
   onDuplicate: () => void;
   onToggleActive: () => void;
+  onDelete: () => void;
   children: React.ReactNode;
 }
 
@@ -637,6 +638,7 @@ function SortablePillarHeader({
   onAddModule,
   onDuplicate,
   onToggleActive,
+  onDelete,
   children,
 }: SortablePillarHeaderProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -701,6 +703,10 @@ function SortablePillarHeader({
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onToggleActive}>
               {pillar.ativo ? 'Desativar pilar' : 'Ativar pilar'}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onDelete} className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+              Excluir pilar
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -875,6 +881,7 @@ export default function AdminTrilha() {
   const [expandedPillars, setExpandedPillars] = useState<string[]>([]);
   const [inactiveOpen, setInactiveOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [deletePillarTarget, setDeletePillarTarget] = useState<DeleteTarget | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingType, setDraggingType] = useState<'pillar' | 'module' | null>(null);
   const [editMod, setEditMod] = useState<Partial<PlatformModule>>({});
@@ -903,7 +910,7 @@ export default function AdminTrilha() {
   );
 
   useEffect(() => {
-    document.title = 'Trilha C.L.A.R.O. · Admin OS | Descompliquei';
+    document.title = 'Trilha de Aprendizado · Admin OS | Descompliquei';
     void loadData();
   }, []);
 
@@ -1579,6 +1586,40 @@ export default function AdminTrilha() {
     } catch (error: any) {
       toast({
         title: 'Erro ao mover módulo',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  }
+
+  async function deletePillar(pillarId: string) {
+    try {
+      // Busca o ordem_index do pilar (platform_modules.pillar é inteiro)
+      const { data: pilarData, error: pilarFetchError } = await db
+        .from('platform_pilares')
+        .select('ordem_index')
+        .eq('id', pillarId)
+        .maybeSingle();
+      if (pilarFetchError) throw pilarFetchError;
+
+      // Deleta todos os módulos do pilar usando o número inteiro
+      if (pilarData?.ordem_index != null) {
+        const { error: modError } = await db
+          .from('platform_modules')
+          .delete()
+          .eq('pillar', pilarData.ordem_index);
+        if (modError) throw modError;
+      }
+
+      const { error } = await db.from('platform_pilares').delete().eq('id', pillarId);
+      if (error) throw error;
+
+      setDeletePillarTarget(null);
+      await loadData();
+      toast({ title: 'Pilar excluído com sucesso' });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir pilar',
         description: error.message,
         variant: 'destructive',
       });
@@ -2448,7 +2489,7 @@ export default function AdminTrilha() {
           )}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <CardTitle className="text-lg font-bold text-foreground">Trilha C.L.A.R.O.</CardTitle>
+              <CardTitle className="text-lg font-bold text-foreground">Trilha de Aprendizado</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
                 {pillars.length} pilares · {modules.length} módulos · {totalVideoModules} com vídeo · {totalConstruaModules} com Construa
               </p>
@@ -2496,6 +2537,7 @@ export default function AdminTrilha() {
                       onAddModule={() => openCreateModuleModal(pillar.id)}
                       onDuplicate={() => void duplicatePillar(pillar)}
                       onToggleActive={() => void togglePillarActive(pillar)}
+                      onDelete={() => setDeletePillarTarget({ id: pillar.id, title: pillar.nome })}
                     >
                       {expanded && (
                         <PillarDropZone pillarId={pillar.id} active={draggingType === 'module'}>
@@ -3057,7 +3099,7 @@ export default function AdminTrilha() {
               <Textarea rows={3} value={pillarForm.descricao} onChange={(event) => setPillarForm({ ...pillarForm, descricao: event.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <Label>Fase do C.L.A.R.O.</Label>
+              <Label>Fase / Categoria</Label>
               <Input value={pillarForm.fase_claro} onChange={(event) => setPillarForm({ ...pillarForm, fase_claro: event.target.value })} placeholder="Ex: Fase C" />
             </div>
             <div className="flex items-center gap-2">
@@ -3185,6 +3227,26 @@ export default function AdminTrilha() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deletePillarTarget} onOpenChange={(open) => !open && setDeletePillarTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pilar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso removerá permanentemente o pilar <strong>"{deletePillarTarget?.title}"</strong> e todos os módulos e blocos vinculados a ele. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={() => deletePillarTarget && void deletePillar(deletePillarTarget.id)}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>

@@ -195,12 +195,16 @@ export default function AdminProdutos() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Produtos</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Gerencie os planos e acessos da plataforma.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="p-1.5 rounded-lg bg-muted">
+              <Layers className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Produtos</h1>
+          </div>
+          <p className="text-[13px] text-muted-foreground ml-10">Gerencie os planos e acessos da plataforma</p>
         </div>
-        <Button onClick={openCreate} className="gap-2 bg-[#E85D24] hover:bg-[#d04e1a] text-white">
-          <Plus className="h-4 w-4" />
-          Novo Produto
+        <Button onClick={openCreate} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> Novo Produto
         </Button>
       </div>
 
@@ -223,9 +227,10 @@ export default function AdminProdutos() {
           {produtos.map(p => (
             <div
               key={p.id}
-              className="rounded-xl border border-border bg-card p-5 flex flex-col gap-4"
+              className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col"
               style={{ opacity: p.ativo ? 1 : 0.55 }}
             >
+              <div className="p-5 space-y-4 flex-1">
               {/* Topo */}
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
@@ -265,9 +270,9 @@ export default function AdminProdutos() {
                       key={f.key}
                       className="text-[10px] font-semibold px-2 py-0.5 rounded-full border"
                       style={{
-                        borderColor: on ? '#E85D24' : 'hsl(var(--border))',
-                        color: on ? '#E85D24' : 'hsl(var(--muted-foreground))',
-                        background: on ? 'rgba(232,93,36,0.08)' : 'transparent',
+                        borderColor: on ? 'hsl(var(--foreground))' : 'hsl(var(--border))',
+                        color: on ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+                        background: on ? 'hsl(var(--foreground) / 0.08)' : 'transparent',
                       }}
                     >
                       {on ? '✓ ' : ''}{f.label}
@@ -288,31 +293,17 @@ export default function AdminProdutos() {
                 </span>
               </div>
 
+              </div>
               {/* Ações */}
-              <div className="flex gap-2 pt-1 border-t border-border">
-                <Button size="sm" variant="outline" className="flex-1 gap-1.5 text-xs h-8" onClick={() => openEdit(p)}>
-                  <Pencil className="h-3 w-3" />
-                  Editar
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1 gap-1.5 text-xs h-8"
-                  onClick={() => toggleAtivo(p)}
-                  style={{ color: p.ativo ? '#ef4444' : '#22c55e', borderColor: p.ativo ? '#ef4444' : '#22c55e' }}
-                >
-                  <Power className="h-3 w-3" />
-                  {p.ativo ? 'Desativar' : 'Ativar'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 w-8 p-0 shrink-0"
-                  onClick={() => setDeleteId(p.id)}
-                  style={{ color: '#ef4444', borderColor: '#ef4444' }}
-                  title="Excluir produto"
-                >
+              <div className="flex items-center justify-end px-5 py-3 border-t border-border/40 bg-muted/20 gap-1.5">
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10" onClick={() => setDeleteId(p.id)} title="Excluir produto">
                   <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="outline" className={`h-7 text-[11px] gap-1 border-border/60 ${p.ativo ? 'text-muted-foreground hover:text-red-500' : 'text-emerald-600'}`} onClick={() => toggleAtivo(p)}>
+                  <Power className="h-3 w-3" /> {p.ativo ? 'Desativar' : 'Ativar'}
+                </Button>
+                <Button size="sm" className="h-7 text-[11px] gap-1 bg-foreground text-background hover:bg-foreground/90" onClick={() => openEdit(p)}>
+                  <Pencil className="h-3 w-3" /> Editar
                 </Button>
               </div>
             </div>
@@ -333,14 +324,8 @@ export default function AdminProdutos() {
             Tem certeza que deseja excluir este produto? Esta ação é <strong>irreversível</strong> e pode afetar clientes que utilizam este produto.
           </p>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteId(null)} disabled={deleting}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="gap-2 bg-red-600 hover:bg-red-700 text-white"
-            >
+            <Button variant="outline" className="h-9 rounded-lg text-xs" onClick={() => setDeleteId(null)} disabled={deleting}>Cancelar</Button>
+            <Button onClick={handleDelete} disabled={deleting} className="h-9 rounded-lg text-xs font-semibold gap-1.5 bg-red-600 hover:bg-red-700 text-white">
               {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {deleting ? 'Excluindo...' : 'Sim, excluir'}
             </Button>
@@ -358,7 +343,7 @@ export default function AdminProdutos() {
           <div className="space-y-6 py-2">
             {/* Informações Gerais */}
             <section className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-[#E85D24]">Informações Gerais</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Informações Gerais</h3>
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-medium">Nome do produto <span className="text-red-500">*</span></Label>
@@ -397,7 +382,7 @@ export default function AdminProdutos() {
                     />
                   )}
                   {form.duracao_dias >= 99999 && (
-                    <p className="text-xs text-[#E85D24] font-medium px-1">♾️ Sem data de expiração</p>
+                    <p className="text-xs text-muted-foreground font-medium px-1">Sem data de expiração</p>
                   )}
                 </div>
               </div>
@@ -406,18 +391,17 @@ export default function AdminProdutos() {
             {/* Acesso à Trilha */}
             {pilares.length > 0 && (
               <section className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-[#E85D24]">Acesso à Trilha — Pilares</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Acesso à Trilha — Pilares</h3>
                 <div className="space-y-2">
                   {pilares.map(pilar => (
                     <label key={pilar.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-border px-3 py-2.5 hover:bg-muted/40 transition-colors">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 accent-[#E85D24] cursor-pointer"
+                        className="h-4 w-4 cursor-pointer"
                         checked={form.pilares_liberados.includes(pilar.id)}
                         onChange={() => togglePilar(pilar.id)}
                       />
                       <span className="text-sm font-medium text-foreground flex-1">
-                        {pilar.icone && <span className="mr-1.5">{pilar.icone}</span>}
                         {pilar.nome}
                       </span>
                     </label>
@@ -430,11 +414,11 @@ export default function AdminProdutos() {
             {ias.length > 0 && (
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-widest text-[#E85D24]">Acesso às IAs</h3>
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Acesso às IAs</h3>
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      className="text-[11px] text-[#E85D24] hover:underline font-medium"
+                      className="text-[11px] text-muted-foreground hover:text-foreground underline font-medium"
                       onClick={() => setForm(f => ({ ...f, ias_liberadas: ias.map(i => i.id) }))}
                     >
                       Selecionar todos
@@ -454,7 +438,7 @@ export default function AdminProdutos() {
                     <label key={ia.id} className="flex items-center gap-3 cursor-pointer rounded-lg border border-border px-3 py-2.5 hover:bg-muted/40 transition-colors">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 accent-[#E85D24] cursor-pointer"
+                        className="h-4 w-4 cursor-pointer"
                         checked={form.ias_liberadas.includes(ia.id)}
                         onChange={() => toggleIA(ia.id)}
                       />
@@ -467,7 +451,7 @@ export default function AdminProdutos() {
 
             {/* Funcionalidades do Sistema */}
             <section className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-[#E85D24]">Funcionalidades do Sistema</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Funcionalidades do Sistema</h3>
               <div className="space-y-2">
                 {FUNCIONALIDADES.map(f => (
                   <div key={f.key} className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
@@ -490,14 +474,8 @@ export default function AdminProdutos() {
           </div>
 
           <DialogFooter className="gap-2 pt-2">
-            <Button variant="outline" onClick={() => setModalOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={saving}
-              className="gap-2 bg-[#E85D24] hover:bg-[#d04e1a] text-white"
-            >
+            <Button variant="outline" className="h-9 rounded-lg text-xs" onClick={() => setModalOpen(false)} disabled={saving}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={saving} className="h-9 rounded-lg text-xs font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 px-5">
               {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {saving ? 'Salvando...' : 'Salvar'}
             </Button>
