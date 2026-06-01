@@ -2004,18 +2004,6 @@ export const tutorials: Tutorial[] = [
         description: 'Aqui você define **quem é a sua clínica**:\n\n• Nome da clínica e do responsável\n• Especialidade principal e complementares\n• Cidade, estado e ano de fundação\n• Propósito e valores\n\nEssas informações personalizam **todas as respostas das IAs** ao contexto específico do seu negócio.',
         action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(1)', delay: 400 },
       },
-      {
-        target: 'cerebro-field-nome',
-        title: 'Nome da clínica',
-        description: 'Digite o **nome completo da sua clínica** como você quer que apareça nas comunicações com pacientes.\n\n**Dica:** Use o nome comercial, não a razão social.',
-        position: 'right' as const,
-      },
-      {
-        target: 'cerebro-field-especialidade',
-        title: 'Especialidade principal',
-        description: 'Selecione a **especialidade principal**. Isso define o contexto de todas as IAs — uma clínica de **Odontologia** recebe respostas totalmente diferentes de uma de **Cirurgia Plástica**.',
-        position: 'right' as const,
-      },
 
       // ── Fase 2: Procedimentos ──
       {
