@@ -128,16 +128,17 @@ export default function OnboardingPlataformaModal() {
   const [step, setStep] = useState(0);
   const [completing, setCompleting] = useState(false);
 
-  // Nunca mostrar para superadmins ou clientes antigos
-  const isSuperAdmin = role === 'superadmin';
-  const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
-  if (isSuperAdmin || !onboardingEnabled) return null;
-
-  // Estado da senha
+  // ⚠️ TODOS os hooks devem ficar ANTES de qualquer return condicional (React rules of hooks)
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [senhaError, setSenhaError] = useState<string | null>(null);
   const [savingPwd, setSavingPwd] = useState(false);
+
+  // Nunca mostrar para superadmins ou clientes antigos
+  const isSuperAdmin = role === 'superadmin';
+  const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
+  if (isSuperAdmin || !onboardingEnabled) return null;
+  if (isContextLoading) return null;
 
   const currentStep = STEPS[step];
   const isSenhaStep = currentStep.id === 'senha';
@@ -172,8 +173,6 @@ export default function OnboardingPlataformaModal() {
     setCompleting(true);
     await completeOnboarding();
   };
-
-  if (isContextLoading) return null;
 
   const Icon = currentStep.icon;
 

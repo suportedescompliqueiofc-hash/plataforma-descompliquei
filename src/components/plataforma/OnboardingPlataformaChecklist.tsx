@@ -139,14 +139,11 @@ export function OnboardingPlataformaChecklist() {
   const { startTutorial, activeTutorialId, isTutorialCompleted } = useTutorialContext();
   const { role } = useProfile();
 
-  // Nunca mostrar para superadmins ou clientes antigos (sem flag habilitada)
   const isSuperAdmin = role === 'superadmin';
   const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
   const phase1Complete = plataformaUser?.onboarding_complete === true;
 
-  // Superadmin nunca vê; clientes antigos (flag false/null) nunca veem
-  if (isSuperAdmin || !onboardingEnabled) return null;
-
+  // ⚠️ TODOS os hooks devem ficar ANTES de qualquer return condicional (React rules of hooks)
   const { steps, mandatoryComplete, shouldShowChecklist, completeStep } =
     usePlataformaOnboarding(phase1Complete);
 
@@ -180,6 +177,9 @@ export function OnboardingPlataformaChecklist() {
   }, [activeTutorialId]);
 
   // ── Condições de ocultação ──────────────────────────────────────────────────
+
+  // Superadmin nunca vê; clientes antigos (flag false/null) nunca veem
+  if (isSuperAdmin || !onboardingEnabled) return null;
 
   // Esconde completamente enquanto um tutorial está ativo (spotlight precisa ficar visível)
   if (activeTutorialId) return null;
