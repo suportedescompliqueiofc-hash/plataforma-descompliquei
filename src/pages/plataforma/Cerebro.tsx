@@ -326,7 +326,7 @@ export default function Cerebro() {
       </div>
 
       {/* HORIZONTAL NAV */}
-      <div className="flex overflow-x-auto no-scrollbar gap-1 pb-0 border-b border-border">
+      <div className="flex overflow-x-auto no-scrollbar gap-1 pb-0 border-b border-border" data-tutorial="cerebro-nav">
         {PHASES.map((phase, index) => {
           const isActive = activePhase === phase.id;
           return (
@@ -380,10 +380,10 @@ export default function Cerebro() {
 
         {/* FASE 1: IDENTIDADE */}
         {activePhase === 1 && (
-          <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-6 animate-in fade-in duration-300" data-tutorial="cerebro-identidade">
             <div className="rounded-xl border border-border bg-card p-6 shadow-card">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="space-y-1.5">
+                <div className="space-y-1.5" data-tutorial="cerebro-field-nome">
                   <label className="text-[13px] font-medium text-foreground">Nome da Clínica</label>
                   <Input value={formData.clinic_name} onChange={e => updateField('clinic_name', e.target.value)} />
                 </div>
@@ -391,7 +391,7 @@ export default function Cerebro() {
                   <label className="text-[13px] font-medium text-foreground">Nome do Responsável</label>
                   <Input value={formData.profissional_nome} onChange={e => updateField('profissional_nome', e.target.value)} />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1.5" data-tutorial="cerebro-field-especialidade">
                   <label className="text-[13px] font-medium text-foreground">Especialidade Principal</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={formData.specialty_principal} onChange={e => updateField('specialty_principal', e.target.value)}>

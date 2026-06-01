@@ -1899,6 +1899,78 @@ export const tutorials: Tutorial[] = [
       },
     ],
   },
+
+  // ── Plataforma — Tour ───────────────────────────────────────────────────────
+  {
+    id: 'platform-tour',
+    pageRoute: '/plataforma',
+    title: 'Tour pela Plataforma',
+    description: 'Conheça todas as seções disponíveis no seu plano em poucos minutos.',
+    icon: 'Map',
+    category: 'onboarding' as any,
+    steps: [
+      {
+        target: 'hub-header',
+        title: 'Sua central de comando',
+        description: 'Este é o **Hub da Plataforma** — seu ponto de partida para todas as ferramentas.\n\nAqui você tem uma visão geral do seu progresso e acesso rápido a tudo que está disponível no seu plano.',
+      },
+      {
+        target: 'hub-progress',
+        title: 'Progresso na Trilha',
+        description: 'Acompanhe **quantos módulos você já concluiu** na Trilha de Aprendizado.\n\nO progresso é salvo automaticamente após cada aula assistida.',
+      },
+      {
+        target: 'hub-nextmodulo',
+        title: 'Continue de onde parou',
+        description: 'Esta seção sempre sugere o **próximo módulo da sua trilha** — clique para ir direto ao conteúdo sem precisar navegar pelo menu.',
+      },
+      {
+        target: 'hub-tools',
+        title: 'Suas ferramentas',
+        description: 'Cada card representa uma **ferramenta disponível no seu plano**:\n\n• **Trilha** — módulos de aprendizado estruturados\n• **Cérebro Central** — memória estratégica das IAs\n• **IAs Comerciais** — assistentes especializados para captação\n• **CRM** — gestão completa de leads e conversões',
+      },
+      {
+        target: 'hub-tool-cerebro',
+        title: 'Comece pelo Cérebro Central',
+        description: '**Preencha o Cérebro Central antes de usar as IAs.** É lá que você registra a identidade, procedimentos e operação da sua clínica.\n\nQuanto mais completo, mais inteligentes e precisas ficam as respostas das IAs para o contexto da sua clínica.',
+        position: 'left' as const,
+      },
+    ],
+  },
+
+  // ── Plataforma — Cérebro Central ────────────────────────────────────────────
+  {
+    id: 'platform-cerebro',
+    pageRoute: '/plataforma/cerebro',
+    title: 'Preencher o Cérebro Central',
+    description: 'Configure a identidade da sua clínica passo a passo.',
+    icon: 'Brain',
+    category: 'onboarding' as any,
+    steps: [
+      {
+        target: 'cerebro-nav',
+        title: '5 fases de configuração',
+        description: 'O Cérebro Central é organizado em **5 fases**:\n\n• Fase 1 — Identidade (quem você é)\n• Fase 2 — Procedimentos (o que você oferece)\n• Fase 3 — Operação (como funciona seu comercial)\n• Fase 4 — FAQ & Objeções\n• Fase 5 — Trilha de Aprendizado\n\nPreencha na ordem, começando pela Fase 1.',
+      },
+      {
+        target: 'cerebro-identidade',
+        title: 'Fase 1: Identidade',
+        description: 'Comece preenchendo as **informações básicas da sua clínica** — nome, responsável e especialidade principal.\n\nEssas informações personalizam **todas as respostas das IAs** ao contexto específico da sua clínica.',
+      },
+      {
+        target: 'cerebro-field-nome',
+        title: 'Nome da clínica',
+        description: 'Digite o **nome completo da sua clínica** como você quer que apareça nas comunicações com pacientes.\n\n**Dica:** Use o nome comercial, não a razão social.',
+        position: 'right' as const,
+      },
+      {
+        target: 'cerebro-field-especialidade',
+        title: 'Especialidade principal',
+        description: 'Selecione a **especialidade principal** da sua clínica.\n\nIsso define o contexto de todas as IAs — uma clínica de Odontologia recebe respostas diferentes de uma de Cirurgia Plástica.\n\nDepois de preencher a Fase 1, avance pelas fases 2, 3 e 4 para completar o Cérebro Central. O sistema **salva automaticamente** a cada alteração.',
+        position: 'right' as const,
+      },
+    ],
+  },
 ];
 
 // Categories for help center grouping

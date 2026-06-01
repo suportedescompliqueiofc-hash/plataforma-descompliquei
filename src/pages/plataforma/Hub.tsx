@@ -154,7 +154,7 @@ export default function Hub() {
       )}
 
       {/* HEADER */}
-      <div className="space-y-1">
+      <div className="space-y-1" data-tutorial="hub-header">
         <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
           Olá, {plataformaUser?.clinic_name || "Clínica"}
         </h1>
@@ -169,7 +169,7 @@ export default function Hub() {
 
       {/* PROGRESSO GERAL */}
       {temTrilha && (
-        <div className="rounded-xl border border-border bg-card p-6">
+        <div className="rounded-xl border border-border bg-card p-6" data-tutorial="hub-progress">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h2 className="text-[15px] font-medium text-foreground">Progresso geral</h2>
@@ -184,6 +184,7 @@ export default function Hub() {
       {/* PRÓXIMO PASSO */}
       {temTrilha && nextModule && progressPercent < 100 && (
         <div
+          data-tutorial="hub-nextmodulo"
           onClick={() => navigate(`/plataforma/trilha/${nextModule.id}`)}
           className="group rounded-xl border border-border bg-card p-6 cursor-pointer transition-all hover:border-[#E85D24]/40 hover:shadow-sm"
         >
@@ -221,12 +222,13 @@ export default function Hub() {
       )}
 
       {/* FERRAMENTAS */}
-      <div className="space-y-4">
+      <div className="space-y-4" data-tutorial="hub-tools">
         <h2 className="text-[15px] font-medium text-foreground">Ferramentas</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {tools.map((tool) => (
             <Card
               key={tool.id}
+              data-tutorial={`hub-tool-${tool.id}`}
               onClick={tool.action}
               className="border-border bg-card cursor-pointer transition-all hover:shadow-md shadow-card group"
             >
