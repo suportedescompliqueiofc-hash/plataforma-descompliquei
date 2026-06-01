@@ -22,7 +22,7 @@ export default function IAHub() {
   return (
     <div className="max-w-[1000px] mx-auto space-y-8 pb-12">
       {/* HEADER */}
-      <div className="space-y-1 border-b border-border pb-6">
+      <div className="space-y-1 border-b border-border pb-6" data-tutorial="iahub-header">
         <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">IAs Comerciais</h1>
         <p className="text-muted-foreground text-[15px]">{iasLiberadas.length} inteligência{iasLiberadas.length !== 1 ? 's artificiais' : ' artificial'} disponíve{iasLiberadas.length !== 1 ? 'is' : 'l'} para você.</p>
       </div>

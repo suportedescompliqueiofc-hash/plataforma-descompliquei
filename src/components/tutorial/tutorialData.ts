@@ -1900,7 +1900,7 @@ export const tutorials: Tutorial[] = [
     ],
   },
 
-  // ── Plataforma — Tour ───────────────────────────────────────────────────────
+  // ── Plataforma — Tour Completo ───────────────────────────────────────────────
   {
     id: 'platform-tour',
     pageRoute: '/plataforma',
@@ -1909,36 +1909,74 @@ export const tutorials: Tutorial[] = [
     icon: 'Map',
     category: 'onboarding' as any,
     steps: [
+      // ── 1. Hub ──────────────────────────────────────────────────────────────
+      {
+        target: 'sidebar',
+        title: 'Menu da plataforma',
+        description: 'Este é o **menu lateral** — por ele você navega entre todas as ferramentas disponíveis no seu plano.\n\nEstá organizado em seções:\n\n• **Aprendizado** — Trilha e Cérebro Central\n• **Ao Vivo** — Sessões Táticas\n• **Ferramenta** — IAs Comerciais, Evolução e CRM',
+      },
       {
         target: 'hub-header',
-        title: 'Sua central de comando',
-        description: 'Este é o **Hub da Plataforma** — seu ponto de partida para todas as ferramentas.\n\nAqui você tem uma visão geral do seu progresso e acesso rápido a tudo que está disponível no seu plano.',
-      },
-      {
-        target: 'hub-progress',
-        title: 'Progresso na Trilha',
-        description: 'Acompanhe **quantos módulos você já concluiu** na Trilha de Aprendizado.\n\nO progresso é salvo automaticamente após cada aula assistida.',
-      },
-      {
-        target: 'hub-nextmodulo',
-        title: 'Continue de onde parou',
-        description: 'Esta seção sempre sugere o **próximo módulo da sua trilha** — clique para ir direto ao conteúdo sem precisar navegar pelo menu.',
+        title: 'Hub — Sua central de comando',
+        description: 'Este é o **Hub**, seu ponto de partida. Aqui você vê o progresso geral, acessa rapidamente o próximo módulo e tem atalhos para todas as ferramentas.\n\nSempre que entrar na plataforma, você começa por aqui.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 500 },
       },
       {
         target: 'hub-tools',
-        title: 'Suas ferramentas',
-        description: 'Cada card representa uma **ferramenta disponível no seu plano**:\n\n• **Trilha** — módulos de aprendizado estruturados\n• **Cérebro Central** — memória estratégica das IAs\n• **IAs Comerciais** — assistentes especializados para captação\n• **CRM** — gestão completa de leads e conversões',
+        title: 'Ferramentas do seu plano',
+        description: 'Cada card representa uma ferramenta disponível. Clique em qualquer um para acessar diretamente.\n\nOs cards com **barra de progresso** mostram o quanto você já avançou naquela área.',
+      },
+      // ── 2. Trilha de Aprendizado ────────────────────────────────────────────
+      {
+        target: 'trilha-header',
+        title: 'Trilha de Aprendizado',
+        description: 'A **Trilha** é onde você aprende o método completo de captação e conversão de pacientes — do tráfego até o fechamento.\n\n• Módulos em **vídeo** com materiais complementares\n• Progresso salvo **automaticamente**\n• Conteúdo dividido em **pilares** que desbloqueiam em sequência\n\n**Dica:** Assista na ordem. Cada pilar é pré-requisito para o próximo.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-trilha"]', delay: 600 },
+      },
+      // ── 3. Cérebro Central ──────────────────────────────────────────────────
+      {
+        target: 'cerebro-header',
+        title: 'Cérebro Central',
+        description: 'O **Cérebro Central** é a memória estratégica da sua clínica. Tudo o que você registra aqui alimenta as IAs.\n\nSão **5 fases de configuração**:\n\n• **Identidade** — quem você é, especialidade, cidade\n• **Procedimentos** — o que oferece e como precifica\n• **Operação** — horários, pagamentos, comercial\n• **FAQ & Objeções** — perguntas frequentes e respostas\n• **Trilha** — materiais gerados nos módulos',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-cerebro"]', delay: 600 },
       },
       {
-        target: 'hub-tool-cerebro',
-        title: 'Comece pelo Cérebro Central',
-        description: '**Preencha o Cérebro Central antes de usar as IAs.** É lá que você registra a identidade, procedimentos e operação da sua clínica.\n\nQuanto mais completo, mais inteligentes e precisas ficam as respostas das IAs para o contexto da sua clínica.',
-        position: 'left' as const,
+        target: 'cerebro-nav',
+        title: 'Navegue entre as fases',
+        description: 'Use estas abas para alternar entre as fases. O Cérebro **salva automaticamente** cada campo que você preenche.\n\n**Quanto mais completo, mais inteligentes ficam suas IAs.** A barra de progresso no topo mostra o percentual preenchido.',
+      },
+      // ── 4. IAs Comerciais ───────────────────────────────────────────────────
+      {
+        target: 'iahub-header',
+        title: 'IAs Comerciais',
+        description: 'Aqui ficam as **IAs especializadas** para o comercial da sua clínica. Cada uma é treinada para uma função diferente:\n\n• **Pré-atendimento** — responde dúvidas de leads\n• **Objeções** — contorna resistências de preço\n• **Remarketing** — reativa leads frios\n• **Copywriter** — cria textos para anúncios\n• **Scripts** — gera roteiros de atendimento\n\nAs respostas são personalizadas com os dados do **Cérebro Central** — por isso é importante preenchê-lo primeiro.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-ias"]', delay: 600 },
+      },
+      // ── 5. Sessões Táticas ──────────────────────────────────────────────────
+      {
+        target: 'sessoes-header',
+        title: 'Sessões Táticas',
+        description: 'As **Sessões Táticas** são encontros ao vivo com especialistas, focados em temas práticos do dia a dia comercial.\n\n• Calendário semanal com **próximas sessões**\n• Link do Google Meet direto na plataforma\n• **Gravações** disponíveis depois de cada sessão\n\nParticipe ao vivo para tirar dúvidas em tempo real.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-sessoes"]', delay: 600 },
+      },
+      // ── 6. Evolução ─────────────────────────────────────────────────────────
+      {
+        target: 'evolucao-header',
+        title: 'Evolução',
+        description: 'A página de **Evolução** compara o desempenho da sua clínica **entre dois períodos** — semana a semana, mês a mês.\n\n• Volume de leads, qualificados e agendamentos\n• Taxas de conversão em cada etapa do funil\n• Top procedimentos vendidos\n\nUse para identificar o que está melhorando e o que precisa de atenção.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-evolucao"]', delay: 600 },
+      },
+      // ── 7. Volta ao Hub — Encerramento ──────────────────────────────────────
+      {
+        target: 'hub-header',
+        title: 'Tour concluído!',
+        description: 'Agora você conhece todas as seções da plataforma.\n\n**Próximos passos recomendados:**\n\n• Preencha o **Cérebro Central** (é o mais importante!)\n• Comece pela **Fase 1 — Identidade**\n• Depois explore as **IAs Comerciais**\n• E configure o **CRM** para gerenciar seus leads\n\nVocê pode refazer este tour a qualquer momento pela Central de Ajuda.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 600 },
       },
     ],
   },
 
-  // ── Plataforma — Cérebro Central ────────────────────────────────────────────
+  // ── Plataforma — Cérebro Central (Onboarding guiado) ────────────────────────
   {
     id: 'platform-cerebro',
     pageRoute: '/plataforma/cerebro',
@@ -1948,14 +1986,19 @@ export const tutorials: Tutorial[] = [
     category: 'onboarding' as any,
     steps: [
       {
+        target: 'cerebro-header',
+        title: 'Cérebro Central',
+        description: 'Esta é a **memória estratégica** da sua clínica. Quanto mais você preenche, mais inteligentes e personalizadas ficam todas as IAs da plataforma.\n\nA barra de progresso no topo mostra o percentual preenchido.',
+      },
+      {
         target: 'cerebro-nav',
         title: '5 fases de configuração',
-        description: 'O Cérebro Central é organizado em **5 fases**:\n\n• Fase 1 — Identidade (quem você é)\n• Fase 2 — Procedimentos (o que você oferece)\n• Fase 3 — Operação (como funciona seu comercial)\n• Fase 4 — FAQ & Objeções\n• Fase 5 — Trilha de Aprendizado\n\nPreencha na ordem, começando pela Fase 1.',
+        description: 'O Cérebro Central é organizado em **5 fases**:\n\n• Fase 1 — **Identidade** (quem você é)\n• Fase 2 — **Procedimentos** (o que você oferece)\n• Fase 3 — **Operação** (como funciona seu comercial)\n• Fase 4 — **FAQ & Objeções** (perguntas frequentes)\n• Fase 5 — **Trilha** (materiais gerados nos módulos)\n\nPreencha na ordem, começando pela Fase 1.',
       },
       {
         target: 'cerebro-identidade',
         title: 'Fase 1: Identidade',
-        description: 'Comece preenchendo as **informações básicas da sua clínica** — nome, responsável e especialidade principal.\n\nEssas informações personalizam **todas as respostas das IAs** ao contexto específico da sua clínica.',
+        description: 'Comece preenchendo as **informações básicas da sua clínica**:\n\n• Nome da clínica e do responsável\n• Especialidade principal e complementares\n• Cidade, estado e ano de fundação\n• Propósito e valores da clínica\n\nEssas informações personalizam **todas as respostas das IAs** ao contexto específico do seu negócio.',
       },
       {
         target: 'cerebro-field-nome',
@@ -1966,7 +2009,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'cerebro-field-especialidade',
         title: 'Especialidade principal',
-        description: 'Selecione a **especialidade principal** da sua clínica.\n\nIsso define o contexto de todas as IAs — uma clínica de Odontologia recebe respostas diferentes de uma de Cirurgia Plástica.\n\nDepois de preencher a Fase 1, avance pelas fases 2, 3 e 4 para completar o Cérebro Central. O sistema **salva automaticamente** a cada alteração.',
+        description: 'Selecione a **especialidade principal** da sua clínica.\n\nIsso define o contexto de todas as IAs — uma clínica de **Odontologia** recebe respostas totalmente diferentes de uma de **Cirurgia Plástica**.\n\nApós preencher a Fase 1, avance pelas fases seguintes. O sistema **salva automaticamente** a cada alteração.\n\n**Pronto!** Volte ao checklist e continue com os próximos passos.',
         position: 'right' as const,
       },
     ],

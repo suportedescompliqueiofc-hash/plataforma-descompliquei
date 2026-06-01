@@ -134,7 +134,11 @@ export function TutorialSpotlight() {
     const vh = window.innerHeight;
 
     // Dynamically shrink tooltip width on narrow viewports so it always fits
-    const maxTooltipWidth = 340;
+    // Account for sidebar width (typically ~240px when expanded, ~64px when collapsed)
+    const sidebarEl = document.querySelector('[data-tutorial="sidebar"]');
+    const sidebarWidth = sidebarEl ? sidebarEl.getBoundingClientRect().right : 0;
+    const availableWidth = vw - Math.max(sidebarWidth, 0);
+    const maxTooltipWidth = Math.min(340, availableWidth - vpMargin * 2);
     const tooltipWidth = Math.min(maxTooltipWidth, vw - vpMargin * 2);
 
     let style: React.CSSProperties = { maxWidth: tooltipWidth, width: tooltipWidth };

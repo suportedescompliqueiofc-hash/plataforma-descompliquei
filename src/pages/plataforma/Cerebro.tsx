@@ -303,7 +303,7 @@ export default function Cerebro() {
   return (
     <div className="max-w-[1200px] mx-auto space-y-8 pb-28">
       {/* HEADER */}
-      <div className="space-y-1 border-b border-border pb-6">
+      <div className="space-y-1 border-b border-border pb-6" data-tutorial="cerebro-header">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">

@@ -157,7 +157,7 @@ END:VCALENDAR`;
   return (
     <div className="max-w-5xl mx-auto space-y-10 pb-12">
       {/* HEADER */}
-      <div className="space-y-6 border-b border-border pb-8">
+      <div className="space-y-6 border-b border-border pb-8" data-tutorial="sessoes-header">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground font-display">Sessões Táticas</h1>
           <p className="text-muted-foreground text-[15px] mt-1">Mentorias ao vivo toda semana com o time da Descompliquei.</p>

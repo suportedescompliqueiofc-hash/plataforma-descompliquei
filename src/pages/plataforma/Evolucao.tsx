@@ -254,7 +254,7 @@ export default function Evolucao() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
       {/* Header */}
-      <div>
+      <div data-tutorial="evolucao-header">
         <div className="flex items-center gap-2 mb-1">
           <div className="p-1.5 rounded-lg bg-muted">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />

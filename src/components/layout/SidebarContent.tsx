@@ -222,6 +222,14 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/cadences': 'sidebar-cadences',
     '/crm/ia': 'sidebar-ia',
     '/crm/settings': 'sidebar-settings',
+    // Plataforma
+    '/plataforma': 'sidebar-hub',
+    '/plataforma/trilha': 'sidebar-trilha',
+    '/plataforma/cerebro': 'sidebar-cerebro',
+    '/plataforma/materiais': 'sidebar-materiais',
+    '/plataforma/sessoes-taticas': 'sidebar-sessoes',
+    '/plataforma/ia-comercial': 'sidebar-ias',
+    '/plataforma/evolucao': 'sidebar-evolucao',
   };
 
   const hasImpersonationFlag = !!localStorage.getItem('original_master_org_id');

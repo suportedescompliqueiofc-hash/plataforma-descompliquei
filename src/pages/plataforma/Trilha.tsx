@@ -128,7 +128,7 @@ export default function Trilha() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
       {/* Header */}
-      <div className="space-y-4 border-b border-border pb-6">
+      <div className="space-y-4 border-b border-border pb-6" data-tutorial="trilha-header">
         <h1 className="text-2xl font-semibold tracking-tight text-foreground font-display">
           Trilha de Aprendizado
         </h1>
