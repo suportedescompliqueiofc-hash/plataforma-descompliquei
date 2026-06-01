@@ -134,10 +134,11 @@ export default function OnboardingPlataformaModal() {
   const [senhaError, setSenhaError] = useState<string | null>(null);
   const [savingPwd, setSavingPwd] = useState(false);
 
-  // Nunca mostrar para superadmins ou clientes antigos
+  // Nunca mostrar para superadmins, clientes antigos, ou quem já completou
   const isSuperAdmin = role === 'superadmin';
   const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
-  if (isSuperAdmin || !onboardingEnabled) return null;
+  const onboardingComplete = plataformaUser?.onboarding_complete === true;
+  if (isSuperAdmin || !onboardingEnabled || onboardingComplete) return null;
   if (isContextLoading) return null;
 
   const currentStep = STEPS[step];

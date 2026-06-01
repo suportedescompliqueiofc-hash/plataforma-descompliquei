@@ -41,6 +41,7 @@ import { TutorialSpotlight } from "./components/tutorial/TutorialSpotlight";
 import { TutorialHelpCenter } from "./components/tutorial/TutorialHelpCenter";
 import { OnboardingModal } from "./components/onboarding/OnboardingModal";
 import { OnboardingPlataformaChecklist } from "./components/plataforma/OnboardingPlataformaChecklist";
+import OnboardingPlataformaModal from "./components/plataforma/OnboardingPlataformaModal";
 import CrmOnboarding from "./pages/CrmOnboarding";
 
 // Outbound pages
@@ -281,6 +282,7 @@ const App = () => (
               <TutorialSpotlight />
               <TutorialHelpCenter />
               <OnboardingModal />
+              <OnboardingPlataformaModal />
               <OnboardingPlataformaChecklist />
               <Routes>
             {/* CRM — AppLayout persiste, CrmGuard só controla o conteúdo */}

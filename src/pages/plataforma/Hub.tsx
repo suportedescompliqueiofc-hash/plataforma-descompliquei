@@ -7,7 +7,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PlayCircle, Brain, Zap, Calendar, BarChart, TrendingUp, ArrowRight, ArrowUpRight, X } from "lucide-react";
 import { usePlataforma } from "@/contexts/PlataformaContext";
 import { supabase } from "@/integrations/supabase/client";
-import OnboardingPlataformaModal from "@/components/plataforma/OnboardingPlataformaModal";
 
 export default function Hub() {
   const { plataformaUser, plan, isCerebroComplete, cerebroPercent, totalModules, completedModules, progressPercent, progress, isContextLoading, acesso, isMember, showOnboarding } = usePlataforma();
@@ -131,7 +130,6 @@ export default function Hub() {
 
   return (
     <>
-      {showOnboarding && <OnboardingPlataformaModal />}
     <div className="max-w-5xl mx-auto space-y-8 pb-12">
 
       {/* BANNER CÉREBRO */}
