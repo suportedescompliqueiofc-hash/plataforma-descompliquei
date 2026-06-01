@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 export const DEFAULT_STAGES = [
-  { nome: 'Em Atendimento',       cor: '#f97316', posicao_ordem: 1, em_funil: false },
+  { nome: 'Novo Lead',             cor: '#f97316', posicao_ordem: 1, em_funil: false },
   { nome: 'Qualificação',         cor: '#3b82f6', posicao_ordem: 2, em_funil: false },
   { nome: 'Qualificado',          cor: '#8b5cf6', posicao_ordem: 3, em_funil: false },
   { nome: 'Handoff',              cor: '#a855f7', posicao_ordem: 4, em_funil: true  },
