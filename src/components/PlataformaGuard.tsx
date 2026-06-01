@@ -12,7 +12,7 @@ import { getRedirectDestino } from '@/utils/redirectUtils';
  */
 export function PlataformaGuard({ children }: { children?: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const { tenant, diasRestantes, isContextLoading, acesso } = usePlataforma();
+  const { tenant, diasRestantes, isContextLoading, acesso, isMember } = usePlataforma();
   const { role } = useProfile();
   const isSuperAdmin = role === 'superadmin';
 
@@ -27,6 +27,11 @@ export function PlataformaGuard({ children }: { children?: React.ReactNode }) {
 
   if (!user) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Membros da equipe não acessam a plataforma — vão direto para o CRM
+  if (isMember && !isContextLoading) {
+    return <Navigate to="/crm" replace />;
   }
 
   // Superadmin acessa a plataforma livremente para visualização — nunca redireciona

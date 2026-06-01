@@ -147,7 +147,7 @@ const queryClient = new QueryClient({
 
 function RootRedirect() {
   const { user, loading: authLoading } = useAuth();
-  const { acesso, isContextLoading } = usePlataforma();
+  const { acesso, isContextLoading, isMember } = usePlataforma();
   const { role, isLoading: isLoadingProfile } = useProfile();
   const [timedOut, setTimedOut] = useState(false);
 
@@ -169,6 +169,8 @@ function RootRedirect() {
 
   if (!user) return <Navigate to="/login" replace />;
   if (role === 'superadmin') return <Navigate to="/admin" replace />;
+  // Membros da equipe sempre vão para o CRM — não têm acesso à plataforma
+  if (isMember) return <Navigate to="/crm" replace />;
   return <Navigate to={getRedirectDestino(acesso)} replace />;
 }
 
