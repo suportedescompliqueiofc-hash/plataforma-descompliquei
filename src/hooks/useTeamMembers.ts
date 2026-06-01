@@ -17,7 +17,7 @@ export interface TeamMember {
 
 export interface CreateMemberInput {
   email: string;
-  password: string;
+  password?: string;
   nome: string;
   role: string;
   pages: Record<string, boolean>;

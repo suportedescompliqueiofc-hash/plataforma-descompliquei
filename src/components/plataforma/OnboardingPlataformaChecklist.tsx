@@ -135,7 +135,7 @@ const TUTORIAL_TO_STEP: Record<string, string> = {
 export function OnboardingPlataformaChecklist() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { plataformaUser, isContextLoading } = usePlataforma();
+  const { plataformaUser, isContextLoading, isMember } = usePlataforma();
   const { startTutorial, activeTutorialId, isTutorialCompleted } = useTutorialContext();
   const { role } = useProfile();
 
@@ -178,8 +178,8 @@ export function OnboardingPlataformaChecklist() {
 
   // ── Condições de ocultação ──────────────────────────────────────────────────
 
-  // Superadmin nunca vê; clientes antigos (flag false/null) nunca veem
-  if (isSuperAdmin || !onboardingEnabled) return null;
+  // Superadmin nunca vê; clientes antigos (flag false/null) nunca veem; membros não veem Phase 2
+  if (isSuperAdmin || !onboardingEnabled || isMember) return null;
 
   // Esconde completamente enquanto um tutorial está ativo (spotlight precisa ficar visível)
   if (activeTutorialId) return null;

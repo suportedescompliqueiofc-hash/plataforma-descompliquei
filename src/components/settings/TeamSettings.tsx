@@ -3,7 +3,7 @@ import {
   Users, Plus, Trash2, KeyRound, Eye, EyeOff, Pencil, Copy, Check,
   ShieldCheck, Briefcase, Headphones, SlidersHorizontal, ChevronDown, ChevronUp,
   RefreshCw, Loader2, BarChart3, Activity, TrendingUp, DollarSign,
-  CalendarDays, UserCheck, Target, Clock,
+  CalendarDays, UserCheck, Target, Clock, Mail, Send,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,11 +18,6 @@ import { format, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function generatePassword(length = 10): string {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
 
 const PAGE_KEYS = [
   'painel', 'conversas', 'notificacoes', 'leads', 'pipeline',
@@ -111,13 +106,11 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
   const [email, setEmail]               = useState('');
   const [nome, setNome]                 = useState('');
   const [role, setRole]                 = useState<string>('atendente');
-  const [password, setPassword]         = useState(() => generatePassword());
-  const [showPassword, setShowPassword] = useState(false);
-  const [copied, setCopied]             = useState(false);
   const [pages, setPages]               = useState<Record<string, boolean>>(ROLE_DEFAULTS.atendente);
   const [readOnly, setReadOnly]         = useState<Record<string, boolean>>({});
   const [showPerms, setShowPerms]       = useState(false);
   const [createdId, setCreatedId]       = useState<string | null>(null);
+  const [emailSent, setEmailSent]       = useState(false);
 
   const handleRoleChange = (r: string) => {
     setRole(r);
@@ -128,22 +121,18 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
   const handleCreate = async () => {
     if (!email.trim()) return;
     const result = await createMember.mutateAsync({
-      email: email.trim(), password, nome: nome.trim(), role, pages, read_only: readOnly,
+      email: email.trim(), password: '', nome: nome.trim(), role, pages, read_only: readOnly,
     });
-    if (result?.user_id) setCreatedId(result.user_id);
-  };
-
-  const copyPassword = () => {
-    navigator.clipboard.writeText(password);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (result?.user_id) {
+      setCreatedId(result.user_id);
+      setEmailSent(result?.email_sent ?? false);
+    }
   };
 
   const handleClose = () => {
     setEmail(''); setNome(''); setRole('atendente');
-    setPassword(generatePassword()); setShowPassword(false);
     setPages(ROLE_DEFAULTS.atendente); setReadOnly({});
-    setShowPerms(false); setCreatedId(null);
+    setShowPerms(false); setCreatedId(null); setEmailSent(false);
     onClose();
   };
 
@@ -160,24 +149,28 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
               Membro adicionado!
             </DialogTitle>
             <DialogDescription>
-              Repasse as credenciais abaixo para o colaborador.
+              {emailSent
+                ? 'Um e-mail de convite foi enviado com o link de acesso.'
+                : 'O membro foi criado. Envie o link de acesso manualmente.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">E-mail</p>
-              <p className="text-sm font-medium">{email}</p>
-            </div>
-            <div className="space-y-1.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Senha temporária</p>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40 border border-border/60">
-                <code className="flex-1 text-sm font-mono font-bold tracking-widest">{password}</code>
-                <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={copyPassword}>
-                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                </Button>
+            <div className="flex items-start gap-3 rounded-xl border border-emerald-200/60 bg-emerald-50/50 p-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 shrink-0">
+                <Send className="h-4 w-4 text-emerald-600" />
               </div>
-              <p className="text-[11px] text-muted-foreground/60">
-                O colaborador poderá alterar a senha em Configurações após o primeiro acesso.
+              <div>
+                <p className="text-[13px] font-semibold text-emerald-800">{email}</p>
+                <p className="text-[11px] text-emerald-700/70 mt-0.5">
+                  {emailSent
+                    ? 'Receberá um e-mail com link para criar a senha e acessar a plataforma.'
+                    : 'O e-mail não pôde ser enviado automaticamente. Compartilhe o acesso manualmente.'}
+                </p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+              <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+                <strong className="text-muted-foreground">Como funciona:</strong> Ao clicar no link, o colaborador será guiado para criar uma senha segura. Após isso, poderá acessar normalmente com e-mail e senha.
               </p>
             </div>
           </div>
@@ -202,7 +195,7 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
             Adicionar membro
           </DialogTitle>
           <DialogDescription>
-            Crie um acesso para um colaborador da sua equipe comercial.
+            O colaborador receberá um e-mail de convite com link para criar a senha.
           </DialogDescription>
         </DialogHeader>
 
@@ -219,28 +212,12 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
             </div>
           </div>
 
-          {/* Senha temporária */}
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Senha temporária</Label>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="h-10 text-sm rounded-lg border-border/60 pr-9 font-mono"
-                />
-                <button onClick={() => setShowPassword(!showPassword)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              <Button variant="outline" size="icon" className="h-10 w-10 rounded-lg border-border/60 shrink-0" onClick={() => setPassword(generatePassword())} title="Gerar nova senha">
-                <RefreshCw className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="outline" size="icon" className="h-10 w-10 rounded-lg border-border/60 shrink-0" onClick={copyPassword} title="Copiar senha">
-                {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              </Button>
-            </div>
+          {/* Info sobre o convite */}
+          <div className="flex items-start gap-2.5 rounded-lg border border-border/40 bg-muted/20 p-3">
+            <Mail className="h-4 w-4 text-muted-foreground/50 mt-0.5 shrink-0" />
+            <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+              Um <strong className="text-muted-foreground">e-mail de convite</strong> será enviado automaticamente. O colaborador clicará no link para criar a própria senha.
+            </p>
           </div>
 
           {/* Perfil de acesso */}
@@ -287,10 +264,10 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
           <Button
             onClick={handleCreate}
             disabled={!email.trim() || createMember.isPending}
-            className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90"
+            className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 gap-1.5"
           >
-            {createMember.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-            Adicionar membro
+            {createMember.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            Enviar convite
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -809,7 +786,7 @@ export function TeamSettings() {
           <div className="rounded-xl border border-border/40 bg-muted/20 p-4">
             <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Como funciona</p>
             <ul className="space-y-1 text-[11px] text-muted-foreground/70">
-              <li>• O colaborador acessa com o e-mail e a senha temporária que você definir</li>
+              <li>• O colaborador recebe um <strong className="text-muted-foreground">e-mail de convite</strong> com link para criar a senha</li>
               <li>• <strong className="text-muted-foreground">Administrador</strong> — acesso amplo (exceto Configurações por padrão)</li>
               <li>• <strong className="text-muted-foreground">Comercial</strong> — Leads, Pipeline, Agendamentos, Vendas e Metas</li>
               <li>• <strong className="text-muted-foreground">Atendente</strong> — apenas Conversas e Notificações</li>
