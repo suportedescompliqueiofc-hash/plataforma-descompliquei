@@ -125,11 +125,17 @@ function CelebrationScreen({ onContinue }: { onContinue: () => void }) {
 
 // ─── Main Checklist ───────────────────────────────────────────────────────────
 
+// Mapa: tutorialId → stepKey do onboarding
+const TUTORIAL_TO_STEP: Record<string, string> = {
+  'platform-tour': 'tour',
+  'platform-cerebro': 'cerebro',
+};
+
 export function OnboardingPlataformaChecklist() {
   const navigate = useNavigate();
   const location = useLocation();
   const { plataformaUser, isContextLoading } = usePlataforma();
-  const { startTutorial } = useTutorialContext();
+  const { startTutorial, activeTutorialId, isTutorialCompleted } = useTutorialContext();
 
   const phase1Complete = plataformaUser?.onboarding_complete === true;
 
@@ -138,6 +144,7 @@ export function OnboardingPlataformaChecklist() {
 
   const [celebrating, setCelebrating] = useState(false);
   const [wasVisible, setWasVisible] = useState(false);
+  const [prevTutorialId, setPrevTutorialId] = useState<string | null>(null);
 
   // Detecta quando o modal de passos ficou visível nesta sessão
   useEffect(() => {
@@ -151,6 +158,23 @@ export function OnboardingPlataformaChecklist() {
       setWasVisible(false);
     }
   }, [mandatoryComplete, wasVisible]);
+
+  // Auto-completar step quando o tutorial associado termina (concluído ou pulado)
+  useEffect(() => {
+    // Tutorial acabou de ficar null → o anterior terminou
+    if (prevTutorialId && !activeTutorialId) {
+      const stepKey = TUTORIAL_TO_STEP[prevTutorialId];
+      if (stepKey) {
+        completeStep.mutate(stepKey);
+      }
+    }
+    setPrevTutorialId(activeTutorialId);
+  }, [activeTutorialId]);
+
+  // ── Condições de ocultação ──────────────────────────────────────────────────
+
+  // Esconde completamente enquanto um tutorial está ativo (spotlight precisa ficar visível)
+  if (activeTutorialId) return null;
 
   // Só mostra em rotas /plataforma/* — nunca no CRM ou admin
   const isPlataformaRoute = location.pathname.startsWith('/plataforma');
@@ -174,7 +198,8 @@ export function OnboardingPlataformaChecklist() {
     }
     if (step.path) navigate(step.path);
     if (step.tutorialId) {
-      setTimeout(() => startTutorial(step.tutorialId!), 600);
+      // startTutorial seta activeTutorialId → checklist retorna null → spotlight fica visível
+      setTimeout(() => startTutorial(step.tutorialId!), 300);
     }
   };
 
