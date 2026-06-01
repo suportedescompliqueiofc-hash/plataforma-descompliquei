@@ -455,7 +455,7 @@ export default function Cerebro() {
 
         {/* FASE 2: PROCEDIMENTOS */}
         {activePhase === 2 && (
-          <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-6 animate-in fade-in duration-300" data-tutorial="cerebro-procedimentos">
             <div className="rounded-xl border border-border bg-card p-6 shadow-card">
               <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-4">Procedimento Âncora</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -541,7 +541,7 @@ export default function Cerebro() {
 
         {/* FASE 3: OPERAÇÃO COMERCIAL */}
         {activePhase === 3 && (
-          <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-6 animate-in fade-in duration-300" data-tutorial="cerebro-operacao">
             <div className="rounded-xl border border-border bg-card p-6 shadow-card">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div className="space-y-1.5"><label className="text-[13px] font-medium text-foreground">Horários de funcionamento</label><Input value={formData.working_hours} onChange={e => updateField('working_hours', e.target.value)} placeholder="Ex: Seg a Sex, 09h as 18h" /></div>
@@ -558,7 +558,7 @@ export default function Cerebro() {
 
         {/* FASE 4: FAQ E OBJEÇÕES */}
         {activePhase === 4 && (
-          <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-6 animate-in fade-in duration-300" data-tutorial="cerebro-faq">
             <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
               <div className="flex items-center justify-between p-5 border-b border-border">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">FAQ Dinâmico</p>
@@ -610,7 +610,7 @@ export default function Cerebro() {
 
         {/* FASE 5: MATERIAIS DA TRILHA */}
         {activePhase === 5 && (
-          <div className="space-y-6 animate-in fade-in duration-300">
+          <div className="space-y-6 animate-in fade-in duration-300" data-tutorial="cerebro-trilha">
             <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5 shadow-card">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
                 <GraduationCap className="h-4 w-4 text-foreground" />

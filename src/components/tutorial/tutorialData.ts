@@ -1985,6 +1985,7 @@ export const tutorials: Tutorial[] = [
     icon: 'Brain',
     category: 'onboarding' as any,
     steps: [
+      // ── Introdução ──
       {
         target: 'cerebro-header',
         title: 'Cérebro Central',
@@ -1993,12 +1994,15 @@ export const tutorials: Tutorial[] = [
       {
         target: 'cerebro-nav',
         title: '5 fases de configuração',
-        description: 'O Cérebro Central é organizado em **5 fases**:\n\n• Fase 1 — **Identidade** (quem você é)\n• Fase 2 — **Procedimentos** (o que você oferece)\n• Fase 3 — **Operação** (como funciona seu comercial)\n• Fase 4 — **FAQ & Objeções** (perguntas frequentes)\n• Fase 5 — **Trilha** (materiais gerados nos módulos)\n\nPreencha na ordem, começando pela Fase 1.',
+        description: 'O Cérebro é organizado em **5 fases** que cobrem toda a operação da sua clínica. Vamos passar por cada uma delas agora.\n\nTodas as alterações são **salvas automaticamente** — você não precisa clicar em nenhum botão de salvar.',
       },
+
+      // ── Fase 1: Identidade ──
       {
         target: 'cerebro-identidade',
         title: 'Fase 1: Identidade',
-        description: 'Comece preenchendo as **informações básicas da sua clínica**:\n\n• Nome da clínica e do responsável\n• Especialidade principal e complementares\n• Cidade, estado e ano de fundação\n• Propósito e valores da clínica\n\nEssas informações personalizam **todas as respostas das IAs** ao contexto específico do seu negócio.',
+        description: 'Aqui você define **quem é a sua clínica**:\n\n• Nome da clínica e do responsável\n• Especialidade principal e complementares\n• Cidade, estado e ano de fundação\n• Propósito e valores\n\nEssas informações personalizam **todas as respostas das IAs** ao contexto específico do seu negócio.',
+        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(1)', delay: 400 },
       },
       {
         target: 'cerebro-field-nome',
@@ -2009,8 +2013,48 @@ export const tutorials: Tutorial[] = [
       {
         target: 'cerebro-field-especialidade',
         title: 'Especialidade principal',
-        description: 'Selecione a **especialidade principal** da sua clínica.\n\nIsso define o contexto de todas as IAs — uma clínica de **Odontologia** recebe respostas totalmente diferentes de uma de **Cirurgia Plástica**.\n\nApós preencher a Fase 1, avance pelas fases seguintes. O sistema **salva automaticamente** a cada alteração.\n\n**Pronto!** Volte ao checklist e continue com os próximos passos.',
+        description: 'Selecione a **especialidade principal**. Isso define o contexto de todas as IAs — uma clínica de **Odontologia** recebe respostas totalmente diferentes de uma de **Cirurgia Plástica**.',
         position: 'right' as const,
+      },
+
+      // ── Fase 2: Procedimentos ──
+      {
+        target: 'cerebro-procedimentos',
+        title: 'Fase 2: Procedimentos',
+        description: 'Defina **o que sua clínica oferece** e como precifica:\n\n• **Procedimento âncora** — o que você mais quer vender\n• Faixa de investimento e diferenciais\n• Lista completa dos procedimentos oferecidos\n\nQuanto mais detalhado, melhor as IAs conseguem **vender e tirar dúvidas** sobre seus serviços.',
+        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(2)', delay: 400 },
+      },
+
+      // ── Fase 3: Operação ──
+      {
+        target: 'cerebro-operacao',
+        title: 'Fase 3: Operação Comercial',
+        description: 'Configure **como funciona o dia a dia comercial** da clínica:\n\n• Horários de funcionamento\n• Formas de pagamento aceitas\n• Perfil ideal de paciente (ICP)\n• Tom de voz nas comunicações\n\nIsso permite que as IAs respondam perguntas práticas como **horários, preços e formas de pagamento** com precisão.',
+        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(3)', delay: 400 },
+      },
+
+      // ── Fase 4: FAQ & Objeções ──
+      {
+        target: 'cerebro-faq',
+        title: 'Fase 4: FAQ & Objeções',
+        description: 'Cadastre as **perguntas mais frequentes** dos pacientes e as **objeções comuns** que surgem na negociação:\n\n• Perguntas sobre procedimentos, recuperação, riscos\n• Objeções de preço, tempo, medo\n• Respostas personalizadas para cada situação\n\nAs IAs usam esse banco de respostas para **converter leads** de forma mais natural e assertiva.',
+        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(4)', delay: 400 },
+      },
+
+      // ── Fase 5: Trilha ──
+      {
+        target: 'cerebro-trilha',
+        title: 'Fase 5: Trilha de Aprendizado',
+        description: 'Esta fase é **alimentada automaticamente** conforme você avança na Trilha de Aprendizado.\n\nCada módulo que você completa gera materiais estratégicos (scripts, análises, posicionamento) que são integrados ao Cérebro.\n\n**Dica:** Comece pela Trilha e os materiais aparecerão aqui automaticamente.',
+        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(5)', delay: 400 },
+      },
+
+      // ── Fechamento ──
+      {
+        target: 'cerebro-nav',
+        title: 'Comece pela Fase 1',
+        description: 'Recomendamos preencher **na ordem, começando pela Fase 1**. Quanto mais completo o Cérebro, mais poderosas ficam as IAs.\n\n**Pronto!** Volte ao checklist e continue com os próximos passos da configuração.',
+        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(1)', delay: 400 },
       },
     ],
   },
