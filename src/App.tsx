@@ -95,6 +95,36 @@ import Evolucao from "./pages/plataforma/Evolucao";
 import PlataformaLogin from "./pages/plataforma/PlataformaLogin";
 import { PlataformaProvider } from "@/contexts/PlataformaContext";
 
+/**
+ * Intercepta erros de autenticação vindos no hash da URL (ex: magic link expirado).
+ * Supabase redireciona com /#error=access_denied&error_code=otp_expired&...
+ * Sem este interceptor, a app crasha (sem sessão + componentes que esperam user).
+ */
+function AuthHashErrorInterceptor({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash || !hash.includes('error=')) return;
+
+    const params = new URLSearchParams(hash.replace('#', ''));
+    const errorCode = params.get('error_code') || params.get('error') || '';
+
+    // Limpa o hash para não reprocessar
+    window.history.replaceState(null, '', window.location.pathname);
+
+    // Mapeia códigos de erro para mensagens amigáveis
+    let msgKey = 'link-invalido';
+    if (errorCode === 'otp_expired') msgKey = 'link-expirado';
+    else if (errorCode === 'access_denied') msgKey = 'acesso-negado';
+
+    // Redireciona para login com a mensagem
+    window.location.href = `/login?msg=${msgKey}`;
+  }, [location]);
+
+  return <>{children}</>;
+}
+
 const RedirectParam = ({ to }: { to: string }) => {
   const params = useParams();
   const resolved = Object.entries(params).reduce(
@@ -241,6 +271,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        <AuthHashErrorInterceptor>
         <AuthProvider>
           <BrandingProvider>
             <PlataformaProvider>
@@ -362,6 +393,7 @@ const App = () => (
             </PlataformaProvider>
           </BrandingProvider>
         </AuthProvider>
+        </AuthHashErrorInterceptor>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
