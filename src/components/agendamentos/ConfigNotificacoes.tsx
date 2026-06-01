@@ -88,9 +88,9 @@ const DEFAULT_CONFIG: Omit<ConfigData, "organization_id"> = {
     { ativo: true, minutos_antes: 1440 },
     { ativo: true, minutos_antes: 60 },
   ],
-  mensagem_lembrete: "Olá {nome}! Lembramos que você tem uma reunião agendada para {data} às {hora}. Confirme sua presença respondendo SIM.",
+  mensagem_lembrete: "Olá {nome}! Lembramos que você tem um atendimento agendado para {data} às {hora} na nossa clínica. Confirme sua presença respondendo SIM.",
   notif_confirmacao_ativa: true,
-  mensagem_confirmacao: 'Olá {nome}! Sua reunião "{titulo}" foi confirmada para {data} às {hora}. Te esperamos!',
+  mensagem_confirmacao: 'Olá {nome}! Seu atendimento "{titulo}" foi confirmado para {data} às {hora}. Estamos te esperando na clínica!',
   notif_interna_ativa: true,
   notif_interna_minutos_antes: 30,
 };

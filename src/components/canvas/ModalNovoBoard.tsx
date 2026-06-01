@@ -150,7 +150,7 @@ export function ModalNovoBoard({
             <Textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Breve descricao do canvas..."
+              placeholder="Breve descrição do canvas..."
               rows={2}
             />
           </div>

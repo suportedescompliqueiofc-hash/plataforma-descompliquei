@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -160,15 +159,15 @@ END:VCALENDAR`;
       {/* HEADER */}
       <div className="space-y-6 border-b border-border pb-8">
         <div>
-          <h1 className="text-4xl font-bold uppercase tracking-tight text-foreground font-serif">Sessões Táticas</h1>
-          <p className="text-muted-foreground text-lg mt-2">Mentorias ao vivo toda semana com o time da Descompliquei.</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground font-display">Sessões Táticas</h1>
+          <p className="text-muted-foreground text-[15px] mt-1">Mentorias ao vivo toda semana com o time da Descompliquei.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm px-4 py-1 font-semibold tracking-wide">
-            <Target className="w-4 h-4 mr-2" /> Sessão Tática Comercial
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-0.5 text-xs font-medium">
+            <Target className="w-3 h-3 mr-1.5" /> Comercial
           </Badge>
-          <Badge className="bg-blue-500 hover:bg-blue-600 text-white shadow-sm px-4 py-1 font-semibold tracking-wide">
-            <Zap className="w-4 h-4 mr-2" /> Sessão Tática de Demanda
+          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 px-3 py-0.5 text-xs font-medium">
+            <Zap className="w-3 h-3 mr-1.5" /> Demanda
           </Badge>
         </div>
       </div>
@@ -176,43 +175,43 @@ END:VCALENDAR`;
       {/* PRÓXIMA SESSÃO (DESTAQUE) */}
       {nextSession && (
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-foreground">Próxima Sessão</h2>
-          <Card className="border-[#E85D24]/50 shadow-lg bg-card relative overflow-hidden bg-gradient-to-br from-card to-[#E85D24]/5">
-            <div className="absolute top-0 left-0 w-2 h-full bg-[#E85D24]" />
-            <CardContent className="p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
-              <div className="space-y-4 flex-1">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant="outline" className={getTypeStyle(nextSession.type) + " font-bold"}>
-                    {getTypeIcon(nextSession.type)} Tática de {nextSession.type}
+          <h2 className="text-base font-semibold text-foreground font-display">Próxima Sessão</h2>
+          <div className="rounded-xl border border-border shadow-card bg-card relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-[3px] h-full bg-[#E85D24] rounded-r-full" />
+            <div className="p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="space-y-3 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className={getTypeStyle(nextSession.type) + " text-xs font-medium"}>
+                    {getTypeIcon(nextSession.type)} {nextSession.type}
                   </Badge>
-                  <div className="flex items-center text-sm font-semibold text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                    <Clock className="w-4 h-4 mr-2 text-[#E85D24]" />
+                  <span className="flex items-center text-xs font-medium text-muted-foreground">
+                    <Clock className="w-3.5 h-3.5 mr-1.5" />
                     {format(new Date(nextSession.scheduled_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                  </div>
+                  </span>
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold text-foreground leading-tight mb-2">{nextSession.title}</h3>
-                  <p className="text-muted-foreground text-sm md:text-base leading-relaxed">{nextSession.description}</p>
+                  <h3 className="text-xl font-bold text-foreground leading-tight mb-1.5 font-display">{nextSession.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">{nextSession.description}</p>
                 </div>
               </div>
-              <div className="shrink-0 flex flex-col gap-3 w-full md:w-auto">
-                <Button 
-                  size="lg" 
+              <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
+                <Button
+                  size="lg"
                   onClick={() => window.open(nextSession.meet_link, '_blank')}
-                  className="bg-[#E85D24] hover:bg-[#E85D24]/90 text-white min-w-[220px] font-bold tracking-wide shadow-md"
+                  className="bg-[#E85D24] hover:bg-[#D04E1A] text-white min-w-[200px] font-medium text-sm"
                 >
-                  <Video className="w-5 h-5 mr-2" /> Entrar na Sessão
+                  <Video className="w-4 h-4 mr-2" /> Entrar na Sessão
                 </Button>
-                <Button 
-                  variant="outline" 
-                  className="border-border text-foreground hover:bg-muted font-semibold"
+                <Button
+                  variant="outline"
+                  className="border-border text-foreground hover:bg-muted text-sm font-medium"
                   onClick={() => openGoogleCalendar(nextSession)}
                 >
                   <CalendarPlus className="w-4 h-4 mr-2" /> Google Calendar
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       )}
 
@@ -222,8 +221,8 @@ END:VCALENDAR`;
         {/* CALENDÁRIO SEMANAL */}
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-4">
-            <h2 className="text-xl font-bold text-foreground flex items-center">
-              <CalendarIcon className="w-5 h-5 mr-3 text-muted-foreground" /> Calendário da Semana
+            <h2 className="text-base font-semibold text-foreground font-display">
+              Calendário da Semana
             </h2>
             <div className="flex items-center gap-4 bg-muted/50 p-1 rounded-lg">
               <Button variant="ghost" size="icon" onClick={handlePrevWeek} className="h-8 w-8 hover:bg-background shadow-sm">
@@ -249,7 +248,7 @@ END:VCALENDAR`;
                     <div className={`text-[10px] uppercase font-bold tracking-wider ${isToday ? 'text-[#E85D24]' : 'text-muted-foreground'}`}>
                       {format(day, 'EEEE', { locale: ptBR }).split('-')[0]}
                     </div>
-                    <div className={`text-2xl font-black mt-0.5 ${isToday ? 'text-[#E85D24]' : 'text-foreground'}`}>
+                    <div className={`text-lg font-bold mt-0.5 font-display ${isToday ? 'text-[#E85D24]' : 'text-foreground'}`}>
                       {format(day, 'dd')}
                     </div>
                   </div>
@@ -260,7 +259,7 @@ END:VCALENDAR`;
                            key={session.id} 
                            title={session.description || session.title}
                            onClick={() => setSelectedSession(session)} 
-                           className="group cursor-pointer rounded-md p-2 text-xs border border-border/60 bg-background hover:border-[#E85D24]/50 hover:shadow-sm transition-all relative overflow-hidden"
+                           className="group cursor-pointer rounded-md p-2 text-xs border border-border/60 bg-background hover:border-border/80 hover:shadow-sm transition-all relative overflow-hidden"
                         >
                            <div className={`absolute top-0 left-0 w-1 h-full ${session.type.toLowerCase() === 'comercial' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
                            <div className="pl-1.5 flex flex-col justify-between h-full gap-1.5">
@@ -294,45 +293,41 @@ END:VCALENDAR`;
 
         {/* GRAVAÇÕES DISPONÍVEIS */}
         <div className="space-y-6 pt-4 border-t border-border">
-          <h2 className="text-xl font-bold text-foreground pb-2 flex items-center">
-            <PlayCircle className="w-5 h-5 mr-3 text-muted-foreground" /> Sessões Gravadas (Histórico)
+          <h2 className="text-base font-semibold text-foreground font-display">
+            Sessões Gravadas
           </h2>
           {pastSessions.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {pastSessions.map(session => (
-                <Card key={session.id} className="border-border bg-card shadow-sm hover:border-[#E85D24]/30 hover:shadow-md transition-all group cursor-pointer" onClick={() => window.open(session.recording_url, '_blank')}>
-                  <CardContent className="p-4">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0 group-hover:bg-[#E85D24]/10 group-hover:text-[#E85D24] transition-colors">
-                          <PlayCircle className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-[10px] text-muted-foreground font-mono uppercase tracking-wider">
-                              {format(new Date(session.scheduled_at), "dd MMM yy", { locale: ptBR })}
-                            </span>
-                            <span className="text-[10px] font-bold text-[#E85D24]">•</span>
-                            <span className="text-[10px] text-muted-foreground font-semibold uppercase">{session.type}</span>
-                          </div>
-                          <h4 className="font-bold text-foreground text-sm group-hover:text-[#E85D24] transition-colors truncate">
-                            {session.title}
-                          </h4>
-                        </div>
-                      </div>
+                <div key={session.id} className="rounded-xl border border-border bg-card shadow-card hover:bg-muted/30 transition-all group cursor-pointer p-4" onClick={() => window.open(session.recording_url, '_blank')}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <PlayCircle className="w-4 h-4 text-foreground" />
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] text-muted-foreground font-mono">
+                          {format(new Date(session.scheduled_at), "dd MMM yy", { locale: ptBR })}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground/40">•</span>
+                        <span className="text-[10px] text-muted-foreground font-medium">{session.type}</span>
+                      </div>
+                      <h4 className="font-semibold text-foreground text-sm truncate">
+                        {session.title}
+                      </h4>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 bg-card rounded-2xl border border-dashed border-border text-center space-y-4">
-              <div className="w-12 h-12 bg-muted rounded-full flex items-center justify-center">
-                <PlayCircle className="w-6 h-6 text-muted-foreground" />
+            <div className="flex flex-col items-center justify-center p-10 bg-card rounded-xl border border-dashed border-border text-center space-y-4 shadow-card">
+              <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center">
+                <PlayCircle className="w-5 h-5 text-muted-foreground" />
               </div>
               <div className="max-w-xs space-y-1">
-                 <h3 className="text-lg font-bold text-foreground">Sem gravações</h3>
-                 <p className="text-sm text-muted-foreground">As gravações das próximas sessões aparecerão aqui assim que forem disponibilizadas.</p>
+                <h3 className="text-base font-semibold text-foreground font-display">Sem gravações</h3>
+                <p className="text-[13px] text-muted-foreground">As gravações das próximas sessões aparecerão aqui assim que forem disponibilizadas.</p>
               </div>
             </div>
           )}
@@ -354,21 +349,21 @@ END:VCALENDAR`;
                     <Badge variant="outline" className="bg-muted text-muted-foreground border-transparent">Realizada</Badge>
                   )}
                 </div>
-                <DialogTitle className="text-2xl leading-tight mb-2">{selectedSession.title}</DialogTitle>
-                <DialogDescription className="text-base text-foreground mt-2">
+                <DialogTitle className="text-lg font-bold leading-tight font-display">{selectedSession.title}</DialogTitle>
+                <DialogDescription className="text-[13px] text-muted-foreground mt-1">
                   {selectedSession.description}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="py-4 space-y-4">
-                <div className="flex items-center text-sm font-semibold text-muted-foreground bg-muted/50 p-3 rounded-lg border border-border">
-                  <Clock className="w-4 h-4 mr-3 text-[#E85D24]" />
+                <div className="flex items-center text-sm font-medium text-foreground bg-muted/30 p-3 rounded-lg border border-border">
+                  <Clock className="w-4 h-4 mr-3 text-muted-foreground" />
                   {format(new Date(selectedSession.scheduled_at), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
                 </div>
                 
                 {selectedSession.meet_link && !isPast(new Date(selectedSession.scheduled_at)) && (
                    <div className="flex flex-col gap-2">
-                     <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Link de Acesso</p>
+                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Link de Acesso</p>
                      <div className="flex items-center gap-2">
                        <code className="flex-1 bg-muted px-3 py-2 rounded text-xs truncate border border-border">
                          {selectedSession.meet_link}
@@ -390,7 +385,7 @@ END:VCALENDAR`;
                     </Button>
                     <Button 
                       onClick={() => window.open(selectedSession.meet_link, '_blank')}
-                      className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#E85D24]/90 text-white font-bold"
+                      className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold"
                     >
                       <Video className="w-4 h-4 mr-2" /> Entrar na Sessão
                     </Button>
@@ -407,7 +402,7 @@ END:VCALENDAR`;
                     {selectedSession.recording_url && (
                       <Button 
                         onClick={() => window.open(selectedSession.recording_url, '_blank')}
-                        className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#E85D24]/90 text-white font-bold"
+                        className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold"
                       >
                         <PlayCircle className="w-4 h-4 mr-2" /> Assistir Gravação
                       </Button>

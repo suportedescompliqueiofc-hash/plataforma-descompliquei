@@ -3,13 +3,28 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Users, Building2, Wifi, Plus, RefreshCw, MoreVertical, Eye, LogIn, Layers } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users, Building2, Wifi, Plus, RefreshCw, MoreVertical, Eye, LogIn, Layers, Bot, Save, Loader2, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { MASTER_ORG_ID, DESCOMPLIQUEI_ORG_ID } from '@/lib/constants';
 import { format } from 'date-fns';
+
+const MODEL_SUGGESTIONS = [
+  { label: 'OpenAI', items: ['gpt-4.1-mini', 'gpt-4o-mini'] },
+  { label: 'OpenRouter', items: [
+    'openrouter/openai/gpt-4.1-mini',
+    'openrouter/anthropic/claude-haiku-4-5-20251001',
+    'openrouter/google/gemini-2.5-flash-preview',
+    'openrouter/deepseek/deepseek-v4-flash',
+    'openrouter/meta-llama/llama-4-scout',
+    'openrouter/x-ai/grok-4-1-fast',
+  ]},
+  { label: 'xAI', items: ['grok-4-1-fast-non-reasoning'] },
+];
 
 interface TenantRow {
   organization_id: string; plan: string; status: string; monthly_fee: number; max_leads: number; created_at: string; organizations: { name: string } | null;
@@ -28,6 +43,63 @@ export default function TabClientesCRM({ toast, user }: any) {
   const [selectedTenant, setSelectedTenant] = useState<TenantWithExtra | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isImpersonating, setIsImpersonating] = useState(false);
+
+  // AI Config state for details modal
+  const [aiModelo, setAiModelo] = useState('');
+  const [aiAcumulo, setAiAcumulo] = useState(45);
+  const [aiPromptId, setAiPromptId] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiSaved, setAiSaved] = useState(false);
+
+  const loadAiConfig = async (orgId: string) => {
+    setAiLoading(true);
+    setAiSaved(false);
+    try {
+      const { data } = await supabase
+        .from('organization_ai_prompts')
+        .select('id, modelo_ia, acumulo_mensagens')
+        .eq('organization_id', orgId)
+        .maybeSingle();
+      setAiPromptId(data?.id || null);
+      setAiModelo(data?.modelo_ia || 'openrouter/deepseek/deepseek-v4-flash');
+      setAiAcumulo(data?.acumulo_mensagens ?? 45);
+    } catch (e) {
+      console.error('Erro ao carregar config IA:', e);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSaveAiConfig = async () => {
+    if (!selectedTenant) return;
+    setAiSaving(true);
+    try {
+      if (aiPromptId) {
+        await supabase
+          .from('organization_ai_prompts')
+          .update({ modelo_ia: aiModelo.trim(), acumulo_mensagens: aiAcumulo, updated_at: new Date().toISOString() })
+          .eq('id', aiPromptId);
+      } else {
+        await supabase
+          .from('organization_ai_prompts')
+          .insert({ organization_id: selectedTenant.organization_id, modelo_ia: aiModelo.trim(), acumulo_mensagens: aiAcumulo, delay_entre_mensagens: 2000, ia_ativa: false, prompt: '' });
+      }
+      setAiSaved(true);
+      setTimeout(() => setAiSaved(false), 2000);
+      toast({ title: 'Configuração de IA salva!' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' });
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
+  const openDetails = (t: TenantWithExtra) => {
+    setSelectedTenant(t);
+    setShowDetailsModal(true);
+    loadAiConfig(t.organization_id);
+  };
 
   const loadTenants = async () => {
     setIsLoading(true);
@@ -163,7 +235,7 @@ export default function TabClientesCRM({ toast, user }: any) {
                       <DropdownMenu>
                          <DropdownMenuTrigger asChild><Button variant="ghost" className="h-8 w-8 p-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger>
                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => { setSelectedTenant(t); setShowDetailsModal(true); }}><Eye className="mr-2 h-4 w-4" /> Detalhes</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openDetails(t)}><Eye className="mr-2 h-4 w-4" /> Detalhes</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleImpersonate(t.organization_id)}><LogIn className="mr-2 h-4 w-4" /> Acessar CRM</DropdownMenuItem>
                          </DropdownMenuContent>
                       </DropdownMenu>
@@ -184,6 +256,134 @@ export default function TabClientesCRM({ toast, user }: any) {
             <Input value={createForm.admin_password} type="password" onChange={e=>setCreateForm({...createForm, admin_password: e.target.value})} placeholder="Senha inicial" />
           </div>
           <DialogFooter><Button onClick={handleCreate} disabled={isCreating} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90">{isCreating ? "Criando..." : "Criar"}</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details + AI Config Modal */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">{(selectedTenant?.organizations as any)?.name || 'Detalhes do Cliente'}</DialogTitle>
+            <p className="text-xs text-muted-foreground">{selectedTenant?.admin_email}</p>
+          </DialogHeader>
+
+          {selectedTenant && (
+            <div className="space-y-5">
+              {/* Info Geral */}
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Responsável</span>
+                  <p className="font-medium">{selectedTenant.admin_name}</p>
+                </div>
+                <div>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Status</span>
+                  <p><Badge className={`${STATUS_COLORS[selectedTenant.status] || 'bg-gray-100 text-gray-700'} border-0 text-xs`}>{selectedTenant.status === 'active' ? 'Ativo' : selectedTenant.status}</Badge></p>
+                </div>
+                <div>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">WhatsApp</span>
+                  <p className="text-sm">{selectedTenant.wp_status === 'connected' ? <span className="text-green-600 font-medium">Conectado</span> : <span className="text-muted-foreground">Desconectado</span>}</p>
+                </div>
+                <div>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Leads</span>
+                  <p className="font-medium">{selectedTenant.lead_count ?? 0}</p>
+                </div>
+                <div>
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Criado em</span>
+                  <p className="text-sm text-muted-foreground">{selectedTenant.created_at ? format(new Date(selectedTenant.created_at), 'dd/MM/yyyy') : '—'}</p>
+                </div>
+              </div>
+
+              {/* Separador */}
+              <div className="border-t border-border/60" />
+
+              {/* Config IA */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="p-1.5 rounded-lg bg-muted">
+                    <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Configuração da IA</span>
+                </div>
+
+                {aiLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Modelo */}
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Modelo de IA</Label>
+                      <Input
+                        value={aiModelo}
+                        onChange={(e) => { setAiModelo(e.target.value); setAiSaved(false); }}
+                        placeholder="openrouter/deepseek/deepseek-v4-flash"
+                        className="h-9 text-sm"
+                      />
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {MODEL_SUGGESTIONS.flatMap(s => s.items).map(model => (
+                          <button
+                            key={model}
+                            type="button"
+                            className={`rounded-full border px-2.5 py-0.5 text-[10px] transition-colors ${aiModelo === model ? 'bg-foreground text-background border-foreground' : 'border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground'}`}
+                            onClick={() => { setAiModelo(model); setAiSaved(false); }}
+                          >
+                            {model.split('/').pop()}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Acúmulo */}
+                    <div className="space-y-2">
+                      <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Acúmulo de mensagens</Label>
+                      <Select value={aiAcumulo.toString()} onValueChange={(v) => { setAiAcumulo(parseInt(v)); setAiSaved(false); }}>
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="15">15 segundos</SelectItem>
+                          <SelectItem value="30">30 segundos</SelectItem>
+                          <SelectItem value="45">45 segundos</SelectItem>
+                          <SelectItem value="60">60 segundos</SelectItem>
+                          <SelectItem value="90">90 segundos</SelectItem>
+                          <SelectItem value="120">120 segundos</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[10px] text-muted-foreground/60">Tempo que a IA espera acumulando mensagens antes de responder.</p>
+                    </div>
+
+                    {/* Delay + Transcrição (read-only info) */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Delay entre msgs</span>
+                        <p className="text-sm font-mono font-medium mt-0.5">2-3s</p>
+                      </div>
+                      <div className="rounded-lg border border-border/40 bg-muted/20 p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Transcrição</span>
+                        <p className="text-sm font-medium text-green-600 mt-0.5">Whisper ativo</p>
+                      </div>
+                    </div>
+
+                    {/* Save */}
+                    <Button
+                      onClick={handleSaveAiConfig}
+                      disabled={aiSaving || aiSaved}
+                      className="w-full h-9 text-xs font-semibold bg-foreground text-background hover:bg-foreground/90"
+                    >
+                      {aiSaving ? (
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> Salvando...</>
+                      ) : aiSaved ? (
+                        <><Check className="h-3.5 w-3.5 mr-1.5" /> Salvo!</>
+                      ) : (
+                        <><Save className="h-3.5 w-3.5 mr-1.5" /> Salvar Configuração IA</>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

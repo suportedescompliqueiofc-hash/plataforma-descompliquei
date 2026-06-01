@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Building2, Stethoscope, Users, Target, Briefcase, 
+import {
+  Building2, Stethoscope, Briefcase,
   HelpCircle, GraduationCap, Plus, Trash2, Save, Loader2, CheckCircle2,
   BrainCircuit, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { getMaterialPreviewText } from "@/utils/materialFormatting";
 // Simple local debounce implementation since lodash is not installed
 function debounce(func: Function, wait: number) {
   let timeout: any;
@@ -31,7 +31,7 @@ function debounce(func: Function, wait: number) {
   return debounced;
 }
 
-type Phase = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type Phase = 1 | 2 | 3 | 4 | 5;
 
 type Procedure = { id: string; name: string; category: string; ticket: string; volume: string; potential: string };
 type FAQ = { id: string; question: string; answer: string; category: string };
@@ -41,11 +41,9 @@ type Material = { id: string; title: string; module_id: string; content: string;
 const PHASES = [
   { id: 1 as Phase, icon: Building2, name: 'Identidade', desc: 'Quem você é e o que você representa' },
   { id: 2 as Phase, icon: Stethoscope, name: 'Procedimentos', desc: 'O que você oferece e como precifica' },
-  { id: 3 as Phase, icon: Users, name: 'Paciente Ideal', desc: 'Para quem você trabalha — em detalhes' },
-  { id: 4 as Phase, icon: Target, name: 'Posicionamento', desc: 'Por que você e não o concorrente' },
-  { id: 5 as Phase, icon: Briefcase, name: 'Operação', desc: 'Como funciona o comercial da sua clínica hoje' },
-  { id: 6 as Phase, icon: HelpCircle, name: 'FAQ & Objeções', desc: 'O que os pacientes sempre perguntam' },
-  { id: 7 as Phase, icon: GraduationCap, name: 'Trilha C.L.A.R.O', desc: 'Adicione ao Cérebro o que você construiu na Trilha' },
+  { id: 3 as Phase, icon: Briefcase, name: 'Operação', desc: 'Como funciona o comercial da sua clínica hoje' },
+  { id: 4 as Phase, icon: HelpCircle, name: 'FAQ & Objeções', desc: 'O que os pacientes sempre perguntam' },
+  { id: 5 as Phase, icon: GraduationCap, name: 'Trilha de Aprendizado', desc: 'Adicione ao Cérebro o que você construiu na Trilha' },
 ];
 
 export default function Cerebro() {
@@ -62,26 +60,18 @@ export default function Cerebro() {
 
   // Default initial state
   const initialFormState = {
-    // Fase 1
+    // Fase 1 — Identidade
     clinic_name: '', profissional_nome: '', specialty_principal: '', especialidades_complementares: [],
     cidade: '', estado: '', city_state: '', ano_fundacao: '', tamanho_equipe: '', descricao_profissional: '',
     proposito_clinica: '', limites_valores: '',
-    // Fase 2
+    // Fase 2 — Procedimentos
     anchor_procedure: '', anchor_why: '', anchor_resultado: '', anchor_ticket_atual: '', anchor_ticket_desejado: '',
     procedures: [] as Procedure[], posicionamento_preco: '', frequencia_desconto: '', objecao_preco_principal: '',
-    // Fase 3
-    icp_faixa_etaria: '', icp_genero: '', icp_nivel_socioeconomico: '', icp_localizacao: '', icp_profissao: '',
-    icp_maior_dor: '', icp_maior_desejo: '', icp_maior_medo: '', icp_por_que_voce: '', icp_canais_chegada: [],
-    icp_tempo_decisao: '', icp_influenciador_decisao: '', icp_objecao_pre_fechamento: '',
-    // Fase 4
-    especializacao_forte: '', diferencial_exclusivo: '', maior_case_resultado: '', descricao_one_liner: '',
-    diferencial_atendimento: '', analise_concorrentes: '', voice_tone: '', tom_percebido: '', palavras_proibidas: '', palavras_identidade: '',
-    // Fase 5
-    working_hours: '', payment_methods: '', tempo_resposta_whatsapp: '', quem_faz_primeiro_atendimento: '',
-    maior_falha_comercial: '', leads_por_mes: '', taxa_conversao_atual: '', meta_faturamento: '', faturamento_atual: '',
-    // Fase 6
+    // Fase 3 — Operação (campos que NÃO vêm da Trilha)
+    working_hours: '', payment_methods: '', maior_falha_comercial: '',
+    // Fase 4 — FAQ & Objeções
     faq: [] as FAQ[], objecoes_banco: [] as Objection[],
-    // Fase 7
+    // Fase 5 — Trilha de Aprendizado
     materiais_adicionados: [] as string[]
   };
 
@@ -132,7 +122,7 @@ export default function Cerebro() {
           mappedData.specialty_principal = cerebro.specialty_preset || userProfile?.specialty || mappedData.specialty_principal || '';
 
           // Garantir que arrays sejam sempre arrays (dados legados podem ter null)
-          const arrayFields = ['procedures', 'faq', 'objecoes_banco', 'materiais_adicionados', 'especialidades_complementares', 'icp_canais_chegada'];
+          const arrayFields = ['procedures', 'faq', 'objecoes_banco', 'materiais_adicionados', 'especialidades_complementares'];
           arrayFields.forEach(f => {
             if (!Array.isArray(mappedData[f])) mappedData[f] = [];
           });
@@ -174,28 +164,21 @@ export default function Cerebro() {
     
     // Lista de colunas reais na tabela platform_cerebro para evitar erro 400
     // NOTA: clinic_name e specialty_principal NÃO existem em platform_cerebro — ficam em platform_users
+    // Colunas gerenciadas pelo Cérebro Central (exclui campos que vêm da Trilha de Aprendizado)
+    // Campos da Trilha (ICP, Posicionamento, Métricas) são salvos via persistCerebroSync no Modulo.tsx
     const validColumns = [
-      'user_id', 'profissional_nome', 'especialidades_complementares', 'cidade', 'estado', 
-      'city_state', 'specialty_preset', 'ano_fundacao', 'tamanho_equipe', 'descricao_profissional', 
-      'proposito_clinica', 'limites_valores', 'anchor_procedure', 'anchor_why', 
-      'anchor_resultado', 'anchor_ticket_atual', 'anchor_ticket_desejado', 
-      'procedures', 'posicionamento_preco', 'frequencia_desconto', 'objecao_preco_principal', 
-      'icp_faixa_etaria', 'icp_genero', 'icp_nivel_socioeconomico', 'icp_localizacao', 
-      'icp_profissao', 'icp_maior_dor', 'icp_maior_desejo', 'icp_maior_medo', 
-      'icp_por_que_voce', 'icp_canais_chegada', 'icp_tempo_decisao', 
-      'icp_influenciador_decisao', 'icp_objecao_pre_fechamento', 'especializacao_forte', 
-      'diferencial_exclusivo', 'maior_case_resultado', 'descricao_one_liner', 
-      'diferencial_atendimento', 'analise_concorrentes', 'voice_tone', 'tom_percebido', 
-      'palavras_proibidas', 'palavras_identidade', 'working_hours', 'payment_methods', 
-      'tempo_resposta_whatsapp', 'quem_faz_primeiro_atendimento', 'maior_falha_comercial', 
-      'leads_por_mes', 'taxa_conversao_atual', 'meta_faturamento', 'faturamento_atual', 
+      'user_id', 'profissional_nome', 'especialidades_complementares', 'cidade', 'estado',
+      'city_state', 'specialty_preset', 'ano_fundacao', 'tamanho_equipe', 'descricao_profissional',
+      'proposito_clinica', 'limites_valores', 'anchor_procedure', 'anchor_why',
+      'anchor_resultado', 'anchor_ticket_atual', 'anchor_ticket_desejado',
+      'procedures', 'posicionamento_preco', 'frequencia_desconto', 'objecao_preco_principal',
+      'working_hours', 'payment_methods', 'maior_falha_comercial',
       'faq', 'objecoes_banco', 'materiais_adicionados', 'updated_at'
     ];
 
     // Colunas com tipo numérico no banco — precisam ser null quando vazias, nunca string ""
     const numericColumns = [
-      'ano_fundacao', 'anchor_ticket_atual', 'anchor_ticket_desejado',
-      'leads_por_mes', 'meta_faturamento', 'faturamento_atual'
+      'ano_fundacao', 'anchor_ticket_atual', 'anchor_ticket_desejado'
     ];
 
     const payload: any = {};
@@ -214,8 +197,6 @@ export default function Cerebro() {
 
     // Mapear campos do formulário para colunas do banco com nomes diferentes
     payload.specialty_preset = dataToSave.specialty_principal || null;
-    // voice_tone sem valor = null (não string vazia, pois havia constraint)
-    if (!payload.voice_tone || payload.voice_tone === '') payload.voice_tone = null;
 
     payload.user_id = user.id;
     payload.updated_at = new Date().toISOString();
@@ -285,20 +266,18 @@ export default function Cerebro() {
     const essentialFields = [
       'clinic_name', 'profissional_nome', 'specialty_principal', 'cidade', 'proposito_clinica',
       'anchor_procedure', 'posicionamento_preco',
-      'icp_faixa_etaria', 'icp_maior_dor', 'icp_maior_desejo',
-      'diferencial_exclusivo', 'voice_tone',
       'working_hours', 'maior_falha_comercial'
     ];
     let filled = 0;
     essentialFields.forEach(f => {
       if (formData[f] && formData[f].toString().trim() !== '') filled++;
     });
-    
+
     // Checks for lists
     if (formData.procedures?.length > 0) filled++;
     if (formData.faq?.length > 0) filled++;
     if (formData.objecoes_banco?.length > 0) filled++;
-    
+
     const total = essentialFields.length + 3;
     return Math.round((filled / total) * 100);
   }, [formData]);
@@ -322,47 +301,49 @@ export default function Cerebro() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto space-y-8 pb-32">
+    <div className="max-w-[1200px] mx-auto space-y-8 pb-28">
       {/* HEADER */}
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="space-y-1 border-b border-border pb-6">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold uppercase tracking-tight text-foreground flex items-center gap-2">
-              <BrainCircuit className="w-8 h-8 text-[#E85D24]" /> Cérebro Central
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
+              Cérebro Central
             </h1>
-            <p className="text-muted-foreground mt-1">A memória estratégica da sua clínica — quanto mais você preenche, mais inteligentes ficam suas IAs.</p>
+            <p className="text-muted-foreground text-[15px] mt-1">A memória estratégica da sua clínica — quanto mais você preenche, mais inteligentes ficam suas IAs.</p>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <Badge className={`${badgeInfo.color} px-3 py-1 text-sm border-transparent uppercase tracking-wider`}>
-              {badgeInfo.label} ({completeness}%)
-            </Badge>
-            <div className="w-48 h-2 bg-secondary rounded-full overflow-hidden">
-              <div className="h-full bg-[#E85D24] transition-all duration-500" style={{ width: `${completeness}%` }} />
+          <div className="flex items-center gap-4 shrink-0">
+            <div className="flex flex-col items-end gap-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-medium text-muted-foreground">{badgeInfo.label}</span>
+                <span className="text-[11px] font-bold tabular-nums text-foreground font-mono">{completeness}%</span>
+              </div>
+              <div className="w-40 h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-foreground rounded-full transition-all duration-500" style={{ width: `${completeness}%` }} />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* HORIZONTAL NAV */}
-      <div className="flex overflow-x-auto no-scrollbar gap-2 pb-2 border-b border-border/40">
+      <div className="flex overflow-x-auto no-scrollbar gap-1 pb-0 border-b border-border">
         {PHASES.map((phase, index) => {
           const isActive = activePhase === phase.id;
-          const Icon = phase.icon;
           return (
             <button
               key={phase.id}
               onClick={() => setActivePhase(PHASES[index].id)}
-              className={`flex-shrink-0 flex items-center gap-2 px-4 py-3 rounded-t-lg transition-colors border-b-2 ${
-                isActive 
-                  ? 'bg-card border-[#E85D24] text-foreground font-semibold' 
-                  : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              className={`relative flex-shrink-0 flex items-center gap-2 px-4 py-3 text-[13px] font-medium transition-colors ${
+                isActive
+                  ? 'text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${isActive ? 'bg-[#E85D24] text-white' : 'bg-secondary text-muted-foreground'}`}>
+              <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold ${isActive ? 'bg-foreground text-background' : 'bg-muted text-muted-foreground'}`}>
                 {phase.id}
               </span>
-              <Icon className="w-4 h-4" />
-              <span>{phase.name}</span>
+              <span className="hidden sm:inline">{phase.name}</span>
+              {isActive && <span className="absolute bottom-0 left-4 right-4 h-[2px] bg-foreground rounded-full" />}
             </button>
           );
         })}
@@ -373,45 +354,45 @@ export default function Cerebro() {
         {/* HEADER DA FASE COM SETAS DE NAVEGAÇÃO */}
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold uppercase tracking-wider text-[#E85D24] mb-1">
-              Fase {activePhaseData.id} — {activePhaseData.name}
+            <h2 className="text-base font-semibold text-foreground font-display">
+              {activePhaseData.name}
             </h2>
-            <p className="text-muted-foreground">{activePhaseData.desc}</p>
+            <p className="text-[13px] text-muted-foreground mt-0.5">{activePhaseData.desc}</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <button
               onClick={() => setActivePhase(PHASES[Math.max(0, activePhase - 2)].id)}
               disabled={activePhase === 1}
-              className="h-8 w-8 flex items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="h-7 w-7 flex items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <span className="text-xs text-muted-foreground font-medium">{activePhase}/7</span>
+            <span className="text-[11px] text-muted-foreground font-mono tabular-nums">{activePhase}/5</span>
             <button
               onClick={() => setActivePhase(PHASES[Math.min(PHASES.length - 1, activePhase)].id)}
-              disabled={activePhase === 7}
-              className="h-8 w-8 flex items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              disabled={activePhase === 5}
+              className="h-7 w-7 flex items-center justify-center rounded-md border border-border hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* FASE 1: IDENTIDADE */}
         {activePhase === 1 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-border bg-card">
-              <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Nome da Clínica</label>
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Nome da Clínica</label>
                   <Input value={formData.clinic_name} onChange={e => updateField('clinic_name', e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Nome do Responsável/Profissional</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Nome do Responsável</label>
                   <Input value={formData.profissional_nome} onChange={e => updateField('profissional_nome', e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Especialidade Principal</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Especialidade Principal</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={formData.specialty_principal} onChange={e => updateField('specialty_principal', e.target.value)}>
                     <option value="">Selecione...</option>
@@ -423,26 +404,26 @@ export default function Cerebro() {
                     <option value="Outra">Outra</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Especialidades Complementares</label>
-                  <Input placeholder="Ex: Ortodontia, Preenchimento, etc" 
-                    value={formData.especialidades_complementares?.join(', ') || ''} 
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Especialidades Complementares</label>
+                  <Input placeholder="Ex: Ortodontia, Preenchimento, etc"
+                    value={formData.especialidades_complementares?.join(', ') || ''}
                     onChange={e => updateField('especialidades_complementares', e.target.value.split(',').map(s=>s.trim()))} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Cidade</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Cidade</label>
                   <Input value={formData.cidade} onChange={e => updateField('cidade', e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Estado (UF)</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Estado (UF)</label>
                   <Input value={formData.estado} onChange={e => updateField('estado', e.target.value)} maxLength={2} placeholder="Ex: SP" />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Ano de Fundação</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Ano de Fundação</label>
                   <Input type="number" value={formData.ano_fundacao} onChange={e => updateField('ano_fundacao', Number(e.target.value) || '')} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Tamanho da Equipe</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Tamanho da Equipe</label>
                   <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     value={formData.tamanho_equipe} onChange={e => updateField('tamanho_equipe', e.target.value)}>
                     <option value="">Selecione...</option>
@@ -452,80 +433,83 @@ export default function Cerebro() {
                     <option value="10+">10+</option>
                   </select>
                 </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Como você se descreve como profissional?</label>
+              </div>
+
+              <div className="mt-6 pt-6 border-t border-border space-y-5">
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Como você se descreve como profissional?</label>
                   <Textarea placeholder="Tom pessoal..." className="min-h-[80px]" value={formData.descricao_profissional} onChange={e => updateField('descricao_profissional', e.target.value)} />
                 </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Qual é o propósito maior da sua clínica?</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Qual é o propósito maior da sua clínica?</label>
                   <Textarea placeholder="Nossa missão é..." className="min-h-[80px]" value={formData.proposito_clinica} onChange={e => updateField('proposito_clinica', e.target.value)} />
                 </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">O que você NÃO aceita na sua clínica?</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">O que você NÃO aceita na sua clínica?</label>
                   <Textarea placeholder="Limites, valores inegociáveis..." className="min-h-[80px]" value={formData.limites_valores} onChange={e => updateField('limites_valores', e.target.value)} />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )}
 
         {/* FASE 2: PROCEDIMENTOS */}
         {activePhase === 2 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-border bg-card">
-              <CardHeader><CardTitle className="text-foreground uppercase tracking-wider text-sm">Procedimento Âncora</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Qual procedimento você mais quer vender?</label>
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-4">Procedimento Âncora</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Qual procedimento você mais quer vender?</label>
                   <Input value={formData.anchor_procedure} onChange={e => updateField('anchor_procedure', e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Por que esse é o âncora?</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Por que esse é o âncora?</label>
                   <Input value={formData.anchor_why} onChange={e => updateField('anchor_why', e.target.value)} />
                 </div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Qual o resultado visual/físico que ele gera?</label>
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-[13px] font-medium text-foreground">Qual o resultado visual/físico que ele gera?</label>
                   <Textarea className="min-h-[80px]" value={formData.anchor_resultado} onChange={e => updateField('anchor_resultado', e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Ticket Médio Atual (R$)</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Ticket Médio Atual (R$)</label>
                   <Input type="number" value={formData.anchor_ticket_atual} onChange={e => updateField('anchor_ticket_atual', Number(e.target.value) || 0)} />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Ticket que Deseja Cobrar (R$)</label>
+                <div className="space-y-1.5">
+                  <label className="text-[13px] font-medium text-foreground">Ticket que Deseja Cobrar (R$)</label>
                   <Input type="number" value={formData.anchor_ticket_desejado} onChange={e => updateField('anchor_ticket_desejado', Number(e.target.value) || 0)} />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card className="border-border bg-card">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-foreground uppercase tracking-wider text-sm">Lista de Procedimentos</CardTitle>
-                <Button onClick={() => updateField('procedures', [...formData.procedures, { id: Date.now().toString(), name: '', category: '', ticket: '', volume: '', potential: '' }])} variant="outline" size="sm" className="border-[#E85D24] text-[#E85D24] hover:bg-[#E85D24]/10">
-                  <Plus className="w-4 h-4 mr-2" /> Adicionar
+            <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Lista de Procedimentos</p>
+                <Button onClick={() => updateField('procedures', [...formData.procedures, { id: Date.now().toString(), name: '', category: '', ticket: '', volume: '', potential: '' }])} variant="outline" size="sm" className="h-8 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar
                 </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </div>
+              <div className="p-5 space-y-3">
                 {formData.procedures.map((proc: any) => (
-                  <div key={proc.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-start border border-border p-4 rounded-lg relative">
-                    <Button variant="ghost" size="icon" onClick={() => updateField('procedures', formData.procedures.filter((p:any) => p.id !== proc.id))} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 h-8 w-8">
-                      <Trash2 className="w-4 h-4" />
+                  <div key={proc.id} className="grid grid-cols-1 md:grid-cols-6 gap-3 items-start border border-border p-4 rounded-xl relative group">
+                    <Button variant="ghost" size="icon" onClick={() => updateField('procedures', formData.procedures.filter((p:any) => p.id !== proc.id))} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
-                    <div className="md:col-span-2 space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Nome</span><Input placeholder="Toxina" value={proc.name} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, name: e.target.value } : p))} /></div>
-                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Categoria</span><Input placeholder="Injetável" value={proc.category} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, category: e.target.value } : p))} /></div>
-                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Ticket</span><Input placeholder="R$" value={proc.ticket} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, ticket: e.target.value } : p))} /></div>
-                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Vol. Mensal</span><Input placeholder="Qtd" value={proc.volume} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, volume: e.target.value } : p))} /></div>
-                    <div className="space-y-1 pr-6"><span className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Potencial</span><Input placeholder="Alto/Baixo" value={proc.potential} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, potential: e.target.value } : p))} /></div>
+                    <div className="md:col-span-2 space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Nome</span><Input placeholder="Toxina" value={proc.name} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, name: e.target.value } : p))} /></div>
+                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Categoria</span><Input placeholder="Injetável" value={proc.category} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, category: e.target.value } : p))} /></div>
+                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Ticket</span><Input placeholder="R$" value={proc.ticket} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, ticket: e.target.value } : p))} /></div>
+                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Vol. Mensal</span><Input placeholder="Qtd" value={proc.volume} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, volume: e.target.value } : p))} /></div>
+                    <div className="space-y-1 pr-6"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Potencial</span><Input placeholder="Alto/Baixo" value={proc.potential} onChange={e => updateField('procedures', formData.procedures.map((p:any) => p.id === proc.id ? { ...p, potential: e.target.value } : p))} /></div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card className="border-border bg-card">
-               <CardHeader><CardTitle className="text-foreground uppercase tracking-wider text-sm">Posicionamento de Preço</CardTitle></CardHeader>
-               <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div className="space-y-2">
-                    <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Como você se posiciona?</label>
+            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+               <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-4">Posicionamento de Preço</p>
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                 <div className="space-y-1.5">
+                    <label className="text-[13px] font-medium text-foreground">Como você se posiciona?</label>
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       value={formData.posicionamento_preco} onChange={e => updateField('posicionamento_preco', e.target.value)}>
                       <option value="">Selecione...</option>
@@ -535,8 +519,8 @@ export default function Cerebro() {
                       <option value="Ultra Premium">Ultra Premium</option>
                     </select>
                  </div>
-                 <div className="space-y-2">
-                    <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Você dá desconto?</label>
+                 <div className="space-y-1.5">
+                    <label className="text-[13px] font-medium text-foreground">Você dá desconto?</label>
                     <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                       value={formData.frequencia_desconto} onChange={e => updateField('frequencia_desconto', e.target.value)}>
                       <option value="">Selecione...</option>
@@ -546,213 +530,125 @@ export default function Cerebro() {
                       <option value="Com frequência">Com frequência</option>
                     </select>
                  </div>
-                 <div className="space-y-2 md:col-span-2">
-                    <label className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Qual objeção de preço você mais recebe?</label>
+                 <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-[13px] font-medium text-foreground">Qual objeção de preço você mais recebe?</label>
                     <Textarea value={formData.objecao_preco_principal} onChange={e => updateField('objecao_preco_principal', e.target.value)} />
                  </div>
-               </CardContent>
-            </Card>
+               </div>
+            </div>
           </div>
         )}
 
-        {/* FASE 3: ICP */}
+        {/* FASE 3: OPERAÇÃO COMERCIAL */}
         {activePhase === 3 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-border bg-card">
-              <CardHeader><CardTitle className="text-foreground uppercase tracking-wider text-sm">Perfil Demográfico</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Faixa etária predominante</label><Input value={formData.icp_faixa_etaria} onChange={e => updateField('icp_faixa_etaria', e.target.value)} placeholder="Ex: 30-45 anos" /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Gênero predominante</label><Input value={formData.icp_genero} onChange={e => updateField('icp_genero', e.target.value)} placeholder="Ex: Feminino (90%)" /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Perfil socioeconômico</label><Input value={formData.icp_nivel_socioeconomico} onChange={e => updateField('icp_nivel_socioeconomico', e.target.value)} placeholder="Ex: Classe A e B" /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Localização principal</label><Input value={formData.icp_localizacao} onChange={e => updateField('icp_localizacao', e.target.value)} /></div>
-                <div className="space-y-2 md:col-span-2"><label className="text-sm font-medium text-muted-foreground">Profissão predominante dos pacientes</label><Input value={formData.icp_profissao} onChange={e => updateField('icp_profissao', e.target.value)} /></div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border bg-card">
-              <CardHeader><CardTitle className="text-foreground uppercase tracking-wider text-sm">Perfil Psicográfico</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2 md:col-span-2"><label className="text-sm font-medium text-muted-foreground">Qual é a maior dor do seu paciente ideal ANTES do procedimento?</label><Textarea value={formData.icp_maior_dor} onChange={e => updateField('icp_maior_dor', e.target.value)} /></div>
-                <div className="space-y-2 md:col-span-2"><label className="text-sm font-medium text-muted-foreground">Qual é o maior desejo do seu paciente ideal?</label><Textarea value={formData.icp_maior_desejo} onChange={e => updateField('icp_maior_desejo', e.target.value)} /></div>
-                <div className="space-y-2 md:col-span-2"><label className="text-sm font-medium text-muted-foreground">O que ele teme que dê errado?</label><Textarea value={formData.icp_maior_medo} onChange={e => updateField('icp_maior_medo', e.target.value)} /></div>
-                <div className="space-y-2 md:col-span-2"><label className="text-sm font-medium text-muted-foreground">O que faz ele escolher VOCÊ em vez do concorrente?</label><Textarea value={formData.icp_por_que_voce} onChange={e => updateField('icp_por_que_voce', e.target.value)} /></div>
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground mb-2 block">Como ele chegou até você?</label>
-                  <div className="flex flex-wrap gap-4">
-                    {['Indicação', 'Instagram', 'Google', 'Tráfego Pago', 'Evento'].map(opt => (
-                      <div key={opt} className="flex items-center space-x-2">
-                        <Checkbox id={`chan-${opt}`} checked={formData.icp_canais_chegada?.includes(opt)} onCheckedChange={() => toggleArrayValue('icp_canais_chegada', opt)} />
-                        <label htmlFor={`chan-${opt}`} className="text-sm leading-none">{opt}</label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border bg-card">
-              <CardHeader><CardTitle className="text-foreground uppercase tracking-wider text-sm">Comportamento de Compra</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Tempo da primeira consulta ao fechamento</label><Input value={formData.icp_tempo_decisao} onChange={e => updateField('icp_tempo_decisao', e.target.value)} placeholder="Ex: Imediato, 1 semana..." /></div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Quem influencia a decisão?</label>
-                  <Input value={formData.icp_influenciador_decisao} onChange={e => updateField('icp_influenciador_decisao', e.target.value)} />
-                </div>
-                <div className="space-y-2 md:col-span-2"><label className="text-sm font-medium text-muted-foreground">Maior objeção antes de fechar</label><Textarea value={formData.icp_objecao_pre_fechamento} onChange={e => updateField('icp_objecao_pre_fechamento', e.target.value)} /></div>
-              </CardContent>
-            </Card>
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="rounded-xl border border-border bg-card p-6 shadow-card">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="space-y-1.5"><label className="text-[13px] font-medium text-foreground">Horários de funcionamento</label><Input value={formData.working_hours} onChange={e => updateField('working_hours', e.target.value)} placeholder="Ex: Seg a Sex, 09h as 18h" /></div>
+                <div className="space-y-1.5"><label className="text-[13px] font-medium text-foreground">Formas de Pagamento Aceitas</label><Input value={formData.payment_methods} onChange={e => updateField('payment_methods', e.target.value)} /></div>
+                <div className="space-y-1.5 md:col-span-2"><label className="text-[13px] font-medium text-foreground">Qual é a maior falha do seu comercial hoje?</label><Textarea value={formData.maior_falha_comercial} onChange={e => updateField('maior_falha_comercial', e.target.value)} /></div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-4 bg-muted/30 border border-border rounded-xl text-[13px] text-muted-foreground">
+              <BrainCircuit className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
+              <p>Dados como <strong className="text-foreground font-medium">ICP</strong>, <strong className="text-foreground font-medium">Posicionamento</strong>, <strong className="text-foreground font-medium">Diferencial Competitivo</strong> e <strong className="text-foreground font-medium">Métricas Comerciais</strong> são construídos durante a Trilha de Aprendizado e salvos automaticamente no Cérebro Central.</p>
+            </div>
           </div>
         )}
 
-        {/* FASE 4: POSICIONAMENTO E DIFERENCIAL */}
+        {/* FASE 4: FAQ E OBJEÇÕES */}
         {activePhase === 4 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-border bg-card">
-              <CardContent className="pt-6 grid grid-cols-1 gap-6">
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Qual é a sua especialização mais forte?</label><Textarea value={formData.especializacao_forte} onChange={e => updateField('especializacao_forte', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">O que você faz que nenhum concorrente faz?</label><Textarea value={formData.diferencial_exclusivo} onChange={e => updateField('diferencial_exclusivo', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Qual é o seu maior case de resultado?</label><Textarea value={formData.maior_case_resultado} onChange={e => updateField('maior_case_resultado', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Como descreveria sua clínica em 1 frase para um paciente frio?</label><Input value={formData.descricao_one_liner} onChange={e => updateField('descricao_one_liner', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Qual o diferencial da sua experiência de atendimento?</label><Textarea value={formData.diferencial_atendimento} onChange={e => updateField('diferencial_atendimento', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Quem são seus concorrentes diretos e o que te diferencia deles?</label><Textarea value={formData.analise_concorrentes} onChange={e => updateField('analise_concorrentes', e.target.value)} /></div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border bg-card">
-              <CardHeader><CardTitle className="text-foreground uppercase tracking-wider text-sm">Tom de Voz</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {[
-                    { id: 'Técnica e Clínica', label: 'Técnica/Evidências' },
-                    { id: 'Acolhedora e Próxima', label: 'Acolhedora/Próxima' },
-                    { id: 'Premium e Exclusiva', label: 'Premium/Sofisticada' },
-                    { id: 'Educativa e Transparente', label: 'Educativa/Transparente' }
-                  ].map(tone => (
-                    <div 
-                      key={tone.id} onClick={() => updateField('voice_tone', tone.id)}
-                      className={`border p-4 rounded-lg cursor-pointer transition-colors text-center ${formData.voice_tone === tone.id ? 'border-[#E85D24] bg-[#E85D24]/10 shadow-sm' : 'border-border bg-background hover:bg-muted'}`}
-                    >
-                      <span className={`font-semibold ${formData.voice_tone === tone.id ? 'text-[#E85D24]' : 'text-foreground'}`}>{tone.label}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Palavras que definem a clínica</label><Textarea value={formData.palavras_identidade} onChange={e => updateField('palavras_identidade', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Palavras que NUNCA usaria</label><Textarea value={formData.palavras_proibidas} onChange={e => updateField('palavras_proibidas', e.target.value)} /></div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* FASE 5: OPERAÇÃO COMERCIAL */}
-        {activePhase === 5 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-border bg-card">
-              <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Horários de funcionamento</label><Input value={formData.working_hours} onChange={e => updateField('working_hours', e.target.value)} placeholder="Ex: Seg a Sex, 09h as 18h" /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Formas de Pagamento Aceitas</label><Input value={formData.payment_methods} onChange={e => updateField('payment_methods', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Tempo médio de resposta no WhatsApp</label><Input value={formData.tempo_resposta_whatsapp} onChange={e => updateField('tempo_resposta_whatsapp', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Quem faz o 1º atendimento?</label><Input value={formData.quem_faz_primeiro_atendimento} onChange={e => updateField('quem_faz_primeiro_atendimento', e.target.value)} /></div>
-                <div className="space-y-2 md:col-span-2"><label className="text-sm font-medium text-muted-foreground">Qual é a maior falha do seu comercial hoje?</label><Textarea value={formData.maior_falha_comercial} onChange={e => updateField('maior_falha_comercial', e.target.value)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Leads por mês</label><Input type="number" value={formData.leads_por_mes} onChange={e => updateField('leads_por_mes', Number(e.target.value) || 0)} /></div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Taxa de conversão estimada</label>
-                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={formData.taxa_conversao_atual} onChange={e => updateField('taxa_conversao_atual', e.target.value)}>
-                    <option value="">Selecione...</option><option value="0-10%">0-10%</option><option value="10-20%">10-20%</option><option value="20-30%">20-30%</option><option value="30-50%">30-50%</option><option value="50%+">50%+</option>
-                  </select>
-                </div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Faturamento médio atual</label><Input type="number" value={formData.faturamento_atual} onChange={e => updateField('faturamento_atual', Number(e.target.value) || 0)} /></div>
-                <div className="space-y-2"><label className="text-sm font-medium text-muted-foreground">Meta de faturamento</label><Input type="number" value={formData.meta_faturamento} onChange={e => updateField('meta_faturamento', Number(e.target.value) || 0)} /></div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* FASE 6: FAQ E OBJEÇÕES */}
-        {activePhase === 6 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <Card className="border-border bg-card">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-foreground uppercase tracking-wider text-sm">FAQ Dinâmico</CardTitle>
-                <Button onClick={() => updateField('faq', [...formData.faq, { id: Date.now().toString(), question: '', answer: '', category: '' }])} variant="outline" size="sm" className="border-[#E85D24] text-[#E85D24] hover:bg-[#E85D24]/10">
-                  <Plus className="w-4 h-4 mr-2" /> Adicionar Pergunta
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">FAQ Dinâmico</p>
+                <Button onClick={() => updateField('faq', [...formData.faq, { id: Date.now().toString(), question: '', answer: '', category: '' }])} variant="outline" size="sm" className="h-8 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar Pergunta
                 </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </div>
+              <div className="p-5 space-y-3">
                 {formData.faq.map((item: any) => (
-                  <div key={item.id} className="grid grid-cols-1 gap-3 p-4 border border-border rounded-lg relative">
-                    <Button variant="ghost" size="icon" onClick={() => updateField('faq', formData.faq.filter((f:any) => f.id !== item.id))} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 h-8 w-8">
-                      <Trash2 className="w-4 h-4" />
+                  <div key={item.id} className="grid grid-cols-1 gap-3 p-4 border border-border rounded-xl relative group">
+                    <Button variant="ghost" size="icon" onClick={() => updateField('faq', formData.faq.filter((f:any) => f.id !== item.id))} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
-                    <div className="space-y-1 w-full md:w-3/4"><span className="text-[10px] text-muted-foreground uppercase font-bold">Pergunta</span><Input value={item.question} onChange={e => updateField('faq', formData.faq.map((f:any) => f.id === item.id ? { ...f, question: e.target.value } : f))} /></div>
-                    <div className="space-y-1 w-full md:w-1/2"><span className="text-[10px] text-muted-foreground uppercase font-bold">Categoria</span><Input placeholder="Sobre preço, resultado..." value={item.category} onChange={e => updateField('faq', formData.faq.map((f:any) => f.id === item.id ? { ...f, category: e.target.value } : f))} /></div>
-                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase font-bold">Resposta Ideal</span><Textarea value={item.answer} onChange={e => updateField('faq', formData.faq.map((f:any) => f.id === item.id ? { ...f, answer: e.target.value } : f))} /></div>
+                    <div className="space-y-1 w-full md:w-3/4"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Pergunta</span><Input value={item.question} onChange={e => updateField('faq', formData.faq.map((f:any) => f.id === item.id ? { ...f, question: e.target.value } : f))} /></div>
+                    <div className="space-y-1 w-full md:w-1/2"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Categoria</span><Input placeholder="Sobre preço, resultado..." value={item.category} onChange={e => updateField('faq', formData.faq.map((f:any) => f.id === item.id ? { ...f, category: e.target.value } : f))} /></div>
+                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Resposta Ideal</span><Textarea value={item.answer} onChange={e => updateField('faq', formData.faq.map((f:any) => f.id === item.id ? { ...f, answer: e.target.value } : f))} /></div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card className="border-border bg-card">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-foreground uppercase tracking-wider text-sm">Banco de Objeções</CardTitle>
-                <Button onClick={() => updateField('objecoes_banco', [...formData.objecoes_banco, { id: Date.now().toString(), objection: '', answer: '', frequency: '' }])} variant="outline" size="sm" className="border-[#E85D24] text-[#E85D24] hover:bg-[#E85D24]/10">
-                  <Plus className="w-4 h-4 mr-2" /> Adicionar Objeção
+            <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden">
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Banco de Objeções</p>
+                <Button onClick={() => updateField('objecoes_banco', [...formData.objecoes_banco, { id: Date.now().toString(), objection: '', answer: '', frequency: '' }])} variant="outline" size="sm" className="h-8 text-xs">
+                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar Objeção
                 </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
+              </div>
+              <div className="p-5 space-y-3">
                 {formData.objecoes_banco.map((item: any) => (
-                  <div key={item.id} className="grid grid-cols-1 gap-3 p-4 border border-border rounded-lg relative">
-                    <Button variant="ghost" size="icon" onClick={() => updateField('objecoes_banco', formData.objecoes_banco.filter((o:any) => o.id !== item.id))} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 h-8 w-8">
-                      <Trash2 className="w-4 h-4" />
+                  <div key={item.id} className="grid grid-cols-1 gap-3 p-4 border border-border rounded-xl relative group">
+                    <Button variant="ghost" size="icon" onClick={() => updateField('objecoes_banco', formData.objecoes_banco.filter((o:any) => o.id !== item.id))} className="absolute top-2 right-2 text-muted-foreground hover:text-red-500 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
-                    <div className="space-y-1 w-full md:w-3/4"><span className="text-[10px] text-muted-foreground uppercase font-bold">Objeção</span><Input value={item.objection} onChange={e => updateField('objecoes_banco', formData.objecoes_banco.map((o:any) => o.id === item.id ? { ...o, objection: e.target.value } : o))} /></div>
+                    <div className="space-y-1 w-full md:w-3/4"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Objeção</span><Input value={item.objection} onChange={e => updateField('objecoes_banco', formData.objecoes_banco.map((o:any) => o.id === item.id ? { ...o, objection: e.target.value } : o))} /></div>
                     <div className="space-y-1 w-full md:w-1/2">
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold">Frequência</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Frequência</span>
                       <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" value={item.frequency} onChange={e => updateField('objecoes_banco', formData.objecoes_banco.map((o:any) => o.id === item.id ? { ...o, frequency: e.target.value } : o))}>
                         <option value="">Selecione...</option><option value="Muito comum">Muito comum</option><option value="Comum">Comum</option><option value="Rara">Rara</option>
                       </select>
                     </div>
-                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase font-bold">Resposta de Alta Conversão</span><Textarea value={item.answer} onChange={e => updateField('objecoes_banco', formData.objecoes_banco.map((o:any) => o.id === item.id ? { ...o, answer: e.target.value } : o))} /></div>
+                    <div className="space-y-1"><span className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold">Resposta de Alta Conversão</span><Textarea value={item.answer} onChange={e => updateField('objecoes_banco', formData.objecoes_banco.map((o:any) => o.id === item.id ? { ...o, answer: e.target.value } : o))} /></div>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )}
 
-        {/* FASE 7: MATERIAIS */}
-        {activePhase === 7 && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="p-6 bg-[#E85D24]/10 border border-[#E85D24]/20 rounded-xl">
-              <h3 className="text-lg font-bold text-[#E85D24] mb-2">Tudo que você construiu nas aulas pode enriquecer o Cérebro Central.</h3>
-              <p className="text-muted-foreground">Selecione os materiais que quer incluir como contexto adicional para as IAs. {formData.materiais_adicionados?.length || 0} materiais enriquecendo seu Cérebro hoje.</p>
+        {/* FASE 5: MATERIAIS DA TRILHA */}
+        {activePhase === 5 && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-card p-5 shadow-card">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                <GraduationCap className="h-4 w-4 text-foreground" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground font-display">Enriqueça o Cérebro com seus materiais da Trilha</h3>
+                <p className="text-[13px] text-muted-foreground mt-0.5">Selecione os materiais que quer incluir como contexto para as IAs. <span className="font-medium text-foreground">{formData.materiais_adicionados?.length || 0}</span> materiais adicionados.</p>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {materials.length === 0 ? (
-                <div className="col-span-full p-8 text-center border border-dashed rounded-xl">
-                  <p className="text-muted-foreground mb-4">Você ainda não tem materiais gerados na Trilha.</p>
-                  <Button onClick={() => navigate('/plataforma/trilha')} variant="outline" className="border-[#E85D24] text-[#E85D24]">Ir para Trilha</Button>
+                <div className="col-span-full flex flex-col items-center justify-center p-12 text-center border border-dashed border-border rounded-xl">
+                  <div className="w-10 h-10 bg-muted rounded-xl flex items-center justify-center mb-3">
+                    <GraduationCap className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-4">Você ainda não tem materiais gerados na Trilha.</p>
+                  <Button onClick={() => navigate('/plataforma/trilha')} variant="outline" size="sm" className="h-8 text-xs">Ir para Trilha</Button>
                 </div>
               ) : (
                 materials.map(mat => {
                   const isAdded = formData.materiais_adicionados?.includes(mat.id);
                   return (
-                    <Card key={mat.id} className={`border ${isAdded ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border'}`}>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base line-clamp-1">{mat.title}</CardTitle>
-                        <CardDescription>Módulo {mat.module_id}</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-xs text-muted-foreground line-clamp-3 mb-4">{mat.content}</p>
-                        <Button 
-                          onClick={() => toggleArrayValue('materiais_adicionados', mat.id)}
-                          variant={isAdded ? "outline" : "default"}
-                          className={`w-full ${isAdded ? 'border-emerald-500 text-emerald-500 hover:bg-emerald-500/10' : 'bg-[#E85D24] hover:bg-[#E85D24]/90'}`}
-                        >
-                          {isAdded ? <><CheckCircle2 className="w-4 h-4 mr-2" /> Adicionado ao Cérebro</> : <><Plus className="w-4 h-4 mr-2" /> Adicionar ao Cérebro</>}
-                        </Button>
-                      </CardContent>
-                    </Card>
+                    <div key={mat.id} className={`rounded-xl border p-5 transition-all ${isAdded ? 'border-emerald-200 bg-emerald-50/50' : 'border-border bg-card shadow-card'}`}>
+                      <div className="mb-3">
+                        <p className="text-sm font-semibold text-foreground line-clamp-1">{mat.title}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Módulo {mat.module_id}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-3 mb-4 leading-relaxed">{getMaterialPreviewText(mat.content, 200)}</p>
+                      <Button
+                        onClick={() => toggleArrayValue('materiais_adicionados', mat.id)}
+                        variant="outline"
+                        size="sm"
+                        className={`w-full h-8 text-xs ${isAdded ? 'border-emerald-300 text-emerald-600 hover:bg-emerald-50' : 'border-border text-foreground hover:bg-muted/50'}`}
+                      >
+                        {isAdded ? <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" /> Adicionado</> : <><Plus className="w-3.5 h-3.5 mr-1.5" /> Adicionar ao Cérebro</>}
+                      </Button>
+                    </div>
                   )
                 })
               )}
@@ -761,20 +657,20 @@ export default function Cerebro() {
         )}
       </div>
 
-      {/* FOOTER FIXED BUTTON */}
-      <div className="fixed bottom-0 left-0 lg:left-64 right-0 p-4 border-t border-border bg-background/80 backdrop-blur-md z-40 flex items-center justify-between">
+      {/* FOOTER FIXED */}
+      <div className="fixed bottom-0 left-0 lg:left-64 right-0 p-3 border-t border-border bg-background z-40 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Badge className={`${badgeInfo.color} px-3 py-1 border-transparent`}>{completeness}% Completo</Badge>
-          {saveStatus === 'saving' && <span className="text-muted-foreground text-xs flex items-center"><Loader2 className="w-3 h-3 mr-1 animate-spin" /> Salvando...</span>}
-          {saveStatus === 'saved' && <span className="text-emerald-500 text-xs flex items-center"><CheckCircle2 className="w-3 h-3 mr-1" /> Salvo com sucesso</span>}
+          <span className="text-[11px] font-medium text-muted-foreground">{completeness}% preenchido</span>
+          {saveStatus === 'saving' && <span className="text-muted-foreground text-[11px] flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Salvando...</span>}
+          {saveStatus === 'saved' && <span className="text-emerald-600 text-[11px] flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Salvo</span>}
         </div>
-        <Button 
+        <Button
           onClick={handleManualSave}
           disabled={saveStatus === 'saving'}
-          className="bg-[#E85D24] hover:bg-[#E85D24]/90 text-white font-bold"
+          className="bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold h-9 px-5 text-sm"
         >
           {saveStatus === 'saving' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Salvar Agora
+          Salvar
         </Button>
       </div>
     </div>

@@ -40,7 +40,7 @@ export function useProfile() {
       const orgName = (user.user_metadata?.full_name || 'Meu') + ' Escritório';
       const { data: newOrg, error: orgError } = await supabase
         .from('organizations')
-        .insert({ name: orgName } as any)
+        .insert({ name: orgName, onboarding_enabled: true } as any)
         .select()
         .single();
 

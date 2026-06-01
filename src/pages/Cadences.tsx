@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, GitMerge, MoreVertical, Trash2, Calendar as CalendarIcon, Layout, ArrowRight, Activity, Zap, BarChart2, BarChart3 } from "lucide-react";
+import {
+  Plus, GitMerge, MoreVertical, Trash2, Calendar as CalendarIcon, Layout, ArrowRight,
+  Activity, Zap, BarChart3, BarChart2, Clock, ChevronRight,
+} from "lucide-react";
 import { CadenceModal } from "@/components/cadences/CadenceModal";
 import { BulkCadenceDispatchModal } from "@/components/cadences/BulkCadenceDispatchModal";
 import { CadenceDispatchMonitorModal } from "@/components/cadences/CadenceDispatchMonitorModal";
@@ -9,19 +11,20 @@ import { useCadences, Cadence } from "@/hooks/useCadences";
 import { format, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { CadenceMonitoringTab } from "@/components/cadences/CadenceMonitoringTab";
 import { CadenceDispatchReportTab } from "@/components/cadences/CadenceDispatchReportTab";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function Cadences() {
   const today = new Date();
   const initialDateRange: DateRange = { from: startOfMonth(today), to: endOfMonth(today) };
-  
+
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialDateRange);
   const { cadences, isLoading, deleteCadence, bulkStartCadence } = useCadences();
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -43,186 +46,255 @@ export default function Cadences() {
     }
   };
 
-  const handleOpenCreate = () => {
-    setSelectedCadence(null);
-    setIsModalOpen(true);
-  };
+  const handleOpenCreate = () => { setSelectedCadence(null); setIsModalOpen(true); };
+  const handleOpenDetails = (cadence: Cadence) => { setSelectedCadence(cadence); setIsModalOpen(true); };
+  const confirmDelete = () => { if (cadenceToDelete) { deleteCadence(cadenceToDelete.id); setCadenceToDelete(null); } };
 
-  const handleOpenDetails = (cadence: Cadence) => {
-    setSelectedCadence(cadence);
-    setIsModalOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (cadenceToDelete) {
-      deleteCadence(cadenceToDelete.id);
-      setCadenceToDelete(null);
-    }
-  };
+  const TAB_ITEMS = [
+    { id: "fluxos", label: "Fluxos", icon: Layout },
+    { id: "monitoramento", label: "Monitoramento", icon: Activity },
+    { id: "relatorio", label: "Relatório", icon: BarChart3 },
+  ];
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
-            <GitMerge className="h-8 w-8 text-primary" />
-            Cadência de Follow-Up
-          </h1>
-          <p className="text-muted-foreground mt-1">Crie fluxos automáticos de mensagens para nutrir seus leads.</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
+    <div className="space-y-6 pb-10">
+      {/* ═══ PAGE HEADER ═══ */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Cadências</h1>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Crie fluxos automáticos de follow-up para nutrir seus leads</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             {activeTab === "monitoramento" && (
-                <DateRangePicker date={dateRange} setDate={setDateRange} />
+              <DateRangePicker date={dateRange} setDate={setDateRange} />
             )}
-            <Button onClick={handleOpenCreate} className="gap-2 bg-primary hover:bg-primary/90 shadow-md h-10">
-              <Plus className="h-4 w-4" /> Nova Cadência
+            <Button
+              onClick={handleOpenCreate}
+              className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4"
+              data-tutorial="cadences-create"
+            >
+              <Plus className="h-3.5 w-3.5" /> Nova Cadência
             </Button>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <GitMerge className="h-3 w-3" />
+            <span className="tabular-nums font-medium">{cadences.length} fluxos</span>
+          </div>
+          <div className="w-px h-3 bg-border" />
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Zap className="h-3 w-3" />
+            <span className="tabular-nums font-medium">
+              {cadences.reduce((sum, c) => sum + (c.passos?.length || 0), 0)} passos totais
+            </span>
+          </div>
         </div>
       </div>
 
+      {/* ═══ TABS ═══ */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6">
-          <TabsTrigger value="fluxos" className="gap-2">
-            <Layout className="h-4 w-4" /> Biblioteca de Fluxos
-          </TabsTrigger>
-          <TabsTrigger value="monitoramento" className="gap-2">
-            <Activity className="h-4 w-4" /> Monitoramento de Envios
-          </TabsTrigger>
-          <TabsTrigger value="relatorio" className="gap-2">
-            <BarChart3 className="h-4 w-4" /> Relatório de Disparos
-          </TabsTrigger>
-        </TabsList>
+        <div data-tutorial="cadences-tabs" className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit">
+          {TAB_ITEMS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                activeTab === tab.id
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              )}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
 
-        <TabsContent value="fluxos">
+        {/* ── FLUXOS TAB ── */}
+        <TabsContent value="fluxos" className="mt-6" data-tutorial="cadences-list">
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {[1, 2, 3].map(i => <Skeleton key={i} className="h-48 w-full rounded-xl" />)}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {[1, 2, 3].map(i => <Skeleton key={i} className="h-56 rounded-2xl" />)}
             </div>
           ) : cadences.length === 0 ? (
-            <Card className="border-dashed border-2 bg-muted/5 flex flex-col items-center justify-center py-20 text-center">
-              <div className="bg-muted p-4 rounded-full mb-4">
-                <GitMerge className="h-10 w-10 text-muted-foreground/40" />
+            <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+              <div className="bg-muted/30 p-5 rounded-2xl mb-4">
+                <GitMerge className="h-10 w-10 text-muted-foreground/30" />
               </div>
-              <CardTitle className="text-muted-foreground mb-2">Nenhuma cadência criada ainda.</CardTitle>
-              <Button variant="link" onClick={handleOpenCreate} className="text-primary font-bold underline-offset-4">Criar a primeira</Button>
-            </Card>
+              <h3 className="text-base font-semibold text-foreground mb-1">Nenhuma cadência criada</h3>
+              <p className="text-sm text-muted-foreground/60 mb-5 text-center max-w-sm">
+                Crie fluxos automáticos de mensagens para nutrir seus leads
+              </p>
+              <Button
+                onClick={handleOpenCreate}
+                className="gap-1.5 h-9 text-xs font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90"
+              >
+                <Plus className="h-3.5 w-3.5" /> Criar Cadência
+              </Button>
+            </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {cadences.map(cadence => (
-                <Card key={cadence.id} className="group hover:border-primary/50 transition-all duration-300 shadow-sm relative h-full flex flex-col">
-                  <div className="absolute top-0 right-0 p-2">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"><MoreVertical className="h-4 w-4" /></Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={() => setCadenceToDelete(cadence)}>
-                          <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {cadences.map((cadence, cadenceIdx) => {
+                const stepsCount = cadence.passos?.length || 0;
+                return (
+                  <div
+                    key={cadence.id}
+                    {...(cadenceIdx === 0 ? { 'data-tutorial': 'cadences-card' } : {})}
+                    className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] relative group transition-all duration-200 hover:border-border hover:shadow-md overflow-hidden flex flex-col"
+                  >
+                    {/* Menu */}
+                    <div className="absolute top-3 right-3 z-10">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="rounded-xl border-border/60 min-w-[140px]">
+                          <DropdownMenuItem
+                            className="text-destructive focus:bg-destructive/10 focus:text-destructive text-xs gap-2 rounded-lg"
+                            onSelect={() => setCadenceToDelete(cadence)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    {/* Body */}
+                    <div className="p-5 flex-1 flex flex-col">
+                      {/* Overline */}
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
+                        Fluxo de Mensagens
+                      </span>
+
+                      {/* Title */}
+                      <h3 className="text-base font-semibold text-foreground line-clamp-1 mb-1 pr-8">
+                        {cadence.nome}
+                      </h3>
+                      <p className="text-[11px] text-muted-foreground/60 line-clamp-2 leading-relaxed mb-4">
+                        {cadence.descricao || "Sem descrição"}
+                      </p>
+
+                      {/* Stats row */}
+                      <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-4">
+                        <div className="flex items-center gap-1.5">
+                          <Layout className="h-3 w-3" />
+                          <span className="tabular-nums font-medium">{stepsCount} passos</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3 w-3" />
+                          <span className="tabular-nums font-medium">
+                            {format(new Date(cadence.criado_em), "dd MMM yy", { locale: ptBR })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Step flow preview */}
+                      <div className="flex items-center gap-1.5 mb-4">
+                        {Array.from({ length: Math.min(stepsCount, 5) }).map((_, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <div className={cn(
+                              "h-7 w-7 rounded-lg flex items-center justify-center text-[10px] font-bold tabular-nums border",
+                              i === 0
+                                ? "bg-foreground text-background border-foreground"
+                                : "bg-muted/50 text-muted-foreground border-border/60"
+                            )}>
+                              {i + 1}
+                            </div>
+                            {i < Math.min(stepsCount, 5) - 1 && (
+                              <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                        {stepsCount > 5 && (
+                          <>
+                            <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
+                            <span className="text-[10px] text-muted-foreground/40 font-medium">+{stepsCount - 5}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Actions footer */}
+                    <div className="flex items-center gap-2 px-5 py-3.5 border-t border-border/40 bg-muted/[0.03]">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground"
+                        onClick={() => { setCadenceToMonitor(cadence); setIsMonitorOpen(true); }}
+                        title="Monitorar envios"
+                      >
+                        <BarChart2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-[11px] font-semibold rounded-lg gap-1.5 border-border/60"
+                        onClick={() => { setCadenceToDispatch(cadence); setIsBulkDispatchOpen(true); }}
+                        data-tutorial={cadenceIdx === 0 ? 'cadences-dispatch' : undefined}
+                      >
+                        <Zap className="h-3 w-3" /> Disparar
+                      </Button>
+                      <div className="flex-1" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-[11px] font-medium rounded-lg text-muted-foreground hover:text-foreground gap-1"
+                        onClick={() => handleOpenDetails(cadence)}
+                      >
+                        Detalhes <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
                   </div>
-
-                  <CardHeader className="pb-4">
-                    <Badge variant="outline" className="w-fit mb-2 text-[10px] uppercase font-bold tracking-widest bg-primary/5 text-primary border-primary/20">
-                      Fluxo de Mensagens
-                    </Badge>
-                    <CardTitle className="text-lg line-clamp-1">{cadence.nome}</CardTitle>
-                    <CardDescription className="line-clamp-2 h-10">{cadence.descricao || "Sem descrição."}</CardDescription>
-                  </CardHeader>
-
-                  <CardContent className="space-y-4 pt-0 flex-1 flex flex-col">
-                    <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground border-t border-dashed pt-4 mt-auto">
-                        <div className="flex items-center gap-1.5">
-                            <Layout className="h-3.5 w-3.5" /> {cadence.passos?.length || 0} Passos
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                            <CalendarIcon className="h-3.5 w-3.5" /> {format(new Date(cadence.criado_em), "dd/MM/yy", { locale: ptBR })}
-                        </div>
-                    </div>
-
-                    <div className="bg-muted/30 rounded-lg p-3 flex flex-col gap-2 group/path cursor-default">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full bg-background border flex items-center justify-center text-[10px] font-bold shadow-sm">1</div>
-                            <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
-                            <div className="w-8 h-8 rounded-full bg-background border flex items-center justify-center text-[10px] font-bold shadow-sm opacity-60">2</div>
-                            <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
-                            <div className="w-8 h-8 rounded-full bg-background border flex items-center justify-center text-[10px] font-bold shadow-sm opacity-30">...</div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary hover:bg-primary/10"
-                            onClick={() => { setCadenceToMonitor(cadence); setIsMonitorOpen(true); }}
-                            title="Monitorar envios"
-                          >
-                             <BarChart2 className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs font-semibold text-primary hover:bg-primary/10"
-                            onClick={() => { setCadenceToDispatch(cadence); setIsBulkDispatchOpen(true); }}
-                          >
-                            <Zap className="h-3 w-3 mr-1" /> Disparar
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 text-xs font-semibold text-primary hover:bg-primary/10"
-                            onClick={() => handleOpenDetails(cadence)}
-                          >
-                            Ver Detalhes
-                          </Button>
-                        </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="monitoramento">
+        {/* ── MONITORAMENTO TAB ── */}
+        <TabsContent value="monitoramento" className="mt-6" data-tutorial="cadences-monitoring">
           <CadenceMonitoringTab dateRange={dateRange} />
         </TabsContent>
 
-        <TabsContent value="relatorio">
+        {/* ── RELATORIO TAB ── */}
+        <TabsContent value="relatorio" className="mt-6" data-tutorial="cadences-report">
           <CadenceDispatchReportTab />
         </TabsContent>
       </Tabs>
 
-      <CadenceModal 
-        open={isModalOpen} 
-        onOpenChange={setIsModalOpen} 
-        cadence={selectedCadence}
-      />
+      {/* ═══ MODALS ═══ */}
+      <CadenceModal open={isModalOpen} onOpenChange={setIsModalOpen} cadence={selectedCadence} />
+      <BulkCadenceDispatchModal open={isBulkDispatchOpen} onOpenChange={setIsBulkDispatchOpen} cadence={cadenceToDispatch} onConfirm={startBulkDispatch} />
+      <CadenceDispatchMonitorModal open={isMonitorOpen} onOpenChange={setIsMonitorOpen} cadenceId={cadenceToMonitor?.id} cadenceName={cadenceToMonitor?.nome} />
 
-      <BulkCadenceDispatchModal 
-        open={isBulkDispatchOpen} 
-        onOpenChange={setIsBulkDispatchOpen} 
-        cadence={cadenceToDispatch}
-        onConfirm={startBulkDispatch}
-      />
-
-      <CadenceDispatchMonitorModal 
-        open={isMonitorOpen} 
-        onOpenChange={setIsMonitorOpen} 
-        cadenceId={cadenceToMonitor?.id}
-        cadenceName={cadenceToMonitor?.nome}
-      />
-
+      {/* ═══ DELETE DIALOG ═══ */}
       <AlertDialog open={!!cadenceToDelete} onOpenChange={() => setCadenceToDelete(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="rounded-2xl border-border/60">
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Cadência?</AlertDialogTitle>
-            <AlertDialogDescription>Esta ação removerá permanentemente o fluxo "{cadenceToDelete?.nome}". Leads que estão atualmente neste fluxo deixarão de receber as mensagens agendadas.</AlertDialogDescription>
+            <AlertDialogTitle className="text-base font-semibold">Excluir Cadência?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-muted-foreground">
+              O fluxo "{cadenceToDelete?.nome}" será removido permanentemente. Leads neste fluxo deixarão de receber mensagens agendadas.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">Excluir Permanentemente</AlertDialogAction>
+            <AlertDialogCancel className="h-9 rounded-lg text-xs font-medium">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="h-9 rounded-lg text-xs font-semibold bg-destructive hover:bg-destructive/90"
+            >
+              Excluir Permanentemente
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

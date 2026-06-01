@@ -139,6 +139,7 @@ export function useAgendamentos() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agendamentos", orgId] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos-metricas", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
     },
   });
 

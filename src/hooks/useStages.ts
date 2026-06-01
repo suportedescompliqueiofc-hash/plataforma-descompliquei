@@ -21,26 +21,20 @@ export function useStages() {
   const orgId = profile?.organization_id;
 
   const { data: stages = [], isLoading } = useQuery({
-    queryKey: STAGES_QUERY_KEY,
+    queryKey: [...STAGES_QUERY_KEY, orgId],
     queryFn: async () => {
-      if (!user) return [];
-      
-      let query = supabase
+      if (!user || !orgId) return [];
+
+      const { data, error } = await supabase
         .from('etapas')
-        .select('*');
-
-      if (orgId) {
-        query = query.eq('organization_id', orgId);
-      } else {
-        query = query.is('organization_id', null);
-      }
-
-      const { data, error } = await query.order('posicao_ordem', { ascending: true });
+        .select('*')
+        .eq('organization_id', orgId)
+        .order('posicao_ordem', { ascending: true });
 
       if (error) throw error;
       return data as Stage[];
     },
-    enabled: !!user,
+    enabled: !!user && !!orgId,
     staleTime: 0, // Sem cache - sempre busca dados frescos
   });
 

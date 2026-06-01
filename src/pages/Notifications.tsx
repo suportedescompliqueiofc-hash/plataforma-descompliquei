@@ -1,20 +1,16 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Filter, Bell, CheckCircle, User, Phone, Trash2, Clock, Plus, Settings2, ShieldAlert, Activity, Info, Pencil } from "lucide-react";
+import { Bell, CheckCircle, User, Phone, Trash2, Inbox, ClipboardList, ExternalLink } from "lucide-react";
 import { DateRange } from "react-day-picker";
 import { startOfMonth, endOfMonth, formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { LeadSelector } from "@/components/notifications/LeadSelector";
 import { useAllNotifications, NotificationWithLead } from "@/hooks/useAllNotifications";
-import { useInactivityAlerts, InactivityRule } from "@/hooks/useInactivityAlerts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
+import { NotificationMessage } from "@/components/conversations/NotificationMessage";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,84 +21,110 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 
-const formatMessage = (text: string) => {
-  const parts = text.split(/(\*\*.*?\*\*|- )/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <strong key={i} className="font-bold text-foreground">{part.slice(2, -2)}</strong>;
-    }
-    return <span key={i}>{part}</span>;
-  });
-};
-
-const NotificationCard = ({ notification, onUpdateStatus }: { notification: NotificationWithLead, onUpdateStatus: (id: string, status: 'pendente' | 'resolvido') => void }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
+const NotificationCard = ({
+  notification,
+  onUpdateStatus,
+  onNavigate,
+}: {
+  notification: NotificationWithLead;
+  onUpdateStatus: (id: string, status: 'pendente' | 'resolvido') => void;
+  onNavigate?: (leadId: string) => void;
+}) => {
   const timeAgo = formatDistanceToNow(new Date(notification.criado_em), { addSuffix: true, locale: ptBR });
-
-  const isLongMessage = notification.mensagem.length > 200 || notification.mensagem.split('\n').length > 3;
+  const isPending = notification.status === 'pendente';
+  const isFormulario = notification.tipo === 'novo_lead_formulario';
 
   return (
-    <Card className="shadow-sm hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-4 min-w-0 flex-1">
-            <div className={notification.status === 'pendente' ? "bg-amber-100 text-amber-600 p-2 rounded-full mt-1 shrink-0" : "bg-muted text-muted-foreground p-2 rounded-full mt-1 shrink-0"}>
-              <Bell className="h-5 w-5" />
-            </div>
-            <div className="space-y-3 flex-1 min-w-0">
-              <div className="text-sm sm:text-base text-muted-foreground">
-                <div className={`whitespace-pre-wrap leading-relaxed ${!isExpanded && isLongMessage ? 'line-clamp-3' : ''}`}>
-                  {formatMessage(notification.mensagem)}
-                </div>
-                {isLongMessage && (
-                  <button 
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="text-xs text-primary font-bold hover:underline mt-1.5 inline-flex items-center"
-                  >
-                    {isExpanded ? 'Ver menos' : 'Ver mais'}
-                  </button>
-                )}
-              </div>
+    <div className={cn(
+      "group rounded-xl border bg-card transition-all duration-200 overflow-hidden",
+      isPending
+        ? "border-border/60 hover:border-border shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+        : "border-border/40 opacity-70 hover:opacity-100"
+    )}>
+      <div className="flex items-start gap-3.5 p-4">
+        {/* Icon */}
+        <div className={cn(
+          "p-2 rounded-xl shrink-0 mt-0.5",
+          isPending
+            ? isFormulario ? "bg-orange-50 text-orange-500" : "bg-muted text-muted-foreground"
+            : "bg-muted/40 text-muted-foreground/40"
+        )}>
+          {isFormulario ? <ClipboardList className="h-4 w-4" /> : <Bell className="h-4 w-4" />}
+        </div>
 
-              <div className="text-xs sm:text-sm text-muted-foreground space-y-1 bg-muted/30 p-2 rounded-md">
-                <div className="flex items-center gap-2">
-                  <User className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate font-medium text-foreground">Cliente: {notification.leads?.nome || 'Desconhecido'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">WhatsApp: {notification.leads?.telefone || 'N/A'}</span>
-                </div>
-              </div>
-              <p className="text-[10px] sm:text-xs text-muted-foreground/70 font-medium">{timeAgo}</p>
+        {/* Content */}
+        <div className="flex-1 min-w-0 space-y-2">
+          {/* Type badge */}
+          {isFormulario && (
+            <span className="inline-block text-[9px] font-bold uppercase tracking-wider bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded-md">
+              Meta Lead Ads
+            </span>
+          )}
+
+          {/* Message */}
+          <NotificationMessage message={notification.mensagem} />
+
+          {/* Meta row */}
+          <div className="flex items-center gap-4 text-[11px]">
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <User className="h-3 w-3" />
+              <span className="font-medium text-foreground/70 truncate max-w-[140px]">
+                {notification.leads?.nome || 'Desconhecido'}
+              </span>
             </div>
+            {notification.leads?.telefone && (
+              <div className="flex items-center gap-1.5 text-muted-foreground/60">
+                <Phone className="h-3 w-3" />
+                <span className="tabular-nums">{notification.leads.telefone}</span>
+              </div>
+            )}
+            <span className="text-muted-foreground/40 tabular-nums ml-auto shrink-0">{timeAgo}</span>
           </div>
-          {notification.status === 'pendente' && (
-            <Button variant="outline" size="sm" onClick={() => onUpdateStatus(notification.id, 'resolvido')} className="shrink-0 h-8 text-[10px] sm:text-xs border-amber-200 hover:bg-amber-50 hover:text-amber-700">
-              <CheckCircle className="h-3.5 w-3.5 sm:mr-2" />
-              <span className="hidden sm:inline">Resolver</span>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          {isFormulario && notification.dados?.lead_id && onNavigate && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground/40 hover:text-orange-600 hover:bg-orange-50 opacity-0 group-hover:opacity-100 transition-all"
+              onClick={(e) => {
+                e.stopPropagation();
+                onNavigate(notification.dados?.lead_id);
+                if (isPending) onUpdateStatus(notification.id, 'resolvido');
+              }}
+              title="Ver lead"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+            </Button>
+          )}
+          {isPending && (
+            <Button
+              data-tutorial="notificacoes-resolver"
+              variant="ghost"
+              size="icon"
+              onClick={() => onUpdateStatus(notification.id, 'resolvido')}
+              className="h-7 w-7 text-muted-foreground/40 hover:text-emerald-600 hover:bg-emerald-50 opacity-0 group-hover:opacity-100 transition-all"
+              title="Resolver"
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
             </Button>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 };
 
 export default function Notifications() {
   const today = new Date();
+  const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfMonth(today), to: endOfMonth(today) });
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>('todos');
-  const [activeTab, setActiveTab] = useState<'pendentes' | 'resolvidas' | 'config'>('pendentes');
+  const [activeTab, setActiveTab] = useState<'pendentes' | 'resolvidas'>('pendentes');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  
-  // Alertas de Inatividade
-  const { rules, isLoading: loadingRules, createRule, updateRule, deleteRule, toggleRule } = useInactivityAlerts();
-  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
-  const [editingRule, setEditingRule] = useState<InactivityRule | null>(null);
-  const [ruleFormData, setRuleFormData] = useState({ name: "", minutes: 30 });
 
   const { notifications, isLoading, updateStatus, deleteResolved, isDeletingResolved } = useAllNotifications({ dateRange, leadId: selectedLeadId });
 
@@ -112,235 +134,141 @@ export default function Notifications() {
     return { pending, resolved };
   }, [notifications]);
 
-  const handleOpenCreateRule = () => {
-    setEditingRule(null);
-    setRuleFormData({ name: "", minutes: 30 });
-    setIsRuleModalOpen(true);
-  };
-
-  const handleOpenEditRule = (rule: InactivityRule) => {
-    setEditingRule(rule);
-    setRuleFormData({ name: rule.name, minutes: rule.minutes });
-    setIsRuleModalOpen(true);
-  };
-
-  const handleSaveRule = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingRule) {
-      updateRule.mutate({ id: editingRule.id, ...ruleFormData }, {
-        onSuccess: () => setIsRuleModalOpen(false)
-      });
-    } else {
-      createRule.mutate(ruleFormData, {
-        onSuccess: () => setIsRuleModalOpen(false)
-      });
-    }
-  };
+  const currentList = activeTab === 'pendentes' ? pending : resolved;
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Notificações</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gestão de alertas e regras de inatividade.</p>
+    <div className="space-y-6 pb-10 max-w-full overflow-hidden">
+      {/* Page Header */}
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <div className="p-1.5 rounded-lg bg-muted">
+            <Bell className="h-4 w-4 text-muted-foreground" />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Notificações</h1>
         </div>
-        
+        <p className="text-[13px] text-muted-foreground ml-10">Alertas de atendimento e cadências</p>
+      </div>
+
+      {/* Toolbar: Tabs + Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        {/* Custom pill tabs */}
+        <div data-tutorial="notificacoes-tabs" className="flex items-center bg-muted/40 rounded-xl p-1 w-fit">
+          <button
+            onClick={() => setActiveTab('pendentes')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200",
+              activeTab === 'pendentes'
+                ? "bg-foreground text-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Pendentes
+            <span className={cn(
+              "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md",
+              activeTab === 'pendentes'
+                ? "bg-background/20 text-background"
+                : pending.length > 0 ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
+            )}>
+              {isLoading ? '...' : pending.length}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('resolvidas')}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200",
+              activeTab === 'resolvidas'
+                ? "bg-foreground text-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Resolvidas
+            <span className={cn(
+              "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md",
+              activeTab === 'resolvidas'
+                ? "bg-background/20 text-background"
+                : "bg-muted text-muted-foreground"
+            )}>
+              {isLoading ? '...' : resolved.length}
+            </span>
+          </button>
+        </div>
+
         <div className="flex items-center gap-2">
           {activeTab === 'resolvidas' && resolved.length > 0 && (
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              data-tutorial="notificacoes-limpar"
+              variant="outline"
+              size="sm"
               onClick={() => setIsConfirmOpen(true)}
-              className="text-destructive hover:bg-destructive/10 h-9"
+              className="h-8 rounded-lg text-[11px] font-medium border-destructive/30 text-destructive hover:bg-destructive/5 gap-1.5 px-3"
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              <Trash2 className="h-3.5 w-3.5" />
               Limpar Resolvidas
-            </Button>
-          )}
-          {activeTab === 'config' && (
-            <Button size="sm" className="h-9 gap-2" onClick={handleOpenCreateRule}>
-              <Plus className="h-4 w-4" /> Nova Regra
             </Button>
           )}
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
-        <div className="overflow-x-auto scrollbar-none pb-1">
-          <TabsList className="bg-muted inline-flex w-full sm:w-auto">
-            <TabsTrigger value="pendentes" className="text-xs sm:text-sm whitespace-nowrap">
-              Pendentes <Badge className="ml-2 bg-destructive text-destructive-foreground h-5 px-1.5">{isLoading ? '...' : pending.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="resolvidas" className="text-xs sm:text-sm whitespace-nowrap">
-              Resolvidas <Badge variant="secondary" className="ml-2 h-5 px-1.5">{isLoading ? '...' : resolved.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="config" className="text-xs sm:text-sm whitespace-nowrap gap-2">
-              <Settings2 className="h-4 w-4" /> Configurar Regras
-            </TabsTrigger>
-          </TabsList>
+      {/* Filters */}
+      <div data-tutorial="notificacoes-filters" className="flex flex-col sm:flex-row gap-3 p-3.5 rounded-xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <DateRangePicker date={dateRange} setDate={setDateRange} className="w-full" hideQuickSelect />
+        <LeadSelector selectedLeadId={selectedLeadId} setSelectedLeadId={setSelectedLeadId} />
+      </div>
+
+      {/* List */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+          ))}
         </div>
-
-        <TabsContent value="pendentes" className="mt-6 space-y-4">
-          <Card className="shadow-sm mb-4">
-            <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row gap-3">
-              <DateRangePicker date={dateRange} setDate={setDateRange} className="w-full" hideQuickSelect />
-              <LeadSelector selectedLeadId={selectedLeadId} setSelectedLeadId={setSelectedLeadId} />
-            </CardContent>
-          </Card>
-          {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-lg" />)
-          ) : pending.length > 0 ? (
-            pending.map(notification => (
-              <NotificationCard key={notification.id} notification={notification} onUpdateStatus={(id, s) => updateStatus({ notificationId: id, status: s })} />
-            ))
-          ) : (
-            <div className="text-center py-12 text-muted-foreground bg-card rounded-lg border border-dashed">
-              <Bell className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p className="text-sm px-4">Nenhuma notificação pendente.</p>
+      ) : currentList.length > 0 ? (
+        <div data-tutorial="notificacoes-list" className="space-y-2">
+          {currentList.map((notification, idx) => (
+            <div key={notification.id} {...(idx === 0 ? { 'data-tutorial': 'notificacoes-card' } : {})}>
+              <NotificationCard
+                notification={notification}
+                onUpdateStatus={(id, s) => updateStatus({ notificationId: id, status: s })}
+                onNavigate={(leadId) => navigate(`/crm/conversas/${leadId}`)}
+              />
             </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="resolvidas" className="mt-6 space-y-4">
-          <Card className="shadow-sm mb-4">
-            <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row gap-3">
-              <DateRangePicker date={dateRange} setDate={setDateRange} className="w-full" hideQuickSelect />
-              <LeadSelector selectedLeadId={selectedLeadId} setSelectedLeadId={setSelectedLeadId} />
-            </CardContent>
-          </Card>
-          {isLoading ? (
-            Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28 w-full rounded-lg" />)
-          ) : resolved.length > 0 ? (
-            resolved.map(notification => (
-              <NotificationCard key={notification.id} notification={notification} onUpdateStatus={(id, s) => updateStatus({ notificationId: id, status: s })} />
-            ))
-          ) : (
-            <div className="text-center py-12 text-muted-foreground bg-card rounded-lg border border-dashed">
-              <CheckCircle className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p className="text-sm px-4">Nenhuma notificação resolvida neste período.</p>
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="config" className="mt-6 space-y-4">
-          <div className="grid grid-cols-1 gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-primary/20 bg-primary/5">
-                    <CardHeader className="p-4 sm:p-6">
-                        <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                        <ShieldAlert className="h-5 w-5 text-primary" /> Como funcionam os alertas?
-                        </CardTitle>
-                        <CardDescription className="text-xs sm:text-sm">
-                        As regras abaixo definem quando o sistema deve avisar sua equipe que um cliente não respondeu. 
-                        O sistema verifica o tempo desde a <strong>última mensagem enviada por você</strong> que ainda não teve resposta do lead.
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-
-                <Card className="border-emerald-200 bg-emerald-50/30">
-                    <CardHeader className="p-4 sm:p-6">
-                        <CardTitle className="text-base sm:text-lg flex items-center gap-2 text-emerald-700">
-                        <Activity className="h-5 w-5" /> Status do Sistema
-                        </CardTitle>
-                        <CardDescription className="text-xs sm:text-sm text-emerald-600/80">
-                            <div className="flex items-center gap-2 mt-1">
-                                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                                <span>Monitoramento Ativo</span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                                <Info className="h-3.5 w-3.5" />
-                                <span>Verificação automática a cada 1 minuto.</span>
-                            </div>
-                        </CardDescription>
-                    </CardHeader>
-                </Card>
-            </div>
-
-            {loadingRules ? (
-              <Skeleton className="h-32 w-full" />
-            ) : rules.length === 0 ? (
-              <div className="text-center py-10 border-2 border-dashed rounded-xl bg-muted/10">
-                <p className="text-muted-foreground text-sm">Nenhuma regra configurada.</p>
-                <Button variant="link" onClick={handleOpenCreateRule}>Criar meu primeiro alerta</Button>
-              </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="p-3 rounded-xl bg-muted/40 mb-3">
+            {activeTab === 'pendentes' ? (
+              <Inbox className="h-6 w-6 text-muted-foreground/40" />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {rules.map(rule => (
-                  <Card key={rule.id} className="shadow-sm hover:border-primary/30 transition-colors">
-                    <CardContent className="p-4 flex flex-col gap-3">
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0">
-                          <h4 className="font-bold text-sm sm:text-base truncate">{rule.name}</h4>
-                          <div className="flex items-center gap-1.5 text-primary text-xs mt-1 font-semibold">
-                            <Clock className="h-3.5 w-3.5" /> {rule.minutes} minutos
-                          </div>
-                        </div>
-                        <Switch 
-                          checked={rule.is_active} 
-                          onCheckedChange={(checked) => toggleRule.mutate({ id: rule.id, is_active: checked })}
-                        />
-                      </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-dashed mt-auto">
-                        <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Inatividade</span>
-                        <div className="flex items-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors" onClick={() => handleOpenEditRule(rule)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:bg-destructive/10" onClick={() => deleteRule.mutate(rule.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+              <CheckCircle className="h-6 w-6 text-muted-foreground/40" />
             )}
           </div>
-        </TabsContent>
-      </Tabs>
+          <p className="text-sm font-medium text-muted-foreground">
+            {activeTab === 'pendentes' ? 'Nenhuma notificação pendente' : 'Nenhuma notificação resolvida'}
+          </p>
+          <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+            {activeTab === 'pendentes'
+              ? 'Quando houver alertas, eles aparecerão aqui'
+              : 'Notificações resolvidas neste período aparecerão aqui'
+            }
+          </p>
+        </div>
+      )}
 
-      {/* Modal Criar/Editar Regra */}
-      <Dialog open={isRuleModalOpen} onOpenChange={setIsRuleModalOpen}>
-        <DialogContent className="w-[95vw] max-w-md rounded-xl">
-          <DialogHeader>
-            <DialogTitle>{editingRule ? "Editar Alerta" : "Novo Alerta de Inatividade"}</DialogTitle>
-            <DialogDescription>
-              {editingRule ? "Ajuste os parâmetros deste alerta." : "O sistema notificará se o lead não responder após este tempo."}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSaveRule} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>Nome da Regra</Label>
-              <Input placeholder="Ex: Lead Parado 1 hora" value={ruleFormData.name} onChange={e => setRuleFormData({...ruleFormData, name: e.target.value})} required />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Tempo de Inatividade (Minutos)</Label>
-              <Input type="number" min="1" value={ruleFormData.minutes} onChange={e => setRuleFormData({...ruleFormData, minutes: parseInt(e.target.value) || 0})} required />
-              <p className="text-[10px] text-muted-foreground">Ex: 60 para 1 hora, 1440 para 1 dia.</p>
-            </div>
-            <DialogFooter>
-              <Button type="submit" className="w-full">
-                {editingRule ? "Salvar Alterações" : "Criar Alerta"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
+      {/* Delete confirmation */}
       <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-        <AlertDialogContent className="w-[90vw] max-w-md rounded-2xl">
+        <AlertDialogContent className="sm:max-w-md rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>Limpar notificações resolvidas?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação excluirá permanentemente todas as notificações com status "Resolvido".
+            <AlertDialogTitle className="font-display font-bold tracking-tight">Limpar notificações resolvidas?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] text-muted-foreground">
+              Todas as notificações com status "Resolvido" serão excluídas permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-row gap-2 mt-4">
-            <AlertDialogCancel className="flex-1 mt-0 rounded-xl">Cancelar</AlertDialogCancel>
-            <AlertDialogAction 
+          <AlertDialogFooter className="gap-2 mt-2">
+            <AlertDialogCancel className="rounded-lg text-xs">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
               onClick={() => { deleteResolved(); setIsConfirmOpen(false); }}
-              className="flex-1 bg-destructive hover:bg-destructive/90 rounded-xl"
+              className="bg-destructive hover:bg-destructive/90 rounded-lg text-xs"
               disabled={isDeletingResolved}
             >
               {isDeletingResolved ? "Limpando..." : "Sim, Limpar"}

@@ -144,6 +144,25 @@ serve(async (req: Request) => {
           .select().single()
         conn = updatedConn
       }
+
+      // Configura o webhook automaticamente no UAZAPI sempre que a conexão for criada/atualizada
+      try {
+        const autoBase = (conn?.uazapi_url || uazapi_url).endsWith('/')
+          ? (conn?.uazapi_url || uazapi_url).slice(0, -1)
+          : (conn?.uazapi_url || uazapi_url)
+        const autoToken = conn?.uazapi_token || uazapi_token
+        const autoWebhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/receive-message`
+        await fetch(`${autoBase}/webhook`, {
+          method: 'POST',
+          headers: { 'token': autoToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled: true,
+            url: autoWebhookUrl,
+            events: ['messages', 'connection'],
+            excludeMessages: ['wasSentByApi']
+          })
+        })
+      } catch (_) { /* não bloqueia o fluxo se o UAZAPI estiver temporariamente indisponível */ }
     }
 
     if (!conn?.uazapi_url || !conn?.uazapi_token || !conn?.instance_name) {

@@ -9,7 +9,7 @@ const DEFAULT_FORMAS = { pix: false, dinheiro: false, credito: false, debito: fa
 const DEFAULT_PALAVRAS: string[] = [];
 
 export function useAiPrompt() {
-  const defaultModel = 'grok-4-1-fast-non-reasoning';
+  const defaultModel = 'openrouter/deepseek/deepseek-v4-flash';
   const { user } = useAuth();
   const { profile } = useProfile();
   const orgId = profile?.organization_id;

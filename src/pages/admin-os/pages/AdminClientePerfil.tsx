@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, ExternalLink, BrainCircuit, BookOpen, Bot, FolderOpen, TrendingUp, FileText, Clock, Activity, KeyRound } from 'lucide-react';
+import { Loader2, ArrowLeft, ExternalLink, BrainCircuit, BookOpen, Bot, FolderOpen, TrendingUp, FileText, Clock, Activity, KeyRound, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 import AbaVisaoGeral from './cliente/AbaVisaoGeral';
@@ -11,9 +11,10 @@ import AbaProgresso from './cliente/AbaProgresso';
 import AbaIAs from './cliente/AbaIAs';
 import AbaAnotacoes from './cliente/AbaAnotacoes';
 import AbaHealthScore from './cliente/AbaHealthScore';
+import AbaPerformance from './cliente/AbaPerformance';
 import AdminAcessoCliente from './AdminAcessoCliente';
 
-type Tab = 'geral' | 'progresso' | 'cerebro' | 'ias' | 'materiais' | 'health' | 'anotacoes' | 'historico' | 'acessos';
+type Tab = 'geral' | 'progresso' | 'cerebro' | 'ias' | 'materiais' | 'health' | 'performance' | 'anotacoes' | 'historico' | 'acessos';
 
 interface ProductAccess {
   acesso_crm: boolean;
@@ -32,6 +33,7 @@ const ALL_TABS: { id: Tab; label: string; icon: any; needsAccess?: keyof Product
   { id: 'ias', label: 'IAs', icon: Bot, needsAccess: 'acesso_ia_comercial' },
   { id: 'materiais', label: 'Materiais', icon: FolderOpen, needsAccess: 'acesso_materiais' },
   { id: 'health', label: 'Health Score', icon: TrendingUp },
+  { id: 'performance', label: 'Performance', icon: Trophy },
   { id: 'anotacoes', label: 'Anotações', icon: FileText },
   { id: 'historico', label: 'Histórico', icon: Clock },
   { id: 'acessos', label: 'Acessos', icon: KeyRound },
@@ -396,6 +398,10 @@ export default function AdminClientePerfil() {
 
         {tab === 'health' && (
           <AbaHealthScore clientId={id!} healthHistory={healthHistory} onRefresh={loadAll} />
+        )}
+
+        {tab === 'performance' && (
+          <AbaPerformance orgId={id!} />
         )}
 
         {tab === 'anotacoes' && (

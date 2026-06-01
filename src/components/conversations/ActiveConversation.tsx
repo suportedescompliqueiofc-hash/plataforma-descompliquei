@@ -62,8 +62,8 @@ const DateSeparator = ({ dateString }: { dateString: string }) => {
   else displayDate = format(date, 'dd/MM/yyyy', { locale: ptBR });
 
   return (
-    <div className="flex justify-center my-4 sticky top-0 z-10">
-      <div className="bg-muted/80 backdrop-blur-sm px-3 py-1 rounded-lg text-xs font-medium text-muted-foreground shadow-sm uppercase">{displayDate}</div>
+    <div className="flex justify-center my-5 sticky top-0 z-10">
+      <div className="bg-card/90 backdrop-blur-md px-4 py-1.5 rounded-full text-[10px] font-semibold text-muted-foreground/70 shadow-[0_1px_3px_rgba(0,0,0,0.06)] border border-border/40 tracking-wide uppercase">{displayDate}</div>
     </div>
   );
 };
@@ -500,16 +500,16 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
-      <header className="flex flex-col border-b bg-card shadow-sm z-10 flex-shrink-0">
-        <div className="flex items-center justify-between p-2 gap-2">
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={() => navigate('/crm/conversas')}><ChevronLeft className="h-5 w-5" /></Button>
-                <Avatar className="h-9 w-9 border bg-muted flex-shrink-0">
-                    <AvatarFallback className="bg-accent text-accent-foreground text-xs font-medium">{getInitials(lead?.nome)}</AvatarFallback>
+      <header data-tutorial="conversation-header" className="flex flex-col border-b border-border/60 bg-card z-10 flex-shrink-0">
+        <div className="flex items-center justify-between px-3 py-2.5 gap-2">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 rounded-full" onClick={() => navigate('/crm/conversas')}><ChevronLeft className="h-5 w-5" /></Button>
+                <Avatar className="h-10 w-10 border border-border/40 shadow-sm flex-shrink-0">
+                    <AvatarFallback className="bg-foreground text-background text-xs font-bold tracking-tight">{getInitials(lead?.nome)}</AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col min-w-0">
+                <div data-tutorial="conversation-lead-info" className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
-                        <p className="font-bold truncate text-sm leading-tight">{lead?.nome || 'Lead'}</p>
+                        <p className="font-semibold truncate text-[13px] leading-tight tracking-tight">{lead?.nome || 'Lead'}</p>
                         {activeCadence && (
                             <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px] px-1.5 py-0 h-4 border border-orange-200">
                                 <Zap className="h-2.5 w-2.5 mr-0.5" /> Em cadência
@@ -565,9 +565,10 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button
+                                data-tutorial="conversation-resumo-ia"
                                 variant="outline"
                                 size="sm"
-                                className="h-8 gap-1.5 bg-[#FDF8F3] border-[#E9D5C3] text-[#A67C52] hover:bg-[#F9F1E8] hover:text-[#8B6441] rounded-full px-2.5"
+                                className="h-8 gap-1.5 bg-amber-50 border-amber-200/80 text-amber-700 hover:bg-amber-100/80 hover:text-amber-800 rounded-full px-2.5"
                             >
                                 <Sparkles className="h-3.5 w-3.5" />
                                 <span className="hidden xl:inline text-xs font-semibold">Resumo IA</span>
@@ -592,6 +593,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 </div>
 
                 <Button
+                  data-tutorial="conversation-pdf"
                   variant="outline"
                   size="sm"
                   className={cn(
@@ -604,38 +606,39 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                   <span className="hidden xl:inline">{isExportMode ? "Cancelar" : "PDF"}</span>
                 </Button>
 
-                <div className="flex items-center gap-1.5 pl-1.5 border-l ml-0.5">
-                    <div className="flex items-center gap-1.5">
-                        <Switch id="ai-toggle" checked={isAiActive} onCheckedChange={handleAiToggle} disabled={!lead} className="scale-75" />
-                        <Zap className={cn("h-3.5 w-3.5 transition-colors", isAiActive ? "text-primary fill-primary/20" : "text-muted-foreground")} />
-                    </div>
+                <div className="flex items-center gap-1.5 pl-2 border-l border-border/40 ml-1" data-tutorial="conversation-ia-toggle">
+                    <span className="text-[10px] font-medium text-muted-foreground hidden xl:inline">IA</span>
+                    <Switch id="ai-toggle" checked={isAiActive} onCheckedChange={handleAiToggle} disabled={!lead} className="scale-75" />
                 </div>
             </div>
         </div>
 
-        <div className="flex items-center justify-between px-2 pb-1.5 gap-2 overflow-x-auto scrollbar-none bg-muted/5">
-            <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* ═══ Toolbar — scrollable row with all lead actions ═══ */}
+        <div className="flex items-center px-3 pb-2 gap-3 overflow-x-auto scrollbar-none">
+            {/* Status group: Pipeline + MQL + Agendado + Fechado */}
+            <div className="flex items-center gap-1 shrink-0">
                 {lead && stages.length > 0 && (
                     <Select value={lead.posicao_pipeline?.toString() || "1"} onValueChange={(v) => updateLead({ id: lead.id, posicao_pipeline: parseInt(v) })}>
-                    <SelectTrigger className="w-[110px] lg:w-[140px] h-7 text-[10px] bg-background/50 border-none shadow-none hover:bg-muted/40 transition-colors">
+                    <SelectTrigger data-tutorial="conversation-pipeline" className="w-[120px] h-6 text-[10px] bg-background/50 border-none shadow-none hover:bg-muted/40 transition-colors rounded-full">
                         <SelectValue>
                         {currentStage ? <div className="flex items-center gap-1 truncate"><span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage.cor }} />{currentStage.nome}</div> : "Etapa"}
                         </SelectValue>
                     </SelectTrigger>
-                    <SelectContent>{stages.map(stage => (<SelectItem key={stage.id} value={stage.posicao_ordem.toString()}>{stage.nome}</SelectItem>))}</SelectContent>
+                    <SelectContent>{stages.map(stage => (<SelectItem key={stage.id} value={stage.posicao_ordem.toString()}><div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.cor || '#94a3b8' }} />{stage.nome}</div></SelectItem>))}</SelectContent>
                     </Select>
                 )}
                 {lead && (
                   <>
                     <Button
+                      data-tutorial="conversation-mql"
                       variant={lead.is_qualified ? "default" : "outline"}
                       size="sm"
                       className={cn(
-                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider",
+                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider shrink-0",
                         lead.is_qualified
                           ? isDescompliqueiOrg && lead.lead_scoring
-                            ? "border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
-                            : "bg-emerald-500 text-white hover:bg-emerald-600 border-none shadow-[0_0_12px_-2px_rgba(16,185,129,0.4)] scale-105 active:scale-95"
+                            ? "border-none shadow-sm active:scale-95"
+                            : "bg-emerald-500 text-white hover:bg-emerald-600 border-none shadow-sm active:scale-95"
                           : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
                       )}
                       style={lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? {
@@ -653,14 +656,14 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       <UserCheck className={cn("h-3 w-3", lead.is_qualified ? "fill-current" : "")} />
                       {lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? `MQL ${lead.lead_scoring}` : 'MQL'}
                     </Button>
-                    <div className="flex flex-col items-center">
+                    <div className="flex flex-col items-center shrink-0" data-tutorial="conversation-schedule">
                       <Button
                         variant={lead.is_scheduled ? "default" : "outline"}
                         size="sm"
                         className={cn(
                           "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider",
                           lead.is_scheduled
-                            ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-[0_0_12px_-2px_rgba(59,130,246,0.4)] scale-105 active:scale-95"
+                            ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-sm active:scale-95"
                             : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
                         )}
                         onClick={() => {
@@ -676,20 +679,22 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       </Button>
                       {agendamentoAtivo && (
                         <button
-                          className="text-[9px] text-blue-500 hover:text-blue-700 mt-0.5 cursor-pointer"
+                          className="text-[9px] text-blue-500 hover:text-blue-700 mt-0.5 cursor-pointer flex items-center gap-0.5"
                           onClick={() => setShowAgendamentoModal(true)}
                         >
-                          📅 {format(parseISO(agendamentoAtivo.data_hora_inicio), "dd/MM 'às' HH:mm")}
+                          <CalendarCheck className="h-2.5 w-2.5" />
+                          {format(parseISO(agendamentoAtivo.data_hora_inicio), "dd/MM 'às' HH:mm")}
                         </button>
                       )}
                     </div>
                     <Button
+                      data-tutorial="conversation-closed"
                       variant={lead.is_closed ? "default" : "outline"}
                       size="sm"
                       className={cn(
-                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider",
+                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider shrink-0",
                         lead.is_closed
-                          ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-[0_0_12px_-2px_rgba(139,92,246,0.4)] scale-105 active:scale-95"
+                          ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-sm active:scale-95"
                           : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
                       )}
                       onClick={() => updateLead({ id: lead.id, is_closed: !lead.is_closed })}
@@ -700,37 +705,47 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                   </>
                 )}
             </div>
-            <div className="flex-1 flex justify-end min-w-0 overflow-hidden">
-                {lead && (
-                    <div className="flex items-center gap-1.5 scale-90 origin-right">
-                        <TagManager leadId={lead.id} />
-                        {onToggleQuickMessages && (
-                            <Button
-                                variant={showQuickMessages ? "default" : "ghost"}
-                                size="sm"
-                                className={cn(
-                                    "h-6 px-2 rounded-full text-[10px] gap-1",
-                                    showQuickMessages ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                                )}
-                                onClick={onToggleQuickMessages}
-                            >
-                                <Zap className="h-3 w-3" />
-                                <span className="hidden lg:inline">Rápidas</span>
-                            </Button>
-                        )}
-                    </div>
-                )}
-            </div>
-            <div className="flex items-center gap-1 shrink-0">
+
+            {/* Separator */}
+            {lead && <div className="h-4 w-px bg-border/40 shrink-0" />}
+
+            {/* Tags + Quick Messages */}
+            {lead && (
+                <div data-tutorial="conversation-tags-quick" className="flex items-center gap-1.5 shrink-0">
+                    <TagManager leadId={lead.id} compact />
+                    {onToggleQuickMessages && (
+                        <Button
+                            data-tutorial="conversation-quick-messages"
+                            variant={showQuickMessages ? "default" : "ghost"}
+                            size="sm"
+                            className={cn(
+                                "h-6 px-2 rounded-full text-[10px] gap-1 shrink-0",
+                                showQuickMessages ? "bg-foreground text-background" : "text-muted-foreground"
+                            )}
+                            onClick={onToggleQuickMessages}
+                        >
+                            <Zap className="h-3 w-3" />
+                            <span className="hidden lg:inline">Rápidas</span>
+                        </Button>
+                    )}
+                </div>
+            )}
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Utility actions */}
+            <div data-tutorial="conversation-utilities" className="flex items-center gap-0.5 shrink-0 border-l border-border/40 pl-1.5">
                 <div className="lg:hidden">
                     {leadId && <CadenceLeadSelector leadId={leadId} />}
                 </div>
                 {lead && (
                   <Button
-                    variant="outline"
+                    data-tutorial="conversation-blacklist"
+                    variant="ghost"
                     size="sm"
                     title="Bloquear número permanentemente"
-                    className="h-6 px-1.5 text-[10px] font-bold gap-1 rounded-full border border-border text-muted-foreground hover:border-red-400 hover:text-red-600 transition-all duration-200"
+                    className="h-6 w-6 p-0 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-50 transition-colors"
                     onClick={() => setShowBlacklistConfirm(true)}
                   >
                     <ShieldBan className="h-3 w-3" />
@@ -738,14 +753,15 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 )}
                 {lead && (
                   <Button
-                    variant="outline"
+                    data-tutorial="conversation-exclude-metrics"
+                    variant="ghost"
                     size="sm"
                     title={lead.excluir_metricas ? "Lead desconsiderado das métricas — clique para incluir" : "Desconsiderar das métricas"}
                     className={cn(
-                      "h-6 px-1.5 text-[10px] font-bold gap-1 rounded-full border transition-all duration-200",
+                      "h-6 w-6 p-0 rounded-full transition-colors",
                       lead.excluir_metricas
-                        ? "border-amber-400 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                        : "border-border text-muted-foreground hover:border-amber-400 hover:text-amber-600"
+                        ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
+                        : "text-muted-foreground/60 hover:text-amber-600 hover:bg-amber-50"
                     )}
                     onClick={() => updateLead({ id: lead.id, excluir_metricas: !lead.excluir_metricas })}
                   >
@@ -754,11 +770,13 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 )}
                 {lead && (
                   <Button
-                    variant={showNotas ? "default" : "ghost"}
+                    data-tutorial="conversation-notas"
+                    variant="ghost"
                     size="sm"
+                    title="Notas"
                     className={cn(
-                      "h-6 px-1.5 text-[10px] font-bold gap-1 rounded-full transition-all duration-200",
-                      showNotas ? "bg-primary text-primary-foreground" : "text-muted-foreground"
+                      "h-6 w-6 p-0 rounded-full transition-colors",
+                      showNotas ? "bg-foreground text-background" : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/50"
                     )}
                     onClick={() => setShowNotas(!showNotas)}
                   >
@@ -830,18 +848,31 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
       )}
 
       {notifications && notifications.length > 0 && (
-        <div className="p-2 bg-amber-100 border-b border-amber-200 flex-shrink-0">
+        <div className="border-b border-border/40 flex-shrink-0 divide-y divide-border/30">
           {notifications.map(notif => (
-            <div key={notif.id} className="flex items-start justify-between gap-2 text-amber-800 text-xs">
-              <div className="flex items-start gap-1.5 flex-1"><AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" /><NotificationMessage message={notif.mensagem} /></div>
-              <Button size="sm" variant="ghost" className="text-amber-800 hover:bg-amber-200 h-6 text-[10px] px-1" onClick={() => updateNotification(notif.id)}><CheckCircle className="h-3 w-3 mr-1" /> Resolver</Button>
+            <div key={notif.id} className="flex items-start gap-3 p-3 bg-card hover:bg-muted/20 transition-colors">
+              <div className="p-1.5 rounded-lg bg-amber-50 text-amber-500 shrink-0 mt-0.5">
+                <AlertTriangle className="h-3.5 w-3.5" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <NotificationMessage message={notif.mensagem} />
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="shrink-0 h-7 text-[11px] font-medium text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 rounded-lg gap-1 px-2"
+                onClick={() => updateNotification(notif.id)}
+              >
+                <CheckCircle className="h-3 w-3" />
+                Resolver
+              </Button>
             </div>
           ))}
         </div>
       )}
 
-      <ScrollArea className="flex-1 bg-muted/10">
-        <div className="p-3 sm:p-4 space-y-2 max-w-4xl 2xl:max-w-5xl mx-auto min-h-full">
+      <ScrollArea className="flex-1 bg-[hsl(var(--background))]">
+        <div className="p-3 sm:p-4 space-y-1 max-w-4xl 2xl:max-w-5xl mx-auto min-h-full">
           {(isFirstLoad || messagesLoading) ? (
             <div className="flex items-center justify-center h-full min-h-[200px]">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -879,13 +910,13 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                   isWithinExportRange && "bg-primary/5 ring-1 ring-primary/15"
                 )}
               >
-                <div className={cn("flex items-end gap-2 max-w-[90%] sm:max-w-[85%]", isOutgoing ? "flex-row-reverse" : "flex-row")}>
-                  <Avatar className="h-8 w-8 flex-shrink-0 border shadow-sm">
+                <div className={cn("flex items-end gap-1.5 max-w-[88%] sm:max-w-[80%]", isOutgoing ? "flex-row-reverse" : "flex-row")}>
+                  <Avatar className="h-7 w-7 flex-shrink-0 border border-border/30">
                     {isOutgoing ? (
-                      <AvatarFallback className={cn(isAi ? "bg-primary/20 text-primary" : "bg-amber-100 text-amber-700")}>{isAi ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}</AvatarFallback>
-                    ) : (<AvatarFallback className="bg-muted text-muted-foreground text-xs font-medium">{getInitials(lead?.nome)}</AvatarFallback>)}
+                      <AvatarFallback className={cn("text-[10px]", isAi ? "bg-violet-100 text-violet-600" : "bg-muted text-muted-foreground")}>{isAi ? <Bot className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}</AvatarFallback>
+                    ) : (<AvatarFallback className="bg-foreground/5 text-foreground/60 text-[10px] font-semibold">{getInitials(lead?.nome)}</AvatarFallback>)}
                   </Avatar>
-                  <div className={cn("p-2 sm:p-3 rounded-2xl relative shadow-sm transition-all min-w-[100px]", isOutgoing ? "bg-primary text-primary-foreground rounded-br-none" : "bg-card border border-border/40 rounded-bl-none")}>
+                  <div className={cn("px-3 py-2.5 rounded-2xl relative transition-all min-w-[100px]", isOutgoing ? "bg-foreground text-background rounded-br-sm" : "bg-card border border-border/50 rounded-bl-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)]")}>
                     {isExportMode && (
                       <div className="mb-2 flex flex-wrap items-center gap-1.5">
                         <Button
@@ -1014,10 +1045,10 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                         <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed break-words">{msg.conteudo}</p>
                       )
                     )}
-                    <div className={cn("flex items-center justify-end gap-1 mt-1 opacity-70", isOutgoing ? "text-primary-foreground/80" : "text-muted-foreground")}>
-                      {msg.is_edited && <span className="text-[9px] sm:text-[10px] italic opacity-60">editada</span>}
-                      <span className="text-[9px] sm:text-[10px] tabular-nums">{format(new Date(msg.criado_em), 'HH:mm')}</span>
-                      {isOutgoing && <CheckCircle className="h-2.5 w-2.5" />}
+                    <div className={cn("flex items-center justify-end gap-1 mt-1.5", isOutgoing ? "text-background/50" : "text-muted-foreground/50")}>
+                      {msg.is_edited && <span className="text-[9px] italic">editada</span>}
+                      <span className="text-[9px] tabular-nums font-medium">{format(new Date(msg.criado_em), 'HH:mm')}</span>
+                      {isOutgoing && <Check className="h-2.5 w-2.5" />}
                     </div>
                   </div>
                   <DropdownMenu>
@@ -1046,7 +1077,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         </div>
       </ScrollArea>
 
-      <footer className="border-t bg-card flex-shrink-0">
+      <footer data-tutorial="conversation-composer" className="border-t border-border/60 bg-card flex-shrink-0">
         {/* Reply Preview Bar */}
         {replyingTo && (
           <div className="px-3 pt-2 max-w-5xl mx-auto">
@@ -1084,7 +1115,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         {isRecordingMode ? (
           <AudioRecorder onSend={handleSendAudio} onCancel={() => setIsRecordingMode(false)} />
         ) : (
-          <form onSubmit={handleSendMessage} className="flex items-center gap-2 bg-muted/40 p-1 rounded-full border border-input/50 focus-within:ring-1 focus-within:ring-primary/30 transition-all max-w-5xl mx-auto relative">
+          <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 bg-muted/30 p-1 rounded-full border border-border/50 focus-within:border-border focus-within:shadow-[0_0_0_3px_rgba(232,93,36,0.06)] transition-all max-w-5xl mx-auto relative">
             <div className="flex items-center shrink-0">
                 <Popover>
                     <PopoverTrigger asChild>
@@ -1142,8 +1173,8 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
             
             <div className="flex-shrink-0">
                 {messageContent.trim() ? (
-                    <Button type="submit" size="icon" className="bg-primary hover:bg-primary/90 h-8 w-8 sm:h-9 sm:w-9 rounded-full shadow-sm">
-                        <Send className="h-3.5 w-3.5 sm:h-4 w-4" />
+                    <Button type="submit" size="icon" className="bg-foreground hover:bg-foreground/90 h-8 w-8 sm:h-9 sm:w-9 rounded-full shadow-sm transition-transform active:scale-95">
+                        <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-background" />
                     </Button>
                 ) : (
                     <Button type="button" size="icon" variant="ghost" className={cn("h-8 w-8 sm:h-9 sm:w-9 rounded-full text-muted-foreground", isSendingAudio && "opacity-50")} onClick={() => setIsRecordingMode(true)} disabled={isSendingAudio || isSendingMedia}>

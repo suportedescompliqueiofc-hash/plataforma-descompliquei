@@ -504,44 +504,44 @@ export default function AdminSessoes() {
 
       {/* ── MODAL SESSÃO ─────────────────────────────────────────────────────── */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader><DialogTitle>{formData.id ? 'Editar Sessão' : 'Nova Sessão'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+        <DialogContent className="max-w-xl flex flex-col max-h-[90vh]">
+          <DialogHeader className="shrink-0"><DialogTitle>{formData.id ? 'Editar Sessão' : 'Nova Sessão'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Título</label>
-              <Input value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Sessão Tática #12 - Fechamento" />
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título</label>
+              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Sessão Tática #12 - Fechamento" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Tipo</label>
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</label>
                 <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 rounded-lg border-border/60 focus:ring-1 focus:ring-border/60"><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="comercial">Comercial</SelectItem><SelectItem value="demanda">Demanda</SelectItem></SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Data e Hora</label>
-                <Input type="datetime-local" value={formData.scheduled_at ? new Date(new Date(formData.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setFormData({ ...formData, scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data e Hora</label>
+                <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="datetime-local" value={formData.scheduled_at ? new Date(new Date(formData.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setFormData({ ...formData, scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Link da Reunião (Meet/Zoom)</label>
-              <Input value={formData.meet_link || ''} onChange={e => setFormData({ ...formData, meet_link: e.target.value })} />
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Link da Reunião (Meet/Zoom)</label>
+              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={formData.meet_link || ''} onChange={e => setFormData({ ...formData, meet_link: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">URL da Gravação</label>
-              <Input value={formData.recording_url || ''} onChange={e => setFormData({ ...formData, recording_url: e.target.value })} />
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">URL da Gravação</label>
+              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={formData.recording_url || ''} onChange={e => setFormData({ ...formData, recording_url: e.target.value })} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Descrição</label>
-              <Textarea value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} />
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição</label>
+              <Textarea className="rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={formData.description || ''} onChange={e => setFormData({ ...formData, description: e.target.value })} rows={3} />
             </div>
             <div className="flex items-center gap-2 pt-2">
               <Switch checked={formData.active} onCheckedChange={c => setFormData({ ...formData, active: !!c })} />
-              <label className="text-sm font-medium">Sessão Ativa na Plataforma</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Sessão ativa na plataforma</label>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
             <Button variant="outline" className="h-9 rounded-lg text-xs" onClick={() => setShowModal(false)}>Cancelar</Button>
             <Button onClick={saveSessao} disabled={saving} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5">
               {saving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null} Salvar
@@ -552,9 +552,9 @@ export default function AdminSessoes() {
 
       {/* ── MODAL CALENDÁRIO ─────────────────────────────────────────────────── */}
       <Dialog open={showCalModal} onOpenChange={setShowCalModal}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{calForm.id ? 'Detalhes do Evento' : 'Novo Evento'}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
+        <DialogContent className="max-w-md flex flex-col max-h-[90vh]">
+          <DialogHeader className="shrink-0"><DialogTitle>{calForm.id ? 'Detalhes do Evento' : 'Novo Evento'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">
             {calForm.is_sessao_tatica ? (
               <div className="p-4 bg-muted/50 rounded-lg border border-border text-center space-y-2">
                 <CalendarIcon className="h-8 w-8 text-muted-foreground/40 mx-auto" />
@@ -566,14 +566,14 @@ export default function AdminSessoes() {
             ) : (
               <>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Título</label>
-                  <Input value={calForm.title} onChange={e => setCalForm({ ...calForm, title: e.target.value })} placeholder="Ex: Reunião de Alinhamento" />
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título</label>
+                  <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={calForm.title} onChange={e => setCalForm({ ...calForm, title: e.target.value })} placeholder="Ex: Reunião de Alinhamento" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Tipo</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</label>
                     <Select value={calForm.type} onValueChange={v => setCalForm({ ...calForm, type: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 rounded-lg border-border/60 focus:ring-1 focus:ring-border/60"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="reuniao">Reunião</SelectItem>
                         <SelectItem value="compromisso">Compromisso</SelectItem>
@@ -582,9 +582,9 @@ export default function AdminSessoes() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Cliente (Opcional)</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cliente (Opcional)</label>
                     <Select value={calForm.client_id || 'none'} onValueChange={v => setCalForm({ ...calForm, client_id: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="h-10 rounded-lg border-border/60 focus:ring-1 focus:ring-border/60"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="none">Nenhum</SelectItem>
                         {clients.map(c => <SelectItem key={c.id} value={c.id}>{c.clinic_name}</SelectItem>)}
@@ -594,26 +594,26 @@ export default function AdminSessoes() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium flex items-center gap-1"><Clock className="h-3 w-3" /> Início</label>
-                    <Input type="datetime-local" value={calForm.start_at ? new Date(new Date(calForm.start_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setCalForm({ ...calForm, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Início</label>
+                    <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="datetime-local" value={calForm.start_at ? new Date(new Date(calForm.start_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setCalForm({ ...calForm, start_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium flex items-center gap-1"><Clock className="h-3 w-3" /> Fim (Opcional)</label>
-                    <Input type="datetime-local" value={calForm.end_at ? new Date(new Date(calForm.end_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setCalForm({ ...calForm, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" /> Fim (Opcional)</label>
+                    <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="datetime-local" value={calForm.end_at ? new Date(new Date(calForm.end_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setCalForm({ ...calForm, end_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium flex items-center gap-1"><LinkIcon className="h-3 w-3" /> Link Reunião</label>
-                  <Input value={calForm.meet_link || ''} onChange={e => setCalForm({ ...calForm, meet_link: e.target.value })} />
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1"><LinkIcon className="h-3 w-3" /> Link Reunião</label>
+                  <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={calForm.meet_link || ''} onChange={e => setCalForm({ ...calForm, meet_link: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Descrição</label>
-                  <Textarea value={calForm.description || ''} onChange={e => setCalForm({ ...calForm, description: e.target.value })} rows={3} />
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição</label>
+                  <Textarea className="rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={calForm.description || ''} onChange={e => setCalForm({ ...calForm, description: e.target.value })} rows={3} />
                 </div>
               </>
             )}
           </div>
-          <DialogFooter className="flex justify-between items-center sm:justify-between">
+          <DialogFooter className="shrink-0 flex justify-between items-center sm:justify-between">
             {(!calForm.is_sessao_tatica && calForm.id)
               ? <Button variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={deleteCalEvent} disabled={calSaving}>Excluir</Button>
               : <div />

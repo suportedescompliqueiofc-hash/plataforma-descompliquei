@@ -21,9 +21,11 @@ import { cn } from "@/lib/utils";
 
 interface TagManagerProps {
   leadId: string;
+  /** When true, tags display in a single row with overflow hidden (for compact headers) */
+  compact?: boolean;
 }
 
-export function TagManager({ leadId }: TagManagerProps) {
+export function TagManager({ leadId, compact = false }: TagManagerProps) {
   const { availableTags, createTag } = useTags();
   const { leadTags, addTagToLead, removeTagFromLead } = useLeadTags(leadId);
   
@@ -66,34 +68,69 @@ export function TagManager({ leadId }: TagManagerProps) {
     );
   };
 
+  // In compact mode, show only first tag (truncated) + overflow count
+  const visibleTags = compact ? leadTags.slice(0, 1) : leadTags;
+  const hiddenCount = compact ? leadTags.length - 1 : 0;
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {leadTags.map(tag => {
+    <div className={cn(
+      "flex items-center gap-1 max-w-full",
+      compact ? "flex-nowrap" : "flex-wrap gap-1.5"
+    )}>
+      {visibleTags.map(tag => {
         const styles = getTagColorStyles(tag.color);
         return (
-          <Badge 
-            key={tag.id} 
-            variant="outline" 
-            className={cn("gap-1 pr-1 font-normal transition-all", styles.className)}
+          <Badge
+            key={tag.id}
+            variant="outline"
+            className={cn(
+              "font-normal transition-all shrink-0",
+              compact
+                ? "max-w-[140px] text-[10px] h-5 px-1.5 gap-0.5 pr-1"
+                : "gap-1 pr-1 max-w-[200px]",
+              styles.className
+            )}
             style={styles.style}
           >
-            {tag.name}
-            <button 
-              onClick={() => removeTagFromLead.mutate(tag.id)}
-              className="hover:bg-black/10 rounded-full p-0.5 ml-1 transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
+            <span className="truncate">{tag.name}</span>
+            {!compact && (
+              <button
+                onClick={() => removeTagFromLead.mutate(tag.id)}
+                className="hover:bg-black/10 rounded-full p-0.5 ml-0.5 transition-colors shrink-0"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+            {compact && (
+              <button
+                onClick={() => removeTagFromLead.mutate(tag.id)}
+                className="hover:bg-black/10 rounded-full p-px transition-colors shrink-0"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
+            )}
           </Badge>
         );
       })}
 
+      {hiddenCount > 0 && (
+        <span className="text-[10px] font-medium text-muted-foreground/60 shrink-0">
+          +{hiddenCount}
+        </span>
+      )}
+
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground border border-dashed hover:border-solid gap-1 rounded-full hover:bg-muted">
-            <Plus className="h-3 w-3" />
-            Etiqueta
-          </Button>
+          {compact ? (
+            <button className="flex items-center justify-center h-5 w-5 rounded-full border border-dashed border-muted-foreground/30 text-muted-foreground/50 hover:border-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/40 transition-colors shrink-0">
+              <Plus className="h-2.5 w-2.5" />
+            </button>
+          ) : (
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-muted-foreground border border-dashed hover:border-solid gap-1 rounded-full hover:bg-muted">
+              <Plus className="h-3 w-3" />
+              Etiqueta
+            </Button>
+          )}
         </PopoverTrigger>
         <PopoverContent className="p-0 w-[260px]" align="start">
           <Command>

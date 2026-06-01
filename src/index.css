@@ -8,115 +8,115 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    /* Fundo Off-White Profissional (Papel de carta) */
-    --background: 210 20% 98%; 
-    /* Texto Preto Suave (Cinza Chumbo) para leitura confortável */
-    --foreground: 220 15% 15%;
+    /* Fundo Off-White Quente (Premium warm) */
+    --background: 43 14% 97%;
+    /* Texto Preto Quente (quase preto, não cinza frio) */
+    --foreground: 0 0% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 220 15% 15%;
+    --card-foreground: 0 0% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 15%;
+    --popover-foreground: 0 0% 10%;
 
-    /* Primary: Dourado Nobre (Advocacia) */
-    /* Baseado em um tom Ouro Clássico */
-    --primary: 38 45% 55%; 
+    /* Primary: Laranja Descompliquei — recurso escasso, só CTAs */
+    --primary: 18 80% 53%;
     --primary-foreground: 0 0% 100%;
-    
-    /* Secondary: Preto/Grafite Sóbrio */
-    --secondary: 220 10% 15%;
-    --secondary-foreground: 38 45% 90%;
 
-    --muted: 210 15% 95%;
-    --muted-foreground: 215 10% 45%;
+    /* Secondary: Grafite Quente */
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 43 14% 96%;
 
-    /* Accent: Dourado muito suave para fundos/detalhes */
-    --accent: 38 45% 94%;
-    --accent-foreground: 220 10% 15%;
+    --muted: 40 10% 95%;
+    --muted-foreground: 0 0% 42%;
+
+    /* Accent: Fundo sutil warm */
+    --accent: 40 10% 95%;
+    --accent-foreground: 0 0% 10%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 95%;
-    --ring: 38 45% 55%;
+    --border: 40 8% 90%;
+    --input: 40 8% 94%;
+    --ring: 18 80% 53%;
 
-    --radius: 0.5rem;
+    --radius: 0.625rem;
 
-    /* Success: Verde Jurídico (Sóbrio) */
-    --success: 142 30% 35%;
+    /* Success */
+    --success: 160 60% 38%;
     --success-foreground: 0 0% 100%;
 
-    /* Warning: Âmbar */
-    --warning: 38 90% 50%;
+    /* Warning */
+    --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
     /* Info */
-    --info: 210 30% 50%;
+    --info: 217 70% 50%;
     --info-foreground: 0 0% 100%;
 
-    /* Gradients - Preto & Ouro */
-    --gradient-primary: linear-gradient(135deg, hsl(220 10% 10%) 0%, hsl(220 10% 20%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(38 45% 55%) 0%, hsl(38 45% 70%) 100%);
+    /* Gradients - Sutis apenas */
+    --gradient-primary: linear-gradient(135deg, hsl(0 0% 10%) 0%, hsl(0 0% 16%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(18 80% 53%) 0%, hsl(18 70% 62%) 100%);
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    /* Shadows — premium sutis */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.04);
+    --shadow-md: 0 2px 8px rgb(0 0 0 / 0.06);
+    --shadow-lg: 0 4px 16px rgb(0 0 0 / 0.08);
+    --shadow-card: 0 1px 3px rgb(0 0 0 / 0.04), 0 0 0 1px rgb(0 0 0 / 0.03);
 
-    /* Sidebar - Preto Absoluto/Grafite para elegância */
-    --sidebar-background: 220 10% 10%; /* Quase preto */
-    --sidebar-foreground: 38 30% 90%; /* Dourado muito claro/Branco */
-    --sidebar-primary: 38 45% 55%; /* Dourado da Marca */
+    /* Sidebar - Escuro Premium (#1A1A1A) */
+    --sidebar-background: 0 0% 10%;
+    --sidebar-foreground: 0 0% 63%;
+    --sidebar-primary: 18 80% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 10% 16%; /* Cinza escuro para hover */
-    --sidebar-accent-foreground: 38 45% 60%;
-    --sidebar-border: 220 10% 16%;
-    --sidebar-ring: 38 45% 55%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 18 80% 53%;
+    --sidebar-border: 0 0% 16%;
+    --sidebar-ring: 18 80% 53%;
   }
 
   :root.dark {
-    --background: 220 10% 8%;
-    --foreground: 38 20% 90%;
+    --background: 0 0% 7%;
+    --foreground: 0 0% 96%;
 
-    --card: 220 10% 12%;
-    --card-foreground: 38 20% 90%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 220 10% 12%;
-    --popover-foreground: 38 20% 90%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 96%;
 
-    /* Primary: Dourado mais brilhante para Dark Mode */
-    --primary: 38 50% 60%; 
-    --primary-foreground: 220 10% 10%;
-    
+    /* Primary: Laranja Descompliquei (brilhante para dark) */
+    --primary: 18 80% 56%;
+    --primary-foreground: 0 0% 100%;
+
     /* Secondary */
-    --secondary: 220 10% 20%;
-    --secondary-foreground: 38 40% 85%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 220 10% 16%;
-    --muted-foreground: 215 10% 60%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 55%;
 
     /* Accent */
-    --accent: 220 10% 16%;
-    --accent-foreground: 38 50% 60%;
+    --accent: 0 0% 14%;
+    --accent-foreground: 18 80% 56%;
 
     --destructive: 0 60% 40%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 10% 20%;
-    --input: 220 10% 20%;
-    --ring: 38 50% 60%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 18 80% 56%;
 
     /* Sidebar */
-    --sidebar-background: 220 10% 6%;
-    --sidebar-foreground: 38 30% 90%;
-    --sidebar-primary: 38 50% 60%;
-    --sidebar-primary-foreground: 220 10% 10%;
-    --sidebar-accent: 220 10% 14%;
-    --sidebar-accent-foreground: 38 50% 70%;
-    --sidebar-border: 220 10% 14%;
-    --sidebar-ring: 38 50% 60%;
+    --sidebar-background: 0 0% 5%;
+    --sidebar-foreground: 0 0% 63%;
+    --sidebar-primary: 18 80% 56%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent-foreground: 18 80% 60%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 18 80% 56%;
   }
 }
 
@@ -127,7 +127,24 @@ All colors MUST be HSL.
 
   html, body {
     @apply bg-background text-foreground overflow-x-hidden max-w-[100vw];
+    font-family: 'DM Sans', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    letter-spacing: -0.006em;
     -webkit-overflow-scrolling: touch;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: -0.025em;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Tabular nums for data-heavy areas */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
   }
 }
 
@@ -288,6 +305,86 @@ All colors MUST be HSL.
   font-weight: 700 !important;
 }
 
+/* ── Premium Scrollbar ── */
+
+/* Global — light surfaces */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.35);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Sidebar — dark surfaces */
+.bg-sidebar ::-webkit-scrollbar,
+.bg-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.bg-sidebar ::-webkit-scrollbar-track,
+.bg-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.bg-sidebar ::-webkit-scrollbar-thumb,
+.bg-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+}
+.bg-sidebar ::-webkit-scrollbar-thumb:hover,
+.bg-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Pipeline — always-visible scrollbar */
+.scrollbar-always-visible {
+  overflow-x: scroll !important;
+}
+.scrollbar-always-visible::-webkit-scrollbar {
+  height: 8px;
+}
+.scrollbar-always-visible::-webkit-scrollbar-track {
+  background: hsl(var(--muted) / 0.4);
+  border-radius: 9999px;
+  margin: 0 4px;
+}
+.scrollbar-always-visible::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.25);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.scrollbar-always-visible::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.4);
+  background-clip: content-box;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+.scrollbar-always-visible {
+  scrollbar-width: auto;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.25) hsl(var(--muted) / 0.4);
+}
+.bg-sidebar,
+.bg-sidebar * {
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
 /* Scrollbar in timegrid */
 .fc .fc-scroller::-webkit-scrollbar {
   width: 6px;
@@ -297,7 +394,7 @@ All colors MUST be HSL.
 }
 .fc .fc-scroller::-webkit-scrollbar-thumb {
   background: hsl(var(--border));
-  border-radius: 3px;
+  border-radius: 9999px;
 }
 
 /* More link */
@@ -312,6 +409,11 @@ All colors MUST be HSL.
 .fc td, .fc th {
   border-color: hsl(var(--border) / 0.6) !important;
 }
+/* Fix cmdk scroll */
+[cmdk-list] {
+  overflow: auto !important;
+}
+
 .fc .fc-scrollgrid {
   border: none !important;
 }

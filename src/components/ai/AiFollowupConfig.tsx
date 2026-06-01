@@ -260,7 +260,7 @@ export function AiFollowupConfig() {
   }
 
   return (
-    <Card className="border-sidebar-border shadow-sm">
+    <Card data-tutorial="ia-followup-config" className="border-sidebar-border shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between border-b p-4">
         <div className="flex-1">
@@ -287,9 +287,9 @@ export function AiFollowupConfig() {
       <div className="space-y-4 p-4">
         {/* Sequência */}
         <div>
-          <Label className="text-xs font-semibold">Sequencia de Follow-ups</Label>
+          <Label className="text-xs font-semibold">Sequência de Follow-ups</Label>
           <p className="mb-3 text-[11px] text-muted-foreground">
-            Configure quando cada follow-up sera enviado
+            Configure quando cada follow-up será enviado
           </p>
 
           <div className="space-y-3">
@@ -395,7 +395,7 @@ export function AiFollowupConfig() {
               }
             />
             <Label htmlFor="respeitar-horario" className="text-xs">
-              Respeitar horario de atendimento configurado
+              Respeitar horário de atendimento configurado
             </Label>
           </div>
         </div>

@@ -5,26 +5,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Lock, ChevronRight } from "lucide-react";
+import { ChevronRight, Lock, BookOpen, FolderOpen } from "lucide-react";
 import { SemAcesso } from "@/components/SemAcesso";
+import MateriaisComplementares from "@/components/plataforma/MateriaisComplementares";
 
 type PillarCard = {
   num: number;
   title: string;
-  phaseLabel: string;
-  badgeText: string;
-  badgeColor: string;
-  locked: boolean;
 };
 
 export default function Trilha() {
-  const { plan, totalModules, completedModules, progressPercent, acesso } = usePlataforma();
+  const { completedModules, acesso, progress } = usePlataforma();
   const navigate = useNavigate();
   const [modules, setModules] = useState<any[]>([]);
   const [pilaresDB, setPilaresDB] = useState<{ id: string; ordem_index: number }[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<"aula" | "materiais">("aula");
 
-  // Se não tem nenhum pilar liberado, bloqueia acesso
   const temTrilha = (acesso.pilares_liberados?.length ?? 0) > 0;
 
   useEffect(() => {
@@ -50,135 +47,198 @@ export default function Trilha() {
     void load();
   }, []);
 
-  // Mapear UUIDs liberados → números de pilar (ordem_index)
-  const pilaresLiberadosNums = useMemo(() => {
-    if (!acesso.pilares_liberados?.length) return new Set<number>();
-    return new Set(
-      pilaresDB
-        .filter(p => acesso.pilares_liberados.includes(p.id))
-        .map(p => p.ordem_index)
-    );
+  // Mapear UUIDs liberados → números de pilar (ordem_index), ordenados
+  const pilaresLiberadosOrdenados = useMemo(() => {
+    if (!acesso.pilares_liberados?.length) return [];
+    return pilaresDB
+      .filter(p => acesso.pilares_liberados.includes(p.id))
+      .map(p => p.ordem_index)
+      .sort((a, b) => a - b);
   }, [acesso.pilares_liberados, pilaresDB]);
 
-  const moduleCountByPillar = useMemo(() => {
-    return modules.reduce<Record<number, number>>((accumulator, module) => {
-      const pillarNumber = Number(module.pillar);
-      if (!Number.isFinite(pillarNumber)) {
-        return accumulator;
-      }
+  const pilaresLiberadosNums = useMemo(
+    () => new Set(pilaresLiberadosOrdenados),
+    [pilaresLiberadosOrdenados]
+  );
 
-      accumulator[pillarNumber] = (accumulator[pillarNumber] || 0) + 1;
-      return accumulator;
+  const moduleCountByPillar = useMemo(() => {
+    return modules.reduce<Record<number, number>>((acc, mod) => {
+      const n = Number(mod.pillar);
+      if (Number.isFinite(n)) acc[n] = (acc[n] || 0) + 1;
+      return acc;
     }, {});
   }, [modules]);
+
+  // IDs de módulos concluídos por número de pilar
+  const completedModulesByPillar = useMemo(() => {
+    const map: Record<number, number> = {};
+    for (const mod of modules) {
+      const n = Number(mod.pillar);
+      if (!Number.isFinite(n)) continue;
+      const done = progress.some(p => p.module_id === mod.id && p.completed);
+      if (done) map[n] = (map[n] || 0) + 1;
+    }
+    return map;
+  }, [modules, progress]);
+
+  // Um pilar está completo quando todos os seus módulos foram concluídos
+  const isPilarCompleted = (num: number) => {
+    const total = moduleCountByPillar[num] || 0;
+    const completed = completedModulesByPillar[num] || 0;
+    return total > 0 && completed >= total;
+  };
+
+  // Determina quais pilares são sequencialmente acessíveis
+  const pilaresAcessiveis = useMemo(() => {
+    const set = new Set<number>();
+    for (let i = 0; i < pilaresLiberadosOrdenados.length; i++) {
+      const num = pilaresLiberadosOrdenados[i];
+      if (i === 0) {
+        set.add(num); // primeiro pilar sempre acessível
+      } else {
+        const prev = pilaresLiberadosOrdenados[i - 1];
+        if (isPilarCompleted(prev)) set.add(num);
+        else break; // encadeia: se um trava, todos os seguintes também travam
+      }
+    }
+    return set;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pilaresLiberadosOrdenados, completedModulesByPillar, moduleCountByPillar]);
+
+  const totalUnlockedModules = useMemo(() => {
+    let total = 0;
+    pilaresLiberadosNums.forEach(num => { total += moduleCountByPillar[num] || 0; });
+    return total;
+  }, [pilaresLiberadosNums, moduleCountByPillar]);
+
+  const unlockedProgressPercent = totalUnlockedModules > 0
+    ? Math.round((completedModules / totalUnlockedModules) * 100)
+    : 0;
 
   if (!temTrilha) return <SemAcesso />;
 
   const pilares: PillarCard[] = [
-    {
-      num: 1,
-      title: "FUNDAÇÃO CLÍNICA",
-      phaseLabel: "Fase C do Método C.L.A.R.O.",
-      badgeText: pilaresLiberadosNums.has(1) ? "Liberado" : "Bloqueado",
-      badgeColor: pilaresLiberadosNums.has(1)
-        ? "bg-emerald-500/10 text-emerald-500 border-transparent"
-        : "bg-[#E85D24]/10 text-[#E85D24] border-transparent",
-      locked: !pilaresLiberadosNums.has(1),
-    },
-    {
-      num: 2,
-      title: "MOTOR DE DEMANDA",
-      phaseLabel: "Fase L do Método C.L.A.R.O.",
-      badgeText: pilaresLiberadosNums.has(2) ? "Liberado" : "Bloqueado",
-      badgeColor: pilaresLiberadosNums.has(2)
-        ? "bg-emerald-500/10 text-emerald-500 border-transparent"
-        : "bg-[#E85D24]/10 text-[#E85D24] border-transparent",
-      locked: !pilaresLiberadosNums.has(2),
-    },
-    {
-      num: 3,
-      title: "MOTOR COMERCIAL",
-      phaseLabel: "Fases A, R e O",
-      badgeText: pilaresLiberadosNums.has(3) ? "Liberado" : "Bloqueado",
-      badgeColor: pilaresLiberadosNums.has(3)
-        ? "bg-emerald-500/10 text-emerald-500 border-transparent"
-        : "bg-[#E85D24]/10 text-[#E85D24] border-transparent",
-      locked: !pilaresLiberadosNums.has(3),
-    },
+    { num: 1, title: "FUNDAÇÃO CLÍNICA" },
+    { num: 2, title: "MOTOR DE DEMANDA" },
+    { num: 3, title: "MOTOR COMERCIAL" },
   ];
 
+  const pilaresVisiveis = pilares.filter(p => pilaresLiberadosNums.has(p.num));
+
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-12">
+    <div className="max-w-4xl mx-auto space-y-6 pb-12">
+      {/* Header */}
       <div className="space-y-4 border-b border-border pb-6">
-        <h1 className="text-4xl font-bold uppercase tracking-tight text-foreground font-serif">
-          Trilha C.L.A.R.O.
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground font-display">
+          Trilha de Aprendizado
         </h1>
-        <div className="flex items-center justify-between text-sm text-muted-foreground font-medium">
-          <span>Progresso da Trilha: {progressPercent}% concluído</span>
-          <span>
-            {completedModules} módulos concluídos de {totalModules}
-          </span>
-        </div>
-        <Progress value={progressPercent} className="h-2 bg-muted" />
-      </div>
-
-      <div className="space-y-4">
-        {isLoading ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((item) => (
-              <Skeleton key={item} className="h-24 w-full rounded-lg" />
-            ))}
-          </div>
-        ) : (
-          pilares.map((pilar) => {
-            const moduleCount = moduleCountByPillar[pilar.num] || 0;
-
-            return (
-              <div
-                key={pilar.num}
-                className="border border-border rounded-lg bg-card overflow-hidden transition-all shadow-sm hover:shadow-md hover:border-primary/50 group"
-              >
-                <div
-                  onClick={() => {
-                    if (!pilar.locked) {
-                      navigate(`/plataforma/trilha/pilar/${pilar.num}`);
-                    }
-                  }}
-                  className={`p-4 md:p-6 flex items-center justify-between transition-colors ${
-                    pilar.locked ? "cursor-not-allowed opacity-75" : "cursor-pointer hover:bg-muted/50"
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <h2
-                        className={`text-lg font-bold uppercase tracking-wider transition-colors ${
-                          pilar.locked ? "text-muted-foreground" : "text-card-foreground group-hover:text-primary"
-                        }`}
-                      >
-                        Pilar {pilar.num} — {pilar.title}
-                      </h2>
-                      <Badge variant="outline" className={pilar.badgeColor}>
-                        {pilar.locked && <Lock className="w-3 h-3 mr-1" />}
-                        {pilar.badgeText}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {pilar.phaseLabel} · {moduleCount} {moduleCount === 1 ? "módulo" : "módulos"}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {pilar.locked ? (
-                      <span className="text-xs font-semibold text-[#E85D24]">Faça upgrade</span>
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+        {activeTab === "aula" && (
+          <>
+            <div className="flex items-center justify-between text-sm text-muted-foreground font-medium">
+              <span>Progresso da Trilha: {unlockedProgressPercent}% concluído</span>
+              <span>{completedModules} módulos concluídos de {totalUnlockedModules}</span>
+            </div>
+            <Progress value={unlockedProgressPercent} className="h-2 bg-muted" />
+          </>
         )}
       </div>
+
+      {/* Tab pills */}
+      <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setActiveTab("aula")}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            activeTab === "aula"
+              ? "bg-foreground text-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          Aula
+        </button>
+        <button
+          onClick={() => setActiveTab("materiais")}
+          className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+            activeTab === "materiais"
+              ? "bg-foreground text-background shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <FolderOpen className="h-3.5 w-3.5" />
+          Materiais Complementares
+        </button>
+      </div>
+
+      {/* Aula tab */}
+      {activeTab === "aula" && (
+        <div className="space-y-4">
+          {isLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map((item) => (
+                <Skeleton key={item} className="h-24 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            pilaresVisiveis.map((pilar) => {
+              const moduleCount = moduleCountByPillar[pilar.num] || 0;
+              const acessivel = pilaresAcessiveis.has(pilar.num);
+              const concluido = isPilarCompleted(pilar.num);
+
+              return (
+                <div
+                  key={pilar.num}
+                  className={`border rounded-xl bg-card overflow-hidden shadow-card transition-all ${
+                    acessivel
+                      ? "border-border hover:shadow-md group"
+                      : "border-border opacity-50"
+                  }`}
+                >
+                  <div
+                    onClick={() => acessivel && navigate(`/plataforma/trilha/pilar/${pilar.num}`)}
+                    className={`p-5 md:p-6 flex items-center justify-between transition-colors ${
+                      acessivel ? "cursor-pointer hover:bg-muted/30" : "cursor-not-allowed"
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-3">
+                        <h2 className={`text-base font-semibold tracking-wide uppercase transition-colors text-foreground font-display ${acessivel ? "group-hover:text-[#E85D24]" : ""}`}>
+                          {pilar.title}
+                        </h2>
+                        {concluido ? (
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[11px]">
+                            Concluído
+                          </Badge>
+                        ) : acessivel ? (
+                          <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 text-[11px]">
+                            Liberado
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-muted text-muted-foreground border-transparent text-[11px]">
+                            <Lock className="w-3 h-3 mr-1" />
+                            Bloqueado
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {acessivel
+                          ? `${moduleCount} ${moduleCount === 1 ? "módulo" : "módulos"}`
+                          : "Conclua o pilar anterior para desbloquear"}
+                      </p>
+                    </div>
+                    {acessivel
+                      ? <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-[#E85D24] transition-colors" />
+                      : <Lock className="w-5 h-5 text-muted-foreground" />
+                    }
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Materiais Complementares tab */}
+      {activeTab === "materiais" && <MateriaisComplementares />}
     </div>
   );
 }

@@ -1,32 +1,34 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { toast } from "sonner";
-import { format, parseISO, differenceInDays, startOfWeek, endOfWeek, addDays, startOfMonth, endOfMonth } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Target, TrendingUp, TrendingDown, Calendar, ChevronRight, AlertTriangle,
+  Target, TrendingUp, Calendar, AlertTriangle,
   CheckCircle2, XCircle, Plus, Edit2, Loader2, ArrowRight, BarChart3,
-  DollarSign, Users, CalendarCheck, Award, Zap, SlidersHorizontal, History, LineChart
+  DollarSign, Users, CalendarCheck, Award, Zap, SlidersHorizontal, History, LineChart,
+  Clock, Flame, Gauge, ArrowUpRight, ChevronRight, ChevronLeft, ChevronDown, Activity, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  LineChart as ReLineChart, Line, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend
+  AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, Line,
 } from "recharts";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
+import { CurrencyInput } from "@/components/CurrencyInput";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -50,7 +52,6 @@ interface Meta {
   meta_leads: number;
   meta_bucket: number;
   criado_em: string;
-  // View fields
   leads_total?: number;
   mqls_total?: number;
   reunioes_total?: number;
@@ -87,72 +88,46 @@ function fmtBRL(v: number | null | undefined): string {
   if (v == null) return "R$ 0";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
-
 function fmtBRL2(v: number | null | undefined): string {
   if (v == null) return "R$ 0,00";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-
 function fmtNum(v: number | null | undefined): string {
   if (v == null) return "0";
   return Math.round(v).toLocaleString("pt-BR");
 }
-
 function fmtPct(v: number | null | undefined): string {
   if (v == null) return "0%";
   return `${Number(v).toFixed(1)}%`;
 }
-
 function pctColor(pct: number): string {
   if (pct >= 80) return "#10b981";
   if (pct >= 50) return "#f59e0b";
   return "#ef4444";
 }
-
-function pctBadgeClass(pct: number): string {
-  if (pct >= 80) return "bg-green-100 text-green-700 border-green-200";
-  if (pct >= 50) return "bg-yellow-100 text-yellow-700 border-yellow-200";
-  return "bg-red-100 text-red-700 border-red-200";
+function pctBg(pct: number): string {
+  if (pct >= 80) return "bg-emerald-50 text-emerald-700 border-emerald-200/60";
+  if (pct >= 50) return "bg-amber-50 text-amber-700 border-amber-200/60";
+  return "bg-red-50 text-red-700 border-red-200/60";
 }
-
-function statusIcon(pct: number) {
-  if (pct >= 100) return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-  if (pct >= 80) return <CheckCircle2 className="h-4 w-4 text-green-500" />;
-  if (pct >= 50) return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-  return <XCircle className="h-4 w-4 text-red-500" />;
+function statusInfo(pct: number) {
+  if (pct >= 80) return { label: "No ritmo", color: "text-emerald-600", bg: "bg-emerald-50", icon: CheckCircle2 };
+  if (pct >= 50) return { label: "Atenção", color: "text-amber-600", bg: "bg-amber-50", icon: AlertTriangle };
+  return { label: "Crítico", color: "text-red-600", bg: "bg-red-50", icon: XCircle };
 }
-
-function borderLeftColor(metrics: { pct: number }[]): string {
-  const avg = metrics.reduce((s, m) => s + m.pct, 0) / metrics.length;
-  if (avg >= 80) return "border-l-green-500";
-  if (avg >= 50) return "border-l-yellow-500";
-  return "border-l-red-500";
-}
-
-// ── Section Header (Dashboard pattern) ─────────────────────────
-
-const SectionHeader = ({ title, icon: Icon }: { title: string; icon: any }) => (
-  <div className="flex items-center gap-2 mb-4 pl-3 border-l-[3px] border-primary">
-    <Icon className="h-4 w-4 text-primary flex-shrink-0" />
-    <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{title}</h2>
-  </div>
-);
 
 // ── Custom Tooltip ─────────────────────────────────────────────
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-popover/95 backdrop-blur-sm border border-border p-3 rounded-lg shadow-lg">
-        <p className="font-semibold text-foreground mb-1 text-sm">{label}</p>
+      <div className="bg-popover/95 backdrop-blur-sm border border-border/60 p-3 rounded-xl shadow-lg">
+        <p className="font-semibold text-foreground mb-1.5 text-xs">{label}</p>
         {payload.map((entry: any, i: number) => (
           <div key={i} className="flex items-center gap-2 py-0.5">
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
-            <span className="text-xs text-muted-foreground">{entry.name}:</span>
-            <span className="text-xs font-bold text-foreground">{
-              typeof entry.value === "number" && entry.name?.includes("R$")
-                ? fmtBRL(entry.value) : fmtNum(entry.value)
-            }</span>
+            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
+            <span className="text-[11px] text-muted-foreground">{entry.name}:</span>
+            <span className="text-[11px] font-bold text-foreground tabular-nums">{fmtNum(entry.value)}</span>
           </div>
         ))}
       </div>
@@ -171,28 +146,13 @@ export default function Metas() {
   const [modalMeta, setModalMeta] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const [expandedHistorico, setExpandedHistorico] = useState<string | null>(null);
+  const [deletingMetaId, setDeletingMetaId] = useState<string | null>(null);
+  const [selectedMetaId, setSelectedMetaId] = useState<string | null>(null);
+  const [isMetaSelectorOpen, setIsMetaSelectorOpen] = useState(false);
 
   // ── Queries ────────────────────────────────────────────
 
-  const { data: meta, isLoading } = useQuery({
-    queryKey: ["meta-ativa", orgId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vw_meta_acompanhamento")
-        .select("*")
-        .eq("organization_id", orgId!)
-        .eq("ativo", true)
-        .order("data_inicio", { ascending: false })
-        .limit(1)
-        .single();
-      if (error && error.code !== "PGRST116") throw error;
-      return (data as Meta) || null;
-    },
-    enabled: !!orgId,
-    refetchInterval: 5 * 60 * 1000,
-  });
-
-  const { data: todasMetas = [] } = useQuery({
+  const { data: todasMetas = [], isLoading } = useQuery({
     queryKey: ["todas-metas", orgId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -204,7 +164,34 @@ export default function Metas() {
       return (data as Meta[]) || [];
     },
     enabled: !!orgId,
+    refetchInterval: 5 * 60 * 1000,
   });
+
+  // Meta selecionada: prioriza selectedMetaId, senão pega a ativa mais recente
+  const meta = useMemo(() => {
+    if (todasMetas.length === 0) return null;
+    if (selectedMetaId) {
+      return todasMetas.find(m => m.id === selectedMetaId) || todasMetas[0];
+    }
+    // Prioriza a meta ativa mais recente
+    const ativa = todasMetas.find(m => m.ativo);
+    return ativa || todasMetas[0];
+  }, [todasMetas, selectedMetaId]);
+
+  // Index da meta selecionada para navegação prev/next
+  const selectedIndex = useMemo(() => {
+    if (!meta) return -1;
+    return todasMetas.findIndex(m => m.id === meta.id);
+  }, [meta, todasMetas]);
+
+  const canGoPrev = selectedIndex > 0;
+  const canGoNext = selectedIndex < todasMetas.length - 1;
+
+  function goToMeta(id: string) {
+    setSelectedMetaId(id);
+    setActiveTab("visao-geral");
+    setIsMetaSelectorOpen(false);
+  }
 
   // ── Form state ─────────────────────────────────────────
 
@@ -219,15 +206,20 @@ export default function Metas() {
   const [formTxAgend, setFormTxAgend] = useState(40);
   const [formTxConv, setFormTxConv] = useState(25);
   const [formLoading, setFormLoading] = useState(false);
+  const [formInvesteMarketing, setFormInvesteMarketing] = useState(true);
 
-  // Calculated preview
+  // Preview do funil — adapta com/sem marketing
   const previewFechamentos = formTicket > 0 ? formReceita / formTicket : 0;
   const previewReunioes = formTxConv > 0 ? previewFechamentos / (formTxConv / 100) : 0;
-  const previewMqls = formTxAgend > 0 ? previewReunioes / (formTxAgend / 100) : 0;
-  const previewLeads = formTxMql > 0 ? previewMqls / (formTxMql / 100) : 0;
-  const previewBucket = previewLeads * formCpl;
+  const previewMqls = formInvesteMarketing
+    ? (formTxAgend > 0 ? previewReunioes / (formTxAgend / 100) : 0)
+    : previewReunioes; // sem marketing, não tem etapa MQL
+  const previewLeads = formInvesteMarketing
+    ? (formTxMql > 0 ? previewMqls / (formTxMql / 100) : 0)
+    : (formTxAgend > 0 ? previewReunioes / (formTxAgend / 100) : 0); // sem MQL: Leads → Agendamentos direto
+  const previewBucket = formInvesteMarketing ? previewLeads * formCpl : 0;
 
-  // ── Simulador (aba Projeção) ───────────────────────────
+  // ── Simulador ──────────────────────────────────────────
 
   const [simLeadsDia, setSimLeadsDia] = useState(0);
   const [simTxMql, setSimTxMql] = useState(60);
@@ -235,7 +227,6 @@ export default function Metas() {
   const [simTxConv, setSimTxConv] = useState(25);
   const [simTicket, setSimTicket] = useState(5000);
 
-  // Initialize simulator from meta
   const initSimulator = () => {
     if (!meta) return;
     const diasDecorridos = Number(meta.dias_decorridos) || 1;
@@ -259,8 +250,9 @@ export default function Metas() {
         data_fim: formFim,
         meta_receita: formReceita,
         ticket_medio: formTicket,
-        cpl_meta: formCpl,
-        tx_mql: formTxMql,
+        // Sem marketing: CPL=0 e tx_mql=100 (todos leads passam direto)
+        cpl_meta: formInvesteMarketing ? formCpl : 0,
+        tx_mql: formInvesteMarketing ? formTxMql : 100,
         tx_agendamento: formTxAgend,
         tx_conversao: formTxConv,
       };
@@ -273,12 +265,30 @@ export default function Metas() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["meta-ativa", orgId] });
       queryClient.invalidateQueries({ queryKey: ["todas-metas", orgId] });
       toast.success(editingMeta ? "Meta atualizada!" : "Meta criada!");
+      // Ao criar nova meta, reseta seleção para pegar a mais recente
+      if (!editingMeta) setSelectedMetaId(null);
       setModalMeta(false);
     },
     onError: (err: any) => toast.error(err.message),
+  });
+
+  const excluirMeta = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("metas").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["todas-metas", orgId] });
+      toast.success("Meta excluida com sucesso!");
+      setSelectedMetaId(null);
+      setDeletingMetaId(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message);
+      setDeletingMetaId(null);
+    },
   });
 
   // ── Form helpers ───────────────────────────────────────
@@ -286,54 +296,38 @@ export default function Metas() {
   function openCriar() {
     setEditingMeta(null);
     const now = new Date();
-    const ini = startOfMonth(now);
-    const fim = endOfMonth(now);
     setFormNome(`Meta ${fmtBRL(50000)} — ${format(now, "MMMM yyyy", { locale: ptBR })}`);
     setFormPeriodo("mensal");
-    setFormInicio(format(ini, "yyyy-MM-dd"));
-    setFormFim(format(fim, "yyyy-MM-dd"));
-    setFormReceita(50000);
-    setFormTicket(5000);
-    setFormCpl(40);
-    setFormTxMql(60);
-    setFormTxAgend(40);
-    setFormTxConv(25);
+    setFormInicio(format(startOfMonth(now), "yyyy-MM-dd"));
+    setFormFim(format(endOfMonth(now), "yyyy-MM-dd"));
+    setFormReceita(50000); setFormTicket(5000); setFormCpl(40);
+    setFormTxMql(60); setFormTxAgend(40); setFormTxConv(25);
+    setFormInvesteMarketing(true);
     setModalMeta(true);
   }
 
   function openEditar() {
     if (!meta) return;
     setEditingMeta(meta);
-    setFormNome(meta.nome);
-    setFormPeriodo(meta.periodo_tipo);
-    setFormInicio(meta.data_inicio);
-    setFormFim(meta.data_fim);
-    setFormReceita(Number(meta.meta_receita));
-    setFormTicket(Number(meta.ticket_medio));
-    setFormCpl(Number(meta.cpl_meta));
-    setFormTxMql(Number(meta.tx_mql));
-    setFormTxAgend(Number(meta.tx_agendamento));
-    setFormTxConv(Number(meta.tx_conversao));
+    setFormNome(meta.nome); setFormPeriodo(meta.periodo_tipo);
+    setFormInicio(meta.data_inicio); setFormFim(meta.data_fim);
+    setFormReceita(Number(meta.meta_receita)); setFormTicket(Number(meta.ticket_medio));
+    setFormCpl(Number(meta.cpl_meta)); setFormTxMql(Number(meta.tx_mql));
+    setFormTxAgend(Number(meta.tx_agendamento)); setFormTxConv(Number(meta.tx_conversao));
+    // Detecta se investe em marketing: cpl_meta > 0 significa que sim
+    setFormInvesteMarketing(Number(meta.cpl_meta) > 0);
     setModalMeta(true);
   }
 
   function handlePeriodoChange(v: string) {
     setFormPeriodo(v);
     const now = new Date();
-    if (v === "mensal") {
-      setFormInicio(format(startOfMonth(now), "yyyy-MM-dd"));
-      setFormFim(format(endOfMonth(now), "yyyy-MM-dd"));
-    } else if (v === "semanal") {
-      setFormInicio(format(startOfWeek(now, { locale: ptBR }), "yyyy-MM-dd"));
-      setFormFim(format(endOfWeek(now, { locale: ptBR }), "yyyy-MM-dd"));
-    }
+    if (v === "mensal") { setFormInicio(format(startOfMonth(now), "yyyy-MM-dd")); setFormFim(format(endOfMonth(now), "yyyy-MM-dd")); }
+    else if (v === "semanal") { setFormInicio(format(startOfWeek(now, { locale: ptBR }), "yyyy-MM-dd")); setFormFim(format(endOfWeek(now, { locale: ptBR }), "yyyy-MM-dd")); }
   }
 
   async function handleSalvar() {
-    if (!formNome || !formInicio || !formFim || formReceita <= 0) {
-      toast.error("Preencha todos os campos obrigatórios.");
-      return;
-    }
+    if (!formNome || !formInicio || !formFim || formReceita <= 0) { toast.error("Preencha todos os campos."); return; }
     setFormLoading(true);
     await salvarMeta.mutateAsync();
     setFormLoading(false);
@@ -347,136 +341,91 @@ export default function Metas() {
     const diasDecorridos = Number(meta.dias_decorridos) || 0;
     const metaLeads = Number(meta.meta_leads) || 0;
     const leadsTotal = Number(meta.leads_total) || 0;
-    const points = [];
+    const points: any[] = [];
     for (let i = 0; i <= Math.min(diasDecorridos, totalDias); i++) {
-      const metaAcum = Math.round((metaLeads / totalDias) * i * 10) / 10;
-      const realAcum = i === diasDecorridos ? leadsTotal : Math.round((leadsTotal / Math.max(diasDecorridos, 1)) * i);
-      points.push({
-        dia: `Dia ${i}`,
-        "Meta Linear": metaAcum,
-        "Leads Reais": realAcum,
-      });
+      points.push({ dia: `D${i}`, "Meta Linear": Math.round((metaLeads / totalDias) * i * 10) / 10, "Leads Reais": i === diasDecorridos ? leadsTotal : Math.round((leadsTotal / Math.max(diasDecorridos, 1)) * i) });
     }
-    // Add remaining days as meta only
     for (let i = diasDecorridos + 1; i <= totalDias; i++) {
-      points.push({
-        dia: `Dia ${i}`,
-        "Meta Linear": Math.round((metaLeads / totalDias) * i * 10) / 10,
-        "Leads Reais": null,
-      });
+      points.push({ dia: `D${i}`, "Meta Linear": Math.round((metaLeads / totalDias) * i * 10) / 10, "Leads Reais": null });
     }
     return points;
   }, [meta]);
 
-  // ── Projeção calculations ──────────────────────────────
+  // ── Projecao ───────────────────────────────────────────
 
   const projecao = useMemo(() => {
     if (!meta) return null;
-    const diasRestantes = Math.max(Number(meta.dias_restantes) || 0, 0);
-    const leadsAtuais = Number(meta.leads_total) || 0;
-    const mqls = Number(meta.mqls_total) || 0;
-    const reunioes = Number(meta.reunioes_total) || 0;
-    const fechamentos = Number(meta.fechamentos_total) || 0;
-    const diasDecorridos = Math.max(Number(meta.dias_decorridos) || 1, 1);
-
-    const mediaLeadsDia = leadsAtuais / diasDecorridos;
-    const txMqlReal = leadsAtuais > 0 ? (mqls / leadsAtuais) * 100 : 0;
-    const txAgendReal = mqls > 0 ? (reunioes / mqls) * 100 : 0;
-    const txConvReal = reunioes > 0 ? (fechamentos / reunioes) * 100 : 0;
-
-    const leadsProj = leadsAtuais + mediaLeadsDia * diasRestantes;
-    const mqlsProj = leadsProj * (txMqlReal / 100);
-    const reunioesProj = mqlsProj * (txAgendReal / 100);
-    const fechamentosProj = reunioesProj * (txConvReal / 100);
-    const receitaProj = fechamentosProj * Number(meta.ticket_medio);
-
-    return {
-      mediaLeadsDia: Math.round(mediaLeadsDia * 10) / 10,
-      txMqlReal: Math.round(txMqlReal * 10) / 10,
-      txAgendReal: Math.round(txAgendReal * 10) / 10,
-      txConvReal: Math.round(txConvReal * 10) / 10,
-      leadsProj: Math.round(leadsProj),
-      mqlsProj: Math.round(mqlsProj),
-      reunioesProj: Math.round(reunioesProj),
-      fechamentosProj: Math.round(fechamentosProj),
-      receitaProj: Math.round(receitaProj),
-    };
+    const dr = Math.max(Number(meta.dias_restantes) || 0, 0);
+    const la = Number(meta.leads_total) || 0;
+    const mq = Number(meta.mqls_total) || 0;
+    const re = Number(meta.reunioes_total) || 0;
+    const fe = Number(meta.fechamentos_total) || 0;
+    const dd = Math.max(Number(meta.dias_decorridos) || 1, 1);
+    const mld = la / dd;
+    const txM = la > 0 ? (mq / la) * 100 : 0;
+    const txA = mq > 0 ? (re / mq) * 100 : 0;
+    const txC = re > 0 ? (fe / re) * 100 : 0;
+    const lp = la + mld * dr;
+    const mp = lp * (txM / 100);
+    const rp = mp * (txA / 100);
+    const fp = rp * (txC / 100);
+    return { mediaLeadsDia: Math.round(mld * 10) / 10, txMqlReal: Math.round(txM * 10) / 10, txAgendReal: Math.round(txA * 10) / 10, txConvReal: Math.round(txC * 10) / 10, leadsProj: Math.round(lp), mqlsProj: Math.round(mp), reunioesProj: Math.round(rp), fechamentosProj: Math.round(fp), receitaProj: Math.round(fp * Number(meta.ticket_medio)) };
   }, [meta]);
 
-  // Simulação
   const simulacao = useMemo(() => {
     if (!meta) return null;
-    const diasRestantes = Math.max(Number(meta.dias_restantes) || 0, 0);
-    const leadsAtuais = Number(meta.leads_total) || 0;
-    const leadsProj = leadsAtuais + simLeadsDia * diasRestantes;
-    const mqlsProj = leadsProj * (simTxMql / 100);
-    const reunioesProj = mqlsProj * (simTxAgend / 100);
-    const fechamentosProj = reunioesProj * (simTxConv / 100);
-    const receitaProj = fechamentosProj * simTicket;
-    return {
-      leads: Math.round(leadsProj),
-      mqls: Math.round(mqlsProj),
-      reunioes: Math.round(reunioesProj),
-      fechamentos: Math.round(fechamentosProj),
-      receita: Math.round(receitaProj),
-    };
+    const dr = Math.max(Number(meta.dias_restantes) || 0, 0);
+    const la = Number(meta.leads_total) || 0;
+    const lp = la + simLeadsDia * dr;
+    const mp = lp * (simTxMql / 100);
+    const rp = mp * (simTxAgend / 100);
+    const fp = rp * (simTxConv / 100);
+    return { leads: Math.round(lp), mqls: Math.round(mp), reunioes: Math.round(rp), fechamentos: Math.round(fp), receita: Math.round(fp * simTicket) };
   }, [meta, simLeadsDia, simTxMql, simTxAgend, simTxConv, simTicket]);
 
   // ── Loading ────────────────────────────────────────────
 
   if (isLoading) {
     return (
-      <div className="space-y-8 max-w-full overflow-hidden">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-9 w-64" />
-          <div className="flex gap-2"><Skeleton className="h-9 w-32" /><Skeleton className="h-9 w-40" /></div>
-        </div>
-        <Skeleton className="h-10 w-72 rounded-lg" />
-        <div className="grid grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-48 rounded-2xl" />)}
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-56 rounded-2xl" />)}
-        </div>
-        <Skeleton className="h-72 rounded-2xl" />
+      <div className="space-y-6 pb-10">
+        <div className="flex justify-between"><Skeleton className="h-10 w-48" /><Skeleton className="h-9 w-32" /></div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{[1,2,3,4].map(i => <Skeleton key={i} className="h-32 rounded-2xl" />)}</div>
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
 
-  // ── No meta state ──────────────────────────────────────
+  // ── No meta ────────────────────────────────────────────
 
   if (!meta) {
     return (
-      <div className="space-y-8 max-w-full overflow-hidden">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+      <div className="space-y-6 pb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">Metas</h1>
-            <p className="text-sm text-muted-foreground mt-1">Defina metas e acompanhe o progresso do funil</p>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Metas</h1>
+            <p className="text-[13px] text-muted-foreground mt-0.5">Defina metas e acompanhe o progresso do funil</p>
           </div>
-          <Button size="sm" className="gap-1.5 text-xs shadow-sm" onClick={openCriar}>
+          <Button data-tutorial="metas-criar" onClick={openCriar} className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 w-full sm:w-auto">
             <Plus className="h-3.5 w-3.5" /> Nova Meta
           </Button>
         </div>
-        <Card className="rounded-2xl shadow-sm border-border/60">
-          <CardContent className="py-16 text-center">
-            <Target className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">Nenhuma meta ativa</h3>
-            <p className="text-sm text-muted-foreground mb-4">Crie sua primeira meta para começar a acompanhar o funil</p>
-            <Button onClick={openCriar} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Criar Meta
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Modal always available */}
+        <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="bg-muted/30 p-5 rounded-2xl mb-4"><Target className="h-10 w-10 text-muted-foreground/30" /></div>
+          <h3 className="text-base font-semibold text-foreground mb-1">Nenhuma meta ativa</h3>
+          <p className="text-sm text-muted-foreground/60 mb-5">Crie sua primeira meta para acompanhar o funil</p>
+          <Button data-tutorial="metas-criar" onClick={openCriar} className="gap-1.5 h-9 text-xs font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90">
+            <Plus className="h-3.5 w-3.5" /> Criar Meta
+          </Button>
+        </div>
         {renderModal()}
       </div>
     );
   }
 
-  // ── Computed values ────────────────────────────────────
+  // ── Computed ────────────────────────────────────────────
 
   const m = meta;
+  const investeMarketing = Number(m.cpl_meta) > 0;
   const diasRestantes = Math.max(Number(m.dias_restantes) || 0, 0);
   const diasDecorridos = Math.max(Number(m.dias_decorridos) || 0, 0);
   const totalDias = Number(m.total_dias) || 30;
@@ -496,201 +445,193 @@ export default function Metas() {
   const pctReceita = Number(m.pct_receita) || 0;
   const pctBucket = Number(m.meta_bucket) > 0 ? Math.round((bucketT / Number(m.meta_bucket)) * 1000) / 10 : 0;
 
-  // Taxas reais
   const txMqlReal = leadsT > 0 ? Math.round((mqlsT / leadsT) * 1000) / 10 : 0;
   const txAgendReal = mqlsT > 0 ? Math.round((reunioesT / mqlsT) * 1000) / 10 : 0;
   const txConvReal = reunioesT > 0 ? Math.round((fechamentosT / reunioesT) * 1000) / 10 : 0;
   const cplReal = leadsT > 0 ? Math.round((bucketT / leadsT) * 100) / 100 : 0;
 
-  // Day/week metrics
   const leadsHoje = Number(m.leads_hoje) || 0;
   const mqlsHoje = Number(m.mqls_hoje) || 0;
   const leadsSemana = Number(m.leads_semana) || 0;
   const mqlsSemana = Number(m.mqls_semana) || 0;
-
   const metaLeadsDia = Number(m.meta_leads_dia) || 0;
   const metaMqlsDia = Number(m.meta_mqls_dia) || 0;
-  const metaReunDia = Number(m.meta_reunioes_dia) || 0;
-  const metaReceitaDia = Number(m.meta_receita_dia) || 0;
   const metaLeadsSem = Number(m.meta_leads_semana) || 0;
   const metaMqlsSem = Number(m.meta_mqls_semana) || 0;
-  const metaReunSem = Number(m.meta_reunioes_semana) || 0;
-  const metaReceitaSem = Number(m.meta_receita_semana) || 0;
 
-  // ── Funil column component ─────────────────────────────
-
-  function FunnelCol({ label, icon: Icon, meta: metaVal, real, pct, sublabel }: {
-    label: string; icon: any; meta: string; real: string; pct: number; sublabel?: string;
-  }) {
-    return (
-      <Card className="overflow-hidden shadow-sm rounded-2xl border-border/60 flex-1">
-        <CardContent className="p-4 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-primary" />
-            <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{label}</span>
-          </div>
-          {sublabel && <span className="text-[10px] text-muted-foreground -mt-2">{sublabel}</span>}
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Meta</p>
-            <p className="text-lg font-bold text-foreground">{metaVal}</p>
-          </div>
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Realizado</p>
-            <p className="text-lg font-bold text-foreground">{real}</p>
-          </div>
-          <div className="mt-auto">
-            <span className={cn("inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border", pctBadgeClass(pct))}>
-              {fmtPct(pct)}
-            </span>
-            <div className="h-2 bg-muted rounded-full overflow-hidden mt-2">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // ── Tracking card ──────────────────────────────────────
-
-  function TrackingCard({ title, subtitle, metrics, footer }: {
-    title: string; subtitle: string;
-    metrics: { label: string; real: number; meta: number; pct: number }[];
-    footer?: React.ReactNode;
-  }) {
-    const borderClass = borderLeftColor(metrics.map(m => ({ pct: m.pct })));
-    return (
-      <Card className={cn("rounded-2xl shadow-sm border-border/60 border-l-4 overflow-hidden", borderClass)}>
-        <CardContent className="p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Calendar className="h-4 w-4 text-primary" />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{title}</p>
-              <p className="text-[10px] text-muted-foreground">{subtitle}</p>
-            </div>
-          </div>
-          <div className="space-y-2">
-            {metrics.map((m) => (
-              <div key={m.label} className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">{m.label}</span>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{m.label === "Receita" ? fmtBRL(m.real) : fmtNum(m.real)}</span>
-                  <span className="text-muted-foreground/60">/ {m.label === "Receita" ? fmtBRL(m.meta) : fmtNum(m.meta)}</span>
-                  <div className="flex items-center gap-1 min-w-[60px] justify-end">
-                    {statusIcon(m.pct)}
-                    <span className={cn("text-xs font-semibold", m.pct >= 80 ? "text-green-600" : m.pct >= 50 ? "text-yellow-600" : "text-red-600")}>
-                      {fmtPct(m.pct)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-          {footer && <div className="mt-3 pt-3 border-t border-border/50 text-xs text-muted-foreground">{footer}</div>}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // ── Modal render ───────────────────────────────────────
+  // ── Modal ──────────────────────────────────────────────
 
   function renderModal() {
     return (
       <Dialog open={modalMeta} onOpenChange={(o) => { if (!o) setModalMeta(false); }}>
-        <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingMeta ? "Editar Meta" : "Nova Meta"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Nome da meta</Label>
-              <Input value={formNome} onChange={(e) => setFormNome(e.target.value)} placeholder="Ex: Meta 50K — Maio 2026" />
+        <DialogContent data-tutorial="meta-modal" className="w-[95vw] max-w-xl max-h-[90vh] overflow-y-auto rounded-2xl border-border/60 p-0 gap-0">
+          {/* Header */}
+          <div className="px-5 pt-5 pb-4 border-b border-border/40">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base font-semibold">{editingMeta ? "Editar Meta" : "Nova Meta"}</DialogTitle>
+              <p className="text-xs text-muted-foreground/70">Configure sua meta de receita e taxas do funil</p>
+            </DialogHeader>
+          </div>
+
+          <div className="px-5 py-5 space-y-6">
+            {/* ── Identificacao ── */}
+            <div data-tutorial="meta-field-nome" className="space-y-1.5">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Nome da meta</Label>
+              <Input value={formNome} onChange={(e) => setFormNome(e.target.value)} placeholder="Ex: Meta 50K — Maio 2026" className="h-10 text-sm rounded-lg border-border/60" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Período</Label>
-                <Select value={formPeriodo} onValueChange={handlePeriodoChange}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mensal">Mensal</SelectItem>
-                    <SelectItem value="semanal">Semanal</SelectItem>
-                    <SelectItem value="personalizado">Personalizado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Início</Label>
-                <Input type="date" value={formInicio} onChange={(e) => setFormInicio(e.target.value)} />
-              </div>
-              <div>
-                <Label>Fim</Label>
-                <Input type="date" value={formFim} onChange={(e) => setFormFim(e.target.value)} />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>Meta de Receita (R$)</Label>
-                <Input type="number" value={formReceita} onChange={(e) => setFormReceita(Number(e.target.value))} />
-              </div>
-              <div>
-                <Label>Ticket Médio (R$)</Label>
-                <Input type="number" value={formTicket} onChange={(e) => setFormTicket(Number(e.target.value))} />
-              </div>
-              <div>
-                <Label>CPL Meta (R$)</Label>
-                <Input type="number" value={formCpl} onChange={(e) => setFormCpl(Number(e.target.value))} />
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label>Taxa MQL</Label>
-                  <span className="text-sm font-bold text-primary">{formTxMql}%</span>
+
+            {/* ── Periodo ── */}
+            <div data-tutorial="meta-field-periodo">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Periodo</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div data-tutorial="meta-field-tipo" className="space-y-1.5">
+                  <Label className="text-[11px] font-medium text-muted-foreground/70">Tipo</Label>
+                  <Select value={formPeriodo} onValueChange={handlePeriodoChange}>
+                    <SelectTrigger className="h-10 text-sm rounded-lg border-border/60"><SelectValue /></SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/60">
+                      <SelectItem value="mensal">Mensal</SelectItem>
+                      <SelectItem value="semanal">Semanal</SelectItem>
+                      <SelectItem value="personalizado">Personalizado</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <Slider value={[formTxMql]} onValueChange={(v) => setFormTxMql(v[0])} min={1} max={100} step={1} />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label>Taxa Agendamento</Label>
-                  <span className="text-sm font-bold text-primary">{formTxAgend}%</span>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-medium text-muted-foreground/70">Inicio</Label>
+                  <Input type="date" value={formInicio} onChange={(e) => setFormInicio(e.target.value)} className="h-10 text-sm rounded-lg border-border/60" />
                 </div>
-                <Slider value={[formTxAgend]} onValueChange={(v) => setFormTxAgend(v[0])} min={1} max={100} step={1} />
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label>Taxa Conversão</Label>
-                  <span className="text-sm font-bold text-primary">{formTxConv}%</span>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-medium text-muted-foreground/70">Fim</Label>
+                  <Input type="date" value={formFim} onChange={(e) => setFormFim(e.target.value)} className="h-10 text-sm rounded-lg border-border/60" />
                 </div>
-                <Slider value={[formTxConv]} onValueChange={(v) => setFormTxConv(v[0])} min={1} max={100} step={1} />
               </div>
             </div>
 
-            {/* Preview */}
-            <div className="bg-muted/30 rounded-xl p-4 border border-border/60">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Funil Calculado</p>
-              <div className="flex items-center gap-2 text-sm flex-wrap">
-                <span className="font-bold text-foreground">{fmtBRL(previewBucket)}</span>
-                <ArrowRight className="h-3 w-3 text-primary" />
-                <span className="font-bold text-foreground">{Math.round(previewLeads)} leads</span>
-                <ArrowRight className="h-3 w-3 text-primary" />
-                <span className="font-bold text-foreground">{Math.round(previewMqls)} MQL</span>
-                <ArrowRight className="h-3 w-3 text-primary" />
-                <span className="font-bold text-foreground">{Math.round(previewReunioes)} reuniões</span>
-                <ArrowRight className="h-3 w-3 text-primary" />
-                <span className="font-bold text-green-600">{Math.round(previewFechamentos)} fechamentos</span>
+            {/* ── Marketing toggle ── */}
+            <div data-tutorial="meta-field-marketing" className="rounded-xl border border-border/40 bg-muted/15 p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={cn("p-2 rounded-lg transition-colors", formInvesteMarketing ? "bg-primary/10" : "bg-muted")}>
+                    <DollarSign className={cn("h-4 w-4 transition-colors", formInvesteMarketing ? "text-primary" : "text-muted-foreground")} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Investe em marketing pago?</p>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      {formInvesteMarketing ? "Funil completo com CPL, Bucket e MQL" : "Funil simplificado: Leads → Agendamentos → Fechamentos"}
+                    </p>
+                  </div>
+                </div>
+                <Switch checked={formInvesteMarketing} onCheckedChange={setFormInvesteMarketing} />
+              </div>
+            </div>
+
+            {/* ── Valores ── */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Valores</p>
+              <div className={cn("grid gap-3", formInvesteMarketing ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2")}>
+                <div data-tutorial="meta-field-receita" className="space-y-1.5">
+                  <Label className="text-[11px] font-medium text-muted-foreground/70">Meta Receita</Label>
+                  <CurrencyInput
+                    value={formReceita}
+                    onValueChange={(v) => setFormReceita(v ?? 0)}
+                    className="h-10 text-sm rounded-lg border-border/60"
+                  />
+                </div>
+                <div data-tutorial="meta-field-ticket" className="space-y-1.5">
+                  <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Medio</Label>
+                  <CurrencyInput
+                    value={formTicket}
+                    onValueChange={(v) => setFormTicket(v ?? 0)}
+                    className="h-10 text-sm rounded-lg border-border/60"
+                  />
+                </div>
+                {formInvesteMarketing && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-medium text-muted-foreground/70">CPL Meta</Label>
+                    <CurrencyInput
+                      value={formCpl}
+                      onValueChange={(v) => setFormCpl(v ?? 0)}
+                      className="h-10 text-sm rounded-lg border-border/60"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── Taxas do Funil ── */}
+            <div data-tutorial="meta-field-taxas" className="rounded-xl border border-border/40 bg-muted/15 p-4 space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="p-1 rounded-md bg-muted"><Target className="h-3 w-3 text-muted-foreground" /></div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {formInvesteMarketing ? "Taxas do Funil" : "Taxas de Conversao"}
+                </p>
+              </div>
+              {(formInvesteMarketing
+                ? [
+                    { label: "Taxa MQL", desc: "Leads qualificados pelo marketing", value: formTxMql, set: setFormTxMql },
+                    { label: "Taxa Agendamento", desc: "MQLs que agendam", value: formTxAgend, set: setFormTxAgend },
+                    { label: "Taxa Conversao", desc: "Agendados que fecham", value: formTxConv, set: setFormTxConv },
+                  ]
+                : [
+                    { label: "Taxa Agendamento", desc: "Leads que agendam procedimento", value: formTxAgend, set: setFormTxAgend },
+                    { label: "Taxa Conversao", desc: "Agendados que fecham", value: formTxConv, set: setFormTxConv },
+                  ]
+              ).map((s) => (
+                <div key={s.label}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <Label className="text-xs font-medium text-foreground">{s.label}</Label>
+                      <p className="text-[10px] text-muted-foreground/50">{s.desc}</p>
+                    </div>
+                    <span className="text-sm font-bold text-foreground tabular-nums bg-muted/50 px-2 py-0.5 rounded-md">{s.value}%</span>
+                  </div>
+                  <Slider value={[s.value]} onValueChange={(v) => s.set(v[0])} min={1} max={100} step={1} />
+                </div>
+              ))}
+            </div>
+
+            {/* ── Preview do Funil Calculado ── */}
+            <div data-tutorial="meta-field-funil" className="rounded-xl bg-[#1a1a1a] p-5 relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
+              <div className="relative">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-4">
+                  {formInvesteMarketing ? "Funil Calculado" : "Projeção Simplificada"}
+                </p>
+                <div className="flex items-center justify-between gap-1 text-xs flex-wrap">
+                  {(formInvesteMarketing
+                    ? [
+                        { v: fmtBRL(previewBucket), s: "Bucket" },
+                        { v: Math.round(previewLeads).toString(), s: "Leads" },
+                        { v: Math.round(previewMqls).toString(), s: "MQL" },
+                        { v: Math.round(previewReunioes).toString(), s: "Agend." },
+                        { v: Math.round(previewFechamentos).toString(), s: "Fecham.", accent: true },
+                      ]
+                    : [
+                        { v: Math.round(previewLeads).toString(), s: "Leads" },
+                        { v: Math.round(previewReunioes).toString(), s: "Agend." },
+                        { v: Math.round(previewFechamentos).toString(), s: "Fecham.", accent: true },
+                      ]
+                  ).map((item, i, arr) => (
+                    <Fragment key={item.s}>
+                      <div className="text-center flex-1 min-w-0">
+                        <p className={cn("text-base sm:text-lg font-extrabold font-display tabular-nums leading-none", item.accent ? "text-primary" : "text-white")}>{item.v}</p>
+                        <p className="text-[8px] text-white/35 uppercase tracking-wider mt-1.5">{item.s}</p>
+                      </div>
+                      {i < arr.length - 1 && <ArrowRight className="h-3 w-3 text-white/15 shrink-0 mx-0.5" />}
+                    </Fragment>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setModalMeta(false)}>Cancelar</Button>
-            <Button onClick={handleSalvar} disabled={formLoading}>
-              {formLoading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              {editingMeta ? "Salvar" : "Criar Meta"}
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border/40 bg-muted/20">
+            <Button variant="ghost" onClick={() => setModalMeta(false)} className="h-9 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground px-4">Cancelar</Button>
+            <Button data-tutorial="meta-submit" onClick={handleSalvar} disabled={formLoading} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5">
+              {formLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {editingMeta ? "Salvar Alteracoes" : "Criar Meta"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -699,39 +640,238 @@ export default function Metas() {
   // ── RENDER ─────────────────────────────────────────────
 
   return (
-    <div className="space-y-8 max-w-full overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">{m.nome}</h1>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <Badge variant="outline" className="text-xs capitalize">{m.periodo_tipo}</Badge>
-            <span className="text-sm text-muted-foreground">
-              {format(parseISO(m.data_inicio), "dd/MM", { locale: ptBR })} — {format(parseISO(m.data_fim), "dd/MM/yyyy", { locale: ptBR })}
-            </span>
-            <Badge variant="secondary" className="text-xs gap-1">
-              <Calendar className="h-3 w-3" /> {diasRestantes} dias restantes
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2 mt-2">
-            <div className="flex-1 max-w-xs h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${progressoTempo}%` }} />
+    <div className="space-y-6 pb-10">
+      {/* ═══ PAGE HEADER ═══ */}
+      <div className="flex flex-col gap-4" data-tutorial="metas-header">
+        {/* Row 1: Nav + Actions */}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="space-y-2">
+            {/* Meta selector with prev/next */}
+            <div className="flex items-center gap-1.5" data-tutorial="metas-month">
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!canGoPrev}
+                onClick={() => canGoPrev && goToMeta(todasMetas[selectedIndex - 1].id)}
+                className="h-8 w-8 rounded-lg shrink-0 disabled:opacity-30"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+
+              <Popover open={isMetaSelectorOpen} onOpenChange={setIsMetaSelectorOpen}>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-2 px-3 py-1.5 rounded-xl hover:bg-muted/60 transition-colors group cursor-pointer">
+                    <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-display">
+                      {m.nome}
+                    </h1>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="w-80 p-0 rounded-2xl border-border/60 shadow-lg"
+                  align="start"
+                  sideOffset={8}
+                >
+                  <div className="px-4 pt-4 pb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Suas Metas</p>
+                  </div>
+                  <div className="max-h-[320px] overflow-y-auto px-2 pb-2">
+                    {todasMetas.map((mt, idx) => {
+                      const isSelected = mt.id === m.id;
+                      const pctR = Number(mt.pct_receita) || 0;
+                      const stInfo = statusInfo(pctR);
+                      return (
+                        <button
+                          key={mt.id}
+                          onClick={() => goToMeta(mt.id)}
+                          className={cn(
+                            "w-full text-left px-3 py-3 rounded-xl transition-all duration-150 flex items-start gap-3 group/item",
+                            isSelected
+                              ? "bg-foreground/[0.06] ring-1 ring-foreground/10"
+                              : "hover:bg-muted/50"
+                          )}
+                        >
+                          {/* Status indicator */}
+                          <div className={cn(
+                            "mt-0.5 h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
+                            isSelected ? "bg-foreground text-background" : "bg-muted"
+                          )}>
+                            {mt.ativo ? (
+                              <Target className={cn("h-3.5 w-3.5", !isSelected && "text-muted-foreground")} />
+                            ) : (
+                              <History className={cn("h-3.5 w-3.5", !isSelected && "text-muted-foreground/50")} />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className={cn("text-sm font-semibold truncate", isSelected ? "text-foreground" : "text-foreground/80")}>
+                                {mt.nome}
+                              </p>
+                              {mt.ativo && (
+                                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-600 border border-emerald-200/60 shrink-0">
+                                  Ativa
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] text-muted-foreground tabular-nums">
+                                {format(parseISO(mt.data_inicio), "dd/MM", { locale: ptBR })} — {format(parseISO(mt.data_fim), "dd/MM/yy", { locale: ptBR })}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">·</span>
+                              <span className="text-[10px] font-semibold tabular-nums" style={{ color: pctColor(pctR) }}>
+                                {fmtPct(pctR)}
+                              </span>
+                            </div>
+                            {/* Mini progress bar */}
+                            <div className="h-1 bg-muted rounded-full overflow-hidden mt-1.5 w-full">
+                              <div
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(pctR, 100)}%`, backgroundColor: pctColor(pctR) }}
+                              />
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!canGoNext}
+                onClick={() => canGoNext && goToMeta(todasMetas[selectedIndex + 1].id)}
+                className="h-8 w-8 rounded-lg shrink-0 disabled:opacity-30"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            <span className="text-xs text-muted-foreground">{progressoTempo}% do período</span>
+
+            {/* Tags below title */}
+            <div className="flex items-center gap-2 ml-10 flex-wrap">
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-muted/50 border-border/60 text-muted-foreground capitalize">
+                {m.periodo_tipo}
+              </span>
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {format(parseISO(m.data_inicio), "dd/MM", { locale: ptBR })} — {format(parseISO(m.data_fim), "dd/MM/yyyy", { locale: ptBR })}
+              </span>
+              {!m.ativo && (
+                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-600 border border-amber-200/60">
+                  Encerrada
+                </span>
+              )}
+              {todasMetas.length > 1 && (
+                <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+                  {selectedIndex + 1} de {todasMetas.length}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setDeletingMetaId(m.id)} className="h-9 gap-1.5 rounded-lg text-xs font-medium px-3 text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700">
+              <Trash2 className="h-3 w-3" /> <span className="hidden sm:inline">Excluir</span>
+            </Button>
+            <Button variant="outline" onClick={openEditar} className="h-9 gap-1.5 rounded-lg text-xs font-medium px-3" data-tutorial="metas-edit">
+              <Edit2 className="h-3 w-3" /> Editar
+            </Button>
+            <Button data-tutorial="metas-criar" onClick={openCriar} className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4">
+              <Plus className="h-3.5 w-3.5" /> Nova Meta
+            </Button>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openEditar}>
-            <Edit2 className="h-3.5 w-3.5" /> Editar Meta
-          </Button>
-          <Button size="sm" className="gap-1.5 text-xs shadow-sm" onClick={openCriar}>
-            <Plus className="h-3.5 w-3.5" /> Nova Meta
-          </Button>
+
+        {/* Progress bar */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
+            <Clock className="h-3 w-3" />
+            <span className="tabular-nums font-medium">{diasRestantes}d restantes</span>
+          </div>
+          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-foreground rounded-full transition-all duration-700" style={{ width: `${progressoTempo}%` }} />
+          </div>
+          <span className="text-[11px] text-muted-foreground tabular-nums font-medium">{progressoTempo}%</span>
         </div>
       </div>
 
+      {/* ═══ HERO METRIC CARDS ═══ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: "Receita", value: fmtBRL(receitaT), meta: `Meta: ${fmtBRL(Number(m.meta_receita))}`, pct: pctReceita, accent: true, icon: DollarSign },
+          { label: "Leads", value: fmtNum(leadsT), meta: `Meta: ${fmtNum(Number(m.meta_leads))}`, pct: pctLeads, icon: Users },
+          { label: "Agendamentos", value: fmtNum(reunioesT), meta: `Meta: ${fmtNum(Number(m.meta_reunioes))}`, pct: pctReunioes, icon: CalendarCheck },
+          { label: "Fechamentos", value: fmtNum(fechamentosT), meta: `Meta: ${fmtNum(Number(m.meta_fechamentos))}`, pct: pctFechamentos, icon: Award },
+        ].map((card) => (
+          <div
+            key={card.label}
+            className={cn(
+              "rounded-2xl p-4 sm:p-5 relative overflow-hidden group transition-all duration-200",
+              card.accent
+                ? "border-2 border-primary/20 bg-primary/[0.04] hover:border-primary/30 hover:shadow-md"
+                : "border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:border-border hover:shadow-md"
+            )}
+          >
+            <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
+              <div className={cn(
+                "h-8 w-8 rounded-xl flex items-center justify-center transition-transform duration-200 group-hover:scale-110",
+                card.accent ? "bg-primary/10" : "bg-muted"
+              )}>
+                <card.icon className={cn("h-4 w-4", card.accent ? "text-primary" : "text-muted-foreground")} />
+              </div>
+            </div>
+            <p className={cn("text-[9px] font-bold uppercase tracking-widest", card.accent ? "text-primary/60" : "text-muted-foreground")}>{card.label}</p>
+            <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-display mt-2 tabular-nums">{card.value}</p>
+            <p className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{card.meta}</p>
+            <div className="flex items-center gap-2 mt-3">
+              <div className={cn("flex-1 h-1.5 rounded-full overflow-hidden", card.accent ? "bg-primary/10" : "bg-muted")}>
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${Math.min(card.pct, 100)}%`, backgroundColor: card.accent ? "hsl(var(--primary))" : pctColor(card.pct) }}
+                />
+              </div>
+              <span className={cn("text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md border", pctBg(card.pct))}>{fmtPct(card.pct)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ═══ FUNNEL FLOW — Conversão entre etapas ═══ */}
+      <div className="hidden sm:flex items-center justify-center gap-0 -mt-1" data-tutorial="metas-funnel">
+        {(investeMarketing
+          ? [
+              { label: "MQL", rate: txMqlReal },
+              { label: "Agend.", rate: txAgendReal },
+              { label: "Conv.", rate: txConvReal },
+            ]
+          : [
+              { label: "Agend.", rate: txAgendReal },
+              { label: "Conv.", rate: txConvReal },
+            ]
+        ).map((step, i) => (
+          <div key={step.label} className="flex items-center gap-2">
+            {i === 0 && <div className="w-4" />}
+            <div className="flex flex-col items-center px-3 py-1.5">
+              <div className="flex items-center gap-1.5">
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30" />
+                <span className={cn(
+                  "text-xs font-bold tabular-nums px-2 py-0.5 rounded-md",
+                  step.rate >= 40 ? "bg-emerald-50 text-emerald-700" : step.rate >= 20 ? "bg-amber-50 text-amber-700" : "bg-red-50 text-red-700"
+                )}>
+                  {fmtPct(step.rate)}
+                </span>
+                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30" />
+              </div>
+              <span className="text-[9px] text-muted-foreground/50 mt-0.5 font-medium">{step.label}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ═══ TABS ═══ */}
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "projecao") initSimulator(); }}>
-        <div className="flex rounded-lg border border-border bg-muted/50 p-0.5 gap-0.5 self-start w-fit">
+        <div className="flex rounded-xl border border-border/60 bg-muted/30 p-1 gap-0.5 self-start w-fit" data-tutorial="metas-tabs">
           {[
             { value: "visao-geral", label: "Visão Geral", icon: Target },
             { value: "historico", label: "Histórico", icon: History },
@@ -741,418 +881,610 @@ export default function Metas() {
               key={value}
               onClick={() => { setActiveTab(value); if (value === "projecao") initSimulator(); }}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-all",
-                activeTab === value
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground hover:bg-background"
+                "flex items-center gap-1.5 px-3.5 py-2 text-xs font-medium rounded-lg transition-all",
+                activeTab === value ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background/80"
               )}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
+              <Icon className="h-3.5 w-3.5" />{label}
             </button>
           ))}
         </div>
 
-        {/* ═════════ ABA 1 — VISÃO GERAL ═════════ */}
-        <TabsContent value="visao-geral" className="mt-6 space-y-8">
+        {/* ═════════ VISAO GERAL ═════════ */}
+        <TabsContent value="visao-geral" className="mt-6 space-y-6" data-tutorial="metas-cards">
 
-          {/* Funil */}
+          {/* Acompanhamento — Hoje / Semana / Mes */}
           <div>
-            <SectionHeader title="Funil de Metas" icon={Target} />
-            <div className="flex gap-3 items-stretch">
-              <FunnelCol label="Bucket" icon={DollarSign} sublabel={`CPL: ${fmtBRL2(Number(m.cpl_meta))}`} meta={fmtBRL(Number(m.meta_bucket))} real={fmtBRL(bucketT)} pct={pctBucket} />
-              <div className="flex items-center"><ArrowRight className="h-5 w-5 text-primary/40" /></div>
-              <FunnelCol label="Leads" icon={Users} meta={fmtNum(Number(m.meta_leads))} real={fmtNum(leadsT)} pct={pctLeads} />
-              <div className="flex items-center"><ArrowRight className="h-5 w-5 text-primary/40" /></div>
-              <FunnelCol label="MQL" icon={CheckCircle2} sublabel={`Tx: ${fmtPct(Number(m.tx_mql))}`} meta={fmtNum(Number(m.meta_mqls))} real={fmtNum(mqlsT)} pct={pctMqls} />
-              <div className="flex items-center"><ArrowRight className="h-5 w-5 text-primary/40" /></div>
-              <FunnelCol label="Reuniões" icon={CalendarCheck} sublabel={`Tx: ${fmtPct(Number(m.tx_agendamento))}`} meta={fmtNum(Number(m.meta_reunioes))} real={fmtNum(reunioesT)} pct={pctReunioes} />
-              <div className="flex items-center"><ArrowRight className="h-5 w-5 text-primary/40" /></div>
-              <FunnelCol label="Fechamentos" icon={Award} sublabel={`Tx: ${fmtPct(Number(m.tx_conversao))}`} meta={fmtNum(Number(m.meta_fechamentos))} real={fmtNum(fechamentosT)} pct={pctFechamentos} />
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 rounded-lg bg-muted"><Activity className="h-3.5 w-3.5 text-muted-foreground" /></div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Acompanhamento</span>
             </div>
-          </div>
-
-          {/* Tracking cards */}
-          <div>
-            <SectionHeader title="Acompanhamento" icon={Calendar} />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <TrackingCard
-                title="Hoje"
-                subtitle={format(new Date(), "EEEE, dd/MM", { locale: ptBR })}
-                metrics={[
-                  { label: "Leads", real: leadsHoje, meta: metaLeadsDia, pct: metaLeadsDia > 0 ? Math.round((leadsHoje / metaLeadsDia) * 100) : 0 },
-                  { label: "MQLs", real: mqlsHoje, meta: metaMqlsDia, pct: metaMqlsDia > 0 ? Math.round((mqlsHoje / metaMqlsDia) * 100) : 0 },
-                ]}
-                footer={
-                  leadsHoje >= metaLeadsDia
-                    ? <span className="flex items-center gap-1"><Zap className="h-3 w-3 text-green-500" /> Leads no ritmo!</span>
-                    : <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-yellow-500" /> Abaixo do ritmo diário</span>
-                }
-              />
-              <TrackingCard
-                title="Semana"
-                subtitle={`${format(startOfWeek(new Date(), { locale: ptBR }), "dd/MM")} a ${format(endOfWeek(new Date(), { locale: ptBR }), "dd/MM")}`}
-                metrics={[
-                  { label: "Leads", real: leadsSemana, meta: metaLeadsSem, pct: metaLeadsSem > 0 ? Math.round((leadsSemana / metaLeadsSem) * 100) : 0 },
-                  { label: "MQLs", real: mqlsSemana, meta: metaMqlsSem, pct: metaMqlsSem > 0 ? Math.round((mqlsSemana / metaMqlsSem) * 100) : 0 },
-                ]}
-              />
-              <TrackingCard
-                title="Mês"
-                subtitle={`${format(parseISO(m.data_inicio), "dd/MM")} a ${format(parseISO(m.data_fim), "dd/MM")}`}
-                metrics={[
-                  { label: "Leads", real: leadsT, meta: Number(m.meta_leads), pct: pctLeads },
-                  { label: "MQLs", real: mqlsT, meta: Number(m.meta_mqls), pct: pctMqls },
-                  { label: "Reuniões", real: reunioesT, meta: Number(m.meta_reunioes), pct: pctReunioes },
-                  { label: "Receita", real: receitaT, meta: Number(m.meta_receita), pct: pctReceita },
-                ]}
-                footer={
-                  <span>Pace: <strong>{fmtBRL(Number(m.receita_necessaria_por_dia))}/dia</strong> · {fmtNum(Number(m.leads_necessarios_por_dia))} leads/dia</span>
-                }
-              />
-            </div>
-          </div>
-
-          {/* Pace chart */}
-          <div>
-            <SectionHeader title="Gráfico de Ritmo" icon={TrendingUp} />
-            <Card className="rounded-2xl shadow-sm border-border/60 overflow-hidden">
-              <CardContent className="p-5">
-                {paceData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart data={paceData}>
-                      <defs>
-                        <linearGradient id="colorLeads" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                      <XAxis dataKey="dia" fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                      <YAxis fontSize={11} tick={{ fill: "hsl(var(--muted-foreground))" }} />
-                      <RechartsTooltip content={<CustomTooltip />} />
-                      <Legend wrapperStyle={{ fontSize: "11px" }} />
-                      <Line type="monotone" dataKey="Meta Linear" stroke="#9ca3af" strokeDasharray="5 5" strokeWidth={2} dot={false} />
-                      <Area type="monotone" dataKey="Leads Reais" stroke="hsl(var(--primary))" fill="url(#colorLeads)" strokeWidth={2.5} dot={{ r: 3, fill: "hsl(var(--primary))" }} connectNulls={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground/50">
-                    <BarChart3 className="h-8 w-8 mb-2" />
-                    <p className="text-xs">Sem dados suficientes</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {/* Hoje */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-[13px] font-semibold text-foreground">Hoje</p>
+                    <p className="text-[10px] text-muted-foreground/60 capitalize">{format(new Date(), "EEEE, dd/MM", { locale: ptBR })}</p>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  {leadsHoje >= metaLeadsDia ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60">
+                      <Zap className="h-3 w-3" /> No ritmo
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200/60">
+                      <AlertTriangle className="h-3 w-3" /> Abaixo
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {(investeMarketing ? [{ label: "Leads", real: leadsHoje, meta: metaLeadsDia }, { label: "MQLs", real: mqlsHoje, meta: metaMqlsDia }] : [{ label: "Leads", real: leadsHoje, meta: metaLeadsDia }]).map((r) => {
+                    const p = r.meta > 0 ? Math.round((r.real / r.meta) * 100) : 0;
+                    return (
+                      <div key={r.label}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-bold tabular-nums">{r.real} <span className="text-muted-foreground/40 font-normal">/ {fmtNum(r.meta)}</span></span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: pctColor(p) }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Semana */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-[13px] font-semibold text-foreground">Semana</p>
+                    <p className="text-[10px] text-muted-foreground/60">{format(startOfWeek(new Date(), { locale: ptBR }), "dd/MM")} a {format(endOfWeek(new Date(), { locale: ptBR }), "dd/MM")}</p>
+                  </div>
+                  {leadsSemana >= metaLeadsSem ? (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60">
+                      <Zap className="h-3 w-3" /> No ritmo
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200/60">
+                      <AlertTriangle className="h-3 w-3" /> Abaixo
+                    </span>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {(investeMarketing ? [{ label: "Leads", real: leadsSemana, meta: metaLeadsSem }, { label: "MQLs", real: mqlsSemana, meta: metaMqlsSem }] : [{ label: "Leads", real: leadsSemana, meta: metaLeadsSem }]).map((r) => {
+                    const p = r.meta > 0 ? Math.round((r.real / r.meta) * 100) : 0;
+                    return (
+                      <div key={r.label}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">{r.label}</span>
+                          <span className="text-xs font-bold tabular-nums">{r.real} <span className="text-muted-foreground/40 font-normal">/ {fmtNum(r.meta)}</span></span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: pctColor(p) }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Pace card — dark premium */}
+              <div className="rounded-2xl bg-[#1a1a1a] p-5 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
+                <div className="absolute top-4 right-4">
+                  <div className="h-8 w-8 rounded-xl bg-white/[0.06] flex items-center justify-center">
+                    <Flame className="h-4 w-4 text-primary/80" />
+                  </div>
+                </div>
+                <div className="relative">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-1">Ritmo Necessario</p>
+                  <p className="text-[13px] font-semibold text-white/70 mb-5">Para bater a meta</p>
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Receita / dia</p>
+                      <p className="text-2xl font-extrabold text-white font-display tabular-nums leading-none">{fmtBRL(Number(m.receita_necessaria_por_dia))}</p>
+                    </div>
+                    <div className="h-px bg-white/[0.06]" />
+                    <div>
+                      <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Leads / dia</p>
+                      <p className="text-2xl font-extrabold text-primary font-display tabular-nums leading-none">{fmtNum(Number(m.leads_necessarios_por_dia))}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Taxas reais vs meta */}
+          {/* Grafico de Ritmo */}
           <div>
-            <SectionHeader title="Taxas Reais vs Meta" icon={BarChart3} />
-            <Card className="rounded-2xl shadow-sm border-border/60 overflow-hidden">
-              <CardContent className="p-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Métrica</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Meta</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Real Atual</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {[
-                      { label: "Taxa MQL", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` },
-                      { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: `${reunioesT}/${mqlsT}` },
-                      { label: "Taxa Conversão", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
-                      { label: "CPL", meta: Number(m.cpl_meta), real: cplReal, isCurrency: true, invertColor: true },
-                      { label: "Ticket Médio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
-                    ].map((row) => {
-                      const isGood = row.invertColor
-                        ? (row.real <= row.meta || row.real === 0)
-                        : (row.real >= row.meta * 0.8);
-                      const isCritical = row.invertColor
-                        ? (row.real > row.meta * 1.5 && row.real > 0)
-                        : (row.real < row.meta * 0.5 && row.real > 0);
-                      return (
-                        <tr key={row.label} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-4 py-3 font-medium">{row.label}</td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">
-                            {row.isCurrency ? fmtBRL2(row.meta) : `${row.meta}%`}
-                          </td>
-                          <td className="px-4 py-3 text-right font-medium">
-                            {row.real === 0 && !row.isCurrency ? "—" : row.isCurrency ? fmtBRL2(row.real) : `${row.real}%`}
-                            {row.detail && row.real > 0 && <span className="text-muted-foreground ml-1">({row.detail})</span>}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {row.real === 0 ? (
-                              <span className="text-muted-foreground">—</span>
-                            ) : isGood ? (
-                              <span className="flex items-center gap-1 justify-end text-green-600"><CheckCircle2 className="h-3.5 w-3.5" /> Ótimo</span>
-                            ) : isCritical ? (
-                              <span className="flex items-center gap-1 justify-end text-red-600"><XCircle className="h-3.5 w-3.5" /> Crítico</span>
-                            ) : (
-                              <span className="flex items-center gap-1 justify-end text-yellow-600"><AlertTriangle className="h-3.5 w-3.5" /> Abaixo</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 rounded-lg bg-muted"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /></div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Grafico de Ritmo</span>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-5">
+              {paceData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={paceData}>
+                    <defs>
+                      <linearGradient id="gradLeadsMeta" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
+                    <XAxis dataKey="dia" fontSize={10} tick={{ fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <YAxis fontSize={10} tick={{ fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+                    <RechartsTooltip content={<CustomTooltip />} />
+                    <Legend wrapperStyle={{ fontSize: "10px" }} />
+                    <Line type="monotone" dataKey="Meta Linear" stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={1.5} dot={false} />
+                    <Area type="monotone" dataKey="Leads Reais" stroke="hsl(var(--primary))" fill="url(#gradLeadsMeta)" strokeWidth={2.5} dot={{ r: 2.5, fill: "hsl(var(--primary))" }} connectNulls={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="bg-muted/30 p-4 rounded-2xl mb-3"><BarChart3 className="h-7 w-7 text-muted-foreground/30" /></div>
+                  <p className="text-xs text-muted-foreground/50">Sem dados suficientes</p>
+                </div>
+              )}
+            </div>
+          </div>
 
-            {/* Insight */}
+          {/* Taxas Reais vs Meta */}
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 rounded-lg bg-muted"><Gauge className="h-3.5 w-3.5 text-muted-foreground" /></div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Taxas Reais vs Meta</span>
+            </div>
+
+            {/* Desktop table */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden hidden md:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/30 border-b border-border/60">
+                    <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Metrica</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Meta</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Real</th>
+                    <th className="px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center w-[140px]">Progresso</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/30">
+                  {[
+                    ...(investeMarketing ? [{ label: "Taxa MQL", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` }] : []),
+                    { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: investeMarketing ? `${reunioesT}/${mqlsT}` : `${reunioesT}/${leadsT}` },
+                    { label: "Taxa Conversao", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
+                    ...(investeMarketing ? [{ label: "CPL", meta: Number(m.cpl_meta), real: cplReal, isCurrency: true, invertColor: true }] : []),
+                    { label: "Ticket Medio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
+                  ].map((row) => {
+                    const isGood = row.invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
+                    const isCritical = row.invertColor ? (row.real > row.meta * 1.5 && row.real > 0) : (row.real < row.meta * 0.5 && row.real > 0);
+                    const barPct = row.meta > 0 ? Math.min(Math.round((row.real / row.meta) * 100), 150) : 0;
+                    const barColor = row.real === 0 ? "#e5e5e5" : isGood ? "#10b981" : isCritical ? "#ef4444" : "#f59e0b";
+                    return (
+                      <tr key={row.label} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-5 py-3.5 text-[13px] font-medium">{row.label}</td>
+                        <td className="px-5 py-3.5 text-right text-xs text-muted-foreground tabular-nums">{row.isCurrency ? fmtBRL2(row.meta) : `${row.meta}%`}</td>
+                        <td className="px-5 py-3.5 text-right text-xs font-medium tabular-nums">
+                          {row.real === 0 && !row.isCurrency ? <span className="text-muted-foreground/40">—</span> : row.isCurrency ? fmtBRL2(row.real) : `${row.real}%`}
+                          {row.detail && row.real > 0 && <span className="text-muted-foreground/50 ml-1 text-[10px]">({row.detail})</span>}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden w-full">
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(barPct, 100)}%`, backgroundColor: barColor }} />
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-right">
+                          {row.real === 0 ? <span className="text-muted-foreground/40 text-xs">—</span> : isGood ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600"><CheckCircle2 className="h-3 w-3" /> Otimo</span>
+                          ) : isCritical ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600"><XCircle className="h-3 w-3" /> Critico</span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600"><AlertTriangle className="h-3 w-3" /> Abaixo</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile cards */}
+            <div className="space-y-2 md:hidden">
+              {[
+                ...(investeMarketing ? [{ label: "Taxa MQL", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` }] : []),
+                { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: investeMarketing ? `${reunioesT}/${mqlsT}` : `${reunioesT}/${leadsT}` },
+                { label: "Taxa Conversao", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
+                ...(investeMarketing ? [{ label: "CPL", meta: Number(m.cpl_meta), real: cplReal, isCurrency: true, invertColor: true }] : []),
+                { label: "Ticket Medio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
+              ].map((row) => {
+                const isGood = row.invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
+                const isCritical = row.invertColor ? (row.real > row.meta * 1.5 && row.real > 0) : (row.real < row.meta * 0.5 && row.real > 0);
+                const barPct = row.meta > 0 ? Math.min(Math.round((row.real / row.meta) * 100), 150) : 0;
+                const barColor = row.real === 0 ? "#e5e5e5" : isGood ? "#10b981" : isCritical ? "#ef4444" : "#f59e0b";
+                return (
+                  <div key={row.label} className="rounded-xl border border-border/60 bg-card p-3.5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-foreground">{row.label}</span>
+                      {row.real === 0 ? <span className="text-muted-foreground/40 text-xs">—</span> : isGood ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600"><CheckCircle2 className="h-3 w-3" /></span>
+                      ) : isCritical ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600"><XCircle className="h-3 w-3" /></span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600"><AlertTriangle className="h-3 w-3" /></span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-base font-bold tabular-nums">{row.isCurrency ? fmtBRL2(row.real) : `${row.real}%`}</span>
+                      <span className="text-[10px] text-muted-foreground/50 tabular-nums">/ {row.isCurrency ? fmtBRL2(row.meta) : `${row.meta}%`}</span>
+                      {row.detail && row.real > 0 && <span className="text-muted-foreground/40 text-[10px]">({row.detail})</span>}
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(barPct, 100)}%`, backgroundColor: barColor }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {projecao && (
-              <Card className="rounded-2xl shadow-sm border-border/60 mt-4 overflow-hidden" style={{ borderLeft: "4px solid hsl(var(--primary))" }}>
-                <CardContent className="p-4 text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">Projeção com ritmo atual:</p>
-                  <p>
-                    No ritmo atual ({projecao.mediaLeadsDia} leads/dia), você fechará o mês com ~<strong>{projecao.leadsProj} leads</strong> e ~<strong>{projecao.reunioesProj} reuniões</strong>.
-                    {Number(m.leads_necessarios_por_dia) > 0 && (
-                      <> Para bater a meta, precisa de <strong>{fmtNum(Number(m.leads_necessarios_por_dia))} leads/dia</strong>.</>
-                    )}
-                  </p>
-                </CardContent>
-              </Card>
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] mt-3 p-4 border-l-4 border-l-primary relative overflow-hidden">
+                <div className="absolute top-3 right-3">
+                  <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                </div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-primary/60 mb-1.5">Insight de Projeção</p>
+                <p className="text-xs text-muted-foreground leading-relaxed pr-10">
+                  No ritmo atual (<strong className="text-foreground">{projecao.mediaLeadsDia} leads/dia</strong>), você fechará o mês com ~<strong className="text-foreground">{projecao.leadsProj} leads</strong>, ~<strong className="text-foreground">{projecao.reunioesProj} agendamentos</strong> e ~<strong className="text-foreground">{fmtBRL(projecao.receitaProj)}</strong> de receita.
+                  {Number(m.leads_necessarios_por_dia) > 0 && (<> Para bater a meta, precisa de <strong className="text-foreground">{fmtNum(Number(m.leads_necessarios_por_dia))} leads/dia</strong>.</>)}
+                </p>
+              </div>
             )}
           </div>
         </TabsContent>
 
-        {/* ═════════ ABA 2 — HISTÓRICO ═════════ */}
-        <TabsContent value="historico" className="mt-6 space-y-6">
-          <SectionHeader title="Histórico de Metas" icon={History} />
-          <Card className="rounded-2xl shadow-sm border-border/60 overflow-hidden">
+        {/* ═════════ HISTORICO ═════════ */}
+        <TabsContent value="historico" className="mt-6 space-y-6" data-tutorial="metas-historico">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="p-1.5 rounded-lg bg-muted"><History className="h-3.5 w-3.5 text-muted-foreground" /></div>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Histórico de Metas</span>
+            {todasMetas.length > 0 && <span className="text-[10px] font-bold tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{todasMetas.length}</span>}
+          </div>
+
+          {/* Desktop table */}
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b bg-muted/30">
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Nome</th>
-                    <th className="text-left px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Período</th>
-                    <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Meta Receita</th>
-                    <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Realizado</th>
-                    <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">%</th>
-                    <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Status</th>
+                  <tr className="bg-muted/30 border-b border-border/60">
+                    <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Nome</th>
+                    <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Periodo</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Meta Receita</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Realizado</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">%</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
+                    <th className="w-10"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border/50">
+                <tbody className="divide-y divide-border/30">
                   {todasMetas.map((mt) => {
                     const pctR = Number(mt.pct_receita) || 0;
-                    const isAtiva = mt.ativo;
-                    const isBatida = pctR >= 100;
                     return (
-                      <>
-                        <tr
-                          key={mt.id}
-                          className="hover:bg-muted/20 transition-colors cursor-pointer"
-                          onClick={() => setExpandedHistorico(expandedHistorico === mt.id ? null : mt.id)}
-                        >
-                          <td className="px-4 py-3 font-medium">{mt.nome}</td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs">
-                            {format(parseISO(mt.data_inicio), "dd/MM/yy")} — {format(parseISO(mt.data_fim), "dd/MM/yy")}
+                      <Fragment key={mt.id}>
+                        <tr className="hover:bg-muted/20 transition-colors cursor-pointer group/row" onClick={() => setExpandedHistorico(expandedHistorico === mt.id ? null : mt.id)}>
+                          <td className="px-5 py-3.5">
+                            <div className="flex items-center gap-2">
+                              <ChevronRight className={cn("h-3.5 w-3.5 text-muted-foreground/40 transition-transform", expandedHistorico === mt.id && "rotate-90")} />
+                              <span className="text-[13px] font-medium">{mt.nome}</span>
+                            </div>
                           </td>
-                          <td className="px-4 py-3 text-right font-medium">{fmtBRL(Number(mt.meta_receita))}</td>
-                          <td className="px-4 py-3 text-right">{fmtBRL(Number(mt.receita_total))}</td>
-                          <td className="px-4 py-3 text-right">
-                            <span className={cn("inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border", pctBadgeClass(pctR))}>
-                              {fmtPct(pctR)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {isAtiva ? (
-                              <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">Em andamento</Badge>
-                            ) : isBatida ? (
-                              <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Batida</Badge>
+                          <td className="px-5 py-3.5 text-xs text-muted-foreground tabular-nums">{format(parseISO(mt.data_inicio), "dd/MM/yy")} — {format(parseISO(mt.data_fim), "dd/MM/yy")}</td>
+                          <td className="px-5 py-3.5 text-right text-xs font-bold tabular-nums">{fmtBRL(Number(mt.meta_receita))}</td>
+                          <td className="px-5 py-3.5 text-right text-xs tabular-nums">{fmtBRL(Number(mt.receita_total))}</td>
+                          <td className="px-5 py-3.5 text-right"><span className={cn("inline-flex text-[10px] font-bold px-2 py-0.5 rounded-md border tabular-nums", pctBg(pctR))}>{fmtPct(pctR)}</span></td>
+                          <td className="px-5 py-3.5 text-right">
+                            {mt.ativo ? (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-blue-50 text-blue-700 border-blue-200/60">Em andamento</span>
+                            ) : pctR >= 100 ? (
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200/60">Batida</span>
                             ) : (
-                              <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">Não atingida</Badge>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-red-50 text-red-700 border-red-200/60">Nao atingida</span>
                             )}
+                          </td>
+                          <td className="px-2 py-3.5">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeletingMetaId(mt.id); }}
+                              className="p-1.5 rounded-lg text-muted-foreground/30 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover/row:opacity-100"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </td>
                         </tr>
                         {expandedHistorico === mt.id && (
-                          <tr key={`${mt.id}-detail`}>
-                            <td colSpan={6} className="px-4 py-4 bg-muted/10">
-                              <div className="flex items-center gap-2 text-sm flex-wrap">
-                                <span className="text-muted-foreground">Bucket:</span>
-                                <span className="font-bold">{fmtBRL(Number(mt.bucket_total))}/{fmtBRL(Number(mt.meta_bucket))}</span>
-                                <ArrowRight className="h-3 w-3 text-primary" />
-                                <span className="text-muted-foreground">Leads:</span>
-                                <span className="font-bold">{fmtNum(Number(mt.leads_total))}/{fmtNum(Number(mt.meta_leads))}</span>
-                                <ArrowRight className="h-3 w-3 text-primary" />
-                                <span className="text-muted-foreground">MQL:</span>
-                                <span className="font-bold">{fmtNum(Number(mt.mqls_total))}/{fmtNum(Number(mt.meta_mqls))}</span>
-                                <ArrowRight className="h-3 w-3 text-primary" />
-                                <span className="text-muted-foreground">Reuniões:</span>
-                                <span className="font-bold">{fmtNum(Number(mt.reunioes_total))}/{fmtNum(Number(mt.meta_reunioes))}</span>
-                                <ArrowRight className="h-3 w-3 text-primary" />
-                                <span className="text-muted-foreground">Fechamentos:</span>
-                                <span className="font-bold">{fmtNum(Number(mt.fechamentos_total))}/{fmtNum(Number(mt.meta_fechamentos))}</span>
+                          <tr>
+                            <td colSpan={7} className="px-5 py-4 bg-muted/10">
+                              <div className="flex items-center gap-1.5 text-xs flex-wrap justify-center">
+                                {[
+                                  ...(Number(mt.cpl_meta) > 0 ? [{ l: "Bucket", v: `${fmtBRL(Number(mt.bucket_total))}/${fmtBRL(Number(mt.meta_bucket))}` }] : []),
+                                  { l: "Leads", v: `${fmtNum(Number(mt.leads_total))}/${fmtNum(Number(mt.meta_leads))}` },
+                                  ...(Number(mt.cpl_meta) > 0 ? [{ l: "MQL", v: `${fmtNum(Number(mt.mqls_total))}/${fmtNum(Number(mt.meta_mqls))}` }] : []),
+                                  { l: "Agendamentos", v: `${fmtNum(Number(mt.reunioes_total))}/${fmtNum(Number(mt.meta_reunioes))}` },
+                                  { l: "Fechamentos", v: `${fmtNum(Number(mt.fechamentos_total))}/${fmtNum(Number(mt.meta_fechamentos))}` },
+                                ].map((item, i, arr) => (
+                                  <Fragment key={item.l}>
+                                    <div className="text-center px-3 py-1">
+                                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">{item.l}</p>
+                                      <p className="text-xs font-bold tabular-nums mt-0.5">{item.v}</p>
+                                    </div>
+                                    {i < arr.length - 1 && <ArrowRight className="h-3 w-3 text-muted-foreground/20" />}
+                                  </Fragment>
+                                ))}
                               </div>
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     );
                   })}
                   {todasMetas.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="py-16 text-center">
-                        <Target className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                        <p className="text-sm text-muted-foreground">Nenhuma meta encontrada</p>
-                      </td>
-                    </tr>
+                    <tr><td colSpan={7} className="py-16 text-center">
+                      <div className="bg-muted/30 p-5 rounded-2xl mb-4 inline-block"><Target className="h-8 w-8 text-muted-foreground/30" /></div>
+                      <p className="text-sm font-medium text-foreground">Nenhuma meta encontrada</p>
+                    </td></tr>
                   )}
                 </tbody>
               </table>
             </div>
-          </Card>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="space-y-3 md:hidden">
+            {todasMetas.map((mt) => {
+              const pctR = Number(mt.pct_receita) || 0;
+              const isExpanded = expandedHistorico === mt.id;
+              return (
+                <div
+                  key={mt.id}
+                  className={cn(
+                    "rounded-2xl border bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden transition-all cursor-pointer",
+                    isExpanded ? "border-primary/20" : "border-border/60"
+                  )}
+                  onClick={() => setExpandedHistorico(isExpanded ? null : mt.id)}
+                >
+                  <div className="p-4">
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-foreground truncate">{mt.nome}</p>
+                        <p className="text-[10px] text-muted-foreground/60 tabular-nums mt-0.5">
+                          {format(parseISO(mt.data_inicio), "dd/MM/yy")} — {format(parseISO(mt.data_fim), "dd/MM/yy")}
+                        </p>
+                      </div>
+                      {mt.ativo ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-blue-50 text-blue-700 border-blue-200/60 shrink-0">Ativa</span>
+                      ) : pctR >= 100 ? (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200/60 shrink-0">Batida</span>
+                      ) : (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-red-50 text-red-700 border-red-200/60 shrink-0">Nao atingida</span>
+                      )}
+                    </div>
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-lg font-extrabold font-display tabular-nums">{fmtBRL(Number(mt.receita_total))}</span>
+                      <span className="text-[10px] text-muted-foreground/50">/ {fmtBRL(Number(mt.meta_receita))}</span>
+                      <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border tabular-nums ml-auto", pctBg(pctR))}>{fmtPct(pctR)}</span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(pctR, 100)}%`, backgroundColor: pctColor(pctR) }} />
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-1 border-t border-border/30">
+                      <div className="grid grid-cols-3 gap-3 mt-2">
+                        {[
+                          { l: "Leads", v: fmtNum(Number(mt.leads_total)), m: fmtNum(Number(mt.meta_leads)) },
+                          ...(Number(mt.cpl_meta) > 0 ? [{ l: "MQL", v: fmtNum(Number(mt.mqls_total)), m: fmtNum(Number(mt.meta_mqls)) }] : []),
+                          { l: "Agendamentos", v: fmtNum(Number(mt.reunioes_total)), m: fmtNum(Number(mt.meta_reunioes)) },
+                          { l: "Fechamentos", v: fmtNum(Number(mt.fechamentos_total)), m: fmtNum(Number(mt.meta_fechamentos)) },
+                          ...(Number(mt.cpl_meta) > 0 ? [{ l: "Bucket", v: fmtBRL(Number(mt.bucket_total)), m: fmtBRL(Number(mt.meta_bucket)) }] : []),
+                        ].map((item) => (
+                          <div key={item.l} className="text-center">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">{item.l}</p>
+                            <p className="text-xs font-bold tabular-nums mt-0.5">{item.v}</p>
+                            <p className="text-[9px] text-muted-foreground/40 tabular-nums">/ {item.m}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeletingMetaId(mt.id); }}
+                        className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border/30 text-[11px] font-medium text-red-500 hover:text-red-600 transition-colors w-full justify-center"
+                      >
+                        <Trash2 className="h-3 w-3" /> Excluir meta
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {todasMetas.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-16 rounded-2xl border border-border/60 bg-card">
+                <div className="bg-muted/30 p-5 rounded-2xl mb-4"><Target className="h-8 w-8 text-muted-foreground/30" /></div>
+                <p className="text-sm font-medium text-foreground">Nenhuma meta encontrada</p>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
-        {/* ═════════ ABA 3 — PROJEÇÃO ═════════ */}
-        <TabsContent value="projecao" className="mt-6 space-y-8">
-
-          {/* Projeção automática */}
+        {/* ═════════ PROJECAO ═════════ */}
+        <TabsContent value="projecao" className="mt-6 space-y-8" data-tutorial="metas-projecao">
           <div>
-            <SectionHeader title="Projeção do Mês" icon={TrendingUp} />
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 rounded-lg bg-muted"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /></div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Projecao do Mes</span>
+            </div>
             {projecao && (
-              <Card className="rounded-2xl shadow-sm border-border/60 overflow-hidden mb-4" style={{ borderLeft: "4px solid hsl(var(--primary))" }}>
-                <CardContent className="p-4 text-sm text-muted-foreground">
-                  Com base nos últimos {diasDecorridos} dias (média de <strong>{projecao.mediaLeadsDia} leads/dia</strong> e <strong>{projecao.txMqlReal}% de qualificação</strong>):
-                </CardContent>
-              </Card>
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 border-l-4 border-l-primary mb-4">
+                <p className="text-xs text-muted-foreground">Com base nos ultimos {diasDecorridos} dias (media de <strong className="text-foreground">{projecao.mediaLeadsDia} leads/dia</strong>):</p>
+              </div>
             )}
-            <Card className="rounded-2xl shadow-sm border-border/60 overflow-hidden">
-              <CardContent className="p-0">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/30">
-                      <th className="text-left px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Métrica</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Meta</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Projeção</th>
-                      <th className="text-right px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Diferença</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/50">
-                    {projecao && [
-                      { label: "Leads", meta: Number(m.meta_leads), proj: projecao.leadsProj },
-                      { label: "MQLs", meta: Number(m.meta_mqls), proj: projecao.mqlsProj },
-                      { label: "Reuniões", meta: Number(m.meta_reunioes), proj: projecao.reunioesProj },
-                      { label: "Fechamentos", meta: Number(m.meta_fechamentos), proj: projecao.fechamentosProj },
-                      { label: "Receita", meta: Number(m.meta_receita), proj: projecao.receitaProj, isCurrency: true },
-                    ].map((row) => {
-                      const diff = row.proj - row.meta;
-                      const isPos = diff >= 0;
-                      return (
-                        <tr key={row.label} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-4 py-3 font-medium">{row.label}</td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">{row.isCurrency ? fmtBRL(row.meta) : fmtNum(row.meta)}</td>
-                          <td className="px-4 py-3 text-right font-medium">{row.isCurrency ? fmtBRL(row.proj) : fmtNum(row.proj)}</td>
-                          <td className={cn("px-4 py-3 text-right font-semibold", isPos ? "text-green-600" : "text-red-600")}>
-                            {isPos ? "+" : ""}{row.isCurrency ? fmtBRL(diff) : fmtNum(diff)} {isPos ? <CheckCircle2 className="inline h-3.5 w-3.5 ml-1" /> : <XCircle className="inline h-3.5 w-3.5 ml-1" />}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </CardContent>
-            </Card>
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <table className="w-full text-sm">
+                <thead><tr className="bg-muted/30 border-b border-border/60">
+                  <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Metrica</th>
+                  <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Meta</th>
+                  <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Projecao</th>
+                  <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Diferenca</th>
+                </tr></thead>
+                <tbody className="divide-y divide-border/30">
+                  {projecao && [
+                    { label: "Leads", meta: Number(m.meta_leads), proj: projecao.leadsProj },
+                    ...(investeMarketing ? [{ label: "MQLs", meta: Number(m.meta_mqls), proj: projecao.mqlsProj }] : []),
+                    { label: "Agendamentos", meta: Number(m.meta_reunioes), proj: projecao.reunioesProj },
+                    { label: "Fechamentos", meta: Number(m.meta_fechamentos), proj: projecao.fechamentosProj },
+                    { label: "Receita", meta: Number(m.meta_receita), proj: projecao.receitaProj, isCurrency: true },
+                  ].map((row) => {
+                    const diff = row.proj - row.meta;
+                    const isPos = diff >= 0;
+                    return (
+                      <tr key={row.label} className="hover:bg-muted/20 transition-colors">
+                        <td className="px-5 py-3.5 text-[13px] font-medium">{row.label}</td>
+                        <td className="px-5 py-3.5 text-right text-xs text-muted-foreground tabular-nums">{row.isCurrency ? fmtBRL(row.meta) : fmtNum(row.meta)}</td>
+                        <td className="px-5 py-3.5 text-right text-xs font-bold tabular-nums">{row.isCurrency ? fmtBRL(row.proj) : fmtNum(row.proj)}</td>
+                        <td className={cn("px-5 py-3.5 text-right text-xs font-bold tabular-nums", isPos ? "text-emerald-600" : "text-red-600")}>
+                          <span className="inline-flex items-center gap-1">{isPos ? "+" : ""}{row.isCurrency ? fmtBRL(diff) : fmtNum(diff)} {isPos ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Simulador */}
           <div>
-            <SectionHeader title="Simulador Interativo" icon={SlidersHorizontal} />
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="rounded-2xl shadow-sm border-border/60">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Ajuste os parâmetros</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs">Leads por dia</Label>
-                      <span className="text-sm font-bold text-primary">{simLeadsDia}</span>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-1.5 rounded-lg bg-muted"><SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" /></div>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Simulador Interativo</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">Ajuste os parametros</p>
+                <div className="space-y-5">
+                  {[
+                    { label: "Leads por dia", value: simLeadsDia, set: setSimLeadsDia, min: 0, max: 50, step: 0.5, fmt: (v: number) => v.toString() },
+                    ...(investeMarketing ? [{ label: "Taxa MQL (%)", value: simTxMql, set: setSimTxMql, min: 1, max: 100, step: 1, fmt: (v: number) => `${v}%` }] : []),
+                    { label: "Taxa Agendamento (%)", value: simTxAgend, set: setSimTxAgend, min: 1, max: 100, step: 1, fmt: (v: number) => `${v}%` },
+                    { label: "Taxa Conversão (%)", value: simTxConv, set: setSimTxConv, min: 1, max: 100, step: 1, fmt: (v: number) => `${v}%` },
+                    { label: "Ticket Medio (R$)", value: simTicket, set: setSimTicket, min: 500, max: 50000, step: 500, fmt: (v: number) => fmtBRL(v) },
+                  ].map((s) => (
+                    <div key={s.label}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Label className="text-xs text-muted-foreground">{s.label}</Label>
+                        <span className="text-xs font-bold text-foreground tabular-nums">{s.fmt(s.value)}</span>
+                      </div>
+                      <Slider value={[s.value]} onValueChange={(v) => s.set(v[0])} min={s.min} max={s.max} step={s.step} />
                     </div>
-                    <Slider value={[simLeadsDia]} onValueChange={(v) => setSimLeadsDia(v[0])} min={0} max={50} step={0.5} />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs">Taxa MQL (%)</Label>
-                      <span className="text-sm font-bold text-primary">{simTxMql}%</span>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-4">
+                {/* Resultado destaque — dark card */}
+                {simulacao && (
+                  <div className="rounded-2xl bg-[#1a1a1a] p-5 relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
+                    <div className="relative">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-4">Resultado da Simulacao</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Receita Projetada</p>
+                          <p className="text-xl sm:text-2xl font-extrabold text-white font-display tabular-nums leading-none">{fmtBRL(simulacao.receita)}</p>
+                          <p className="text-[10px] text-white/30 mt-1 tabular-nums">Meta: {fmtBRL(Number(m.meta_receita))}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Fechamentos</p>
+                          <p className="text-xl sm:text-2xl font-extrabold text-primary font-display tabular-nums leading-none">{fmtNum(simulacao.fechamentos)}</p>
+                          <p className="text-[10px] text-white/30 mt-1 tabular-nums">Meta: {fmtNum(Number(m.meta_fechamentos))}</p>
+                        </div>
+                      </div>
                     </div>
-                    <Slider value={[simTxMql]} onValueChange={(v) => setSimTxMql(v[0])} min={1} max={100} step={1} />
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs">Taxa Agendamento (%)</Label>
-                      <span className="text-sm font-bold text-primary">{simTxAgend}%</span>
-                    </div>
-                    <Slider value={[simTxAgend]} onValueChange={(v) => setSimTxAgend(v[0])} min={1} max={100} step={1} />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs">Taxa Conversão (%)</Label>
-                      <span className="text-sm font-bold text-primary">{simTxConv}%</span>
-                    </div>
-                    <Slider value={[simTxConv]} onValueChange={(v) => setSimTxConv(v[0])} min={1} max={100} step={1} />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs">Ticket Médio (R$)</Label>
-                      <span className="text-sm font-bold text-primary">{fmtBRL(simTicket)}</span>
-                    </div>
-                    <Slider value={[simTicket]} onValueChange={(v) => setSimTicket(v[0])} min={500} max={50000} step={500} />
-                  </div>
-                </CardContent>
-              </Card>
+                )}
 
-              <Card className="rounded-2xl shadow-sm border-border/60">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Cenário Simulado</CardTitle>
-                </CardHeader>
-                <CardContent>
+                {/* Detalhamento com barras */}
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">Detalhamento do Funil</p>
                   {simulacao && (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {[
                         { label: "Leads", meta: Number(m.meta_leads), sim: simulacao.leads },
-                        { label: "MQLs", meta: Number(m.meta_mqls), sim: simulacao.mqls },
-                        { label: "Reuniões", meta: Number(m.meta_reunioes), sim: simulacao.reunioes },
+                        ...(investeMarketing ? [{ label: "MQLs", meta: Number(m.meta_mqls), sim: simulacao.mqls }] : []),
+                        { label: "Agendamentos", meta: Number(m.meta_reunioes), sim: simulacao.reunioes },
                         { label: "Fechamentos", meta: Number(m.meta_fechamentos), sim: simulacao.fechamentos },
                         { label: "Receita", meta: Number(m.meta_receita), sim: simulacao.receita, isCurrency: true },
                       ].map((row) => {
                         const pct = row.meta > 0 ? Math.round((row.sim / row.meta) * 100) : 0;
                         return (
                           <div key={row.label}>
-                            <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center justify-between mb-1.5">
                               <span className="text-xs text-muted-foreground">{row.label}</span>
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold">{row.isCurrency ? fmtBRL(row.sim) : fmtNum(row.sim)}</span>
-                                <span className="text-xs text-muted-foreground">/ {row.isCurrency ? fmtBRL(row.meta) : fmtNum(row.meta)}</span>
-                                <span className={cn("text-xs font-semibold", pct >= 100 ? "text-green-600" : pct >= 80 ? "text-yellow-600" : "text-red-600")}>
-                                  {pct}%
-                                </span>
+                                <span className="text-xs font-bold tabular-nums">{row.isCurrency ? fmtBRL(row.sim) : fmtNum(row.sim)}</span>
+                                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border tabular-nums", pctBg(pct))}>{pct}%</span>
                               </div>
                             </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <div
-                                className="h-full rounded-full transition-all duration-300"
-                                style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }}
-                              />
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }} />
                             </div>
                           </div>
                         );
                       })}
                     </div>
                   )}
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </div>
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* Modal */}
       {renderModal()}
+
+      {/* Modal de confirmação de exclusão */}
+      <Dialog open={!!deletingMetaId} onOpenChange={(o) => { if (!o) setDeletingMetaId(null); }}>
+        <DialogContent className="w-[95vw] max-w-sm rounded-2xl border-border/60 p-0 gap-0">
+          <div className="px-5 pt-5 pb-4 border-b border-border/40">
+            <DialogHeader className="space-y-1">
+              <DialogTitle className="text-base font-semibold text-foreground">Excluir Meta</DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="px-5 py-5">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-red-50 shrink-0">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-sm text-foreground font-medium mb-1">Tem certeza que deseja excluir esta meta?</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">Esta ação não pode ser desfeita. Todos os dados de acompanhamento associados serão perdidos.</p>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border/40 bg-muted/20">
+            <Button variant="ghost" onClick={() => setDeletingMetaId(null)} className="h-9 rounded-lg text-xs font-medium text-muted-foreground px-4">
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => { if (deletingMetaId) excluirMeta.mutate(deletingMetaId); }}
+              disabled={excluirMeta.isPending}
+              className="h-9 rounded-lg text-xs font-semibold bg-red-600 text-white hover:bg-red-700 px-5 gap-1.5"
+            >
+              {excluirMeta.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+              Excluir Meta
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

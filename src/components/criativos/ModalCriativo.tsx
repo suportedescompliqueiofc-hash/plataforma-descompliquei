@@ -33,8 +33,8 @@ import { cn } from "@/lib/utils";
 // ── Status ──────────────────────────────────────────────────
 
 const STATUS_LIST = [
-  { value: "em_criacao", label: "Em Criacao", color: "#6b7280" },
-  { value: "em_revisao", label: "Em Revisao", color: "#f59e0b" },
+  { value: "em_criacao", label: "Em Criação", color: "#6b7280" },
+  { value: "em_revisao", label: "Em Revisão", color: "#f59e0b" },
   { value: "aprovado", label: "Aprovado", color: "#3b82f6" },
   { value: "ativo", label: "Ativo", color: "#22c55e" },
   { value: "em_teste", label: "Em Teste", color: "#8b5cf6" },
@@ -552,7 +552,7 @@ export default function ModalCriativo({ criativoId, pastaId, isOpen, onClose, on
                       <Textarea
                         value={descricaoLocal}
                         onChange={(e) => handleDescricaoChange(e.target.value)}
-                        placeholder="Adicionar descricao..."
+                        placeholder="Adicionar descrição..."
                         rows={3}
                         className="mt-1.5 text-sm resize-none"
                       />

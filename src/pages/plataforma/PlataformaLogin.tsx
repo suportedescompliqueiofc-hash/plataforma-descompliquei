@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, ShieldAlert } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,6 @@ export default function PlataformaLogin() {
   const msgKey = searchParams.get('msg') ?? '';
   const errorMsg = MENSAGENS[msgKey] ?? null;
 
-  // Se já está logado (sessão restaurada) e sem msg de erro, redireciona
   useEffect(() => {
     if (user && !msgKey) {
       window.location.href = '/';
@@ -52,62 +51,153 @@ export default function PlataformaLogin() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background">
-      {/* Left side */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative overflow-hidden" style={{ background: '#0f0f0f' }}>
-        <div className="absolute top-0 right-0 w-96 h-96 opacity-10 rounded-full blur-3xl transform translate-x-1/2 -translate-y-1/2" style={{ background: '#E85D24' }} />
-        <div className="absolute bottom-0 left-0 w-96 h-96 opacity-5 rounded-full blur-3xl transform -translate-x-1/2 translate-y-1/2" style={{ background: '#E85D24' }} />
-        <div className="max-w-md text-center relative z-10 text-white">
-          <div className="mb-10 flex flex-col items-center">
-            <div className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6" style={{ background: 'rgba(232,93,36,0.15)', border: '1px solid rgba(232,93,36,0.3)' }}>
-              <ShieldAlert className="h-10 w-10" style={{ color: '#E85D24' }} />
+    <div className="min-h-screen flex bg-[#FAFAF8]">
+      {/* ═══ LEFT PANEL — Brand showcase ═══ */}
+      <div className="hidden lg:flex lg:w-[52%] relative overflow-hidden" style={{ background: '#0A0A0A' }}>
+        {/* Ambient glow */}
+        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full blur-[120px] opacity-[0.07]" style={{ background: '#E85D24' }} />
+        <div className="absolute bottom-[-15%] left-[-5%] w-[500px] h-[500px] rounded-full blur-[100px] opacity-[0.04]" style={{ background: '#E85D24' }} />
+        <div className="absolute top-[40%] left-[30%] w-[300px] h-[300px] rounded-full blur-[80px] opacity-[0.03]" style={{ background: '#ffffff' }} />
+
+        {/* Grid pattern overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.03]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: '60px 60px',
+          }}
+        />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col justify-between w-full p-12">
+          {/* Top — Logo mark */}
+          <div>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: 'rgba(232,93,36,0.12)', border: '1px solid rgba(232,93,36,0.2)' }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
+                  <path d="M2 12L12 17L22 12" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.75"/>
+                </svg>
+              </div>
+              <span className="text-[13px] font-semibold tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                Descompliquei
+              </span>
             </div>
-            <div className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: 'rgba(255,255,255,0.35)' }}>Descompliquei</div>
-            <div className="text-2xl font-bold uppercase tracking-[0.2em]" style={{ color: '#E85D24' }}>MARKETING</div>
           </div>
-          <p className="text-xl font-semibold leading-relaxed" style={{ color: 'rgba(255,255,255,0.8)' }}>
-            Acesse sua área de<br />
-            <span style={{ color: '#E85D24' }}>treinamento e estratégia</span>
-          </p>
+
+          {/* Center — Hero text */}
+          <div className="max-w-lg">
+            <div className="mb-6">
+              <p
+                className="text-[11px] font-bold uppercase tracking-[0.25em] mb-4"
+                style={{ color: '#E85D24' }}
+              >
+                Growth Labs
+              </p>
+              <h1
+                className="text-[42px] font-extrabold leading-[1.1] tracking-tight font-display"
+                style={{ color: 'rgba(255,255,255,0.95)' }}
+              >
+                Escale seus
+                <br />
+                resultados com
+                <br />
+                <span style={{ color: '#E85D24' }}>inteligência.</span>
+              </h1>
+            </div>
+
+          </div>
+
+          {/* Bottom — Footer */}
+          <div className="flex items-center justify-between">
+            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.15)' }}>
+              &copy; {new Date().getFullYear()} Descompliquei Growth Labs
+            </p>
+            <div className="flex gap-1">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full"
+                  style={{ background: i === 0 ? '#E85D24' : 'rgba(255,255,255,0.1)' }}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Right side */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center lg:text-left">
-            <h2 className="text-3xl font-bold tracking-tight">Acesse sua conta</h2>
-            <p className="text-muted-foreground mt-2">Acesse com seu email e senha</p>
+      {/* ═══ RIGHT PANEL — Login form ═══ */}
+      <div className="w-full lg:w-[48%] flex items-center justify-center p-8 lg:p-16">
+        <div className="w-full max-w-[400px]">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-2.5 mb-10">
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(232,93,36,0.1)', border: '1px solid rgba(232,93,36,0.15)' }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
+                <path d="M2 12L12 17L22 12" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.75"/>
+              </svg>
+            </div>
+            <div>
+              <span className="text-[11px] font-medium text-muted-foreground">Descompliquei</span>
+              <span className="text-[11px] font-bold ml-1" style={{ color: '#E85D24' }}>Growth Labs</span>
+            </div>
           </div>
 
+          {/* Header */}
+          <div className="mb-8">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2">
+              Bem-vindo de volta
+            </p>
+            <h2 className="text-[28px] font-extrabold tracking-tight text-foreground font-display leading-tight">
+              Acesse sua conta
+            </h2>
+            <p className="text-[13px] text-muted-foreground mt-1.5">
+              Digite suas credenciais para continuar
+            </p>
+          </div>
+
+          {/* Error message */}
           {errorMsg && (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium">
+            <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-[13px] text-destructive font-medium">
               {errorMsg}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                E-mail
+              </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="seu.email@empresa.com"
-                className="h-12"
+                className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Senha
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  className="h-12 pr-10"
+                  placeholder="Digite sua senha"
+                  className="h-11 text-sm rounded-xl border-border/60 bg-background pr-10 transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -116,7 +206,8 @@ export default function PlataformaLogin() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -124,19 +215,29 @@ export default function PlataformaLogin() {
             </div>
 
             <Button
-              className="w-full h-12 text-base font-bold text-white"
-              style={{ background: '#E85D24' }}
-              size="lg"
+              className="w-full h-11 text-sm font-bold rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
+              style={{
+                background: '#E85D24',
+                color: '#ffffff',
+                boxShadow: '0 2px 8px rgba(232,93,36,0.25)',
+              }}
               type="submit"
               disabled={loading}
             >
-              {loading ? 'Entrando...' : 'Entrar'}
+              {loading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Entrando...</>
+              ) : (
+                <>Entrar <ArrowRight className="h-4 w-4" /></>
+              )}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground">
-            Para solicitar acesso, entre em contato com o administrador.
-          </p>
+          {/* Footer */}
+          <div className="mt-8 pt-6" style={{ borderTop: '1px solid hsl(var(--border) / 0.4)' }}>
+            <p className="text-center text-[11px] text-muted-foreground/40">
+              Para solicitar acesso, entre em contato com o administrador.
+            </p>
+          </div>
         </div>
       </div>
     </div>

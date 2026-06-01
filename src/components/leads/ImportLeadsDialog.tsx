@@ -181,6 +181,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
         email: r.email || null,
         procedimento_interesse: r.procedimento_interesse || null,
         origem: r.origem || 'organico',
+        fonte: 'importado',
         status: 'ativo',
         posicao_pipeline: 1,
         queixa_principal: '',

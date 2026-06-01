@@ -92,11 +92,11 @@ export function HistoricoVersoes({
       queryClient.invalidateQueries({ queryKey: ["canvas-versoes", boardId] });
       queryClient.invalidateQueries({ queryKey: ["canvas-board-full", boardId] });
       onRestore(versao.elements, versao.app_state);
-      toast.success("Versao restaurada! O estado anterior foi salvo no historico.");
+      toast.success("Versão restaurada! O estado anterior foi salvo no histórico.");
       setConfirmRestore(null);
       onOpenChange(false);
     },
-    onError: () => toast.error("Erro ao restaurar versao"),
+    onError: () => toast.error("Erro ao restaurar versão"),
   });
 
   return (
@@ -120,9 +120,9 @@ export function HistoricoVersoes({
             ) : versoes.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <History className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                <p className="text-sm text-muted-foreground">Nenhuma versao salva ainda</p>
+                <p className="text-sm text-muted-foreground">Nenhuma versão salva ainda</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  As versoes sao salvas automaticamente a cada 30 segundos
+                  As versões são salvas automaticamente a cada 30 segundos
                 </p>
               </div>
             ) : (
@@ -180,10 +180,10 @@ export function HistoricoVersoes({
       <AlertDialog open={!!confirmRestore} onOpenChange={() => setConfirmRestore(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restaurar esta versao?</AlertDialogTitle>
+            <AlertDialogTitle>Restaurar esta versão?</AlertDialogTitle>
             <AlertDialogDescription>
-              O estado atual do canvas sera salvo automaticamente no historico antes de restaurar.
-              Voce podera voltar ao estado atual a qualquer momento.
+              O estado atual do canvas será salvo automaticamente no histórico antes de restaurar.
+              Você poderá voltar ao estado atual a qualquer momento.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

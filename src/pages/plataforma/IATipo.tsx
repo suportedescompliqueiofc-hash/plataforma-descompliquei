@@ -3,15 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { usePlataforma } from "@/contexts/PlataformaContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Bot, ArrowLeft, Loader2, Copy, History, Sparkles, Save, Maximize2 } from "lucide-react";
+import { ArrowLeft, Loader2, Copy, History, Save, Maximize2, BrainCircuit, Zap } from "lucide-react";
 import { toast } from "sonner"; // Using standard toast if sonner is available.
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FormattedText } from "@/components/FormattedText";
 
 export default function IATipo() {
   const { tipo } = useParams();
@@ -269,47 +268,50 @@ export default function IATipo() {
   }
 
   return (
-    <div className="max-w-[1400px] mx-auto min-h-[calc(100vh-100px)] pb-12 flex flex-col pt-4">
-      <div className="flex items-center gap-4 mb-6 shrink-0">
-        <Button variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-muted p-2" onClick={() => navigate('/plataforma/ia-comercial')}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground uppercase tracking-tight flex items-center gap-2">
-             <Bot className="w-6 h-6 text-[#E85D24]" /> {iaConfig.name}
-          </h1>
-          <p className="text-muted-foreground text-sm font-medium">{iaConfig.benefit}</p>
-        </div>
+    <div className="max-w-[1200px] mx-auto min-h-[calc(100vh-100px)] pb-12 flex flex-col">
+      {/* HEADER */}
+      <div className="space-y-1 border-b border-border pb-6 mb-8">
+        <button onClick={() => navigate('/plataforma/ia-comercial')} className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors mb-3 tracking-[0.06em]">
+          <ArrowLeft className="w-3.5 h-3.5" /> Voltar para IAs Comerciais
+        </button>
+        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">{iaConfig.name}</h1>
+        <p className="text-muted-foreground text-[15px]">{iaConfig.benefit}</p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1">
-        {/* COLUNA ESQUERDA - HISTÓRICO & INSTRUÇÕES (35%) */}
-        <div className="w-full lg:w-[35%] border border-border rounded-xl bg-card flex flex-col shadow-sm sticky top-4 h-fit">
-          <div className="p-6 border-b border-border space-y-4 shrink-0 bg-background/50">
+        {/* COLUNA ESQUERDA - INSTRUÇÕES & HISTÓRICO */}
+        <div className="w-full lg:w-[340px] shrink-0 space-y-5 lg:sticky lg:top-4 h-fit">
+          {/* Instruções */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1">Como usar essa IA:</h3>
-              <p className="text-sm text-foreground/90 leading-relaxed font-medium">{iaConfig.howTo}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-2">Como usar</p>
+              <p className="text-[13px] text-foreground/90 leading-relaxed">{iaConfig.howTo}</p>
             </div>
             {!cerebroData?.differentials && (
-              <Badge variant="destructive" className="w-full justify-center">⚠ Cérebro Central Incompleto - Respostas podem estar genéricas</Badge>
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                  <BrainCircuit className="h-3.5 w-3.5 text-foreground" />
+                </div>
+                <p className="text-[12px] text-muted-foreground leading-snug">Configure o <span className="font-medium text-foreground">Cérebro Central</span> para respostas personalizadas.</p>
+              </div>
             )}
           </div>
-          
-          <div className="p-6 flex-1">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
-              <History className="w-4 h-4" /> Histórico Recente
-            </h3>
+
+          {/* Histórico */}
+          <div className="rounded-xl border border-border bg-card p-5 shadow-card">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-4 flex items-center gap-2">
+              <History className="w-3.5 h-3.5" /> Histórico Recente
+            </p>
             {loadingHistory ? (
-              <div className="flex justify-center p-4"><Loader2 className="w-5 h-5 animate-spin opacity-50" /></div>
+              <div className="flex justify-center p-4"><Loader2 className="w-4 h-4 animate-spin opacity-40" /></div>
             ) : history.length === 0 ? (
-              <p className="text-sm text-muted-foreground italic bg-muted/50 p-4 rounded-lg text-center border border-dashed border-border text-xs">Nenhuma consulta realizada ainda.</p>
+              <p className="text-[12px] text-muted-foreground text-center py-6 bg-muted/30 rounded-lg border border-dashed border-border">Nenhuma consulta realizada ainda.</p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {history.map(h => (
-                  <div key={h.id} onClick={() => handleLoadHistory(h)} className="border border-border bg-background p-3 rounded-xl cursor-pointer hover:border-[#E85D24]/50 transition-colors group relative overflow-hidden">
-                    <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#E85D24] opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div key={h.id} onClick={() => handleLoadHistory(h)} className="border border-border bg-background p-3 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors group">
                     <p className="text-[10px] text-muted-foreground font-mono mb-1">{new Date(h.created_at).toLocaleString()}</p>
-                    <p className="text-xs text-foreground font-medium line-clamp-2 truncate">{h.input_prompt}</p>
+                    <p className="text-xs text-foreground font-medium line-clamp-2">{h.input_prompt}</p>
                   </div>
                 ))}
               </div>
@@ -321,96 +323,99 @@ export default function IATipo() {
         <div className="flex-1 flex flex-col space-y-6">
           
           {/* AREA INPUT */}
-          <Card className="border-border grid shadow-sm border-t-4 border-t-[#E85D24]">
-             <CardHeader className="pb-3">
-                <CardTitle className="text-base text-foreground font-bold flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#E85D24]" /> Contexto de Geração
-                </CardTitle>
-             </CardHeader>
-             <CardContent className="space-y-5">
+          <div className="rounded-xl border border-border bg-card p-6 shadow-card space-y-5">
+             <div className="flex items-center gap-3 pb-4 border-b border-border">
+               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                 <Zap className="h-4 w-4 text-foreground" />
+               </div>
+               <div>
+                 <p className="text-sm font-semibold text-foreground font-display">Contexto de Geração</p>
+                 <p className="text-[12px] text-muted-foreground">Preencha os campos para personalizar a saída da IA.</p>
+               </div>
+             </div>
+
+             <div className="space-y-5">
                 {iaConfig.inputs.map((inp: any) => (
-                  <div key={inp.id} className="space-y-2">
-                    <label className="text-sm font-semibold text-foreground/80 pl-1 uppercase text-[11px] tracking-wider">{inp.label}</label>
+                  <div key={inp.id} className="space-y-1.5">
+                    <label className="text-[13px] font-medium text-foreground">{inp.label}</label>
                     {inp.type === 'textarea' ? (
-                      <Textarea 
-                        className="bg-background border-border min-h-[100px] text-sm resize-y" 
-                        value={fields[inp.id] || ''} 
-                        onChange={e => setFields({...fields, [inp.id]: e.target.value})} 
+                      <Textarea
+                        className="bg-background border-border min-h-[100px] text-sm resize-y"
+                        value={fields[inp.id] || ''}
+                        onChange={e => setFields({...fields, [inp.id]: e.target.value})}
                         placeholder={inp.label}
                       />
                     ) : (
-                      <Input 
-                        className="bg-background border-border" 
-                        value={fields[inp.id] || ''} 
+                      <Input
+                        className="bg-background border-border"
+                        value={fields[inp.id] || ''}
                         onChange={e => setFields({...fields, [inp.id]: e.target.value})}
-                        placeholder={`Digite: ${inp.label.toLowerCase()}`}
+                        placeholder={inp.label}
                       />
                     )}
                   </div>
                 ))}
-                
-                <div className="pt-2 flex flex-col sm:flex-row gap-3 items-center">
-                  <Button 
-                    onClick={handleGenerate} 
-                    disabled={generating} 
-                    className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#E85D24]/90 text-white font-bold tracking-wide min-w-[200px]"
-                    size="lg"
-                  >
-                    {generating ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Processando Inteligência...</> : 'Gerar Resposta com IA'}
-                  </Button>
-                  <Button variant="ghost" onClick={() => {setFields({}); setOutput("");}} className="text-muted-foreground w-full sm:w-auto">Nova Consulta</Button>
-                </div>
-             </CardContent>
-          </Card>
+             </div>
+
+             <div className="pt-1 flex flex-col sm:flex-row gap-3 items-center border-t border-border pt-5">
+               <Button
+                 onClick={handleGenerate}
+                 disabled={generating}
+                 className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold h-10 px-6 text-sm"
+               >
+                 {generating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processando...</> : 'Gerar Resposta'}
+               </Button>
+               <Button variant="ghost" size="sm" onClick={() => {setFields({}); setOutput("");}} className="text-muted-foreground text-xs">Nova Consulta</Button>
+             </div>
+          </div>
 
           {/* AREA OUTPUT */}
           {output && (
-            <Card className="border-emerald-500/30 bg-card overflow-hidden shadow-sm relative pt-4">
-              <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-[#E85D24]" />
-              <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                <CardTitle className="text-foreground text-sm font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Resposta da Máquina</CardTitle>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setExpandModalOpen(true)} className="h-8 border-border hover:bg-muted font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">
-                    <Maximize2 className="w-4 h-4 mr-2" /> Expandir
+            <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden animate-in fade-in duration-300">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                <p className="text-sm font-semibold text-foreground font-display">Resposta Gerada</p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setExpandModalOpen(true)} className="h-8 text-xs border-border hover:bg-muted font-medium">
+                    <Maximize2 className="w-3.5 h-3.5 mr-1.5" /> Expandir
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleOpenSaveModal} className="h-8 border-border hover:bg-muted font-semibold text-[#E85D24] hover:text-[#E85D24]">
-                    <Save className="w-4 h-4 mr-2" /> Salvar Material
+                  <Button variant="outline" size="sm" onClick={handleOpenSaveModal} className="h-8 text-xs border-border hover:bg-muted font-medium">
+                    <Save className="w-3.5 h-3.5 mr-1.5" /> Salvar
                   </Button>
-                  <Button variant="outline" size="sm" onClick={copyToClipboard} className="h-8 border-border hover:bg-muted font-semibold">
-                    <Copy className="w-4 h-4 mr-2" /> Copiar Texto
+                  <Button variant="outline" size="sm" onClick={copyToClipboard} className="h-8 text-xs border-border hover:bg-muted font-medium">
+                    <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar
                   </Button>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-background border border-border rounded-xl p-5 md:p-6 text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed shadow-inner max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
-                  {output}
+              </div>
+              <div className="p-6">
+                <div className="bg-background border border-border rounded-lg p-5 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
+                  <FormattedText content={output} className="text-sm" />
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
         </div>
       </div>
 
       <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
-        <DialogContent className="border-border bg-card">
+        <DialogContent className="border-border bg-card sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Salvar como Material</DialogTitle>
-            <DialogDescription>
-              Guarde este conteúdo no seu repositório de Meus Materiais.
+            <DialogTitle className="text-foreground font-display">Salvar como Material</DialogTitle>
+            <DialogDescription className="text-muted-foreground text-[13px]">
+              Guarde este conteúdo em Meus Materiais.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground text-xs uppercase tracking-wider">Título do Material</label>
-              <Input 
-                value={saveTitle} 
-                onChange={(e) => setSaveTitle(e.target.value)} 
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-foreground">Título do Material</label>
+              <Input
+                value={saveTitle}
+                onChange={(e) => setSaveTitle(e.target.value)}
                 className="bg-background border-border"
               />
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground text-xs uppercase tracking-wider">Categoria</label>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-medium text-foreground">Categoria</label>
               <Select value={saveCategory} onValueChange={setSaveCategory}>
                 <SelectTrigger className="bg-background border-border">
                   <SelectValue placeholder="Selecione..." />
@@ -428,33 +433,29 @@ export default function IATipo() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleConfirmSaveMaterial} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90 font-bold">Salvar e Concluir</Button>
+            <Button variant="outline" onClick={() => setSaveModalOpen(false)} className="font-medium">Cancelar</Button>
+            <Button onClick={handleConfirmSaveMaterial} className="bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Expand Modal */}
       <Dialog open={expandModalOpen} onOpenChange={setExpandModalOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col border-border bg-card">
-          <DialogHeader className="shrink-0 border-b border-border pb-4">
-            <DialogTitle className="text-foreground text-lg flex items-center gap-2">
-              <Bot className="w-5 h-5 text-[#E85D24]" /> Resposta Expandida da IA
-            </DialogTitle>
+        <DialogContent className="sm:max-w-3xl h-[85vh] flex flex-col p-0 border-border overflow-hidden gap-0 bg-card">
+          <DialogHeader className="p-6 border-b border-border shrink-0">
+            <DialogTitle className="text-lg text-foreground font-bold font-display">{iaConfig.name} — Resposta</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-border">
-            <div className="bg-background border border-border rounded-xl p-6 text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed">
-              {output}
-            </div>
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-border bg-background">
+            <FormattedText content={output} className="text-sm" />
           </div>
-          <DialogFooter className="shrink-0 pt-4 border-t border-border flex justify-between sm:justify-between items-center w-full">
-            <Button variant="outline" onClick={copyToClipboard} className="font-semibold">
+          <div className="p-4 border-t border-border flex justify-end gap-3 shrink-0">
+            <Button variant="outline" onClick={copyToClipboard} className="font-medium border-border">
               <Copy className="w-4 h-4 mr-2" /> Copiar Texto
             </Button>
-            <Button onClick={() => setExpandModalOpen(false)} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90 font-bold">
+            <Button onClick={() => setExpandModalOpen(false)} className="bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold">
               Fechar
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

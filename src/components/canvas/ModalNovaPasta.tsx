@@ -217,7 +217,7 @@ export function ModalNovaPasta({
             <Textarea
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
-              placeholder="Breve descricao..."
+              placeholder="Breve descrição..."
               rows={2}
             />
           </div>

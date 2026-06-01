@@ -697,11 +697,11 @@ export default function MarketingTrafego() {
               </div>
             )}
 
-            {/* Funil de Conversao */}
+            {/* Funil de Conversão */}
             {ef && (ef.leads_marketing || 0) > 0 && (
               <Card className="rounded-xl">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Funil de Conversao (Marketing)</CardTitle>
+                  <CardTitle className="text-sm font-medium">Funil de Conversão (Marketing)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between gap-2 mb-4">

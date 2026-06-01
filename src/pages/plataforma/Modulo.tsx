@@ -51,10 +51,29 @@ import {
   Settings2,
   Table,
   Target,
+  Trash2,
   Trophy,
   Video,
 } from "lucide-react";
 import { toast } from "sonner";
+
+// Converte qualquer URL do YouTube para o formato embed compatível com iframe
+function toYoutubeEmbed(url: string): string {
+  if (!url) return url;
+  // Já é embed
+  if (url.includes('youtube.com/embed/')) return url;
+  // youtu.be/VIDEO_ID
+  const shortMatch = url.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}`;
+  // youtube.com/watch?v=VIDEO_ID
+  const watchMatch = url.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}`;
+  // youtube.com/shorts/VIDEO_ID
+  const shortsMatch = url.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (shortsMatch) return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+  // Retorna original se não reconheceu
+  return url;
+}
 
 const STEPS = ["aprenda", "construa", "valide", "finalize"] as const;
 type Step = typeof STEPS[number];
@@ -496,12 +515,13 @@ function getBlockCompletion(block: ModuleBlock, response: any) {
 export default function Modulo() {
   const { moduloId } = useParams();
   const navigate = useNavigate();
-  const { progress, markModuleComplete } = usePlataforma();
+  const { progress, markModuleComplete, isMember } = usePlataforma();
   const { user } = useAuth();
 
   const [moduleData, setModuleData] = useState<ModuleData | null>(null);
   const [pillarModules, setPillarModules] = useState<ModuleData[]>([]);
   const [currentStep, setCurrentStep] = useState<Step>("aprenda");
+  const activeSteps = isMember ? (STEPS.slice(0, 1) as readonly Step[]) : STEPS;
   const [isLoading, setIsLoading] = useState(true);
   const [checkedItens, setCheckedItens] = useState<Record<string, boolean>>({});
   const [isValideCompleted, setIsValideCompleted] = useState(false);
@@ -1231,6 +1251,12 @@ export default function Modulo() {
     if (step === "aprenda") {
       const saved = await persistStepCompletion("aprenda");
       if (!saved) return;
+      if (isMember) {
+        await markModuleComplete(moduloId!);
+        toast.success("Aula concluída!", { duration: 3000 });
+        navigate(-1);
+        return;
+      }
       toast.success("Aula concluída. Agora vamos aplicar isso na sua clínica.");
       setCurrentStep("construa");
       return;
@@ -1277,12 +1303,14 @@ export default function Modulo() {
   }
 
   const renderAprenda = () => (
-    <div className="animate-in slide-in-from-right-8 space-y-6 duration-300">
-      <div className="flex items-start gap-4 rounded-xl border border-[#E85D24]/20 bg-[#E85D24]/10 p-4 text-[#E85D24]">
-        <Video className="mt-1 h-8 w-8 shrink-0" />
+    <div className="animate-in slide-in-from-right-4 space-y-6 duration-300">
+      <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+          <Video className="h-4.5 w-4.5 text-foreground" />
+        </div>
         <div>
-          <h3 className="text-lg font-bold">Aprenda a estratégia</h3>
-          <p className="text-sm opacity-90">Assista ao conteúdo antes de aplicarmos isso na sua clínica.</p>
+          <h3 className="text-sm font-semibold text-foreground font-display">Aprenda a estratégia</h3>
+          <p className="text-[13px] text-muted-foreground">Assista ao conteúdo antes de aplicarmos isso na sua clínica.</p>
         </div>
       </div>
 
@@ -1292,18 +1320,20 @@ export default function Modulo() {
         </div>
       )}
 
-      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-background shadow-xl">
+      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-border bg-background shadow-card">
         {moduleData.video_url ? (
           <iframe
-            src={moduleData.video_url}
+            src={toYoutubeEmbed(moduleData.video_url)}
             className="absolute inset-0 h-full w-full"
             allowFullScreen
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           />
         ) : (
-          <div className="rounded-full border border-border/50 bg-muted/40 p-6 text-center shadow-inner">
-            <PlayCircle className="mx-auto mb-3 h-12 w-12 text-muted-foreground opacity-50" />
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Vídeo em breve</p>
+          <div className="flex flex-col items-center justify-center gap-3 text-center">
+            <div className="rounded-full bg-muted p-4">
+              <PlayCircle className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Vídeo em breve</p>
           </div>
         )}
       </div>
@@ -1311,8 +1341,7 @@ export default function Modulo() {
       <div className="flex justify-end pt-4">
         <Button
           onClick={() => void advanceStep("aprenda")}
-          className="bg-[#E85D24] text-white shadow-md shadow-[#E85D24]/20 hover:bg-[#E85D24]/90"
-          size="lg"
+          className="bg-[#E85D24] text-white hover:bg-[#D04E1A] font-semibold h-10 px-6"
         >
           Concluí a aula <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
@@ -1425,7 +1454,7 @@ export default function Modulo() {
                   {canRemoveRows && (
                     <td className="px-4 py-3 text-right">
                       <Button variant="ghost" size="sm" onClick={() => removeRow(rowIndex)}>
-                        🗑
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>
                   )}
@@ -1452,7 +1481,7 @@ export default function Modulo() {
               {canRemoveRows && (
                 <div className="mt-3 flex justify-end">
                   <Button variant="ghost" size="sm" onClick={() => removeRow(rowIndex)}>
-                    🗑 Remover linha
+                    <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Remover linha
                   </Button>
                 </div>
               )}
@@ -1522,7 +1551,7 @@ export default function Modulo() {
           );
         })}
 
-        <div className="rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="rounded-xl border border-border bg-muted/30 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-semibold text-foreground">Preview do script completo</h4>
@@ -1579,10 +1608,10 @@ export default function Modulo() {
                 key={value}
                 type="button"
                 onClick={() => toggleValue(value)}
-                className={`relative rounded-2xl border p-4 text-left transition-all ${
+                className={`relative rounded-xl border p-4 text-left transition-all ${
                   isSelected
-                    ? "border-[#E85D24] bg-[#FFF0E8] shadow-sm"
-                    : "border-border bg-background hover:border-[#E85D24]/40 hover:bg-muted/30"
+                    ? "border-[#E85D24] bg-[#E85D24]/[0.04]"
+                    : "border-border bg-background hover:border-border hover:bg-muted/30"
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -1685,9 +1714,9 @@ export default function Modulo() {
 
         <div className={`grid gap-4 ${results.length > 1 ? "md:grid-cols-2" : ""}`}>
           {results.map((result) => (
-            <div key={result.id} className="rounded-2xl bg-slate-950 p-5 text-white shadow-lg">
-              <p className="text-3xl font-black tracking-tight">{formatCalculatedValue(result.value, result.tipo)}</p>
-              <p className="mt-2 text-sm text-slate-300">{result.label}</p>
+            <div key={result.id} className="rounded-xl bg-secondary p-5 text-secondary-foreground shadow-md">
+              <p className="text-2xl font-bold tracking-tight font-display">{formatCalculatedValue(result.value, result.tipo)}</p>
+              <p className="mt-2 text-sm opacity-70">{result.label}</p>
             </div>
           ))}
         </div>
@@ -1769,7 +1798,7 @@ export default function Modulo() {
           <div className="flex justify-end">
             <Button
               variant="outline"
-              className="border-[#E85D24] text-[#E85D24] hover:bg-[#E85D24]/10"
+              className="border-border text-foreground hover:bg-muted/50"
               onClick={() => void persistMaterial(block, response, "Oferta")}
             >
               <Package className="mr-2 h-4 w-4" />
@@ -1778,12 +1807,12 @@ export default function Modulo() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-border bg-muted/20 p-5">
+        <div className="rounded-xl border border-border bg-muted/30 p-5">
           <div className="mb-3">
-            <h4 className="text-sm font-semibold text-foreground">Assim fica sua oferta</h4>
+            <h4 className="text-sm font-semibold text-foreground font-display">Assim fica sua oferta</h4>
             <p className="text-xs text-muted-foreground">Preview atualizado em tempo real conforme você preenche.</p>
           </div>
-          <div className="space-y-3 rounded-2xl border border-border bg-background p-4 shadow-sm">
+          <div className="space-y-3 rounded-xl border border-border bg-background p-4 shadow-card">
             {fields.map((field) => {
               const value = response.values?.[field.id];
               if (!value) return null;
@@ -1812,7 +1841,7 @@ export default function Modulo() {
 
     return (
       <div className="space-y-6">
-        <div className="space-y-2 rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-foreground">Progresso do mapa</p>
@@ -1830,7 +1859,7 @@ export default function Modulo() {
             const sectionKey = section.id || `${slugify(section.nome || `secao_${sectionIndex + 1}`) || `secao_${sectionIndex + 1}`}_${sectionIndex}`;
             const fields = Array.isArray(section.campos) ? section.campos : [];
             return (
-              <AccordionItem key={sectionKey} value={sectionKey} className="rounded-2xl border border-border bg-background px-4">
+              <AccordionItem key={sectionKey} value={sectionKey} className="rounded-xl border border-border bg-background px-4">
                 <AccordionTrigger className="text-left text-sm font-semibold text-foreground hover:no-underline">
                   {section.nome || `Seção ${sectionIndex + 1}`}
                 </AccordionTrigger>
@@ -1884,7 +1913,7 @@ export default function Modulo() {
           })}
         </Accordion>
 
-        <div className="rounded-2xl border border-border bg-background p-5 shadow-sm">
+        <div className="rounded-xl border border-border bg-background p-5 shadow-card">
           <h4 className="mb-3 text-sm font-semibold text-foreground">Preview do ICP</h4>
           <div className="space-y-4">
             {sections.map((section: any, sectionIndex: number) => {
@@ -1925,7 +1954,7 @@ export default function Modulo() {
 
     return (
       <div className="space-y-5">
-        <div className="space-y-2 rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-foreground">Progresso da implementação</p>
@@ -1946,7 +1975,7 @@ export default function Modulo() {
             return (
               <div
                 key={key}
-                className={`rounded-2xl border p-4 transition-all ${
+                className={`rounded-xl border p-4 transition-all ${
                   state.checked ? "border-emerald-200 bg-emerald-50" : "border-border bg-background"
                 }`}
               >
@@ -2031,13 +2060,13 @@ export default function Modulo() {
     if (moduleBlocks.length === 0) {
       return (
         <div className="space-y-6">
-          <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-amber-700">
-            <div className="flex items-start gap-4">
-              <Settings2 className="mt-1 h-8 w-8 shrink-0" />
-              <div>
-                <h3 className="text-lg font-bold">Nenhuma atividade prática configurada para este módulo.</h3>
-                <p className="mt-1 text-sm opacity-90">Continue para a etapa de Validação.</p>
-              </div>
+          <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+              <Settings2 className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground font-display">Nenhuma atividade prática configurada</h3>
+              <p className="text-[13px] text-muted-foreground">Continue para a etapa de Validação.</p>
             </div>
           </div>
 
@@ -2055,33 +2084,35 @@ export default function Modulo() {
 
     return (
       <div className="animate-in slide-in-from-right-8 space-y-6 duration-300">
-        <div className="space-y-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div className="flex items-start gap-4">
-              <Settings2 className="mt-1 h-8 w-8 shrink-0 text-amber-600" />
+        <div className="rounded-xl border border-border bg-card p-5 shadow-card">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+                <Settings2 className="h-4 w-4 text-foreground" />
+              </div>
               <div>
-                <h3 className="text-lg font-bold text-amber-700">Blocos do Construa</h3>
-                <p className="text-sm text-amber-700/90">
+                <h3 className="text-sm font-semibold text-foreground font-display">Construa na prática</h3>
+                <p className="text-[13px] text-muted-foreground">
                   {currentBlockProgress.completed} de {currentBlockProgress.total} blocos preenchidos
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-[11px] font-medium">
               {globalSaving ? (
-                <span className="flex items-center rounded-full bg-amber-500/20 px-3 py-1 font-medium text-amber-700">
-                  <Loader2 className="mr-1 h-3 w-3 animate-spin" /> Salvando...
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Salvando...
                 </span>
               ) : (
-                <span className="flex items-center rounded-full bg-emerald-500/20 px-3 py-1 font-medium text-emerald-700">
-                  <CheckCircle2 className="mr-1 h-3 w-3" /> Tudo salvo
+                <span className="flex items-center gap-1.5 text-emerald-600">
+                  <CheckCircle2 className="h-3 w-3" /> Tudo salvo
                 </span>
               )}
             </div>
           </div>
-          <Progress value={currentBlockProgress.percentage} className="h-2.5 bg-white/70" />
+          <Progress value={currentBlockProgress.percentage} className="mt-4 h-1.5 bg-muted" />
         </div>
 
-        <div className="space-y-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="space-y-8 rounded-xl border border-border bg-card p-6 shadow-card">
           {moduleBlocks.map((block, index) => {
             const definition = BLOCK_DEFINITIONS[block.tipo];
             const Icon = definition.icon;
@@ -2097,7 +2128,7 @@ export default function Modulo() {
                     <div className="flex flex-wrap items-center gap-3">
                       <div className="flex items-center gap-2">
                         <Icon className={`h-5 w-5 ${definition.colorClass}`} />
-                        <h3 className="text-xl font-bold text-foreground">{block.titulo}</h3>
+                        <h3 className="text-base font-semibold text-foreground font-display">{block.titulo}</h3>
                       </div>
                       <Badge variant="outline">{definition.label}</Badge>
                       {blockCompleted[block.id] && <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Preenchido</Badge>}
@@ -2124,15 +2155,16 @@ export default function Modulo() {
                 {renderBlockBody(block)}
 
                 {canSyncCerebro && (
-                  <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4">
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
                     <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                      <div className="space-y-1">
-                        <p className="flex items-center gap-2 text-sm font-semibold text-sky-800">
-                          <Brain className="h-4 w-4" /> Este conteúdo alimenta seu Cérebro Central
-                        </p>
-                        <p className="text-sm text-sky-700">
-                          Clique para atualizar as IAs com estes dados.
-                        </p>
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-background border border-border">
+                          <Brain className="h-3.5 w-3.5 text-foreground" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <p className="text-[13px] font-semibold text-foreground">Alimenta o Cérebro Central</p>
+                          <p className="text-xs text-muted-foreground">Clique para atualizar as IAs com estes dados.</p>
+                        </div>
                       </div>
                       <TooltipProvider>
                         <Tooltip>
@@ -2165,9 +2197,8 @@ export default function Modulo() {
           </Button>
           <Button
             onClick={() => void advanceStep("construa")}
-            className="bg-[#E85D24] text-white shadow-md shadow-[#E85D24]/20 hover:bg-[#E85D24]/90"
+            className="bg-[#E85D24] text-white hover:bg-[#D04E1A] font-semibold h-10 px-6"
             disabled={globalSaving || !currentBlockProgress.allCompleted}
-            size="lg"
           >
             Concluir Construa <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -2200,16 +2231,18 @@ export default function Modulo() {
 
     return (
       <div className="animate-in slide-in-from-right-8 space-y-6 duration-300">
-        <div className="flex items-start gap-4 rounded-xl border border-blue-500/20 bg-blue-500/10 p-4 text-blue-600 dark:text-blue-500">
-          <FileCheck className="mt-1 h-8 w-8 shrink-0" />
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-card">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <FileCheck className="h-4 w-4 text-foreground" />
+          </div>
           <div className="flex-1">
-            <h3 className="text-lg font-bold">Valide seu aprendizado</h3>
-            <p className="text-sm opacity-90">Confirme que você aprendeu e aplicou o conteúdo deste módulo.</p>
+            <h3 className="text-sm font-semibold text-foreground font-display">Valide seu aprendizado</h3>
+            <p className="text-[13px] text-muted-foreground">Confirme que você aprendeu e aplicou o conteúdo deste módulo.</p>
           </div>
         </div>
 
-        <div className="space-y-6 rounded-xl border bg-card p-6 shadow-sm">
-          <div className="space-y-2 rounded-2xl border border-border bg-muted/20 p-4">
+        <div className="space-y-6 rounded-xl border border-border bg-card p-6 shadow-card">
+          <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-foreground">Progresso da validação</p>
@@ -2228,10 +2261,10 @@ export default function Modulo() {
               return (
                 <label
                   key={key}
-                  className={`flex cursor-pointer items-start gap-4 rounded-2xl border p-4 transition-all duration-200 ${
+                  className={`flex cursor-pointer items-start gap-4 rounded-xl border p-4 transition-all duration-150 ${
                     checkedItens[key]
                       ? "border-emerald-200 bg-emerald-50"
-                      : "border-border bg-background hover:bg-muted/50"
+                      : "border-border bg-background hover:bg-muted/30"
                   }`}
                 >
                   <Checkbox
@@ -2255,8 +2288,7 @@ export default function Modulo() {
           <Button
             onClick={() => void advanceStep("valide")}
             disabled={!allChecked}
-            className={!allChecked ? "bg-muted text-muted-foreground" : "bg-[#E85D24] text-white hover:bg-[#E85D24]/90"}
-            size="lg"
+            className={!allChecked ? "bg-muted text-muted-foreground" : "bg-[#E85D24] text-white hover:bg-[#D04E1A] font-semibold h-10 px-6"}
           >
             Concluir e Avançar <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
@@ -2266,30 +2298,24 @@ export default function Modulo() {
   };
 
   const renderFinalize = () => (
-    <div className="relative flex flex-col items-center justify-center overflow-hidden rounded-xl border bg-card px-6 py-12 text-center shadow-sm animate-in zoom-in-95 duration-500 space-y-8">
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
-
-      <div className="relative">
-        <Trophy className="mx-auto h-24 w-24 text-emerald-500 drop-shadow-xl" strokeWidth={1.5} />
-        <div className="absolute -bottom-2 -right-2 rounded-full bg-background">
-          <CheckCircle2 className="h-8 w-8 fill-emerald-500 text-foreground" />
-        </div>
+    <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card px-6 py-16 text-center shadow-card animate-in fade-in duration-500 space-y-6">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50">
+        <Trophy className="h-8 w-8 text-emerald-500" strokeWidth={1.5} />
       </div>
 
-      <div className="relative z-10 max-w-md space-y-3">
-        <h2 className="text-3xl font-extrabold tracking-tight text-foreground">Módulo {moduleData.id} concluído!</h2>
-        <p className="text-lg text-muted-foreground">{moduleData.title}</p>
+      <div className="max-w-md space-y-2">
+        <h2 className="text-xl font-bold tracking-tight text-foreground font-display">Módulo {moduleData.id} concluído!</h2>
+        <p className="text-base text-muted-foreground">{moduleData.title}</p>
 
-        <div className="mb-6 mt-6 rounded-lg bg-secondary/50 p-4 text-sm font-medium">
+        <div className="mt-4 rounded-xl bg-muted/50 p-4 text-sm text-muted-foreground leading-relaxed">
           {moduleData.finalize_content || "Excelente trabalho. Você evoluiu o seu Cérebro Central e ficou mais perto de dominar sua demanda."}
         </div>
       </div>
 
-      <div className="relative z-10 mt-4 flex w-full flex-col gap-4 sm:w-auto sm:flex-row">
+      <div className="mt-2 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
         {nextModule ? (
           <Button
-            size="lg"
-            className="bg-[#E85D24] px-8 text-white hover:bg-[#E85D24]/90"
+            className="bg-[#E85D24] px-6 text-white hover:bg-[#D04E1A] font-semibold h-10"
             onClick={() => {
               void advanceStep("finalize");
               navigate(`/plataforma/trilha/${nextModule.id}`);
@@ -2299,8 +2325,7 @@ export default function Modulo() {
           </Button>
         ) : (
           <Button
-            size="lg"
-            className="bg-[#E85D24] px-8 text-white hover:bg-[#E85D24]/90"
+            className="bg-[#E85D24] px-6 text-white hover:bg-[#D04E1A] font-semibold h-10"
             onClick={() => {
               void advanceStep("finalize");
               navigate("/plataforma/trilha");
@@ -2319,18 +2344,18 @@ export default function Modulo() {
   return (
     <>
       <div className="mx-auto mt-4 flex min-h-[calc(100vh-100px)] max-w-[1400px] flex-col gap-6 px-4 pb-6 lg:h-[calc(100vh-100px)] lg:flex-row lg:px-8">
-        <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm lg:h-[calc(100vh-120px)] lg:w-[320px]">
-          <div className="border-b border-border bg-muted/20 p-5">
+        <div className="flex w-full shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-card lg:h-[calc(100vh-120px)] lg:w-[320px]">
+          <div className="border-b border-border p-5">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate("/plataforma/trilha")}
-              className="mb-4 h-auto px-0 py-1 font-semibold tracking-wide text-muted-foreground hover:bg-transparent hover:text-foreground"
+              className="mb-4 h-auto px-0 py-1 text-sm font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
             >
-              <ArrowLeft className="mr-2 h-4 w-4" /> Voltar para Trilha
+              <ArrowLeft className="mr-2 h-3.5 w-3.5" /> Voltar para Trilha
             </Button>
-            <h3 className="mb-1 text-sm font-bold uppercase tracking-wider text-[#E85D24]">Pilar {moduleData.pillar}</h3>
-            <p className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground">Módulos da fase</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Pilar {moduleData.pillar}</p>
+            <p className="mt-0.5 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground/60">Módulos da fase</p>
           </div>
 
           <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border flex-1 space-y-1 overflow-y-auto p-3">
@@ -2345,42 +2370,29 @@ export default function Modulo() {
                 <div
                   key={moduleItem.id}
                   onClick={() => navigate(`/plataforma/trilha/${moduleItem.id}`)}
-                  className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                    isCurrent ? "border-[#E85D24]/30 bg-[#E85D24]/10 shadow-sm" : "border-transparent bg-transparent hover:bg-muted/50"
+                  className={`relative flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors ${
+                    isCurrent ? "bg-muted/60" : "hover:bg-muted/30"
                   }`}
                 >
+                  {isCurrent && <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-[#E85D24]" />}
                   <div className="mt-0.5 shrink-0">
                     {isCompleted ? (
                       <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                     ) : isInProgress ? (
-                      <div className="relative flex h-4 w-4 items-center justify-center">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="text-[#E85D24]"
-                        >
-                          <circle cx="12" cy="12" r="10" />
-                          <polyline points="12 6 12 12 16 14" />
-                        </svg>
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#E85D24]/10">
+                        <div className="h-1.5 w-1.5 rounded-full bg-[#E85D24] animate-pulse" />
                       </div>
                     ) : (
-                      <PlayCircle className={`h-4 w-4 ${isCurrent ? "text-[#E85D24]" : "text-muted-foreground"}`} />
+                      <PlayCircle className={`h-4 w-4 ${isCurrent ? "text-foreground" : "text-muted-foreground/50"}`} />
                     )}
                   </div>
                   <div>
                     <p
-                      className={`text-sm font-medium leading-snug ${
-                        isCurrent ? "text-[#E85D24]" : isCompleted ? "text-foreground" : "text-muted-foreground"
+                      className={`text-[13px] font-medium leading-snug ${
+                        isCurrent ? "text-foreground" : isCompleted ? "text-foreground" : "text-muted-foreground"
                       }`}
                     >
-                      <span className="mr-1.5 opacity-50">{moduleItem.id}</span>
+                      <span className="mr-1 font-mono text-[11px] text-muted-foreground/50">{moduleItem.id}</span>
                       {moduleItem.title}
                     </p>
                   </div>
@@ -2392,28 +2404,28 @@ export default function Modulo() {
 
         <div className="scrollbar-thin scrollbar-track-transparent scrollbar-thumb-border flex w-full flex-1 flex-col pb-10 pr-1 lg:overflow-y-auto">
           <div className="mb-8 space-y-4">
-            <div className="flex items-center text-xs font-bold uppercase tracking-widest">
-              <span className="text-[#E85D24]">Trilha</span>
-              <span className="mx-2 text-muted-foreground">/</span>
-              <span className="text-muted-foreground">Pilar {moduleData.pillar}</span>
-              <span className="mx-2 text-muted-foreground">/</span>
-              <span className="text-muted-foreground">Módulo {moduleData.id}</span>
+            <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+              <span className="hover:text-foreground cursor-pointer transition-colors" onClick={() => navigate("/plataforma/trilha")}>Trilha</span>
+              <span>/</span>
+              <span>Pilar {moduleData.pillar}</span>
+              <span>/</span>
+              <span className="text-foreground">Módulo {moduleData.id}</span>
             </div>
-            <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-foreground md:text-4xl">{moduleData.title}</h1>
+            <h1 className="text-2xl font-bold leading-tight tracking-tight text-foreground font-display">{moduleData.title}</h1>
           </div>
 
           <div className="relative mb-8 flex w-full items-center">
-            <div className="absolute left-0 top-1/2 hidden h-1 w-full -translate-y-1/2 rounded-full bg-border sm:block" />
-            {STEPS.map((step, index) => {
-              const stepIndex = STEPS.indexOf(step);
-              const activeIndex = STEPS.indexOf(currentStep);
+            <div className="absolute left-0 top-[14px] hidden h-[2px] w-full bg-border sm:block" />
+            {activeSteps.map((step, index) => {
+              const stepIndex = activeSteps.indexOf(step);
+              const activeIndex = activeSteps.indexOf(currentStep);
               const isPast = stepIndex < activeIndex;
               const isActive = stepIndex === activeIndex;
               const labels = {
-                aprenda: "Aprenda",
-                construa: "Construa",
-                valide: "Valide",
-                finalize: "Finalize",
+                aprenda: "APRENDA",
+                construa: "CONSTRUA",
+                valide: "VALIDE",
+                finalize: "FINALIZE",
               };
 
               return (
@@ -2425,19 +2437,19 @@ export default function Modulo() {
                   }}
                 >
                   <div
-                    className={`mb-2 flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-bold shadow-sm transition-all duration-300 ${
+                    className={`mb-2.5 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all duration-200 ${
                       isPast
-                        ? "cursor-pointer border-emerald-500 bg-emerald-500 text-white hover:scale-105 hover:shadow-md"
+                        ? "cursor-pointer bg-emerald-500 text-white"
                         : isActive
-                          ? "border-[#E85D24] bg-[#E85D24] text-white ring-4 ring-[#E85D24]/20"
-                          : "border-border bg-card text-muted-foreground"
+                          ? "bg-[#E85D24] text-white ring-[3px] ring-[#E85D24]/15"
+                          : "border border-border bg-card text-muted-foreground"
                     }`}
                   >
-                    {isPast ? <CheckCircle2 className="h-5 w-5" /> : index + 1}
+                    {isPast ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : index + 1}
                   </div>
                   <span
-                    className={`text-xs font-semibold uppercase tracking-wider md:text-sm ${
-                      isActive ? "text-[#E85D24]" : isPast ? "text-emerald-600" : "text-muted-foreground"
+                    className={`text-[11px] font-semibold tracking-wider ${
+                      isActive ? "text-foreground" : isPast ? "text-emerald-600" : "text-muted-foreground"
                     }`}
                   >
                     {labels[step]}
@@ -2457,29 +2469,24 @@ export default function Modulo() {
       </div>
 
       <Dialog open={!!showMilestone} onOpenChange={(open) => !open && setShowMilestone(null)}>
-        <DialogContent className="relative overflow-hidden border-2 border-emerald-500/20 bg-card p-8 text-center shadow-2xl sm:max-w-md">
-          <div className="pointer-events-none absolute inset-0 bg-emerald-500/5" />
-          <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-500/20 blur-3xl" />
-          <div className="absolute -bottom-10 -left-10 h-40 w-40 rounded-full bg-[#E85D24]/20 blur-3xl" />
-
-          <div className="relative z-10 flex flex-col items-center">
-            <div className="mb-6 flex h-20 w-20 animate-bounce items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 shadow-inner">
-              <PartyPopper className="h-10 w-10 text-emerald-500" />
+        <DialogContent className="border-border bg-card p-8 text-center sm:max-w-md">
+          <div className="flex flex-col items-center">
+            <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
+              <PartyPopper className="h-7 w-7 text-emerald-500" />
             </div>
-            <DialogHeader className="space-y-4">
-              <DialogTitle className="text-center text-2xl font-black uppercase tracking-widest text-foreground">
+            <DialogHeader className="space-y-3">
+              <DialogTitle className="text-center text-lg font-bold tracking-wide text-foreground font-display">
                 {showMilestone?.title}
               </DialogTitle>
-              <DialogDescription className="text-center text-base font-medium leading-relaxed text-muted-foreground">
+              <DialogDescription className="text-center text-sm leading-relaxed text-muted-foreground">
                 {showMilestone?.desc}
               </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-8 w-full space-y-4 border-t border-border pt-6">
-              <p className="animate-pulse text-sm font-bold uppercase tracking-widest text-[#E85D24]">Próxima fase desbloqueada</p>
+            <div className="mt-6 w-full space-y-3 border-t border-border pt-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#E85D24]">Próxima fase desbloqueada</p>
               <Button
-                size="lg"
-                className="w-full bg-[#E85D24] text-sm text-white shadow-lg hover:bg-[#E85D24]/90"
+                className="w-full bg-[#E85D24] text-white hover:bg-[#D04E1A] font-semibold h-10"
                 onClick={() => {
                   setShowMilestone(null);
                   if (nextModule) navigate(`/plataforma/trilha/${nextModule.id}`);

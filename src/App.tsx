@@ -29,10 +29,18 @@ import Cadences from "./pages/Cadences";
 import MarketingTrafego from "./pages/MarketingTrafego";
 import Agendamentos from "./pages/Agendamentos";
 import Metas from "./pages/Metas";
+import Performance from "./pages/Performance";
+import Procedimentos from "./pages/Procedimentos";
+import JornadaPaciente from "./pages/JornadaPaciente";
 import CriativosBiblioteca from "./pages/CriativosBiblioteca";
 import CriativosPasta from "./pages/CriativosPasta";
 import Canvas from "./pages/Canvas";
 import SuperAdmin from "./pages/SuperAdmin";
+import { TutorialProvider } from "./components/tutorial/TutorialProvider";
+import { TutorialSpotlight } from "./components/tutorial/TutorialSpotlight";
+import { TutorialHelpCenter } from "./components/tutorial/TutorialHelpCenter";
+import { OnboardingModal } from "./components/onboarding/OnboardingModal";
+import CrmOnboarding from "./pages/CrmOnboarding";
 
 // Outbound pages
 import OutboundPainel from "./pages/outbound/OutboundPainel";
@@ -53,14 +61,10 @@ import AdminDashboard from "./pages/admin-os/pages/AdminDashboard";
 import AdminClientes from "./pages/admin-os/pages/AdminClientes";
 import AdminClientePerfil from "./pages/admin-os/pages/AdminClientePerfil";
 import AdminTrilha from "./pages/admin-os/pages/AdminTrilha";
+import AdminTrilhaWrapper from "./pages/admin-os/AdminTrilhaWrapper";
 import AdminIAs from "./pages/admin-os/pages/AdminIAs";
 import AdminSessoes from "./pages/admin-os/pages/AdminSessoes";
-import AdminMateriais from "./pages/admin-os/pages/AdminMateriais";
-import AdminCalendario from "./pages/admin-os/pages/AdminCalendario";
-import AdminTarefas from "./pages/admin-os/pages/AdminTarefas";
-import AdminRelatorios from "./pages/admin-os/pages/AdminRelatorios";
 import AdminSistema from "./pages/admin-os/pages/AdminSistema";
-import AdminGestaoAcessos from "./pages/admin-os/pages/AdminGestaoAcessos";
 import AdminProdutos from "./pages/admin-os/pages/AdminProdutos";
 import AdminAcessoCliente from "./pages/admin-os/pages/AdminAcessoCliente";
 import { AcessoGuard } from "./components/AcessoGuard";
@@ -86,6 +90,7 @@ import SessoesTaticas from "./pages/plataforma/SessoesTaticas";
 import Onboarding from "./pages/plataforma/Onboarding";
 import Materiais from "./pages/plataforma/Materiais";
 import Configuracoes from "./pages/plataforma/Configuracoes";
+import Evolucao from "./pages/plataforma/Evolucao";
 import PlataformaLogin from "./pages/plataforma/PlataformaLogin";
 import { PlataformaProvider } from "@/contexts/PlataformaContext";
 
@@ -190,8 +195,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="min-h-screen bg-background overflow-x-hidden flex flex-col">
       {isPlataformaRoute && diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 7 && (
-        <div className="bg-orange-500 text-white text-xs sm:text-sm font-medium py-1.5 px-4 text-center shadow-md z-[60] relative">
-          ⚠️ <strong>Seu acesso expira em {diasRestantes === 0 ? 'hoje' : `${diasRestantes} dia${diasRestantes === 1 ? '' : 's'}`}.</strong> Entre em contato para renovar.
+        <div className="bg-[#E85D24] text-white text-xs sm:text-sm font-medium py-2 px-4 text-center z-[60] relative">
+          <strong>Seu acesso expira em {diasRestantes === 0 ? 'hoje' : `${diasRestantes} dia${diasRestantes === 1 ? '' : 's'}`}.</strong> Entre em contato para renovar.
         </div>
       )}
       <div className="hidden lg:block relative">
@@ -238,6 +243,10 @@ const App = () => (
         <AuthProvider>
           <BrandingProvider>
             <PlataformaProvider>
+              <TutorialProvider>
+              <TutorialSpotlight />
+              <TutorialHelpCenter />
+              <OnboardingModal />
               <Routes>
             {/* CRM — AppLayout persiste, CrmGuard só controla o conteúdo */}
             <Route path="/crm/login" element={<Navigate to="/login" replace />} />
@@ -257,6 +266,10 @@ const App = () => (
                 <Route path="/crm/notificacoes" element={<Notifications />} />
                 <Route path="/crm/vendas" element={<Vendas />} />
                 <Route path="/crm/metas" element={<Metas />} />
+                <Route path="/crm/performance" element={<Performance />} />
+                <Route path="/crm/onboarding" element={<CrmOnboarding />} />
+                <Route path="/crm/procedimentos" element={<Procedimentos />} />
+                <Route path="/crm/leads/:leadId" element={<JornadaPaciente />} />
                 <Route path="/crm/marketing-trafego" element={<MarketingTrafego />} />
                 <Route path="/crm/criativos" element={<CriativosBiblioteca />} />
                 <Route path="/crm/criativos/:pastaId" element={<CriativosPasta />} />
@@ -301,17 +314,12 @@ const App = () => (
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/clientes" element={<AdminClientes />} />
                 <Route path="/admin/clientes/:id" element={<AdminClientePerfil />} />
-                <Route path="/admin/trilha" element={<AdminTrilha />} />
-                <Route path="/admin/trilha/pilar/:pillarId" element={<AdminTrilha />} />
-                <Route path="/admin/trilha/modulo/:moduleId" element={<AdminTrilha />} />
+                <Route path="/admin/trilha" element={<AdminTrilhaWrapper />} />
+                <Route path="/admin/trilha/pilar/:pillarId" element={<AdminTrilhaWrapper />} />
+                <Route path="/admin/trilha/modulo/:moduleId" element={<AdminTrilhaWrapper />} />
                 <Route path="/admin/ias" element={<AdminIAs />} />
                 <Route path="/admin/sessoes" element={<AdminSessoes />} />
-                <Route path="/admin/materiais" element={<AdminMateriais />} />
-                <Route path="/admin/calendario" element={<AdminCalendario />} />
-                <Route path="/admin/tarefas" element={<AdminTarefas />} />
-                <Route path="/admin/relatorios" element={<AdminRelatorios />} />
                 <Route path="/admin/sistema" element={<AdminSistema />} />
-                <Route path="/admin/acessos" element={<AdminGestaoAcessos />} />
                 <Route path="/admin/acessos/:orgId" element={<AdminAcessoCliente />} />
                 <Route path="/admin/produtos" element={<AdminProdutos />} />
               </Route>
@@ -330,6 +338,7 @@ const App = () => (
                 <Route path="/plataforma/ia-comercial/:tipo" element={<AcessoGuard accessKey="acesso_ia_comercial"><IATipo /></AcessoGuard>} />
                 <Route path="/plataforma/sessoes-taticas" element={<AcessoGuard accessKey="acesso_sessoes_taticas"><SessoesTaticas /></AcessoGuard>} />
                 <Route path="/plataforma/materiais" element={<AcessoGuard accessKey="acesso_materiais"><Materiais /></AcessoGuard>} />
+                <Route path="/plataforma/evolucao" element={<AcessoGuard accessKey="acesso_crm"><Evolucao /></AcessoGuard>} />
                 <Route path="/plataforma/configuracoes" element={<Configuracoes />} />
               </Route>
             </Route>
@@ -347,6 +356,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+              </TutorialProvider>
             </PlataformaProvider>
           </BrandingProvider>
         </AuthProvider>

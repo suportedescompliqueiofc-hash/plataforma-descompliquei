@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Edit, Trash2, Shield, GripVertical, Sparkles, Target } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Plus, Edit, Trash2, GripVertical, Sparkles, Target, GitBranch, Loader2, Inbox } from "lucide-react";
 import { useStagesManager } from "@/hooks/useStagesManager";
 import { Stage } from "@/hooks/useStages";
 import { STAGES_QUERY_KEY } from "@/hooks/useStages";
@@ -20,14 +18,14 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 
-const SortableStageRow = ({ 
-  stage, 
-  onEdit, 
-  onDelete, 
-  onToggleFunnel 
-}: { 
-  stage: Stage; 
-  onEdit: (stage: Stage) => void; 
+const SortableStageRow = ({
+  stage,
+  onEdit,
+  onDelete,
+  onToggleFunnel
+}: {
+  stage: Stage;
+  onEdit: (stage: Stage) => void;
   onDelete: (stage: Stage) => void;
   onToggleFunnel: (id: number, current: boolean) => void;
 }) => {
@@ -42,41 +40,51 @@ const SortableStageRow = ({
   };
 
   return (
-    <TableRow ref={setNodeRef} style={style} {...attributes}>
-      <TableCell className="font-medium flex items-center gap-2">
-        <span {...listeners} className="cursor-grab p-1 text-muted-foreground hover:text-foreground">
-          <GripVertical className="h-5 w-5" />
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/30 transition-colors group"
+    >
+      <div className="flex items-center gap-2.5">
+        <span {...listeners} className="cursor-grab p-0.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+          <GripVertical className="h-4 w-4" />
         </span>
-        {stage.nome}
-      </TableCell>
-      <TableCell>
-        <Badge style={{ backgroundColor: stage.cor, color: 'white' }}>
-          {stage.nome}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-center">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <div
+          className="h-2.5 w-2.5 rounded-full shrink-0"
+          style={{ backgroundColor: stage.cor }}
+        />
+        <span className="text-sm font-medium text-foreground">{stage.nome}</span>
+        {stage.em_funil && (
+          <Badge variant="outline" className="text-[9px] font-medium border-emerald-200 bg-emerald-50 text-emerald-700 px-1.5 py-0">
+            Funil
+          </Badge>
+        )}
+      </div>
+
+      <div className="flex items-center gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => onToggleFunnel(stage.id, !!stage.em_funil)}
           className={cn(
-            "h-9 w-9 rounded-full transition-all",
-            stage.em_funil ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100" : "text-muted-foreground/40"
+            "h-7 w-7 rounded-full transition-all",
+            stage.em_funil ? "text-emerald-600 bg-emerald-50 hover:bg-emerald-100" : "text-muted-foreground/30 hover:text-muted-foreground opacity-0 group-hover:opacity-100"
           )}
-          title={stage.em_funil ? "Etapa faz parte do funil" : "Definir como etapa do funil"}
+          title={stage.em_funil ? "Remover do funil" : "Incluir no funil"}
         >
-          <Target className={cn("h-5 w-5", stage.em_funil && "animate-pulse")} />
+          <Target className="h-3.5 w-3.5" />
         </Button>
-      </TableCell>
-      <TableCell className="text-right">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(stage)}>
-          <Edit className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onDelete(stage)}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </TableCell>
-    </TableRow>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => onEdit(stage)}>
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onDelete(stage)}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -97,22 +105,16 @@ export function PipelineSettings() {
   }, [stages]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   if (isLoadingProfile || isLoadingStages) {
     return (
-      <Card>
-        <CardContent className="pt-6 text-center">
-          <p className="text-muted-foreground animate-pulse">Carregando configurações...</p>
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-8 flex items-center justify-center">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
     );
   }
-
-
 
   const openModal = (stage: Stage | null = null) => {
     if (stage) {
@@ -145,12 +147,7 @@ export function PipelineSettings() {
         const oldIndex = items.findIndex((item) => item.id === active.id);
         const newIndex = items.findIndex((item) => item.id === over!.id);
         const newOrder = arrayMove(items, oldIndex, newIndex);
-        
-        const updates = newOrder.map((stage, index) => ({
-          id: stage.id,
-          posicao_ordem: index + 1,
-        }));
-        
+        const updates = newOrder.map((stage, index) => ({ id: stage.id, posicao_ordem: index + 1 }));
         updateStagesOrder.mutate(updates);
         return newOrder;
       });
@@ -158,33 +155,26 @@ export function PipelineSettings() {
   };
 
   const DEFAULT_STAGES = [
-    { nome: 'Em Atendimento',       cor: '#f97316', posicao_ordem: 1, em_funil: false },
-    { nome: 'Qualificação',         cor: '#3b82f6', posicao_ordem: 2, em_funil: false },
-    { nome: 'Qualificado',          cor: '#8b5cf6', posicao_ordem: 3, em_funil: false },
-    { nome: 'Handoff',              cor: '#a855f7', posicao_ordem: 4, em_funil: true  },
-    { nome: 'Agendado',             cor: '#10b981', posicao_ordem: 5, em_funil: true  },
-    { nome: 'Procedimento Fechado', cor: '#22c55e', posicao_ordem: 6, em_funil: true  },
+    { nome: 'Em Atendimento', cor: '#f97316', posicao_ordem: 1, em_funil: true },
+    { nome: 'Qualificação', cor: '#3b82f6', posicao_ordem: 2, em_funil: true },
+    { nome: 'Qualificado', cor: '#8b5cf6', posicao_ordem: 3, em_funil: true },
+    { nome: 'Handoff', cor: '#a855f7', posicao_ordem: 4, em_funil: true },
+    { nome: 'Agendado', cor: '#10b981', posicao_ordem: 5, em_funil: true },
+    { nome: 'Procedimento Fechado', cor: '#22c55e', posicao_ordem: 6, em_funil: true },
   ];
 
   const handleSeedStages = async () => {
     if (!profile?.organization_id) {
-      toast.error("Organização não identificada. Por favor, recarregue a página.");
+      toast.error("Organização não identificada. Recarregue a página.");
       return;
     }
-
     if (!confirm("Isso irá padronizar as etapas para o modelo padrão. Continuar?")) return;
 
     setIsResetting(true);
     try {
       const orgId = profile.organization_id;
-
-      // Buscar etapas existentes
       const { data: currentStages, error: fetchError } = await supabase
-        .from('etapas')
-        .select('*')
-        .eq('organization_id', orgId)
-        .order('posicao_ordem', { ascending: true });
-
+        .from('etapas').select('*').eq('organization_id', orgId).order('posicao_ordem', { ascending: true });
       if (fetchError) throw fetchError;
 
       const existing = currentStages ?? [];
@@ -195,8 +185,7 @@ export function PipelineSettings() {
         const target = DEFAULT_STAGES[i];
         if (i < existing.length) {
           updates.push(
-            supabase
-              .from('etapas')
+            supabase.from('etapas')
               .update({ nome: target.nome, cor: target.cor, posicao_ordem: target.posicao_ordem, em_funil: target.em_funil })
               .eq('id', existing[i].id)
               .then(({ error }) => { if (error) throw error; })
@@ -207,17 +196,13 @@ export function PipelineSettings() {
       }
 
       if (updates.length > 0) await Promise.all(updates);
-
       if (inserts.length > 0) {
-        const { error: insertError } = await supabase
-          .from('etapas')
-          .insert(inserts.map(s => ({ ...s, organization_id: orgId })));
+        const { error: insertError } = await supabase.from('etapas').insert(inserts.map(s => ({ ...s, organization_id: orgId })));
         if (insertError) throw insertError;
       }
 
       await queryClient.invalidateQueries({ queryKey: STAGES_QUERY_KEY });
       toast.success("Etapas padronizadas!");
-
     } catch (err: any) {
       console.error('Erro ao padronizar etapas:', err);
       toast.error("Erro: " + (err.message || "Erro desconhecido"));
@@ -227,74 +212,135 @@ export function PipelineSettings() {
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Etapas do Pipeline</CardTitle>
-          <CardDescription>Gerencie as etapas do seu funil. Clique no alvo para definir quais etapas entram nas métricas de conversão real.</CardDescription>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleSeedStages} disabled={isResetting}>
-            <Sparkles className="h-4 w-4 text-primary" />
-            Padrão
-          </Button>
-          <Button className="gap-2" onClick={() => openModal()}>
-            <Plus className="h-4 w-4" />
-            Nova Etapa
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Visualização</TableHead>
-                <TableHead className="text-center">No Funil</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <SortableContext items={localStages.map(s => s.id)} strategy={verticalListSortingStrategy}>
-              <TableBody>
-                {isLoadingStages ? (
-                  <TableRow><TableCell colSpan={4} className="text-center">Carregando...</TableCell></TableRow>
-                ) : localStages.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center">Nenhuma etapa criada.</TableCell></TableRow>
-                ) : (
-                  localStages.map((stage) => (
-                    <SortableStageRow 
-                      key={stage.id} 
-                      stage={stage} 
-                      onEdit={openModal}
-                      onDelete={setIsDeleting}
-                      onToggleFunnel={(id, curr) => toggleFunnelStage({ id, incluir: !curr })}
-                    />
-                  ))
-                )}
-              </TableBody>
-            </SortableContext>
-          </Table>
-        </DndContext>
-      </CardContent>
-
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editingStage ? "Editar Etapa" : "Nova Etapa"}</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-4">
-            <div><Label>Nome</Label><Input value={stageName} onChange={(e) => setStageName(e.target.value)} /></div>
-            <div><Label>Cor</Label><div className="flex items-center gap-2 mt-2"><Input type="color" value={stageColor} onChange={(e) => setStageColor(e.target.value)} className="w-12 h-10 p-1" /><Input value={stageColor} onChange={(e) => setStageColor(e.target.value)} /></div></div>
+    <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      {/* Header */}
+      <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-muted">
+              <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Etapas do Pipeline</p>
+              <p className="text-[10px] text-muted-foreground/50 mt-0.5">Arraste para reordenar. Clique no alvo para incluir no funil.</p>
+            </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button><Button onClick={handleSave}>Salvar</Button></DialogFooter>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSeedStages}
+              disabled={isResetting}
+              className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Padrão
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => openModal()}
+              className="h-8 rounded-lg text-[11px] font-semibold bg-foreground text-background hover:bg-foreground/90 gap-1.5 px-3"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova Etapa
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="p-5">
+        {localStages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="p-3 rounded-xl bg-muted/40 mb-3">
+              <Inbox className="h-6 w-6 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Nenhuma etapa criada</p>
+            <p className="text-[11px] text-muted-foreground/50 mt-0.5">Clique em "Padrão" para criar as etapas recomendadas</p>
+          </div>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={localStages.map(s => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-0.5">
+                {localStages.map((stage) => (
+                  <SortableStageRow
+                    key={stage.id}
+                    stage={stage}
+                    onEdit={openModal}
+                    onDelete={setIsDeleting}
+                    onToggleFunnel={(id, curr) => toggleFunnelStage({ id, incluir: !curr })}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
+
+      {/* Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-base font-semibold">{editingStage ? "Editar Etapa" : "Nova Etapa"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-3">
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Nome</Label>
+              <Input
+                value={stageName}
+                onChange={(e) => setStageName(e.target.value)}
+                placeholder="Ex: Em Atendimento"
+                className="h-10 text-sm rounded-lg border-border/60"
+                onKeyDown={e => e.key === 'Enter' && handleSave()}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cor</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  type="color"
+                  value={stageColor}
+                  onChange={(e) => setStageColor(e.target.value)}
+                  className="w-12 h-10 p-1 rounded-lg border-border/60 cursor-pointer"
+                />
+                <Input
+                  value={stageColor}
+                  onChange={(e) => setStageColor(e.target.value)}
+                  className="h-10 text-sm rounded-lg border-border/60 font-mono"
+                  placeholder="#000000"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" onClick={() => setIsModalOpen(false)} className="rounded-lg text-xs">
+              Cancelar
+            </Button>
+            <Button size="sm" onClick={handleSave} className="rounded-lg text-xs bg-foreground text-background hover:bg-foreground/90">
+              Salvar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* Delete confirmation */}
       <AlertDialog open={!!isDeleting} onOpenChange={() => setIsDeleting(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Confirmar exclusão</AlertDialogTitle><AlertDialogDescription>Tem certeza que deseja excluir esta etapa?</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => { if (isDeleting) deleteStage.mutate(isDeleting.id); setIsDeleting(null); }} className="bg-destructive">Excluir</AlertDialogAction></AlertDialogFooter>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>Tem certeza que deseja excluir esta etapa? Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-lg text-xs">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (isDeleting) deleteStage.mutate(isDeleting.id); setIsDeleting(null); }}
+              className="bg-destructive hover:bg-destructive/90 rounded-lg text-xs"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </div>
   );
 }

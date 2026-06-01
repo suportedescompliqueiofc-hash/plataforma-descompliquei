@@ -29,6 +29,7 @@ type BadgeType = 'ativo' | 'expirando' | 'expirado' | 'bloqueado';
 interface Product {
   id: string;
   nome: string;
+  duracao_dias?: number;
 }
 
 interface UserRow {
@@ -99,7 +100,7 @@ export default function AdminGestaoAcessos() {
       // Carregar produtos para referência
       const { data: prods } = await supabase
         .from('platform_products')
-        .select('id, nome')
+        .select('id, nome, duracao_dias')
         .eq('ativo', true)
         .order('ordem_index');
       setProducts(prods ?? []);
@@ -458,7 +459,19 @@ export default function AdminGestaoAcessos() {
 
             <div className="space-y-2">
               <Label>Produto</Label>
-              <Select value={createForm.product_id || '__none__'} onValueChange={v => setCreateForm(f => ({ ...f, product_id: v === '__none__' ? '' : v }))}>
+              <Select
+                value={createForm.product_id || '__none__'}
+                onValueChange={v => {
+                  const prod = products.find(p => p.id === v);
+                  let trialDate = '';
+                  if (prod && prod.duracao_dias && prod.duracao_dias < 99999) {
+                    const d = new Date();
+                    d.setDate(d.getDate() + prod.duracao_dias);
+                    trialDate = d.toISOString().split('T')[0];
+                  }
+                  setCreateForm(f => ({ ...f, product_id: v === '__none__' ? '' : v, trial_ends_at: trialDate }));
+                }}
+              >
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— Nenhum —</SelectItem>
@@ -469,13 +482,31 @@ export default function AdminGestaoAcessos() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>Data de expiração</Label>
-              <Input
-                type="date"
-                value={createForm.trial_ends_at}
-                onChange={e => setCreateForm(f => ({ ...f, trial_ends_at: e.target.value }))}
-              />
+            {(() => {
+              const selectedProd = products.find(p => p.id === createForm.product_id);
+              const isVitalicio = selectedProd && (selectedProd.duracao_dias ?? 0) >= 99999;
+              return (
+                <div className="space-y-2">
+                  <Label>Data de expiração</Label>
+                  {isVitalicio ? (
+                    <div className="flex h-9 w-full rounded-md border border-input bg-muted/30 px-3 py-2 text-sm text-muted-foreground items-center">
+                      Vitalício — sem expiração
+                    </div>
+                  ) : (
+                    <Input
+                      type="date"
+                      value={createForm.trial_ends_at}
+                      onChange={e => setCreateForm(f => ({ ...f, trial_ends_at: e.target.value }))}
+                    />
+                  )}
+                  {selectedProd && !isVitalicio && selectedProd.duracao_dias && (
+                    <p className="text-[10px] text-muted-foreground/60">
+                      Calculado automaticamente: {selectedProd.duracao_dias} dias a partir de hoje
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             </div>
 
           </div>

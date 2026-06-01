@@ -20,6 +20,7 @@ import { format, addHours, startOfHour } from "date-fns";
 
 interface QuickMessagesSidebarProps {
   lead: Lead | null;
+  onClose?: () => void;
 }
 
 function CountdownTimer({ targetDate }: { targetDate: string }) {
@@ -66,7 +67,7 @@ function SortableMessageItem({
   );
 }
 
-export function QuickMessagesSidebar({ lead }: QuickMessagesSidebarProps) {
+export function QuickMessagesSidebar({ lead, onClose }: QuickMessagesSidebarProps) {
   const { quickMessages, sendQuickMessage, scheduleQuickMessage, sendFolderSequence, isSendingSequence, isLoading: isLoadingMsgs, updateMessagesOrder } = useQuickMessages();
   const { folders } = useQuickMessageFolders();
   const { logs, cancelSequence, clearCompletedLogs } = useLeadSequenceLogs(lead?.id);
@@ -114,9 +115,16 @@ export function QuickMessagesSidebar({ lead }: QuickMessagesSidebarProps) {
   if (!lead) return null;
 
   return (
-    <div className="h-full flex flex-col bg-background w-72 xl:w-80 2xl:w-96 flex-shrink-0 shadow-sm border-l">
+    <div className="h-full flex flex-col bg-background w-full flex-shrink-0">
       <div className="p-3 border-b shrink-0">
-        <h3 className="font-semibold flex items-center gap-2 mb-2 text-sm text-foreground"><Zap className="h-4 w-4 text-primary" /> Mensagens Rápidas</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-semibold flex items-center gap-2 text-sm text-foreground"><Zap className="h-4 w-4 text-primary" /> Mensagens Rápidas</h3>
+          {onClose && (
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input placeholder="Buscar atalho..." className="pl-8 h-8 text-xs bg-muted/30" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />

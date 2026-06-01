@@ -13,7 +13,22 @@ import { toast } from "sonner"; // fallback import for sonner
 export default function Onboarding() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { plataformaUser, plan } = usePlataforma();
+  const { plataformaUser, plan, tenant } = usePlataforma();
+  const [productName, setProductName] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchProductName() {
+      const productId = tenant?.product_id;
+      if (!productId) return;
+      const { data } = await supabase
+        .from('platform_products')
+        .select('nome')
+        .eq('id', productId)
+        .maybeSingle();
+      if (data?.nome) setProductName(data.nome);
+    }
+    fetchProductName();
+  }, [tenant]);
 
   const [step, setStep] = useState(1);
   const totalSteps = 4;
@@ -96,9 +111,11 @@ export default function Onboarding() {
     }, 1000);
   };
 
-  const planBadge = plan === 'gca' 
-    ? <Badge className="bg-[#E85D24] text-white pointer-events-none mt-2">Plano G.C.A. Ativo</Badge> 
-    : <Badge className="bg-muted text-foreground pointer-events-none mt-2 text-muted-foreground border-border">Plano P.C.A. Básico</Badge>;
+  const planBadge = productName
+    ? <Badge className="bg-[#E85D24] text-white pointer-events-none mt-2">{productName}</Badge>
+    : plan === 'gca'
+      ? <Badge className="bg-[#E85D24] text-white pointer-events-none mt-2">Plano G.C.A. Ativo</Badge>
+      : <Badge className="bg-muted text-foreground pointer-events-none mt-2 text-muted-foreground border-border">Plano P.C.A. Básico</Badge>;
 
   function Badge({ children, className }: any) {
     return <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider ${className}`}>{children}</span>;
@@ -120,8 +137,8 @@ export default function Onboarding() {
       </div>
 
       <Card className="w-full max-w-2xl border-border shadow-xl relative overflow-hidden bg-card">
-        {/* Magic Gradient Border Top */}
-        <div className="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500 via-[#E85D24] to-yellow-500" />
+        {/* Accent line — subtle, single-color */}
+        <div className="absolute top-0 w-full h-[2px] bg-[#E85D24]" />
         
         <CardContent className="p-8 md:p-12">
           {step === 1 && (
@@ -129,7 +146,7 @@ export default function Onboarding() {
               <div className="w-16 h-16 rounded-2xl bg-[#E85D24]/10 text-[#E85D24] flex items-center justify-center mb-6">
                 <ShieldCheck className="w-8 h-8" />
               </div>
-              <h1 className="text-3xl md:text-4xl font-bold font-serif text-foreground leading-tight tracking-tight">Bem-vindo(a) ao Hub<br/>de Gestão Comercial</h1>
+              <h1 className="text-2xl md:text-3xl font-semibold text-foreground leading-tight tracking-tight font-display">Bem-vindo(a) ao Hub<br/>de Gestão Comercial</h1>
               <div className="text-muted-foreground text-lg leading-relaxed">
                 Você acaba de dar o passo mais importante para estruturar a previsibilidade de vendas e atendimento da sua clínica.
               </div>
@@ -147,7 +164,7 @@ export default function Onboarding() {
 
           {step === 2 && (
             <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
-              <h2 className="text-2xl font-bold text-foreground font-serif tracking-tight">O Motor da sua Clínica</h2>
+              <h2 className="text-xl font-semibold text-foreground tracking-tight">O Motor da sua Clínica</h2>
               <p className="text-muted-foreground text-sm">Precisamos entender qual é a nave que você pilota para personalizarmos os frameworks.</p>
               
               <div className="space-y-4 pt-4">
@@ -189,7 +206,7 @@ export default function Onboarding() {
             <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
                <div className="flex items-center gap-3">
                  <BrainCircuit className="w-8 h-8 text-[#E85D24]" />
-                 <div><h2 className="text-2xl font-bold text-foreground font-serif tracking-tight">Cérebro Central</h2>
+                 <div><h2 className="text-xl font-semibold text-foreground tracking-tight">Cérebro Central</h2>
                  <p className="text-muted-foreground text-sm">A sua IA precisa ser calibrada. Escolha seu nicho base.</p></div>
                </div>
                
@@ -214,13 +231,13 @@ export default function Onboarding() {
 
           {step === 4 && (
             <div className="space-y-6 animate-in slide-in-from-right-8 fade-in duration-500">
-              <h2 className="text-2xl font-bold text-foreground font-serif tracking-tight">Seu Hub está Pronto!🚀</h2>
+              <h2 className="text-xl font-semibold text-foreground tracking-tight">Seu Hub está Pronto!</h2>
               <p className="text-muted-foreground text-sm font-medium">Veja o seu arsenal de ferramentas abaixo:</p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                  <div className="border border-border p-4 rounded-xl flex gap-4 items-start bg-card">
                    <PlayCircle className="w-6 h-6 text-emerald-500 mt-0.5 shrink-0" />
-                   <div><p className="font-bold text-sm text-foreground mb-0.5">Trilha C.L.A.R.O.</p><p className="text-xs text-muted-foreground">O mapa do GCA e PCA gravado e estruturado pra escala.</p></div>
+                   <div><p className="font-bold text-sm text-foreground mb-0.5">Trilha de Aprendizado</p><p className="text-xs text-muted-foreground">O mapa do GCA e PCA gravado e estruturado pra escala.</p></div>
                  </div>
                  <div className="border border-border p-4 rounded-xl flex gap-4 items-start bg-card">
                    <Target className="w-6 h-6 text-blue-500 mt-0.5 shrink-0" />

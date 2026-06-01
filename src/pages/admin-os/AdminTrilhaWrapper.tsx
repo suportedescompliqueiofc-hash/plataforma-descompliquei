@@ -2,11 +2,10 @@ import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import AdminTrilha from './pages/AdminTrilha';
 import AdminMateriaisComplementares from '@/components/admin/AdminMateriaisComplementares';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { BookOpen, FolderOpen } from 'lucide-react';
 
 export default function AdminTrilhaWrapper() {
-  const { toast } = useToast();
   const { moduleId, pillarId } = useParams<{ moduleId?: string; pillarId?: string }>();
   const isSubPage = !!moduleId || !!pillarId;
 
@@ -45,7 +44,7 @@ export default function AdminTrilhaWrapper() {
       {(activeTab === 'modulos' || isSubPage) && <AdminTrilha />}
 
       {activeTab === 'materiais' && !isSubPage && (
-        <AdminMateriaisComplementares toast={toast} />
+        <AdminMateriaisComplementares toast={(opts: any) => opts.variant === 'destructive' ? toast.error(opts.description || opts.title) : toast.success(opts.description || opts.title)} />
       )}
     </div>
   );

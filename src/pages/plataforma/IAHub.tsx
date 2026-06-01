@@ -1,8 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { usePlataforma } from "@/contexts/PlataformaContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Bot, MessageSquare, Search, Send, RefreshCw, Megaphone, Film, PenTool, Lock, BrainCircuit, ArrowRight } from "lucide-react";
 
 const IA_LIST = [
@@ -18,73 +16,67 @@ const IA_LIST = [
 
 export default function IAHub() {
   const navigate = useNavigate();
-  const { plan, isCerebroComplete, acesso } = usePlataforma();
+  const { plan, isCerebroComplete, acesso, isMember } = usePlataforma();
   const iasLiberadas = acesso.ias_liberadas ?? [];
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-12">
+    <div className="max-w-[1000px] mx-auto space-y-8 pb-12">
       {/* HEADER */}
-      <div className="space-y-4 border-b border-border pb-6">
-        <h1 className="text-4xl font-bold uppercase tracking-tight text-foreground font-serif">Stack de IA Comercial</h1>
-        <p className="text-muted-foreground text-lg">{iasLiberadas.length} inteligência{iasLiberadas.length !== 1 ? 's artificiais' : ' artificial'} disponíve{iasLiberadas.length !== 1 ? 'is' : 'l'} para você.</p>
+      <div className="space-y-1 border-b border-border pb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">IAs Comerciais</h1>
+        <p className="text-muted-foreground text-[15px]">{iasLiberadas.length} inteligência{iasLiberadas.length !== 1 ? 's artificiais' : ' artificial'} disponíve{iasLiberadas.length !== 1 ? 'is' : 'l'} para você.</p>
       </div>
 
-      {/* AVISO CÉREBRO NÃO CONFIGURADO */}
-      {!isCerebroComplete && (
-        <Card className="border-amber-500/50 bg-gradient-to-r from-amber-500/10 to-transparent">
-          <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-4 text-amber-600 dark:text-amber-500">
-              <BrainCircuit className="w-8 h-8 shrink-0" />
-              <div>
-                <h3 className="font-bold text-lg leading-tight">Configure o Cérebro Central para personalizar as respostas das IAs</h3>
-                <p className="text-sm opacity-90 mt-1">Gere saídas treinadas especificamente para seu ICP e Procedimentos.</p>
-              </div>
-            </div>
-            <Button onClick={() => navigate('/plataforma/cerebro')} className="bg-amber-500 hover:bg-amber-600 text-white w-full md:w-auto shrink-0 font-bold tracking-wide">
-              Configurar Agora <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </CardContent>
-        </Card>
+      {/* AVISO CÉREBRO NÃO CONFIGURADO — apenas para o dono da org */}
+      {!isCerebroComplete && !isMember && (
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-card">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
+            <BrainCircuit className="h-4 w-4 text-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-medium text-foreground">Configure o Cérebro Central para personalizar as IAs.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Gere saídas treinadas para seu ICP e Procedimentos.</p>
+          </div>
+          <Button onClick={() => navigate('/plataforma/cerebro')} variant="outline" size="sm" className="shrink-0 h-8 text-xs font-medium">
+            Configurar
+          </Button>
+        </div>
       )}
 
       {/* GRID DE IAS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden divide-y divide-border">
         {IA_LIST.map((ia) => {
           const Icon = ia.icon;
           const isLocked = !iasLiberadas.includes(ia.id);
-          
+
           return (
-            <Card key={ia.id} className={`border-border transition-all ${isLocked ? 'opacity-80' : 'hover:border-[#E85D24]/50 bg-card'}`}>
-              <CardHeader className="pb-3 flex flex-row items-start justify-between relative">
-                <div className="flex items-start gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${isLocked ? 'bg-muted text-muted-foreground' : 'bg-[#E85D24]/10 text-[#E85D24]'}`}>
-                    <Icon className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <CardTitle className={`text-xl font-bold ${isLocked ? 'text-muted-foreground' : 'text-foreground'}`}>{ia.title}</CardTitle>
-                    <p className={`text-sm mt-1 mb-2 ${isLocked ? 'text-muted-foreground/70' : 'text-muted-foreground'}`}>{ia.benefit}</p>
-                    <Badge variant="outline" className={`${isLocked ? 'border-amber-500/30 text-amber-500' : 'border-[#E85D24]/30 text-[#E85D24]'} bg-transparent font-semibold`}>
-                      {isLocked && <Lock className="w-3 h-3 mr-1.5 inline" />} 
-                      {ia.badge}
-                    </Badge>
-                  </div>
+            <div
+              key={ia.id}
+              onClick={() => !isLocked && navigate(`/plataforma/ia-comercial/${ia.id}`)}
+              className={`flex items-center gap-4 px-5 py-4 transition-colors ${
+                isLocked
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'cursor-pointer hover:bg-muted/30 group'
+              }`}
+            >
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${isLocked ? 'bg-muted/50' : 'bg-muted'}`}>
+                {isLocked ? <Lock className="w-4 h-4 text-muted-foreground" /> : <Icon className="w-4 h-4 text-foreground" />}
+              </div>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className={`text-sm font-semibold ${isLocked ? 'text-muted-foreground' : 'text-foreground'}`}>{ia.title}</p>
+                  <span className="text-[10px] font-medium text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded">
+                    {ia.badge}
+                  </span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {isLocked ? (
-                  <Button disabled variant="outline" className="w-full mt-2 font-bold cursor-not-allowed border-dashed bg-muted/50 text-muted-foreground">
-                    <Lock className="w-4 h-4 mr-2" /> Não incluída no seu plano
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={() => navigate(`/plataforma/ia-comercial/${ia.id}`)}
-                    className="w-full mt-2 bg-[#E85D24] hover:bg-[#E85D24]/90 text-white font-bold"
-                  >
-                    Usar IA <ArrowRight className="w-4 h-4 ml-2" />
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                <p className={`text-[13px] mt-0.5 ${isLocked ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>{ia.benefit}</p>
+              </div>
+
+              {!isLocked && (
+                <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-[#E85D24] group-hover:translate-x-0.5 transition-all shrink-0" />
+              )}
+            </div>
           );
         })}
       </div>

@@ -39,8 +39,8 @@ import ModalCriativo from "@/components/criativos/ModalCriativo";
 // ── Status config ──────────────────────────────────────────
 
 const STATUS_LIST = [
-  { value: "em_criacao", label: "Em Criacao", color: "#6b7280" },
-  { value: "em_revisao", label: "Em Revisao", color: "#f59e0b" },
+  { value: "em_criacao", label: "Em Criação", color: "#6b7280" },
+  { value: "em_revisao", label: "Em Revisão", color: "#f59e0b" },
   { value: "aprovado", label: "Aprovado", color: "#3b82f6" },
   { value: "ativo", label: "Ativo", color: "#22c55e" },
   { value: "em_teste", label: "Em Teste", color: "#8b5cf6" },
@@ -318,7 +318,7 @@ export default function CriativosPasta() {
     if (!orgId || !pastaId) return;
 
     const validFiles = files.filter((f) => {
-      if (!ACCEPTED_TYPES.includes(f.type)) { toast.error(`Tipo nao suportado: ${f.name}`); return false; }
+      if (!ACCEPTED_TYPES.includes(f.type)) { toast.error(`Tipo não suportado: ${f.name}`); return false; }
       if (f.size > MAX_FILE_SIZE) { toast.error(`Arquivo muito grande: ${f.name} (max 50MB)`); return false; }
       return true;
     });
@@ -521,7 +521,7 @@ export default function CriativosPasta() {
   if (!pastaAtual) {
     return (
       <div className="text-center py-16">
-        <p className="text-muted-foreground">Pasta nao encontrada</p>
+        <p className="text-muted-foreground">Pasta não encontrada</p>
         <Button variant="outline" className="mt-4" onClick={() => navigate("/crm/criativos")}>Voltar</Button>
       </div>
     );
@@ -1003,7 +1003,7 @@ export default function CriativosPasta() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir pasta "{pastaAtual.nome}"?</AlertDialogTitle>
-            <AlertDialogDescription>Todos os criativos e subpastas serao excluidos permanentemente.</AlertDialogDescription>
+            <AlertDialogDescription>Todos os criativos e subpastas serão excluídos permanentemente.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
@@ -1017,7 +1017,7 @@ export default function CriativosPasta() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir "{deletingCriativo?.nome}"?</AlertDialogTitle>
-            <AlertDialogDescription>O arquivo sera removido permanentemente do storage e do banco.</AlertDialogDescription>
+            <AlertDialogDescription>O arquivo será removido permanentemente do storage e do banco.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

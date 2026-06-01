@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, GitBranch, BarChart3, Settings, LogOut, ChevronLeft,
   MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, ShieldCheck,
   PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay, PenLine,
-  Phone, FileText
+  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +17,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { MASTER_ORG_ID, DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
+import { TutorialHelpButton } from "@/components/tutorial/TutorialHelpButton";
+import { usePerformanceBadge } from "@/hooks/usePerformance";
+import { usePermissions, PageKey } from "@/hooks/usePermissions";
+import { useOnboarding } from "@/hooks/useOnboarding";
 
 interface SidebarContentProps {
   isCollapsed?: boolean;
@@ -29,9 +33,12 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   const { signOut, user } = useAuth();
   const { profile, role } = useProfile();
   const { branding } = useBranding();
-  const { plataformaUser, plan, progressPercent, cerebroPercent, acesso } = usePlataforma();
+  const { plataformaUser, plan, progressPercent, cerebroPercent, acesso, isContextLoading: plataformaLoading, isMember } = usePlataforma();
+  const { pending: performancePending } = usePerformanceBadge();
+  const { showInSidebar: showOnboarding, completedCount: onboardingDone, totalCount: onboardingTotal } = useOnboarding();
 
   const isSuperAdmin = role === 'superadmin';
+  const permissions = usePermissions();
   const isPlatformMode = location.pathname.startsWith('/plataforma');
   const isOutboundMode = location.pathname.startsWith('/outbound');
 
@@ -66,22 +73,35 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
 
   const crmMenuItems = [
+    ...(showOnboarding ? [{ title: "Configuração Inicial", icon: Rocket, path: "/crm/onboarding" }] : []),
+    { isSeparator: true, title: "Visão Geral" },
     { title: "Painel", icon: LayoutDashboard, path: "/crm" },
+    { title: "Performance", icon: Trophy, path: "/crm/performance" },
+    { title: "Conversas", icon: MessageSquare, path: "/crm/conversas" },
+    { title: "Notificações", icon: Bell, path: "/crm/notificacoes" },
+    { isSeparator: true, title: "Comercial" },
     { title: "Leads", icon: Users, path: "/crm/leads" },
     { title: "Pipeline", icon: GitBranch, path: "/crm/pipeline" },
     { title: "Agendamentos", icon: CalendarDays, path: "/crm/agendamentos" },
-    { title: "Conversas", icon: MessageSquare, path: "/crm/conversas" },
-    { title: "Notificações", icon: Bell, path: "/crm/notificacoes" },
     { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
+    { title: "Procedimentos", icon: Stethoscope, path: "/crm/procedimentos" },
     { title: "Metas", icon: Target, path: "/crm/metas" },
-    ...(isDescompliqueiOrg ? [{ title: "Marketing", icon: BarChart3, path: "/crm/marketing-trafego" }] : []),
-    ...(isDescompliqueiOrg ? [{ title: "Criativos", icon: ImagePlay, path: "/crm/criativos" }] : []),
-    ...(isDescompliqueiOrg ? [{ title: "Canvas", icon: PenLine, path: "/crm/canvas" }] : []),
+    { isSeparator: true, title: "Automação" },
     { title: "Msgs Rápidas", icon: Zap, path: "/crm/quick-messages" },
     { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },
     { title: "IA", icon: Bot, path: "/crm/ia" },
+    ...(isDescompliqueiOrg ? [
+      { isSeparator: true, title: "Marketing" },
+      { title: "Tráfego", icon: BarChart3, path: "/crm/marketing-trafego" },
+      { title: "Criativos", icon: ImagePlay, path: "/crm/criativos" },
+      { title: "Canvas", icon: PenLine, path: "/crm/canvas" },
+    ] : []),
+    ...(isDescompliqueiOrg ? [
+      { isSeparator: true, title: "Prospecção" },
+      { title: "Outbound", icon: Phone, path: "/outbound/painel" },
+    ] : []),
+    { isSeparator: true, title: "Sistema" },
     { title: "Configurações", icon: Settings, path: "/crm/settings" },
-    ...(isDescompliqueiOrg ? [{ title: "Outbound", icon: Phone, path: "/outbound/painel" }] : []),
     { title: "Super Admin CRM", icon: ShieldCheck, path: "/crm/super-admin-crm", superadminOnly: true },
     ...(temPlataforma ? [{ title: "Plataforma", icon: PlayCircle, path: "/plataforma" }] : []),
   ];
@@ -102,31 +122,74 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Voltar ao CRM", icon: BarChart3, path: "/crm" },
   ];
 
-  const temTrilha = (acesso.pilares_liberados?.length ?? 0) > 0;
-  const temIAs = acesso.acesso_ia_comercial || (acesso.ias_liberadas?.length ?? 0) > 0;
+  // Durante o loading, manter os itens visíveis (evitar flicker na navegação)
+  const temTrilha = plataformaLoading || (acesso.pilares_liberados?.length ?? 0) > 0;
+  const temIAs = plataformaLoading || acesso.acesso_ia_comercial || (acesso.ias_liberadas?.length ?? 0) > 0;
 
   const platformMenuItems = [
     { title: "Hub", icon: LayoutDashboard, path: "/plataforma" },
-    ...(temTrilha ? [{ title: "Trilha C.L.A.R.O.", icon: PlayCircle, path: "/plataforma/trilha" }] : []),
+    { isSeparator: true, title: "Aprendizado" },
+    ...(temTrilha ? [{ title: "Trilha de Aprendizado", icon: PlayCircle, path: "/plataforma/trilha" }] : []),
     { title: "Cérebro Central", icon: Brain, path: "/plataforma/cerebro", accessKey: 'acesso_cerebro' as const },
-    ...(temIAs ? [{ title: "IAs Comerciais", icon: Zap, path: "/plataforma/ia-comercial" }] : []),
     { title: "Meus Materiais", icon: Target, path: "/plataforma/materiais", accessKey: 'acesso_materiais' as const },
+    { isSeparator: true, title: "Ao Vivo" },
     { title: "Sessões Táticas", icon: Calendar, path: "/plataforma/sessoes-taticas", accessKey: 'acesso_sessoes_taticas' as const },
     { isSeparator: true, title: "Ferramenta" },
+    ...(temIAs ? [{ title: "IAs Comerciais", icon: Zap, path: "/plataforma/ia-comercial" }] : []),
+    ...(!isMember && acesso.acesso_crm ? [{ title: "Evolução", icon: TrendingUp, path: "/plataforma/evolucao", accessKey: 'acesso_crm' as const }] : []),
     { title: "Acessar CRM", icon: BarChart3, path: "/crm", accessKey: 'acesso_crm' as const },
     { isSeparator: true, title: "Admin", superadminOnly: true },
     { title: "Super Admin", icon: ShieldCheck, path: "/admin", superadminOnly: true }
   ];
 
+  // Mapeamento path CRM → chave de permissão
+  const PATH_PERMISSION_MAP: Record<string, PageKey> = {
+    '/crm':                    'painel',
+    '/crm/conversas':          'conversas',
+    '/crm/notificacoes':       'notificacoes',
+    '/crm/leads':              'leads',
+    '/crm/pipeline':           'pipeline',
+    '/crm/agendamentos':       'agendamentos',
+    '/crm/vendas':             'vendas',
+    '/crm/procedimentos':      'procedimentos',
+    '/crm/metas':              'metas',
+    '/crm/quick-messages':     'msgs_rapidas',
+    '/crm/cadences':           'cadencias',
+    '/crm/ia':                 'ia',
+    '/crm/settings':           'configuracoes',
+    '/plataforma':             'plataforma',
+  };
+
+  // Chaves que partem como `true` em ACESSO_TOTAL mas devem ser `false` para membros.
+  // Escondê-las durante o loading evita o flash antes da detecção de membro terminar.
+  const MEMBER_RESTRICTED_KEYS = new Set(['acesso_cerebro', 'acesso_materiais']);
+
   const menuItems = isPlatformMode
     ? platformMenuItems.filter(item => {
         if (item.superadminOnly && !isSuperAdmin) return false;
+        // Durante loading, não filtrar por acesso — evita flicker na navegação
+        if (plataformaLoading) return true;
         if (item.accessKey && !acesso[item.accessKey]) return false;
         return true;
       })
     : isOutboundMode
     ? outboundMenuItems
-    : crmMenuItems.filter(item => !item.superadminOnly || isSuperAdmin);
+    : crmMenuItems.filter(item => {
+        if (item.superadminOnly && !isSuperAdmin) return false;
+        // Se for dono ou permissões ainda não carregadas, mostrar tudo
+        if (permissions.isOwner) return true;
+        // Separadores sempre visíveis
+        if (item.isSeparator) return true;
+        // Itens sem path (ex: separadores com title) — mostrar
+        if (!item.path) return true;
+        // Configurações sempre visível para todos os membros —
+        // contém perfil pessoal e senha que são independentes das permissões da org
+        if (item.path === '/crm/settings') return true;
+        const permKey = PATH_PERMISSION_MAP[item.path];
+        // Se não tem mapeamento (ex: marketing, criativos), mostrar apenas para donos
+        if (!permKey) return permissions.isOwner;
+        return permissions.canAccess(permKey);
+      });
 
   const getInitials = (name?: string | null) => {
     if (!name) return user?.email?.charAt(0).toUpperCase() || 'U';
@@ -144,6 +207,23 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     } catch (err: any) { console.error(err); }
   };
 
+  // Map menu paths to data-tutorial attributes for the tutorial system
+  const tutorialTargetMap: Record<string, string> = {
+    '/crm': 'sidebar-painel',
+    '/crm/conversas': 'sidebar-conversas',
+    '/crm/notificacoes': 'sidebar-notificacoes',
+    '/crm/leads': 'sidebar-leads',
+    '/crm/pipeline': 'sidebar-pipeline',
+    '/crm/agendamentos': 'sidebar-agendamentos',
+    '/crm/vendas': 'sidebar-vendas',
+    '/crm/procedimentos': 'sidebar-procedimentos',
+    '/crm/metas': 'sidebar-metas',
+    '/crm/quick-messages': 'sidebar-quick-messages',
+    '/crm/cadences': 'sidebar-cadences',
+    '/crm/ia': 'sidebar-ia',
+    '/crm/settings': 'sidebar-settings',
+  };
+
   const hasImpersonationFlag = !!localStorage.getItem('original_master_org_id');
   const isImpersonating = isSuperAdmin && hasImpersonationFlag;
   const isStuckOutsideMaster = isSuperAdmin && !hasImpersonationFlag && profile?.organization_id !== MASTER_ORG_ID;
@@ -154,123 +234,146 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
       <div className="flex flex-col h-full bg-sidebar">
         
         {/* LOGO */}
-        <div className={`flex items-center transition-all h-20 flex-shrink-0 ${isCollapsed ? 'px-2 justify-center' : 'px-4'}`}>
+        <div className={`flex items-center transition-all h-16 flex-shrink-0 border-b border-white/[0.06] ${isCollapsed ? 'px-2 justify-center' : 'px-5'}`}>
           <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-            <Avatar className={`h-10 w-10 border-2 border-sidebar-primary/20 transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'mx-auto' : ''}`}>
+            <Avatar className={`h-9 w-9 rounded-lg border border-white/[0.08] transition-all duration-300 flex-shrink-0 ${isCollapsed ? 'mx-auto' : ''}`}>
                 {branding?.logo_url ? <AvatarImage src={branding.logo_url} className="object-contain p-0.5" /> : <AvatarImage src="" />}
-                <AvatarFallback className="bg-sidebar-primary text-sidebar-background font-serif">{(branding?.brand_name || 'C').charAt(0).toUpperCase()}</AvatarFallback>
+                <AvatarFallback className="bg-white/[0.08] text-sidebar-foreground font-medium rounded-lg text-sm">{(branding?.brand_name || 'C').charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
-            
+
           <div className={`flex flex-col transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'flex-1 min-w-0 opacity-100 overflow-hidden'}`}>
-              <h1 className="text-[11px] font-bold text-sidebar-foreground uppercase tracking-normal font-serif leading-none mb-0.5 truncate">{isPlatformMode ? 'Hub de Gestão Comercial' : isOutboundMode ? 'Prospecção Ativa' : branding?.brand_name || 'CRM'}</h1>
-              <p className="text-[9px] text-sidebar-primary tracking-wide uppercase font-medium truncate">{isPlatformMode ? branding?.brand_name || 'Descompliquei' : isOutboundMode ? 'Outbound' : branding?.tagline || 'Gestão Inteligente'}</p>
+              <h1 className="text-[13px] font-semibold text-sidebar-foreground leading-tight truncate">{isPlatformMode ? 'Hub de Gestão' : isOutboundMode ? 'Prospecção Ativa' : branding?.brand_name || 'CRM'}</h1>
+              <p className="text-[10px] text-white/40 tracking-wide truncate">{isPlatformMode ? branding?.brand_name || 'Descompliquei' : isOutboundMode ? 'Outbound' : branding?.tagline || 'Gestão Inteligente'}</p>
             </div>
           </div>
           {toggleCollapse && !isCollapsed && (
-            <Button variant="ghost" size="icon" className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 ml-1 h-8 w-8 flex-shrink-0" onClick={toggleCollapse}><ChevronLeft className="h-4 w-4" /></Button>
+            <Button variant="ghost" size="icon" className="text-white/30 hover:text-white/60 hover:bg-white/[0.06] ml-1 h-7 w-7 flex-shrink-0" onClick={toggleCollapse}><ChevronLeft className="h-3.5 w-3.5" /></Button>
           )}
         </div>
         
         {/* Toggle Closed -> Open */}
         {toggleCollapse && isCollapsed && (
-          <div className="flex justify-center pb-2">
-             <Button variant="ghost" size="icon" className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 h-8 w-8" onClick={toggleCollapse}><ChevronLeft className="h-4 w-4 rotate-180" /></Button>
+          <div className="flex justify-center pb-1">
+             <Button variant="ghost" size="icon" className="text-white/30 hover:text-white/60 hover:bg-white/[0.06] h-7 w-7" onClick={toggleCollapse}><ChevronLeft className="h-3.5 w-3.5 rotate-180" /></Button>
           </div>
         )}
 
-        <nav className={`flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-sidebar-accent/20 scrollbar-track-transparent ${isCollapsed ? 'p-2' : 'p-3'}`}>
+        <nav data-tutorial="sidebar" className={`flex-1 space-y-0.5 overflow-y-auto scrollbar-thin scrollbar-thumb-white/[0.08] scrollbar-track-transparent ${isCollapsed ? 'p-2' : 'px-3 py-4'}`}>
           {menuItems.map((item, index) => {
             if (item.isSeparator) {
+              const isFirst = index === 0;
               return !isCollapsed ? (
-                <div key={`sep-${index}`} className="pt-4 pb-1 px-3">
-                  <div className="border-t border-[#242424] mb-2" />
-                  <p className="text-[10px] text-[#E85D24] font-bold tracking-widest uppercase">{item.title}</p>
+                <div key={`sep-${index}`} className={`${isFirst ? 'pt-0' : 'pt-5'} pb-2 px-3`}>
+                  <p className="text-[10px] text-white/25 font-semibold tracking-[0.12em] uppercase">{item.title}</p>
                 </div>
               ) : (
-                <div key={`sep-${index}`} className="pt-4 pb-1 px-2 flex justify-center"><div className="border-t border-[#242424] w-full" /></div>
+                isFirst ? null : <div key={`sep-${index}`} className="pt-4 pb-1 px-2 flex justify-center"><div className="border-t border-white/[0.06] w-full" /></div>
               );
             }
-            const isActive = item.path && location.pathname.startsWith(item.path) && (item.path !== '/crm' || location.pathname === '/crm');
+            const isActive = item.path && (
+              item.path === '/plataforma'
+                ? location.pathname === '/plataforma' || location.pathname === '/plataforma/'
+                : item.path === '/crm'
+                  ? location.pathname === '/crm'
+                  : location.pathname.startsWith(item.path)
+            );
             const Icon = item.icon as any;
-            
-            const linkClasses = `flex items-center gap-3 py-2.5 rounded-lg transition-all ${isCollapsed ? 'justify-center px-2' : 'px-3'} ${isActive ? ((isPlatformMode || isOutboundMode) ? 'bg-[#E85D24] text-white font-medium shadow-sm' : 'bg-sidebar-accent text-sidebar-primary font-medium border-l-2 border-sidebar-primary') : 'text-sidebar-foreground/70 hover:bg-[#1A1A1A] hover:text-sidebar-foreground'}`;
+
+            const linkClasses = `flex items-center gap-3 py-2 rounded-md transition-all duration-150 relative ${isCollapsed ? 'justify-center px-2' : 'px-3'} ${isActive ? 'bg-[#E85D24]/[0.12] text-white font-medium' : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'}`;
 
             const isAcessarCRM = item.title === 'Acessar CRM';
             const linkProps: any = isAcessarCRM ? { target: "_blank", rel: "noopener noreferrer" } : {};
 
+            const tutorialAttr = item.path ? tutorialTargetMap[item.path] : undefined;
+
             return isCollapsed ? (
               <Tooltip key={`tooltip-${index}`} delayDuration={0}>
                 <TooltipTrigger asChild>
-                  <Link to={item.path || '#'} {...linkProps} className={linkClasses} onClick={(e) => handleLinkClick(e, item.path || '#')}>
+                  <Link to={item.path || '#'} {...linkProps} className={linkClasses} onClick={(e) => handleLinkClick(e, item.path || '#')} {...(tutorialAttr ? { 'data-tutorial': tutorialAttr } : {})}>
+                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[#E85D24]" />}
                     <Icon className="h-5 w-5 flex-shrink-0" />
                   </Link>
                 </TooltipTrigger>
                 <TooltipContent side="right">{item.title}</TooltipContent>
               </Tooltip>
             ) : (
-              <Link key={`link-${index}`} to={item.path || '#'} {...linkProps} className={linkClasses} onClick={(e) => handleLinkClick(e, item.path || '#')}>
-                <Icon className="h-5 w-5 flex-shrink-0" />
-                <span className="truncate text-sm flex-1">{item.title}</span>
-                {item.title === 'Trilha C.L.A.R.O.' && progressPercent > 0 && (
-                  <Badge variant="outline" className={`ml-auto text-[9px] py-0 px-1 border-transparent ${progressPercent === 100 ? 'bg-emerald-500/20 text-emerald-500' : 'bg-[#E85D24]/20 text-[#E85D24]'}`}>
+              <Link key={`link-${index}`} to={item.path || '#'} {...linkProps} className={linkClasses} onClick={(e) => handleLinkClick(e, item.path || '#')} {...(tutorialAttr ? { 'data-tutorial': tutorialAttr } : {})}>
+                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[#E85D24]" />}
+                <Icon className="h-[18px] w-[18px] flex-shrink-0" />
+                <span className="truncate text-[13px] flex-1">{item.title}</span>
+                {item.title === 'Trilha de Aprendizado' && progressPercent > 0 && (
+                  <span className={`ml-auto text-[10px] font-medium tabular-nums ${progressPercent === 100 ? 'text-emerald-400' : 'text-white/40'}`}>
                     {progressPercent}%
-                  </Badge>
+                  </span>
                 )}
-                {/* Badge do Cérebro */}
                 {item.title === 'Cérebro Central' && cerebroPercent !== undefined && (
-                  <Badge variant="outline" className={`ml-auto text-[9px] py-0 px-1 border-transparent ${cerebroPercent === 100 ? 'bg-emerald-500/20 text-emerald-500' : 'bg-[#E85D24]/20 text-[#E85D24]'}`}>
+                  <span className={`ml-auto text-[10px] font-medium tabular-nums ${cerebroPercent === 100 ? 'text-emerald-400' : 'text-white/40'}`}>
                     {cerebroPercent}%
-                  </Badge>
+                  </span>
+                )}
+                {item.title === 'Performance' && performancePending > 0 && (
+                  <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold tabular-nums px-1">
+                    {performancePending}
+                  </span>
+                )}
+                {item.title === 'Configuração Inicial' && showOnboarding && (
+                  <span className="ml-auto text-[10px] font-bold text-muted-foreground bg-muted border border-border/60 px-1.5 py-0.5 rounded-md tabular-nums">
+                    {onboardingDone}/{onboardingTotal}
+                  </span>
                 )}
               </Link>
             );
           })}
         </nav>
 
+        {/* Tutorial Button */}
+        {!isPlatformMode && !isOutboundMode && (
+          <div className={`${isCollapsed ? 'px-2' : 'px-3'} pb-2`}>
+            <TutorialHelpButton collapsed={isCollapsed} />
+          </div>
+        )}
+
         {/* User Footer */}
-        <div className={`${isCollapsed ? 'p-2' : 'p-4'} border-t border-sidebar-border flex-shrink-0 space-y-2`}>
+        <div className={`${isCollapsed ? 'p-2' : 'px-3 py-3'} border-t border-white/[0.06] flex-shrink-0 space-y-2`}>
           {showBackToAdmin && (
-             <Button variant="default" className={`w-full h-9 bg-[#E85D24] hover:bg-[#E85D24]/90 text-white shadow-lg ${isImpersonating ? 'animate-pulse' : ''} ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'}`} onClick={handleBackToMaster}><ShieldCheck className="h-4 w-4 flex-shrink-0" />{!isCollapsed && <span className="ml-2 text-[10px] font-bold uppercase tracking-wider">{isImpersonating ? 'Sair do Cliente' : 'Voltar para Admin'}</span>}</Button>
+             <Button variant="default" className={`w-full h-8 bg-[#E85D24] hover:bg-[#D04E1A] text-white text-xs ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'}`} onClick={handleBackToMaster}><ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />{!isCollapsed && <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.06em]">{isImpersonating ? 'Sair do Cliente' : 'Voltar para Admin'}</span>}</Button>
           )}
 
-          <div className={`flex items-center gap-3 mb-2 ${isCollapsed ? 'justify-center flex-col' : ''}`}>
-            <Avatar className="h-9 w-9 flex-shrink-0 border border-sidebar-border">
+          <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center flex-col' : ''}`}>
+            <Avatar className="h-8 w-8 flex-shrink-0 border border-white/[0.08]">
               <AvatarImage src={profile?.url_avatar || ''} />
-              <AvatarFallback className="bg-sidebar-accent text-sidebar-primary font-serif text-xs">{getInitials(profile?.nome_completo)}</AvatarFallback>
+              <AvatarFallback className="bg-white/[0.08] text-white/70 text-[11px] font-medium">{getInitials(profile?.nome_completo)}</AvatarFallback>
             </Avatar>
             <div className={`flex-1 overflow-hidden whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 hidden' : 'w-full opacity-100'}`}>
-              <div className="flex items-center gap-2">
-			          <p className="text-sm font-medium text-sidebar-foreground truncate">{user?.user_metadata?.full_name || profile?.nome_completo || plataformaUser?.clinic_name || 'Colaborador'}</p>
-			          {plataformaUser && plan && !isSuperAdmin && (
-                  <Badge variant="outline" className={`text-[9px] uppercase tracking-wider font-bold py-0 h-4 border-transparent ${plan === 'gca' ? 'bg-[#E85D24] text-white' : 'bg-muted text-muted-foreground'}`}>{plan}✅</Badge>
-                )}
-			        </div>
-              <p className="text-[10px] text-sidebar-foreground/50 truncate w-full block">{user?.email}</p>
+              <p className="text-[13px] font-medium text-white/80 truncate">{user?.user_metadata?.full_name || profile?.nome_completo || plataformaUser?.clinic_name || 'Colaborador'}</p>
+              <p className="text-[10px] text-white/30 truncate w-full block">{user?.email}</p>
             </div>
           </div>
-          {isPlatformMode && (
-            <Button variant="ghost" className={`w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`} onClick={() => navigate('/plataforma/configuracoes')}>
-              <Settings className="h-4 w-4 flex-shrink-0" />
-              <span className={`ml-2 text-xs whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Configurações</span>
-            </Button>
-          )}
-          <Button variant="ghost" className={`w-full h-9 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`} onClick={signOut}><LogOut className="h-4 w-4 flex-shrink-0" /><span className={`ml-2 text-xs whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Sair</span></Button>
+          <div className={`flex ${isCollapsed ? 'flex-col' : ''} gap-1`}>
+            {isPlatformMode && (
+              <Button variant="ghost" className={`flex-1 h-8 text-white/40 hover:text-white/70 hover:bg-white/[0.05] ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`} onClick={() => navigate('/plataforma/configuracoes')}>
+                <Settings className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className={`ml-2 text-xs whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Configurações</span>
+              </Button>
+            )}
+            <Button variant="ghost" className={`${isPlatformMode ? 'flex-1' : 'w-full'} h-8 text-white/40 hover:text-white/70 hover:bg-white/[0.05] ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`} onClick={signOut}><LogOut className="h-3.5 w-3.5 flex-shrink-0" /><span className={`ml-2 text-xs whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Sair</span></Button>
+          </div>
         </div>
 
         {/* Modal de Onboarding bloqueando saída */}
         <Dialog open={showExitOnboarding} onOpenChange={setShowExitOnboarding}>
           <DialogContent className="sm:max-w-md border-border bg-card">
              <DialogHeader>
-                <DialogTitle className="text-foreground">Configuração Incompleta ⚠️</DialogTitle>
+                <DialogTitle className="text-foreground font-display">Configuração Incompleta</DialogTitle>
                 <DialogDescription>
                   Você ainda não finalizou a configuração inicial e calibração das IAs. Suas respostas ficarão limitadas se sair agora.
                 </DialogDescription>
              </DialogHeader>
              <DialogFooter className="sm:justify-start flex gap-2">
-               <Button type="button" variant="outline" className="border-border text-foreground hover:bg-muted font-bold flex-1" onClick={() => setShowExitOnboarding(false)}>
+               <Button type="button" variant="outline" className="border-border text-foreground hover:bg-muted font-medium flex-1" onClick={() => setShowExitOnboarding(false)}>
                  Continuar Configuração
                </Button>
-               <Button type="button" variant="destructive" className="font-bold border-transparent flex-1" onClick={forceExitOnboarding}>
+               <Button type="button" variant="destructive" className="font-medium border-transparent flex-1" onClick={forceExitOnboarding}>
                  Ir assim mesmo
                </Button>
              </DialogFooter>

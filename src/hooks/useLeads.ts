@@ -50,6 +50,7 @@ export interface Lead {
   is_closed?: boolean;
   excluir_metricas?: boolean;
   lead_scoring?: string | null;
+  responsavel_id?: string | null;
 }
 
 export function useLeads(dateRange?: DateRange) {
@@ -146,29 +147,40 @@ export function useLeads(dateRange?: DateRange) {
     queryFn: async () => {
       if (!user || !orgId) return [];
 
-      let query = supabase
-        .from('leads')
-        .select(`
-          *,
-          leads_tags (
-            tags (
-              *
-            )
-          )
-        `)
-        .eq('organization_id', orgId)
-        .order('criado_em', { ascending: false });
+      const PAGE_SIZE = 1000;
+      let allLeads: Lead[] = [];
+      let from = 0;
 
-      if (dateRange?.from && dateRange?.to) {
-        const startDate = format(startOfDay(dateRange.from), 'yyyy-MM-dd HH:mm:ss');
-        const endDate = format(endOfDay(dateRange.to), 'yyyy-MM-dd HH:mm:ss');
-        query = query.or(`and(criado_em.gte.${startDate},criado_em.lte.${endDate}),and(agendamento.gte.${startDate},agendamento.lte.${endDate}),and(atualizado_em.gte.${startDate},atualizado_em.lte.${endDate})`);
+      while (true) {
+        let query = supabase
+          .from('leads')
+          .select(`
+            *,
+            leads_tags (
+              tags (
+                *
+              )
+            )
+          `)
+          .eq('organization_id', orgId)
+          .order('criado_em', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (dateRange?.from && dateRange?.to) {
+          const startDate = format(startOfDay(dateRange.from), 'yyyy-MM-dd HH:mm:ss');
+          const endDate = format(endOfDay(dateRange.to), 'yyyy-MM-dd HH:mm:ss');
+          query = query.or(`and(criado_em.gte.${startDate},criado_em.lte.${endDate}),and(agendamento.gte.${startDate},agendamento.lte.${endDate}),and(atualizado_em.gte.${startDate},atualizado_em.lte.${endDate})`);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        allLeads = allLeads.concat(data as Lead[]);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return data as Lead[];
+      return allLeads;
     },
     enabled: !!user && !!orgId,
     staleTime: 1000 * 60 * 5,
@@ -194,6 +206,17 @@ export function useLeads(dateRange?: DateRange) {
     onSuccess: (data) => {
       queryClient.setQueryData<Lead[]>(['leads', orgId, dateRange], (old) => [data, ...(old || [])]);
       toast.success('Lead criado com sucesso!');
+      // Registrar quem criou o lead
+      if (data?.id && orgId) {
+        supabase.from('lead_atividades' as any).insert({
+          lead_id: data.id,
+          organization_id: orgId,
+          user_id: user?.id,
+          tipo: 'criacao',
+          descricao: 'Lead criado',
+          metadados: { origem: (data as any).origem },
+        }).then(() => {});
+      }
     },
     onError: (error: any) => {
       if (error?.message?.toLowerCase().includes('blacklist')) {
@@ -223,7 +246,7 @@ export function useLeads(dateRange?: DateRange) {
         'nome', 'telefone', 'email', 'cpf', 'idade', 'genero', 'endereco',
         'queixa_principal', 'procedimento_interesse', 'resumo', 'origem', 'fonte',
         'criativo_id', 'status', 'posicao_pipeline', 'ultimo_contato', 'agendamento',
-        'data_nascimento', 'ia_ativa', 'ia_paused_until', 'is_qualified', 'is_scheduled', 'is_closed', 'excluir_metricas', 'lead_scoring',
+        'data_nascimento', 'ia_ativa', 'ia_paused_until', 'is_qualified', 'is_scheduled', 'is_closed', 'excluir_metricas', 'lead_scoring', 'responsavel_id',
       ];
 
       const cleanUpdates: Record<string, unknown> = {};
@@ -250,6 +273,64 @@ export function useLeads(dateRange?: DateRange) {
       if (error) {
         console.error('[updateLead] Erro ao atualizar lead:', error);
         throw new Error(`Erro ao atualizar lead: ${error.message} (código: ${error.code})`);
+      }
+
+      // Nota: lead_stage_history é populado automaticamente pelo trigger
+      // trg_track_stage_change no banco — não inserir manualmente aqui.
+
+      // Registrar atividade quando etapa do pipeline muda (atribuição de autor)
+      if ('posicao_pipeline' in cleanUpdates) {
+        await supabase.from('lead_atividades' as any).insert({
+          lead_id: id,
+          organization_id: orgId,
+          user_id: user?.id,
+          tipo: 'etapa',
+          descricao: `Etapa alterada para posição ${cleanUpdates.posicao_pipeline}`,
+          metadados: { posicao_pipeline: cleanUpdates.posicao_pipeline },
+        });
+      }
+
+      // Registrar nota do sistema quando is_qualified muda para true
+      // (para ter timestamp exato na Jornada do Paciente)
+      if (cleanUpdates.is_qualified === true) {
+        await supabase.from('lead_notas').insert({
+          lead_id: id,
+          organization_id: orgId,
+          conteudo: 'Lead marcado como qualificado (MQL)',
+          tipo: 'sistema',
+          metadados: { evento: 'mql', is_qualified: true },
+        });
+      }
+
+      // Registrar nota do sistema quando lead_scoring é definido/alterado
+      if (cleanUpdates.lead_scoring) {
+        const labels: Record<string, string> = {
+          A: 'Lead dos Sonhos',
+          B: 'Qualificado com Ressalva',
+          C: 'Em Desenvolvimento',
+          D: 'Fora do ICP',
+        };
+        await supabase.from('lead_notas').insert({
+          lead_id: id,
+          organization_id: orgId,
+          conteudo: `Scoring definido como ${cleanUpdates.lead_scoring} — ${labels[cleanUpdates.lead_scoring as string] || ''}`,
+          tipo: 'sistema',
+          metadados: { evento: 'scoring', scoring: cleanUpdates.lead_scoring },
+        });
+      }
+
+      // Registrar atividade quando responsavel_id é atribuído/alterado
+      if ('responsavel_id' in cleanUpdates) {
+        await supabase.from('lead_atividades' as any).insert({
+          lead_id: id,
+          organization_id: orgId,
+          user_id: user?.id,
+          tipo: 'responsavel',
+          descricao: cleanUpdates.responsavel_id
+            ? 'Responsável atribuído ao lead'
+            : 'Responsável removido do lead',
+          metadados: { responsavel_id: cleanUpdates.responsavel_id },
+        });
       }
 
       return { id, ...cleanUpdates } as Lead;

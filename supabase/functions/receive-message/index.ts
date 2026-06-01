@@ -167,7 +167,7 @@ serve(async (req) => {
     let orgId = null;
     let userId = null;
 
-    const instanceName = payload?.instance || payload?.instanceName || rawPayloadData?.instance || rawPayloadData?.data?.instanceName || rawPayloadData?.body?.instanceName;
+    const instanceName = (payload?.instance || payload?.instanceName || rawPayloadData?.instance || rawPayloadData?.data?.instanceName || rawPayloadData?.body?.instanceName || '')?.trim() || null;
       
     if (instanceName) {
       const { data: connection } = await supabaseAdmin
@@ -391,7 +391,11 @@ serve(async (req) => {
         return new Response(JSON.stringify({ message: 'Lead não encontrado e impossível criar (falta organization_id).' }), { status: 404, headers: corsHeaders });
       }
 
-      const contactName = rawPayloadData?.pushName || rawPayloadData?.data?.pushName || rawPayloadData?.chat?.name || rawPayloadData?.message?.senderName || rawPayloadData?.chat?.wa_name || rawPayloadData?.body?.message?.senderName || rawPayloadData?.body?.chat?.contactName || rawPayloadData?.body?.chat?.name || phoneWithCountryCode;
+      // Quando fromMe=true (clínica enviou primeiro), pushName/senderName é o nome da CLÍNICA, não do contato.
+      // Nesses casos, usar apenas campos de nível chat (contactName, chat.name) ou fallback pro telefone.
+      const contactName = fromMe
+        ? (rawPayloadData?.body?.chat?.contactName || rawPayloadData?.body?.chat?.name || rawPayloadData?.chat?.contactName || rawPayloadData?.chat?.name || rawPayloadData?.chat?.wa_name || phoneWithCountryCode)
+        : (rawPayloadData?.pushName || rawPayloadData?.data?.pushName || rawPayloadData?.chat?.name || rawPayloadData?.message?.senderName || rawPayloadData?.chat?.wa_name || rawPayloadData?.body?.message?.senderName || rawPayloadData?.body?.chat?.contactName || rawPayloadData?.body?.chat?.name || phoneWithCountryCode);
 
       const { data: newLead, error: createLeadError } = await supabaseAdmin
         .from('leads')
@@ -434,6 +438,37 @@ serve(async (req) => {
     } else {
       // Origem do lead é definida apenas na criação — não reclassificar leads existentes
       // Contatos orgânicos podem clicar em anúncios depois, mas continuam orgânicos
+
+      // ── Auto-correção do nome do lead ─────────────────────────────────────
+      // Se a mensagem é INCOMING (fromMe=false) e o lead tem nome = telefone ou nome da clínica,
+      // atualizar com o pushName real do contato.
+      if (!fromMe && lead) {
+        const incomingPushName = rawPayloadData?.pushName || rawPayloadData?.data?.pushName || rawPayloadData?.chat?.name || rawPayloadData?.message?.senderName || null;
+        if (incomingPushName) {
+          const currentName = (lead.nome || '').trim();
+          const isPhoneAsName = /^\d{10,15}$/.test(currentName);
+          // Detectar se o nome atual é o nome da conexão WhatsApp (nome da clínica)
+          let isClinicName = false;
+          if (orgId) {
+            try {
+              const { data: conn } = await supabaseAdmin
+                .from('whatsapp_connections')
+                .select('instance_name')
+                .eq('organization_id', orgId)
+                .maybeSingle();
+              if (conn?.instance_name && currentName.toLowerCase().includes(conn.instance_name.toLowerCase().trim())) {
+                isClinicName = true;
+              }
+            } catch (_) {}
+          }
+
+          if (isPhoneAsName || isClinicName) {
+            await supabaseAdmin.from('leads').update({ nome: incomingPushName }).eq('id', lead.id);
+            lead.nome = incomingPushName;
+            console.log(`[receive-message] Nome do lead atualizado: "${currentName}" → "${incomingPushName}"`);
+          }
+        }
+      }
     }
 
     // ── Captura de Criativo Meta Ads (Click-to-WhatsApp) ────────────────────

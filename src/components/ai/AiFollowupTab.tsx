@@ -67,11 +67,11 @@ export function AiFollowupTab() {
     <div className="space-y-4">
       <AiFollowupConfig />
 
-      <Card className="border-sidebar-border shadow-sm">
+      <Card data-tutorial="ia-followup-history" className="border-sidebar-border shadow-sm">
         <div className="border-b p-4">
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Historico de Follow-ups</h3>
+            <h3 className="text-sm font-semibold">Histórico de Follow-ups</h3>
           </div>
           {logs && logs.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-2">

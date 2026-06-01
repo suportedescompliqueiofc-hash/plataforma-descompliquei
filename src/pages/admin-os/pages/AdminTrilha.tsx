@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,7 +10,6 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -247,7 +245,7 @@ function SortableBlockListItem({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
         'rounded-xl border bg-background px-3 py-3 transition-all',
-        selected ? 'border-[#E85D24]/40 bg-[#FFF0E8]' : 'border-border hover:bg-muted/20',
+        selected ? 'border-foreground/30 bg-foreground/[0.04]' : 'border-border hover:bg-muted/20',
         isDragging && 'opacity-60 shadow-lg',
       )}
     >
@@ -267,9 +265,9 @@ function SortableBlockListItem({
             <p className="truncate text-sm font-semibold text-foreground">{block.titulo}</p>
           </div>
           <div className="mt-2 flex items-center gap-2">
-            <Badge variant="outline" className={cn('h-5 rounded-full px-2 text-[10px] font-semibold', definition?.badgeClass)}>
+            <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full border', definition?.badgeClass)}>
               {definition?.label || block.tipo}
-            </Badge>
+            </span>
             {block.salvar_no_cerebro && <Brain className="h-3.5 w-3.5 text-sky-600" />}
             {block.gera_material && <Package className="h-3.5 w-3.5 text-amber-600" />}
           </div>
@@ -736,7 +734,7 @@ function PillarDropZone({
       className={cn(
         'space-y-1 px-2 pb-2 transition-colors',
         active && 'opacity-60',
-        isOver && 'rounded-xl bg-[#FFF4EE] ring-1 ring-[#E85D24]/30',
+        isOver && 'rounded-xl bg-muted/20 ring-1 ring-border',
       )}
     >
       {children}
@@ -781,10 +779,10 @@ function SortableModuleItem({
       className={cn(
         'group rounded-xl border bg-background px-3 py-3 transition-all',
         selected
-          ? 'border-[#E85D24]/40 bg-[#FFF0E8] shadow-sm'
-          : 'border-border/70 hover:border-[#E85D24]/20 hover:bg-muted/20',
+          ? 'border-foreground/30 bg-foreground/[0.04] shadow-sm'
+          : 'border-border/70 hover:border-foreground/20 hover:bg-muted/20',
         !module.active && 'opacity-70',
-        isDragging && 'shadow-lg ring-1 ring-[#E85D24]/30',
+        isDragging && 'shadow-lg ring-1 ring-border',
       )}
     >
       <div className="flex items-start gap-2">
@@ -802,7 +800,7 @@ function SortableModuleItem({
 
         <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
           <div className="flex items-center gap-2">
-            <span className="shrink-0 text-xs font-bold text-[#E85D24]">{displayId}</span>
+            <span className="shrink-0 text-xs font-bold text-muted-foreground/60 font-mono">{displayId}</span>
             <p className={cn('truncate text-sm font-semibold', module.active ? 'text-foreground' : 'text-muted-foreground')}>
               {module.title}
             </p>
@@ -820,9 +818,9 @@ function SortableModuleItem({
               {hasValide && <CheckCircle2 className="h-4 w-4 text-amber-500" />}
               {hasFinalize && <Flag className="h-4 w-4 text-violet-500" />}
             </div>
-            <Badge variant="outline" className="h-6 rounded-full border-border bg-background px-2.5 text-[10px] font-medium text-muted-foreground">
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-border/60 bg-muted text-muted-foreground">
               {completions} alunos
-            </Badge>
+            </span>
           </div>
         </button>
 
@@ -867,7 +865,6 @@ function SortableModuleItem({
 export default function AdminTrilha() {
   const navigate = useNavigate();
   const { moduleId: routeModuleId, pillarId: routePillarId } = useParams<{ moduleId?: string; pillarId?: string }>();
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [pillars, setPillars] = useState<PlatformPillar[]>([]);
   const [modules, setModules] = useState<PlatformModule[]>([]);
@@ -1094,11 +1091,7 @@ export default function AdminTrilha() {
         setSelectedId(nextModules.find((module) => module.active)?.id || nextModules[0]?.id || null);
       }
     } catch (error: any) {
-      toast({
-        title: 'Erro ao carregar trilha',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao carregar trilha: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -1211,11 +1204,7 @@ export default function AdminTrilha() {
 
   async function handleSavePillar() {
     if (!pillarForm.nome.trim()) {
-      toast({
-        title: 'Nome obrigatório',
-        description: 'Preencha o nome do pilar.',
-        variant: 'destructive',
-      });
+      toast.error('Preencha o nome do pilar.');
       return;
     }
 
@@ -1234,7 +1223,7 @@ export default function AdminTrilha() {
 
         if (error) throw error;
 
-        toast({ title: 'Pilar atualizado com sucesso' });
+        toast.success('Pilar atualizado com sucesso');
       } else {
         const nextOrder = orderedPillars.length + 1;
         const { data, error } = await db
@@ -1254,17 +1243,13 @@ export default function AdminTrilha() {
 
         const created = data as PlatformPillar;
         setExpandedPillars((current) => Array.from(new Set([...current, created.id])));
-        toast({ title: 'Pilar criado com sucesso' });
+        toast.success('Pilar criado com sucesso');
       }
 
       setPillarModalOpen(false);
       await loadData(selectedId);
     } catch (error: any) {
-      toast({
-        title: 'Erro ao salvar pilar',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao salvar pilar: ' + error.message);
     }
   }
 
@@ -1291,20 +1276,12 @@ export default function AdminTrilha() {
 
   async function handleSaveModule() {
     if (!moduleForm.title.trim()) {
-      toast({
-        title: 'Título obrigatório',
-        description: 'Preencha o título do módulo.',
-        variant: 'destructive',
-      });
+      toast.error('Preencha o título do módulo.');
       return;
     }
 
     if (!moduleForm.pilar_id) {
-      toast({
-        title: 'Pilar obrigatório',
-        description: 'Escolha um pilar para o módulo.',
-        variant: 'destructive',
-      });
+      toast.error('Escolha um pilar para o módulo.');
       return;
     }
 
@@ -1346,7 +1323,7 @@ export default function AdminTrilha() {
           await loadData(moduleForm.id);
         }
 
-        toast({ title: 'Módulo atualizado com sucesso' });
+        toast.success('Módulo atualizado com sucesso');
       } else {
         const nextOrder = getPillarModules(targetPillarId).length + 1;
         const tempId = createTempModuleId();
@@ -1377,16 +1354,12 @@ export default function AdminTrilha() {
         });
 
         setExpandedPillars((current) => Array.from(new Set([...current, targetPillarId])));
-        toast({ title: 'Módulo criado com sucesso' });
+        toast.success('Módulo criado com sucesso');
       }
 
       setModuleModalOpen(false);
     } catch (error: any) {
-      toast({
-        title: 'Erro ao salvar módulo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao salvar módulo: ' + error.message);
     }
   }
 
@@ -1435,13 +1408,9 @@ export default function AdminTrilha() {
         return matches[0]?.id || null;
       });
 
-      toast({ title: 'Módulo duplicado com sucesso' });
+      toast.success('Módulo duplicado com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao duplicar módulo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao duplicar módulo: ' + error.message);
     }
   }
 
@@ -1506,13 +1475,9 @@ export default function AdminTrilha() {
         return firstModule?.id || null;
       });
 
-      toast({ title: 'Pilar duplicado com sucesso' });
+      toast.success('Pilar duplicado com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao duplicar pilar',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao duplicar pilar: ' + error.message);
     }
   }
 
@@ -1526,13 +1491,9 @@ export default function AdminTrilha() {
       if (error) throw error;
 
       await loadData(selectedId);
-      toast({ title: pillar.ativo ? 'Pilar desativado' : 'Pilar ativado' });
+      toast.success(pillar.ativo ? 'Pilar desativado' : 'Pilar ativado');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao atualizar pilar',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao atualizar pilar: ' + error.message);
     }
   }
 
@@ -1546,13 +1507,9 @@ export default function AdminTrilha() {
       if (error) throw error;
 
       await loadData(module.id);
-      toast({ title: module.active ? 'Módulo desativado' : 'Módulo ativado' });
+      toast.success(module.active ? 'Módulo desativado' : 'Módulo ativado');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao atualizar módulo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao atualizar módulo: ' + error.message);
     }
   }
 
@@ -1582,13 +1539,9 @@ export default function AdminTrilha() {
       });
 
       setExpandedPillars((current) => Array.from(new Set([...current, targetPillarId])));
-      toast({ title: 'Módulo movido com sucesso' });
+      toast.success('Módulo movido com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao mover módulo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao mover módulo: ' + error.message);
     }
   }
 
@@ -1616,13 +1569,9 @@ export default function AdminTrilha() {
 
       setDeletePillarTarget(null);
       await loadData();
-      toast({ title: 'Pilar excluído com sucesso' });
+      toast.success('Pilar excluído com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao excluir pilar',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao excluir pilar: ' + error.message);
     }
   }
 
@@ -1634,13 +1583,9 @@ export default function AdminTrilha() {
       await renumberModules();
       setDeleteTarget(null);
       await loadData();
-      toast({ title: 'Módulo excluído com sucesso' });
+      toast.success('Módulo excluído com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao excluir módulo',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao excluir módulo: ' + error.message);
     }
   }
 
@@ -1707,13 +1652,9 @@ export default function AdminTrilha() {
         await loadData(editMod.id);
       }
 
-      toast({ title: 'Sucesso', description: `Aba ${tabName} salva com sucesso.` });
+      toast.success(`Aba ${tabName} salva com sucesso.`);
     } catch (error: any) {
-      toast({
-        title: 'Erro ao salvar',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao salvar: ' + error.message);
     } finally {
       setSavingTab(null);
     }
@@ -1737,11 +1678,7 @@ export default function AdminTrilha() {
   async function handleSaveBlock() {
     if (!selectedModule || !blockForm) return;
     if (!blockForm.titulo.trim()) {
-      toast({
-        title: 'Título obrigatório',
-        description: 'Preencha o título do bloco.',
-        variant: 'destructive',
-      });
+      toast.error('Preencha o título do bloco.');
       return;
     }
 
@@ -1773,13 +1710,9 @@ export default function AdminTrilha() {
         await loadData(selectedId);
       }
 
-      toast({ title: 'Bloco salvo com sucesso' });
+      toast.success('Bloco salvo com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao salvar bloco',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao salvar bloco: ' + error.message);
     } finally {
       setSavingBlock(false);
     }
@@ -1804,13 +1737,9 @@ export default function AdminTrilha() {
       setIsCreatingBlock(false);
       setSelectedBlockId((data?.id as string) || null);
       await loadData(selectedId);
-      toast({ title: 'Bloco duplicado com sucesso' });
+      toast.success('Bloco duplicado com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao duplicar bloco',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao duplicar bloco: ' + error.message);
     }
   }
 
@@ -1828,13 +1757,9 @@ export default function AdminTrilha() {
 
       setDeleteBlockTarget(null);
       await loadData(selectedId);
-      toast({ title: 'Bloco excluído com sucesso' });
+      toast.success('Bloco excluído com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Erro ao excluir bloco',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao excluir bloco: ' + error.message);
     }
   }
 
@@ -1867,11 +1792,7 @@ export default function AdminTrilha() {
       );
       await loadData(selectedId);
     } catch (error: any) {
-      toast({
-        title: 'Erro ao reordenar blocos',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao reordenar blocos: ' + error.message);
       await loadData(selectedId);
     }
   }
@@ -2205,11 +2126,7 @@ export default function AdminTrilha() {
 
   const addValideItem = () => {
     if (!newValide.text.trim()) {
-      toast({
-        title: 'Erro',
-        description: 'Texto obrigatório.',
-        variant: 'destructive',
-      });
+      toast.error('Texto obrigatório.');
       return;
     }
 
@@ -2252,20 +2169,12 @@ export default function AdminTrilha() {
     if (!file || !editMod.id) return;
 
     if (!file.type.match(/(video\/mp4|video\/webm|video\/ogg)/)) {
-      toast({
-        title: 'Erro',
-        description: 'Apenas arquivos MP4, WebM ou OGG.',
-        variant: 'destructive',
-      });
+      toast.error('Apenas arquivos MP4, WebM ou OGG.');
       return;
     }
 
     if (file.size > 500 * 1024 * 1024) {
-      toast({
-        title: 'Erro',
-        description: 'Arquivo muito grande. Máximo permitido: 500MB.',
-        variant: 'destructive',
-      });
+      toast.error('Arquivo muito grande. Máximo permitido: 500MB.');
       return;
     }
 
@@ -2289,13 +2198,9 @@ export default function AdminTrilha() {
       const { data } = supabase.storage.from('platform_videos').getPublicUrl(fileName);
 
       setEditMod({ ...editMod, video_url: data.publicUrl });
-      toast({ title: 'Upload concluído com sucesso' });
+      toast.success('Upload concluído com sucesso');
     } catch (error: any) {
-      toast({
-        title: 'Falha no upload',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Falha no upload: ' + error.message);
     } finally {
       setTimeout(() => {
         setUploading(false);
@@ -2425,11 +2330,7 @@ export default function AdminTrilha() {
       await persistModulesForPillars(nextModules, [sourcePillarId, targetPillarId]);
       await loadData(selectedId);
     } catch (error: any) {
-      toast({
-        title: 'Erro ao reordenar módulos',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast.error('Erro ao reordenar módulos: ' + error.message);
       await loadData(selectedId);
     }
   }
@@ -2437,7 +2338,7 @@ export default function AdminTrilha() {
   if (loading) {
     return (
       <div className="flex justify-center p-10">
-        <Loader2 className="h-8 w-8 animate-spin text-[#E85D24]" />
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40" />
       </div>
     );
   }
@@ -2477,41 +2378,41 @@ export default function AdminTrilha() {
   return (
     <div className={cn('h-[calc(100vh-6rem)] min-w-0 gap-6', isModulePage ? 'flex flex-col' : 'flex')}>
       {!isModulePage && (
-      <Card className="flex h-full w-full min-w-0 flex-col overflow-hidden">
-        <CardHeader className="space-y-4 border-b border-border bg-muted/10 p-4">
+      <div className="flex h-full w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="shrink-0 space-y-3 border-b border-border/40 bg-muted/[0.03] p-4">
           {isPillarPage && (
             <div className="flex items-center justify-between gap-3">
-              <Button variant="outline" size="sm" onClick={() => navigate('/admin/trilha')}>
+              <Button variant="outline" size="sm" className="h-8 rounded-lg text-xs border-border/60" onClick={() => navigate('/admin/trilha')}>
                 Voltar para todos os pilares
               </Button>
-              <p className="text-xs text-muted-foreground">Visualizando pilar {selectedPillar?.nome || ''}</p>
+              <p className="text-[11px] text-muted-foreground/60">Visualizando pilar {selectedPillar?.nome || ''}</p>
             </div>
           )}
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <CardTitle className="text-lg font-bold text-foreground">Trilha de Aprendizado</CardTitle>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="text-[13px] font-bold text-foreground font-display">Trilha de Aprendizado</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground/60">
                 {pillars.length} pilares · {modules.length} módulos · {totalVideoModules} com vídeo · {totalConstruaModules} com Construa
               </p>
             </div>
-            <Button onClick={openCreatePillarModal} className="h-9 shrink-0 bg-[#E85D24] text-white hover:bg-[#E85D24]/90">
-              <Plus className="mr-1 h-4 w-4" />
+            <Button onClick={openCreatePillarModal} className="h-8 shrink-0 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
               Novo Pilar
             </Button>
           </div>
 
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50" />
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar módulo..."
-              className="pl-9"
+              className="h-9 pl-9 text-sm rounded-lg border-border/60"
             />
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="flex-1 overflow-y-auto p-0">
+        <div className="flex-1 overflow-y-auto">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -2586,9 +2487,9 @@ export default function AdminTrilha() {
               >
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-foreground">Módulos Inativos</span>
-                  <Badge variant="outline" className="h-5 rounded-full px-2 text-[10px]">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-border/60 bg-muted text-muted-foreground">
                     {inactiveModules.length}
-                  </Badge>
+                  </span>
                 </div>
                 {inactiveOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
               </button>
@@ -2610,7 +2511,7 @@ export default function AdminTrilha() {
                         >
                           <button type="button" className="w-full text-left" onClick={() => openModule(module.id)}>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-[#E85D24]">{getModuleDisplayId(module)}</span>
+                              <span className="text-xs font-bold text-muted-foreground/60 font-mono">{getModuleDisplayId(module)}</span>
                               <p className="truncate text-sm font-medium text-muted-foreground">{module.title}</p>
                             </div>
                             <p className="mt-1 text-[11px] text-muted-foreground">
@@ -2640,14 +2541,14 @@ export default function AdminTrilha() {
 
             <DragOverlay>
               {draggingType === 'pillar' && draggingId ? (
-                <div className="w-[288px] rounded-xl border border-[#E85D24]/30 bg-white px-4 py-3 shadow-2xl">
+                <div className="w-[288px] rounded-xl border border-border/60 bg-card px-4 py-3 shadow-2xl">
                   <p className="text-sm font-semibold text-foreground">{pillarLookup[draggingId]?.nome || 'Pilar'}</p>
                 </div>
               ) : null}
 
               {draggingType === 'module' && draggingId ? (
-                <div className="w-[288px] rounded-xl border border-[#E85D24]/30 bg-white px-4 py-3 shadow-2xl">
-                  <p className="text-xs font-bold text-[#E85D24]">{modules.find((module) => module.id === draggingId) ? getModuleDisplayId(modules.find((module) => module.id === draggingId) as PlatformModule) : ''}</p>
+                <div className="w-[288px] rounded-xl border border-border/60 bg-card px-4 py-3 shadow-2xl">
+                  <p className="text-xs font-bold text-muted-foreground/60 font-mono">{modules.find((module) => module.id === draggingId) ? getModuleDisplayId(modules.find((module) => module.id === draggingId) as PlatformModule) : ''}</p>
                   <p className="text-sm font-semibold text-foreground">
                     {modules.find((module) => module.id === draggingId)?.title || 'Módulo'}
                   </p>
@@ -2655,18 +2556,18 @@ export default function AdminTrilha() {
               ) : null}
             </DragOverlay>
           </DndContext>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
       )}
 
       {isModulePage && (
-      <Card className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="relative flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
         {isModulePage && (
-          <div className="flex shrink-0 items-center justify-between border-b border-border bg-muted/10 px-4 py-3">
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin/trilha')}>
+          <div className="flex shrink-0 items-center justify-between border-b border-border/40 bg-muted/[0.03] px-4 py-3">
+            <Button variant="outline" size="sm" className="h-8 rounded-lg text-xs border-border/60" onClick={() => navigate('/admin/trilha')}>
               Voltar para Trilha
             </Button>
-            <p className="text-xs text-muted-foreground">Editando módulo {selectedModule?.title || ''}</p>
+            <p className="text-[11px] text-muted-foreground/60">Editando módulo {selectedModule?.title || ''}</p>
           </div>
         )}
         {!selectedModule ? (
@@ -2684,7 +2585,7 @@ export default function AdminTrilha() {
                   onClick={() => setActiveTab(tab)}
                   className={cn(
                     'whitespace-nowrap rounded px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors',
-                    activeTab === tab ? 'bg-[#E85D24] text-white' : 'text-muted-foreground hover:bg-muted',
+                    activeTab === tab ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted/50',
                   )}
                 >
                   {tab}
@@ -2767,7 +2668,7 @@ export default function AdminTrilha() {
                     </div>
                   </div>
 
-                  <Button onClick={() => void handleSave('Info')} disabled={savingTab === 'Info'} className="w-full bg-[#E85D24] text-white hover:bg-[#E85D24]/90 sm:w-auto">
+                  <Button onClick={() => void handleSave('Info')} disabled={savingTab === 'Info'} className="w-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto">
                     {savingTab === 'Info' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Salvar Info
                   </Button>
@@ -2809,7 +2710,7 @@ export default function AdminTrilha() {
                             <span>{uploadProgress}%</span>
                           </div>
                           <div className="h-1 overflow-hidden rounded-full bg-muted">
-                            <div className="h-full bg-[#E85D24] transition-all" style={{ width: `${uploadProgress}%` }} />
+                            <div className="h-full bg-foreground/60 transition-all" style={{ width: `${uploadProgress}%` }} />
                           </div>
                         </div>
                       )}
@@ -2827,7 +2728,7 @@ export default function AdminTrilha() {
                     </div>
                   </div>
 
-                  <Button onClick={() => void handleSave('Aprenda')} disabled={savingTab === 'Aprenda'} className="w-full bg-[#E85D24] text-white hover:bg-[#E85D24]/90 sm:w-auto">
+                  <Button onClick={() => void handleSave('Aprenda')} disabled={savingTab === 'Aprenda'} className="w-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto">
                     {savingTab === 'Aprenda' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Salvar Aprenda
                   </Button>
@@ -2841,7 +2742,7 @@ export default function AdminTrilha() {
                       <h3 className="text-sm font-bold text-foreground">Blocos do Construa</h3>
                       <p className="mt-0.5 text-xs text-muted-foreground">{currentBlocks.length} blocos configurados</p>
                     </div>
-                    <Button size="sm" onClick={() => setBlockTypeModalOpen(true)} className="h-8 bg-[#E85D24] text-white hover:bg-[#E85D24]/90">
+                    <Button size="sm" onClick={() => setBlockTypeModalOpen(true)} className="h-8 bg-foreground text-background hover:bg-foreground/90">
                       <Plus className="mr-1 h-3.5 w-3.5" />
                       Adicionar Bloco
                     </Button>
@@ -2874,7 +2775,7 @@ export default function AdminTrilha() {
                         </SortableContext>
                         <DragOverlay>
                           {draggingBlockId ? (
-                            <div className="w-[230px] rounded-xl border border-[#E85D24]/30 bg-white px-4 py-3 shadow-2xl">
+                            <div className="w-[230px] rounded-xl border border-border/60 bg-card px-4 py-3 shadow-2xl">
                               <p className="text-sm font-semibold text-foreground">{currentBlocks.find((block) => block.id === draggingBlockId)?.titulo || 'Bloco'}</p>
                             </div>
                           ) : null}
@@ -2902,9 +2803,9 @@ export default function AdminTrilha() {
                                 const Icon = def.icon;
                                 return <Icon className={cn('h-5 w-5', def.colorClass)} />;
                               })()}
-                              <Badge variant="outline" className={cn('rounded-full px-2 py-1 text-[10px] font-semibold', BLOCK_TYPE_MAP[blockForm.tipo].badgeClass)}>
+                              <span className={cn('rounded-full border px-2 py-1 text-[10px] font-semibold', BLOCK_TYPE_MAP[blockForm.tipo].badgeClass)}>
                                 {BLOCK_TYPE_MAP[blockForm.tipo].label}
-                              </Badge>
+                              </span>
                             </div>
                             <p className="text-xs text-muted-foreground">{BLOCK_TYPE_MAP[blockForm.tipo].description}</p>
                           </div>
@@ -2966,7 +2867,7 @@ export default function AdminTrilha() {
                           </div>
 
                           <div className="flex flex-wrap gap-3">
-                            <Button onClick={() => void handleSaveBlock()} disabled={savingBlock} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90">
+                            <Button onClick={() => void handleSaveBlock()} disabled={savingBlock} className="bg-foreground text-background hover:bg-foreground/90">
                               {savingBlock ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                               Salvar Bloco
                             </Button>
@@ -3047,7 +2948,7 @@ export default function AdminTrilha() {
                     )}
                   </div>
 
-                  <Button onClick={() => void handleSave('Valide')} disabled={savingTab === 'Valide'} className="mt-4 w-full bg-[#E85D24] text-white hover:bg-[#E85D24]/90 sm:w-auto">
+                  <Button onClick={() => void handleSave('Valide')} disabled={savingTab === 'Valide'} className="mt-4 w-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto">
                     {savingTab === 'Valide' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Salvar Valide
                   </Button>
@@ -3071,7 +2972,7 @@ export default function AdminTrilha() {
                     </div>
                   </div>
 
-                  <Button onClick={() => void handleSave('Finalize')} disabled={savingTab === 'Finalize'} className="w-full bg-[#E85D24] text-white hover:bg-[#E85D24]/90 sm:w-auto">
+                  <Button onClick={() => void handleSave('Finalize')} disabled={savingTab === 'Finalize'} className="w-full bg-foreground text-background hover:bg-foreground/90 sm:w-auto">
                     {savingTab === 'Finalize' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                     Salvar Finalize
                   </Button>
@@ -3080,7 +2981,7 @@ export default function AdminTrilha() {
             </div>
           </>
         )}
-      </Card>
+      </div>
       )}
 
       <Dialog open={pillarModalOpen} onOpenChange={setPillarModalOpen}>
@@ -3110,7 +3011,7 @@ export default function AdminTrilha() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setPillarModalOpen(false)}>Cancelar</Button>
-            <Button onClick={() => void handleSavePillar()} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90">
+            <Button onClick={() => void handleSavePillar()} className="bg-foreground text-background hover:bg-foreground/90">
               Salvar pilar
             </Button>
           </DialogFooter>
@@ -3163,7 +3064,7 @@ export default function AdminTrilha() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setModuleModalOpen(false)}>Cancelar</Button>
-            <Button onClick={() => void handleSaveModule()} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90">
+            <Button onClick={() => void handleSaveModule()} className="bg-foreground text-background hover:bg-foreground/90">
               {moduleForm.id ? 'Salvar módulo' : 'Criar módulo'}
             </Button>
           </DialogFooter>
@@ -3171,11 +3072,11 @@ export default function AdminTrilha() {
       </Dialog>
 
       <Dialog open={blockTypeModalOpen} onOpenChange={setBlockTypeModalOpen}>
-        <DialogContent className="max-w-3xl">
-          <DialogHeader>
+        <DialogContent className="max-w-3xl flex flex-col max-h-[90vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>Adicionar Bloco</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-2 md:grid-cols-2">
+          <div className="grid gap-4 py-2 md:grid-cols-2 overflow-y-auto flex-1 pr-1">
             {BLOCK_TYPE_DEFINITIONS.map((definition) => {
               const Icon = definition.icon;
               return (
@@ -3183,7 +3084,7 @@ export default function AdminTrilha() {
                   key={definition.type}
                   type="button"
                   onClick={() => openCreateBlock(definition.type)}
-                  className="rounded-2xl border border-border bg-background p-4 text-left transition-all hover:border-[#E85D24]/40 hover:bg-[#FFF9F5]"
+                  className="rounded-2xl border border-border/60 bg-background p-4 text-left transition-all hover:border-foreground/20 hover:bg-muted/20"
                 >
                   <div className="flex items-start gap-3">
                     <div className="rounded-2xl bg-muted/50 p-3">
@@ -3221,7 +3122,7 @@ export default function AdminTrilha() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowValideModal(false)}>Cancelar</Button>
-            <Button onClick={addValideItem} className="bg-[#E85D24] text-white hover:bg-[#E85D24]/90">
+            <Button onClick={addValideItem} className="bg-foreground text-background hover:bg-foreground/90">
               Adicionar Item
             </Button>
           </DialogFooter>

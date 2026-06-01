@@ -5,16 +5,19 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  AlertTriangle,
   Clock,
+  Radio,
+  FileText,
+  AlertTriangle,
 } from "lucide-react";
-import { format, formatDistanceToNow, startOfDay, startOfWeek } from "date-fns";
+import { format, startOfDay, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
+import { AiLogsViewer } from "@/components/ai/AiLogsViewer";
+import { cn } from "@/lib/utils";
 
 interface ExecutionLog {
   id: string;
@@ -32,25 +35,32 @@ interface ExecutionLog {
 }
 
 type FilterType = "todos" | "erros" | "hoje" | "semana";
+type SubTab = "tempo-real" | "execucoes";
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; badgeClass: string }> = {
   running: {
-    icon: <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />,
-    badgeClass: "border-blue-200 bg-blue-50 text-blue-700",
+    icon: <Loader2 className="h-3 w-3 animate-spin" />,
+    badgeClass: "bg-blue-50 text-blue-700 border-blue-200/60",
   },
   success: {
-    icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
-    badgeClass: "border-green-200 bg-green-50 text-green-700",
+    icon: <CheckCircle2 className="h-3 w-3" />,
+    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
   },
   error: {
-    icon: <XCircle className="h-3.5 w-3.5 text-red-500" />,
-    badgeClass: "border-red-200 bg-red-50 text-red-700",
+    icon: <XCircle className="h-3 w-3" />,
+    badgeClass: "bg-red-50 text-red-700 border-red-200/60",
   },
 };
+
+const SUB_TABS: { id: SubTab; label: string; icon: typeof Radio }[] = [
+  { id: "tempo-real", label: "Tempo Real", icon: Radio },
+  { id: "execucoes", label: "Execuções", icon: FileText },
+];
 
 export function AiExecutionLogsTab() {
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
+  const [subTab, setSubTab] = useState<SubTab>("tempo-real");
   const [filter, setFilter] = useState<FilterType>("todos");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
@@ -86,141 +96,225 @@ export function AiExecutionLogsTab() {
     }
   }, [logs, filter]);
 
+  const errorCount = useMemo(() => logs?.filter((l) => l.status === "error").length || 0, [logs]);
+
   const filters: { key: FilterType; label: string }[] = [
     { key: "todos", label: "Todos" },
     { key: "erros", label: "Erros" },
     { key: "hoje", label: "Hoje" },
-    { key: "semana", label: "Esta semana" },
+    { key: "semana", label: "Semana" },
   ];
 
   return (
-    <Card className="border-sidebar-border shadow-sm">
-      <div className="flex items-center justify-between border-b p-4">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Logs de Execucao da IA</h3>
-          <Badge className="gap-1.5 border-green-500/20 bg-green-500/10 text-[10px] font-bold uppercase tracking-wider text-green-500">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
-            Live
-          </Badge>
-        </div>
-        <div className="flex gap-1">
-          {filters.map((f) => (
-            <Button
-              key={f.key}
-              variant={filter === f.key ? "default" : "outline"}
-              size="sm"
-              className="h-7 text-[11px]"
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-              {f.key === "erros" && logs && (
-                <span className="ml-1">
-                  ({logs.filter((l) => l.status === "error").length})
-                </span>
-              )}
-            </Button>
-          ))}
-        </div>
+    <div className="space-y-5">
+      {/* Sub-tabs */}
+      <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit">
+        {SUB_TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setSubTab(tab.id)}
+            className={cn(
+              "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+              subTab === tab.id
+                ? "bg-foreground text-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+            )}
+          >
+            <tab.icon className="h-3.5 w-3.5" />
+            {tab.label}
+            {tab.id === "tempo-real" && (
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            )}
+          </button>
+        ))}
       </div>
 
-      <div className="p-4">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      {/* Tempo Real sub-tab */}
+      {subTab === "tempo-real" && (
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <Radio className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Monitor em Tempo Real
+                </p>
+                <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                  Acompanhe as execuções da IA ao vivo
+                </p>
+              </div>
+              <Badge className="ml-auto gap-1.5 border-emerald-200/60 bg-emerald-50 text-[9px] font-bold uppercase tracking-wider text-emerald-600">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </Badge>
+            </div>
           </div>
-        ) : !filteredLogs || filteredLogs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Activity className="mb-2 h-8 w-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">
-              Nenhum log encontrado
-            </p>
+          <div className="p-5">
+            <AiLogsViewer />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  <th className="pb-2 pr-3">Lead</th>
-                  <th className="pb-2 pr-3">Etapa</th>
-                  <th className="pb-2 pr-3">Status</th>
-                  <th className="pb-2 pr-3">Detalhe</th>
-                  <th className="pb-2">Data/Hora</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredLogs.map((log) => {
-                  const st = STATUS_CONFIG[log.status] || STATUS_CONFIG.error;
-                  const leadName = (log.leads as any)?.nome || (log.leads as any)?.telefone || "-";
-                  const isExpanded = expandedRow === log.id;
-                  const hasDetail = log.detalhe || log.erro_detalhe;
+        </div>
+      )}
 
-                  return (
-                    <>
-                      <tr
-                        key={log.id}
-                        className={`border-b border-border/50 transition-colors ${hasDetail ? "cursor-pointer hover:bg-muted/30" : ""}`}
-                        onClick={() => hasDetail && setExpandedRow(isExpanded ? null : log.id)}
-                      >
-                        <td className="py-2 pr-3 font-medium">{leadName}</td>
-                        <td className="py-2 pr-3">
-                          <code className="rounded bg-muted px-1.5 py-0.5 text-[10px]">
-                            {log.etapa}
-                          </code>
-                        </td>
-                        <td className="py-2 pr-3">
-                          <Badge variant="outline" className={`gap-1 text-[10px] ${st.badgeClass}`}>
-                            {st.icon}
-                            {log.status}
-                          </Badge>
-                        </td>
-                        <td className="max-w-[300px] truncate py-2 pr-3 text-muted-foreground">
-                          {log.erro_detalhe || log.detalhe || "-"}
-                        </td>
-                        <td className="whitespace-nowrap py-2 text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                            <span>{format(new Date(log.criado_em), "dd/MM HH:mm:ss", { locale: ptBR })}</span>
-                            {log.duracao_ms && (
-                              <Badge variant="outline" className="text-[9px] font-mono font-normal">
-                                {log.duracao_ms}ms
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                      {isExpanded && hasDetail && (
-                        <tr key={`${log.id}-detail`}>
-                          <td colSpan={5} className="bg-muted/20 px-4 py-3">
-                            <div className="space-y-2">
-                              {log.detalhe && (
-                                <div>
-                                  <span className="text-[11px] font-semibold text-muted-foreground">Detalhe:</span>
-                                  <p className="mt-0.5 text-xs leading-relaxed">{log.detalhe}</p>
+      {/* Execucoes sub-tab */}
+      {subTab === "execucoes" && (
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Logs de Execução
+                </p>
+                <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                  Últimas 100 execuções registradas
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {filters.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  className={cn(
+                    "h-7 px-2.5 rounded-lg text-[11px] font-medium transition-all duration-200",
+                    filter === f.key
+                      ? "bg-foreground text-background shadow-sm"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                  )}
+                >
+                  {f.label}
+                  {f.key === "erros" && errorCount > 0 && (
+                    <span className="ml-1 text-[9px] opacity-70">({errorCount})</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="p-5">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : !filteredLogs || filteredLogs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16">
+                <div className="bg-muted/30 p-4 rounded-2xl mb-3">
+                  <Activity className="h-8 w-8 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground mb-0.5">
+                  Nenhum log encontrado
+                </p>
+                <p className="text-[11px] text-muted-foreground/50">
+                  {filter === "erros" ? "Nenhum erro registrado" : "As execuções aparecerão aqui"}
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto -mx-5">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left">
+                      <th className="px-5 pb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Lead</th>
+                      <th className="px-3 pb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Etapa</th>
+                      <th className="px-3 pb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Status</th>
+                      <th className="px-3 pb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Detalhe</th>
+                      <th className="px-5 pb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 text-right">Data/Hora</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {filteredLogs.map((log) => {
+                      const st = STATUS_CONFIG[log.status] || STATUS_CONFIG.error;
+                      const leadName = (log.leads as any)?.nome || (log.leads as any)?.telefone || "-";
+                      const isExpanded = expandedRow === log.id;
+                      const hasDetail = log.detalhe || log.erro_detalhe;
+
+                      return (
+                        <tr
+                          key={log.id}
+                          className={cn(
+                            "group transition-colors",
+                            hasDetail && "cursor-pointer hover:bg-muted/30",
+                            isExpanded && "bg-muted/20"
+                          )}
+                          onClick={() => hasDetail && setExpandedRow(isExpanded ? null : log.id)}
+                        >
+                          <td className="px-5 py-3">
+                            <span className="text-[12px] font-medium text-foreground">{leadName}</span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <code className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground tabular-nums">
+                              {log.etapa}
+                            </code>
+                          </td>
+                          <td className="px-3 py-3">
+                            <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border", st.badgeClass)}>
+                              {st.icon}
+                              {log.status}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="max-w-[300px]">
+                              {isExpanded && hasDetail ? (
+                                <div className="space-y-2 py-1">
+                                  {log.detalhe && (
+                                    <div>
+                                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Detalhe</span>
+                                      <p className="mt-0.5 text-[11px] leading-relaxed text-foreground/80">{log.detalhe}</p>
+                                    </div>
+                                  )}
+                                  {log.erro_detalhe && (
+                                    <div>
+                                      <span className="text-[10px] font-semibold text-red-600 uppercase tracking-wider">Erro</span>
+                                      <p className="mt-0.5 text-[11px] leading-relaxed text-red-700">{log.erro_detalhe}</p>
+                                    </div>
+                                  )}
+                                  <div className="flex flex-wrap gap-3 pt-1">
+                                    {log.model && (
+                                      <span className="text-[10px] text-muted-foreground">
+                                        Modelo: <strong className="text-foreground/70">{log.model}</strong>
+                                      </span>
+                                    )}
+                                    {log.partes_enviadas != null && (
+                                      <span className="text-[10px] text-muted-foreground">
+                                        Partes: <strong className="text-foreground/70">{log.partes_enviadas}</strong>
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
+                              ) : (
+                                <p className="truncate text-[11px] text-muted-foreground/60">
+                                  {log.erro_detalhe || log.detalhe || "-"}
+                                </p>
                               )}
-                              {log.erro_detalhe && (
-                                <div>
-                                  <span className="text-[11px] font-semibold text-red-600">Erro:</span>
-                                  <p className="mt-0.5 text-xs leading-relaxed text-red-700">{log.erro_detalhe}</p>
-                                </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-3 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <span className="text-[11px] text-muted-foreground tabular-nums">
+                                {format(new Date(log.criado_em), "dd/MM HH:mm:ss", { locale: ptBR })}
+                              </span>
+                              {log.duracao_ms != null && (
+                                <span className="text-[9px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md tabular-nums">
+                                  {log.duracao_ms}ms
+                                </span>
                               )}
-                              <div className="flex flex-wrap gap-3 text-[10px] text-muted-foreground">
-                                {log.model && <span>Modelo: <strong>{log.model}</strong></span>}
-                                {log.partes_enviadas != null && <span>Partes: <strong>{log.partes_enviadas}</strong></span>}
-                                {log.duracao_ms != null && <span>Duracao: <strong>{log.duracao_ms}ms</strong></span>}
-                              </div>
                             </div>
                           </td>
                         </tr>
-                      )}
-                    </>
-                  );
-                })}
-              </tbody>
-            </table>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-    </Card>
+        </div>
+      )}
+    </div>
   );
 }

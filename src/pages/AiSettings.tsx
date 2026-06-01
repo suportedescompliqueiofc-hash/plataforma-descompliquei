@@ -42,7 +42,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { AiLogsViewer } from "@/components/ai/AiLogsViewer";
 import { AiFollowupTab } from "@/components/ai/AiFollowupTab";
 import { AiExecutionLogsTab } from "@/components/ai/AiExecutionLogsTab";
 import { useAiPrompt } from "@/hooks/useAiPrompt";
@@ -545,9 +544,9 @@ function AgentPromptFormFields({
 }: AgentPromptFormFieldsProps) {
   const [palavraInput, setPalavraInput] = useState("");
   const fieldInputClass =
-    "border-border bg-muted/40 text-foreground shadow-sm placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-primary/20";
+    "h-10 text-sm rounded-lg border-border/60 bg-background placeholder:text-muted-foreground/40 focus-visible:border-foreground/30 focus-visible:ring-foreground/10";
   const fieldTextareaClass =
-    "border-border bg-muted/40 text-foreground shadow-sm placeholder:text-muted-foreground/70 focus-visible:border-primary/50 focus-visible:ring-primary/20";
+    "text-sm rounded-lg border-border/60 bg-background placeholder:text-muted-foreground/40 focus-visible:border-foreground/30 focus-visible:ring-foreground/10";
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -577,7 +576,7 @@ function AgentPromptFormFields({
             </div>
           )}
 
-          <div className="space-y-2">
+          <div data-tutorial="ia-field-identity" className="space-y-2">
             <Label htmlFor="agent-name">Como seu agente vai se chamar?</Label>
             <Input
               id="agent-name"
@@ -697,7 +696,7 @@ function AgentPromptFormFields({
             )}
           </div>
 
-          <div className="space-y-2">
+          <div data-tutorial="ia-field-voice" className="space-y-2">
             <Label htmlFor="voice-tone">Tom de voz e personalidade do agente</Label>
             <Textarea
               id="voice-tone"
@@ -708,7 +707,7 @@ function AgentPromptFormFields({
             />
           </div>
 
-          <div className="space-y-3">
+          <div data-tutorial="ia-field-procedures" className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <Label>Quais procedimentos você oferece?</Label>
               <Button
@@ -778,7 +777,7 @@ function AgentPromptFormFields({
             )}
           </div>
 
-          <div className="space-y-3">
+          <div data-tutorial="ia-field-faq" className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <Label>FAQ da clínica</Label>
               <Button
@@ -867,7 +866,7 @@ function AgentPromptFormFields({
           </div>
 
           {/* HORÁRIO DE ATENDIMENTO HUMANO */}
-          <div className="space-y-3">
+          <div data-tutorial="ia-field-horario" className="space-y-3">
             <div className="space-y-1">
               <Label>Horário de atendimento humano</Label>
               <p className="text-xs text-muted-foreground">
@@ -941,7 +940,7 @@ function AgentPromptFormFields({
           </div>
 
           {/* FORMAS DE PAGAMENTO */}
-          <div className="space-y-3">
+          <div data-tutorial="ia-field-pagamento" className="space-y-3">
             <Label>Quais formas de pagamento a clínica aceita?</Label>
 
             <div className="flex flex-wrap items-center gap-4">
@@ -1056,7 +1055,7 @@ function AgentPromptFormFields({
             />
           </div>
 
-          <div className="space-y-2">
+          <div data-tutorial="ia-field-instructions" className="space-y-2">
             <div className="space-y-1">
               <Label htmlFor="instructions">
                 Tem alguma instrução específica para o agente?
@@ -1413,106 +1412,82 @@ export default function AiSettings() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] flex-col gap-4 overflow-y-auto pb-6 pr-1 scrollbar-hide">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-3xl font-bold text-foreground">
-            <Bot className="h-8 w-8 text-primary" />
-            Inteligência Artificial
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Configure o comportamento e as regras da sua assistente virtual.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          {hasChanges && (
-            <Button variant="outline" onClick={handleRevert} className="gap-2">
-              <Undo2 className="h-4 w-4" />
-              Descartar
-            </Button>
-          )}
-          {lastUpdated && !hasChanges && (
-            <span className="mr-2 hidden items-center gap-1 text-xs text-muted-foreground md:flex">
-              <History className="h-3 w-3" />
-              Atualizado em{" "}
-              {format(new Date(lastUpdated), "dd/MM 'às' HH:mm", {
-                locale: ptBR,
-              })}
-            </span>
-          )}
-          <Button
-            onClick={handleSave}
-            disabled={isLoading || isSaving || isSavingModel || !hasChanges}
-            className="relative min-w-[120px] gap-2"
-          >
-            <Save className="h-4 w-4" />
-            {isSaving ? "Salvando..." : "Salvar"}
-            {hasChanges && (
-              <span className="absolute -right-1 -top-1 flex h-3 w-3">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-                <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
+    <div className="flex h-[calc(100vh-6rem)] flex-col gap-6 overflow-y-auto pb-10 pr-1 scrollbar-hide">
+      {/* ═══ PAGE HEADER ═══ */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Inteligencia Artificial</h1>
+            <p className="text-[13px] text-muted-foreground mt-0.5">
+              Configure o comportamento e as regras da sua assistente virtual
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {lastUpdated && !hasChanges && (
+              <span className="hidden items-center gap-1 text-[11px] text-muted-foreground/60 md:flex mr-1">
+                <History className="h-3 w-3" />
+                {format(new Date(lastUpdated), "dd/MM 'às' HH:mm", { locale: ptBR })}
               </span>
             )}
-          </Button>
+            {hasChanges && (
+              <Button variant="outline" onClick={handleRevert} className="h-9 gap-1.5 rounded-lg text-xs font-medium px-3">
+                <Undo2 className="h-3.5 w-3.5" /> Descartar
+              </Button>
+            )}
+            <Button
+              onClick={handleSave}
+              disabled={isLoading || isSaving || isSavingModel || !hasChanges}
+              className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 relative"
+              data-tutorial="ia-save"
+            >
+              {isSaving ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando...</>
+              ) : (
+                <><Save className="h-3.5 w-3.5" /> Salvar</>
+              )}
+              {hasChanges && (
+                <span className="absolute -right-1 -top-1 flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500" />
+                </span>
+              )}
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Page-level tabs */}
-      <div className="flex gap-1 border-b">
-        {[
-          { key: "config", label: "Configuracoes", icon: Wrench },
-          { key: "followup", label: "Follow-up", icon: RefreshCw },
-          { key: "logs", label: "Logs", icon: Activity },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-              pageTab === tab.key
-                ? "border-[#E8500A] text-foreground"
-                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground"
-            }`}
-            onClick={() => setPageTab(tab.key)}
-          >
-            <tab.icon className="h-4 w-4" />
-            {tab.label}
-          </button>
-        ))}
+        {/* Page-level tabs */}
+        <div data-tutorial="ia-tabs" className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit">
+          {[
+            { key: "config", label: "Configurações", icon: Wrench },
+            { key: "followup", label: "Follow-up", icon: RefreshCw },
+            { key: "logs", label: "Logs", icon: Activity },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                pageTab === tab.key
+                  ? "bg-foreground text-background shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+              onClick={() => setPageTab(tab.key)}
+            >
+              <tab.icon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Tab: Follow-up */}
-      {pageTab === "followup" && <AiFollowupTab />}
+      {pageTab === "followup" && <div data-tutorial="ia-followup"><AiFollowupTab /></div>}
 
       {/* Tab: Logs */}
-      {pageTab === "logs" && <AiExecutionLogsTab />}
+      {pageTab === "logs" && <div data-tutorial="ia-logs"><AiExecutionLogsTab /></div>}
 
       {/* Tab: Configurações — existing content */}
       {pageTab === "config" && (
       <>
-      <div className="flex-shrink-0" style={{ height: "340px" }}>
-        <Card className="flex h-full flex-col overflow-hidden border-sidebar-border bg-background/50 shadow-sm backdrop-blur-sm">
-          <div className="flex flex-row items-center justify-between border-b bg-muted/20 px-4 py-2.5">
-            <div className="flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
-              <span className="text-sm font-bold tracking-tight">
-                Monitor de Inteligência em Tempo Real
-              </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Badge className="gap-1.5 border-green-500/20 bg-green-500/10 text-[10px] font-bold uppercase tracking-wider text-green-500">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
-                Live Tracking
-              </Badge>
-            </div>
-          </div>
-          <div className="relative flex-1">
-            <div className="absolute inset-0 p-4 pt-1">
-              <AiLogsViewer />
-            </div>
-          </div>
-        </Card>
-      </div>
-
       <div className="flex gap-4" style={{ minHeight: "520px" }}>
         <div className="flex flex-1 flex-col" style={{ minHeight: "520px" }}>
           <Tabs
@@ -1521,74 +1496,74 @@ export default function AiSettings() {
             onValueChange={setActiveTab}
             className="flex flex-1 flex-col"
           >
-            <TabsList className="mb-2 flex w-fit flex-shrink-0 border bg-muted/30 p-1">
-              <TabsTrigger
-                value="base"
-                className="px-6 py-1.5 text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit mb-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab("base")}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+                  activeTab === "base"
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                }`}
               >
-                <Sparkles className="mr-2 h-3.5 w-3.5 opacity-70" />
+                <Sparkles className="h-3.5 w-3.5" />
                 Prompt Agente Base
-              </TabsTrigger>
-            </TabsList>
+              </button>
+            </div>
 
             <div className="flex-1" style={{ minHeight: "460px" }}>
               {activeTab === "base" && (
-                <Card
-                  className="flex h-full flex-col overflow-hidden border-sidebar-border bg-background shadow-sm"
+                <div
+                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
                   style={{ height: "460px" }}
+                  data-tutorial="ia-prompt"
                 >
-                  <div className="mx-4 mt-4 rounded-lg border border-[#E85D24] bg-[#FFF4EE] px-4 py-3">
-                    <div className="text-sm font-semibold text-[#E85D24]">
-                      ⚡ Como funciona o Agente
-                    </div>
-                    <p className="mt-1 text-sm leading-relaxed text-[#E85D24]">
-                      O comportamento, as regras e a metodologia de atendimento já
-                      estão configurados automaticamente pelo sistema. Aqui você
-                      preenche apenas as informações específicas desta clínica para
-                      personalizar o agente.
+                  {/* Info banner */}
+                  <div className="mx-4 mt-4 rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-amber-700">
+                      Como funciona o Agente
+                    </p>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-amber-600/80">
+                      Comportamento e regras já estão configurados automaticamente. Preencha apenas as informações específicas da clínica.
                     </p>
                   </div>
-                  <div className="flex flex-row items-center justify-between border-b bg-muted/10 px-4 py-2">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Dados da Clínica — Personalização do Agente
+                  {/* Sub-header */}
+                  <div className="flex flex-row items-center justify-between border-b border-border/40 bg-muted/[0.03] px-4 py-2.5 mt-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      Dados da Clinica
                     </span>
                     <div className="flex items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="bg-background px-1.5 py-0 font-mono text-[10px]"
-                      >
+                      <span className="text-[9px] font-medium text-muted-foreground/40 bg-muted/50 px-2 py-0.5 rounded-md font-mono">
                         system.prompt.md
-                      </Badge>
+                      </span>
                       <Dialog>
                         <DialogTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="ml-1 h-6 w-6 text-muted-foreground hover:text-foreground"
+                            className="h-6 w-6 text-muted-foreground/40 hover:text-foreground rounded-md"
                           >
-                            <Maximize2 className="h-3.5 w-3.5" />
+                            <Maximize2 className="h-3 w-3" />
                           </Button>
                         </DialogTrigger>
-                        <DialogContent className="flex h-[85vh] w-[95vw] max-w-5xl flex-col overflow-hidden bg-background p-0">
-                          <div className="flex flex-row items-center justify-between border-b bg-muted/10 px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <Sparkles className="h-4 w-4 text-primary" />
-                              <span className="text-sm font-semibold">
-                                Dados da Clínica — Personalização do Agente (Tela
-                                Cheia)
+                        <DialogContent className="flex h-[85vh] w-[95vw] max-w-5xl flex-col overflow-hidden bg-background p-0 rounded-2xl border-border/60">
+                          <div className="flex flex-row items-center justify-between border-b border-border/40 px-5 py-3.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-1.5 rounded-lg bg-muted">
+                                <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                              </div>
+                              <span className="text-sm font-semibold text-foreground">
+                                Dados da Clinica — Tela Cheia
                               </span>
                             </div>
-                            <Badge
-                              variant="outline"
-                              className="bg-background px-2 py-0.5 font-mono text-xs"
-                            >
+                            <span className="text-[9px] font-medium text-muted-foreground/40 bg-muted/50 px-2 py-0.5 rounded-md font-mono">
                               system.prompt.md
-                            </Badge>
+                            </span>
                           </div>
                           <div className="min-h-0 flex-1 overflow-hidden bg-background">
                             {isLoading ? (
                               <div className="flex h-full items-center justify-center">
-                                <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
+                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/30" />
                               </div>
                             ) : (
                               formContent
@@ -1601,239 +1576,55 @@ export default function AiSettings() {
                   <div className="min-h-0 flex-1 overflow-hidden">
                     {isLoading ? (
                       <div className="flex h-full items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary opacity-50" />
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/30" />
                       </div>
                     ) : (
                       formContent
                     )}
                   </div>
-                </Card>
+                </div>
               )}
             </div>
           </Tabs>
         </div>
 
         <div className="flex w-72 flex-shrink-0 flex-col gap-3 pb-4 pr-1">
-          <Card className="border-sidebar-border p-4 shadow-sm">
+          {/* Status da IA */}
+          <div data-tutorial="ia-status" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Power
-                  className={`h-4 w-4 ${
-                    iaAtiva ? "text-green-500" : "text-muted-foreground"
-                  }`}
-                />
-                <span className="text-sm font-semibold">Status da IA</span>
+                <div className={`p-1.5 rounded-lg ${iaAtiva ? "bg-emerald-50" : "bg-muted"}`}>
+                  <Power className={`h-3.5 w-3.5 ${iaAtiva ? "text-emerald-600" : "text-muted-foreground"}`} />
+                </div>
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Status</span>
               </div>
-              <Badge
-                variant={iaAtiva ? "default" : "secondary"}
-                className={
-                  iaAtiva
-                    ? "border-green-500/30 bg-green-500/20 text-green-600"
-                    : ""
-                }
-              >
+              <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                iaAtiva
+                  ? "bg-emerald-50 text-emerald-600 border-emerald-200/60"
+                  : "bg-muted text-muted-foreground border-border/60"
+              }`}>
                 {iaAtiva ? "Ativa" : "Inativa"}
-              </Badge>
+              </span>
             </div>
-            <p className="mb-4 text-xs text-muted-foreground">
+            <p className="mb-4 text-[11px] text-muted-foreground/60 leading-relaxed">
               {iaAtiva
-                ? "A IA responde automaticamente as mensagens dos leads no WhatsApp."
-                : "A IA está desativada. As mensagens não serão respondidas automaticamente."}
+                ? "A IA responde automaticamente às mensagens dos leads."
+                : "A IA está desativada. Mensagens não serão respondidas."}
             </p>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3" data-tutorial="ia-toggle">
               <Switch
                 checked={iaAtiva}
                 onCheckedChange={toggleIa}
                 disabled={isTogglingIa || isLoading}
                 id="toggle-ia"
               />
-              <Label htmlFor="toggle-ia" className="cursor-pointer text-sm">
+              <Label htmlFor="toggle-ia" className="cursor-pointer text-xs font-medium text-muted-foreground">
                 {iaAtiva ? "Desativar IA" : "Ativar IA"}
               </Label>
             </div>
-          </Card>
+          </div>
 
-          <Card className="border-sidebar-border p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">Configurações</span>
-            </div>
-            <div className="space-y-4 text-xs">
-              <div className="space-y-2">
-                <span className="text-muted-foreground">Modelo</span>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={localModelo}
-                    onChange={(event) => {
-                      setLocalModelo(event.target.value);
-                      setModeloSaveError(null);
-                      setModeloSaveSuccess(false);
-                    }}
-                    placeholder="Ex: gpt-4.1-mini"
-                    disabled={isLoading || isSaving || isSavingModel}
-                    className="h-8 flex-1 text-xs"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-3 text-xs"
-                    onClick={handleSaveModel}
-                    disabled={
-                      isLoading ||
-                      isSaving ||
-                      isSavingModel ||
-                      !localModelo.trim() ||
-                      localModelo.trim() === originalModelo.trim()
-                    }
-                  >
-                    {isSavingModel ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : modeloSaveSuccess ? (
-                      <Check className="h-3.5 w-3.5 text-green-600" />
-                    ) : (
-                      "Salvar"
-                    )}
-                  </Button>
-                </div>
-                {modeloSaveError && (
-                  <p className="text-[11px] text-destructive">{modeloSaveError}</p>
-                )}
-                {modeloSaveSuccess && (
-                  <p className="text-[11px] text-green-600">Modelo salvo com sucesso.</p>
-                )}
-                <Collapsible
-                  open={modeloSuggestionsOpen}
-                  onOpenChange={setModeloSuggestionsOpen}
-                >
-                  <CollapsibleTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between gap-2 rounded-md border border-dashed border-border px-3 py-2 text-left text-[11px] text-muted-foreground transition-colors hover:bg-muted/30"
-                    >
-                      <span>Modelos sugeridos</span>
-                      {modeloSuggestionsOpen ? (
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="space-y-3 pt-3">
-                      {MODEL_SUGGESTIONS.map((section) => (
-                        <div key={section.label} className="space-y-2">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            {section.label}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {section.items.map((item) => (
-                              <button
-                                key={item}
-                                type="button"
-                                className="rounded-full border border-border bg-background px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                                onClick={() => {
-                                  setLocalModelo(item);
-                                  setModeloSaveError(null);
-                                  setModeloSaveSuccess(false);
-                                }}
-                              >
-                                {item}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-              <div className="flex flex-col gap-1.5 pb-2">
-                <span className="text-muted-foreground">
-                  Acúmulo de msgs
-                </span>
-                <select
-                  id="acumulo"
-                  className="flex h-8 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                  value={localAcumulo}
-                  onChange={(event) => handleAcumuloChange(event.target.value)}
-                  disabled={isLoading || isSaving}
-                >
-                  <option value="15" className="bg-background text-foreground">
-                    15 s
-                  </option>
-                  <option value="30" className="bg-background text-foreground">
-                    30 s
-                  </option>
-                  <option value="45" className="bg-background text-foreground">
-                    45 s
-                  </option>
-                  <option value="60" className="bg-background text-foreground">
-                    60 s
-                  </option>
-                  <option value="90" className="bg-background text-foreground">
-                    90 s
-                  </option>
-                  <option value="120" className="bg-background text-foreground">
-                    120 s
-                  </option>
-                </select>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Delay entre msgs</span>
-                <Badge variant="outline" className="font-mono text-xs">
-                  2-3s
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Transcrição áudio</span>
-                <Badge
-                  variant="outline"
-                  className="font-mono text-xs text-green-600"
-                >
-                  Whisper ✓
-                </Badge>
-              </div>
-            </div>
-          </Card>
 
-          <Card className="border-sidebar-border p-4 shadow-sm">
-            <div className="mb-3 flex items-center gap-2">
-              <Wrench className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">Ferramentas do Agente</span>
-            </div>
-            <p className="mb-3 text-xs text-muted-foreground">
-              O agente usa estas tools automaticamente durante a conversa:
-            </p>
-            <div className="space-y-3">
-              {AI_TOOLS.map((tool) => (
-                <div key={tool.name} className={`rounded-lg p-3 ${tool.bg}`}>
-                  <div className="mb-1 flex items-center gap-2">
-                    <tool.icon className={`h-3.5 w-3.5 ${tool.color}`} />
-                    <span className={`text-xs font-semibold ${tool.color}`}>
-                      {tool.label}
-                    </span>
-                  </div>
-                  <p className="text-xs leading-relaxed text-muted-foreground">
-                    {tool.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card className="border-sidebar-border p-4 shadow-sm">
-            <div className="mb-2 flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold">Dicas do Prompt</span>
-            </div>
-            <ul className="list-inside list-disc space-y-1.5 text-xs text-muted-foreground">
-              <li>Preencha o nome do agente e da clínica</li>
-              <li>Liste todos os procedimentos com uma breve descrição</li>
-              <li>Inclua o link completo do Instagram</li>
-              <li>NÃO adicione regras de comportamento — já estão no sistema</li>
-            </ul>
-          </Card>
         </div>
       </div>
       </>

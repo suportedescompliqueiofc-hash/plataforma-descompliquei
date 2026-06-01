@@ -99,33 +99,45 @@ export function useConversationsList() {
     queryFn: async () => {
       if (!orgId) return [];
       
-      const { data: leads, error: leadsError } = await supabase
-        .from('leads')
-        .select(`
-          *,
-          leads_tags (
-            tags (*)
-          ),
-          mensagens (
-            conteudo,
-            criado_em,
-            tipo_conteudo,
-            remetente
-          ),
-          lead_cadencias(
-            status
-          )
-        `)
-        .eq('organization_id', orgId)
-        .order('criado_em', { foreignTable: 'mensagens', ascending: false })
-        .limit(1, { foreignTable: 'mensagens' });
+      const PAGE_SIZE = 1000;
+      let allLeadsRaw: any[] = [];
+      let from = 0;
 
-      if (leadsError) {
-        console.error("Erro ao buscar conversas:", leadsError);
-        throw leadsError;
+      while (true) {
+        const { data: leadsPage, error: leadsError } = await supabase
+          .from('leads')
+          .select(`
+            *,
+            leads_tags (
+              tags (*)
+            ),
+            mensagens (
+              conteudo,
+              criado_em,
+              tipo_conteudo,
+              remetente
+            ),
+            lead_cadencias(
+              status
+            )
+          `)
+          .eq('organization_id', orgId)
+          .order('criado_em', { foreignTable: 'mensagens', ascending: false })
+          .limit(1, { foreignTable: 'mensagens' })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (leadsError) {
+          console.error("Erro ao buscar conversas:", leadsError);
+          throw leadsError;
+        }
+
+        if (!leadsPage || leadsPage.length === 0) break;
+        allLeadsRaw = allLeadsRaw.concat(leadsPage);
+        if (leadsPage.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
       }
 
-      const conversations = leads.map((lead: any) => {
+      const conversations = allLeadsRaw.filter((lead: any) => lead.mensagens && lead.mensagens.length > 0).map((lead: any) => {
         const lastMessage = lead.mensagens && lead.mensagens.length > 0 ? lead.mensagens[0] : null;
         const tags = lead.leads_tags?.map((lt: any) => lt.tags).filter(Boolean) || [];
         const em_cadencia = lead.lead_cadencias?.some((lc: any) => lc.status === 'ativo') || false;

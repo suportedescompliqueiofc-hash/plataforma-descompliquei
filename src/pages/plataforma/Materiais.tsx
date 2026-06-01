@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { formatMaterialContent, getMaterialPreviewText } from "@/utils/materialFormatting";
+import { FormattedText } from "@/components/FormattedText";
 
 interface Material {
   id: string;
@@ -110,21 +111,18 @@ export default function Materiais() {
     <div className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-8">
       
       {/* HEADER */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-foreground flex items-center gap-2 tracking-tight">
-          <FolderOpen className="w-8 h-8 text-[#E85D24]" /> Meus Materiais
+      <div className="space-y-1 border-b border-border pb-6">
+        <h1 className="text-2xl font-bold text-foreground tracking-tight font-display">
+          Meus Materiais
         </h1>
-        <p className="text-muted-foreground font-medium text-sm md:text-base">
-          Tudo que você construiu ao longo da Trilha C.L.A.R.O.
+        <p className="text-muted-foreground text-[15px]">
+          {materiais.length} {materiais.length === 1 ? 'material salvo' : 'materiais salvos'} da Trilha de Aprendizado
         </p>
-        <span className="text-xs font-bold bg-[#E85D24]/10 text-[#E85D24] px-3 py-1 rounded-full w-fit">
-          {materiais.length} {materiais.length === 1 ? 'material salvo' : 'materiais salvos'}
-        </span>
       </div>
 
       {/* FILTROS */}
       {materiais.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-card rounded-xl border border-border shadow-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 bg-card rounded-xl border border-border shadow-card">
           <Input 
             placeholder="Buscar por título..." 
             value={searchTerm} 
@@ -176,19 +174,19 @@ export default function Materiais() {
            {[1,2,3,4].map(k => <Skeleton key={k} className="h-[200px] w-full rounded-xl" />)}
         </div>
       ) : materiais.length === 0 ? (
-         <div className="flex flex-col items-center justify-center p-12 bg-card rounded-2xl border border-dashed border-border text-center space-y-6">
-            <div className="w-16 h-16 bg-[#E85D24]/10 rounded-full flex items-center justify-center">
-              <FolderOpen className="w-8 h-8 text-[#E85D24]" />
+         <div className="flex flex-col items-center justify-center p-12 bg-card rounded-xl border border-dashed border-border text-center space-y-5">
+            <div className="w-12 h-12 bg-muted rounded-xl flex items-center justify-center">
+              <FolderOpen className="w-6 h-6 text-muted-foreground" />
             </div>
-            <div className="max-w-md space-y-2">
-               <h3 className="text-xl font-bold text-foreground">Você ainda não tem materiais salvos.</h3>
-               <p className="text-muted-foreground">
-                 Complete os módulos interativos da Trilha C.L.A.R.O. ou gere insights nas Ferramentas de IA para construir sua própria biblioteca clínica aqui.
+            <div className="max-w-md space-y-1.5">
+               <h3 className="text-base font-semibold text-foreground font-display">Nenhum material salvo</h3>
+               <p className="text-sm text-muted-foreground">
+                 Complete os módulos da Trilha para construir sua biblioteca clínica.
                </p>
             </div>
             <Link to="/plataforma/trilha">
-               <Button className="bg-[#E85D24] hover:bg-[#E85D24]/90 text-white font-bold h-12 px-8">
-                 <ArrowRight className="w-4 h-4 mr-2" /> Ir para a Trilha
+               <Button className="bg-[#E85D24] hover:bg-[#D04E1A] text-white font-medium h-10 px-6 text-sm">
+                 Ir para a Trilha <ArrowRight className="w-4 h-4 ml-1.5" />
                </Button>
             </Link>
          </div>
@@ -199,17 +197,15 @@ export default function Materiais() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
            {filteredMateriais.map(m => (
-             <Card key={m.id} className="group cursor-pointer hover:border-[#E85D24]/50 transition-colors bg-card shadow-sm border-border overflow-hidden" onClick={() => setSelectedMaterial(m)}>
-               <CardContent className="p-6 flex flex-col h-full relative">
-                 <div className="absolute top-0 left-0 w-1 h-full bg-[#E85D24] opacity-0 group-hover:opacity-100 transition-opacity" />
-                 
-                 <div className="flex justify-between items-start mb-4">
+             <Card key={m.id} className="group cursor-pointer hover:shadow-md transition-all bg-card shadow-card border-border overflow-hidden" onClick={() => setSelectedMaterial(m)}>
+               <CardContent className="p-5 flex flex-col h-full">
+                 <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
-                       <div className="p-2.5 bg-muted rounded-xl">
+                       <div className="p-2 bg-muted rounded-lg">
                           {getTypeIcon(m.type)}
                        </div>
                        <div className="flex flex-col">
-                          <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                          <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
                             {m.created_at ? format(new Date(m.created_at), 'dd MMM yyyy', {locale: ptBR}) : ''}
                           </span>
                           <div className="flex items-center gap-2 mt-1">
@@ -217,26 +213,24 @@ export default function Materiais() {
                                {m.category || 'Módulo'}
                              </Badge>
                              {m.module_id && (
-                                <Badge variant="outline" className="text-[10px] py-0 bg-muted text-muted-foreground">Módulo {m.module_id}</Badge>
+                                <Badge variant="outline" className="text-[10px] py-0 bg-muted text-muted-foreground border-transparent">Módulo {m.module_id}</Badge>
                              )}
                           </div>
                        </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-500 w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleDelete(e, m.id)}>
-                      <Trash2 className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-500 w-7 h-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleDelete(e, m.id)}>
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                  </div>
 
-                 <h3 className="text-foreground font-bold line-clamp-1 mb-2 text-lg">{m.title}</h3>
-                 
-                 <p className="text-sm text-foreground/80 line-clamp-3 leading-relaxed mb-6 flex-1 opacity-80">
+                 <h3 className="text-foreground font-semibold line-clamp-1 mb-1.5 text-sm">{m.title}</h3>
+
+                 <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed mb-5 flex-1">
                    {getMaterialPreviewText(m.content) || 'Sem conteúdo visualizável...'}
                  </p>
 
-                 <div className="flex items-center gap-3 mt-auto pt-4 border-t border-border">
-                    <Button variant="secondary" size="sm" className="w-full font-bold bg-muted hover:bg-muted/80">
-                       Ver Documento
-                    </Button>
+                 <div className="flex items-center text-xs font-medium text-[#E85D24] group-hover:translate-x-0.5 transition-transform mt-auto">
+                    Ver Documento <ArrowRight className="h-3.5 w-3.5 ml-1" />
                  </div>
                </CardContent>
              </Card>
@@ -262,9 +256,10 @@ export default function Materiais() {
               </DialogHeader>
               
               <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-border bg-background">
-                <div className="text-sm md:text-base leading-7 text-foreground/90 whitespace-pre-wrap font-medium">
-                  {selectedMaterialContent}
-                </div>
+                <FormattedText
+                  content={selectedMaterialContent}
+                  className="text-sm md:text-[14px]"
+                />
               </div>
 
               <div className="p-4 border-t border-border bg-muted/30 flex justify-end gap-3 shrink-0">
