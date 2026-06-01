@@ -363,6 +363,7 @@ Deno.serve(async (req: Request) => {
         crm_user_id: userId,
         onboarding_complete: false,
         cerebro_complete: false,
+        platform_onboarding_enabled: true,
       }, { onConflict: 'id' });
     if (puError) {
       console.error(`[step:upsert-platform-user] ERROR: ${puError.message}`);

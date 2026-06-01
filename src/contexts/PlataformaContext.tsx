@@ -285,7 +285,7 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
       diasRestantes,
       acesso,
       isMember,
-      showOnboarding: plataformaUser?.onboarding_complete === false && !isContextLoading,
+      showOnboarding: plataformaUser?.platform_onboarding_enabled === true && plataformaUser?.onboarding_complete === false && !isContextLoading,
       completeOnboarding,
       markModuleComplete,
       refreshProgress

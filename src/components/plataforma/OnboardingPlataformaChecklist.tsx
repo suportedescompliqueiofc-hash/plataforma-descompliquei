@@ -12,6 +12,7 @@ import {
 } from '@/hooks/usePlataformaOnboarding';
 import { usePlataforma } from '@/contexts/PlataformaContext';
 import { useTutorialContext } from '@/components/tutorial/TutorialProvider';
+import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -136,8 +137,15 @@ export function OnboardingPlataformaChecklist() {
   const location = useLocation();
   const { plataformaUser, isContextLoading } = usePlataforma();
   const { startTutorial, activeTutorialId, isTutorialCompleted } = useTutorialContext();
+  const { role } = useProfile();
 
+  // Nunca mostrar para superadmins ou clientes antigos (sem flag habilitada)
+  const isSuperAdmin = role === 'superadmin';
+  const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
   const phase1Complete = plataformaUser?.onboarding_complete === true;
+
+  // Superadmin nunca vê; clientes antigos (flag false/null) nunca veem
+  if (isSuperAdmin || !onboardingEnabled) return null;
 
   const { steps, mandatoryComplete, shouldShowChecklist, completeStep } =
     usePlataformaOnboarding(phase1Complete);

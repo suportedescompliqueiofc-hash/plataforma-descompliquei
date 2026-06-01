@@ -5,6 +5,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { usePlataforma } from '@/contexts/PlataformaContext';
+import { useProfile } from '@/hooks/useProfile';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
@@ -123,8 +124,14 @@ function SenhaStep({
 // ─── Modal principal ──────────────────────────────────────────────────────────
 export default function OnboardingPlataformaModal() {
   const { plataformaUser, completeOnboarding, isContextLoading } = usePlataforma();
+  const { role } = useProfile();
   const [step, setStep] = useState(0);
   const [completing, setCompleting] = useState(false);
+
+  // Nunca mostrar para superadmins ou clientes antigos
+  const isSuperAdmin = role === 'superadmin';
+  const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
+  if (isSuperAdmin || !onboardingEnabled) return null;
 
   // Estado da senha
   const [password, setPassword] = useState('');
