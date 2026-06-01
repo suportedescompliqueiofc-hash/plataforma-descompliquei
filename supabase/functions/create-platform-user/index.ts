@@ -305,7 +305,7 @@ Deno.serve(async (req: Request) => {
     } else {
       const { data: newOrg, error: orgError } = await supabaseAdmin
         .from('organizations')
-        .insert({ name: clinic_name.trim() })
+        .insert({ name: clinic_name.trim(), onboarding_enabled: true })
         .select('id')
         .single();
       if (orgError) {

@@ -144,6 +144,10 @@ export function OnboardingModal() {
     location.pathname.startsWith(p),
   );
 
+  // Só mostrar em rotas do CRM — nunca na plataforma, admin ou outras áreas
+  const isCrmRoute = location.pathname.startsWith('/crm');
+  if (!isCrmRoute && !celebrating) return null;
+
   if (isAllowedPath && !celebrating) return null;
   if (!shouldShowModal && !celebrating) return null;
 
