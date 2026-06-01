@@ -25,6 +25,7 @@ interface VendaModalProps {
   onOpenChange: (open: boolean) => void;
   lead?: Lead | null;
   venda?: Venda | null;
+  onSaved?: () => void;
 }
 
 interface VendaFormData {
@@ -56,7 +57,7 @@ const FORMAS_PAGAMENTO = [
   { value: "Outro", label: "Outro", icon: Receipt },
 ];
 
-export function VendaModal({ open, onOpenChange, lead: preselectedLead, venda: editingVenda }: VendaModalProps) {
+export function VendaModal({ open, onOpenChange, lead: preselectedLead, venda: editingVenda, onSaved }: VendaModalProps) {
   const { leads, isLoading: isLoadingLeads } = useLeads();
   const { createVenda, updateVenda, isLoading: isMutating } = useVendas();
   const { procedimentos } = useProcedimentos();
@@ -115,11 +116,11 @@ export function VendaModal({ open, onOpenChange, lead: preselectedLead, venda: e
 
     if (isEditMode && formData.id) {
       updateVenda({ id: formData.id, ...payload }, {
-        onSuccess: () => onOpenChange(false),
+        onSuccess: () => { onOpenChange(false); onSaved?.(); },
       });
     } else {
       createVenda(payload as any, {
-        onSuccess: () => onOpenChange(false),
+        onSuccess: () => { onOpenChange(false); onSaved?.(); },
       });
     }
   };

@@ -52,6 +52,7 @@ import { AudioRecorder } from "./AudioRecorder";
 import { MediaPreviewModal } from "./MediaPreviewModal";
 import { FullscreenMediaViewer } from "./FullscreenMediaViewer";
 import { LeadModal } from "@/components/leads/LeadModal";
+import { VendaModal } from "@/components/vendas/VendaModal";
 import { FormattedText } from "@/components/FormattedText";
 
 const DateSeparator = ({ dateString }: { dateString: string }) => {
@@ -168,6 +169,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const { data: lead, isLoading: leadLoading, isFetching: leadFetching } = useLead(leadId);
   const { agendamentoAtivo, invalidate: invalidateAgendamento } = useLeadAgendamento(leadId);
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
+  const [showVendaModal, setShowVendaModal] = useState(false);
   const { activeCadence } = useLeadCadence(leadId);
   const { data: messages = [], isLoading: messagesLoading } = useMessages(leadId);
   const { data: notifications } = useNotifications(leadId);
@@ -697,7 +699,13 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                           ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-sm active:scale-95"
                           : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
                       )}
-                      onClick={() => updateLead({ id: lead.id, is_closed: !lead.is_closed })}
+                      onClick={() => {
+                          if (lead.is_closed) {
+                            updateLead({ id: lead.id, is_closed: false });
+                          } else {
+                            setShowVendaModal(true);
+                          }
+                        }}
                     >
                       <BadgeCheck className={cn("h-3 w-3", lead.is_closed ? "fill-current" : "")} />
                       Fechado
@@ -1259,6 +1267,15 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
             invalidateAgendamento();
             updateLead({ id: lead.id, is_scheduled: true });
           }}
+        />
+      )}
+
+      {lead && (
+        <VendaModal
+          open={showVendaModal}
+          onOpenChange={setShowVendaModal}
+          lead={lead}
+          onSaved={() => updateLead({ id: lead.id, is_closed: true })}
         />
       )}
 
