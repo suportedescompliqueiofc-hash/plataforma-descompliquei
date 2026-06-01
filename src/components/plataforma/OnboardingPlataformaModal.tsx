@@ -3,9 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import {
   Sparkles, PlayCircle, Zap, Rocket, Brain, Target,
   CheckCircle2, BookOpen, Calendar, BarChart3, ArrowRight,
-  ChevronRight,
+  ChevronRight, KeyRound, Eye, EyeOff, ShieldCheck,
 } from 'lucide-react';
 import { usePlataforma } from '@/contexts/PlataformaContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -41,6 +42,16 @@ const BASE_STEPS: Step[] = [
       { icon: Brain, text: 'Inteligência artificial treinada para clínicas médicas e odontológicas' },
       { icon: Zap, text: 'Ferramentas práticas para o dia a dia comercial' },
     ],
+  },
+  {
+    id: 'senha',
+    icon: KeyRound,
+    iconBg: 'bg-indigo-500/10',
+    iconColor: 'text-indigo-600',
+    label: 'Senha',
+    title: 'Crie sua senha de acesso',
+    description:
+      'Defina uma senha segura para acessar a plataforma sempre que precisar — sem depender do link enviado por e-mail.',
   },
   {
     id: 'trilha',
@@ -85,12 +96,123 @@ const BASE_STEPS: Step[] = [
   },
 ];
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// ─── Step de senha ────────────────────────────────────────────────────────────
+function SenhaStep({
+  password,
+  confirm,
+  onPasswordChange,
+  onConfirmChange,
+  error,
+  success,
+}: {
+  password: string;
+  confirm: string;
+  onPasswordChange: (v: string) => void;
+  onConfirmChange: (v: string) => void;
+  error: string | null;
+  success: boolean;
+}) {
+  const [showPwd, setShowPwd] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  if (success) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-4 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100">
+          <ShieldCheck className="h-6 w-6 text-emerald-600" />
+        </div>
+        <p className="text-[13px] font-semibold text-emerald-700">Senha criada com sucesso!</p>
+        <p className="text-[12px] text-muted-foreground/70">
+          Clique em <strong>Próximo</strong> para continuar.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Campo senha */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Nova senha
+        </label>
+        <div className="relative">
+          <input
+            type={showPwd ? 'text' : 'password'}
+            value={password}
+            onChange={e => onPasswordChange(e.target.value)}
+            placeholder="Mínimo 8 caracteres"
+            className="h-10 w-full rounded-lg border border-border/60 bg-background px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 focus:ring-foreground/20 transition"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPwd(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Campo confirmação */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Confirmar senha
+        </label>
+        <div className="relative">
+          <input
+            type={showConfirm ? 'text' : 'password'}
+            value={confirm}
+            onChange={e => onConfirmChange(e.target.value)}
+            placeholder="Repita a senha"
+            className={cn(
+              'h-10 w-full rounded-lg border bg-background px-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-2 transition',
+              confirm && confirm !== password
+                ? 'border-red-300 focus:ring-red-200'
+                : 'border-border/60 focus:ring-foreground/20',
+            )}
+          />
+          <button
+            type="button"
+            onClick={() => setShowConfirm(v => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+          >
+            {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        </div>
+        {confirm && confirm !== password && (
+          <p className="text-[11px] text-red-500 mt-0.5">As senhas não coincidem.</p>
+        )}
+      </div>
+
+      {/* Dica */}
+      <p className="text-[11px] text-muted-foreground/50 leading-relaxed">
+        Use pelo menos 8 caracteres. Após criar sua senha, você poderá entrar com e-mail e senha normalmente.
+      </p>
+
+      {/* Erro geral */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+          <p className="text-[12px] text-red-600">{error}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
 export default function OnboardingPlataformaModal() {
   const { acesso, plataformaUser, completeOnboarding, isContextLoading } = usePlataforma();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [completing, setCompleting] = useState(false);
+
+  // Estado do passo de senha
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [senhaError, setSenhaError] = useState<string | null>(null);
+  const [senhaSalva, setSenhaSalva] = useState(false);
+  const [savingPwd, setSavingPwd] = useState(false);
 
   // Monta bullets dinâmicos do passo "ferramentas"
   const ferramentasBullets: Bullet[] = [];
@@ -112,9 +234,34 @@ export default function OnboardingPlataformaModal() {
 
   const currentStep = steps[step];
   const isLast = step === steps.length - 1;
+  const isSenhaStep = currentStep.id === 'senha';
   const clinicName = plataformaUser?.clinic_name ?? '';
 
   const handleNext = async () => {
+    // Passo de senha — salvar antes de avançar
+    if (isSenhaStep && !senhaSalva) {
+      setSenhaError(null);
+      if (password.length < 8) {
+        setSenhaError('A senha deve ter pelo menos 8 caracteres.');
+        return;
+      }
+      if (password !== confirm) {
+        setSenhaError('As senhas não coincidem.');
+        return;
+      }
+      setSavingPwd(true);
+      const { error } = await supabase.auth.updateUser({ password });
+      setSavingPwd(false);
+      if (error) {
+        setSenhaError('Erro ao salvar senha: ' + error.message);
+        return;
+      }
+      setSenhaSalva(true);
+      // Avança automaticamente após 1s
+      setTimeout(() => setStep(s => s + 1), 900);
+      return;
+    }
+
     if (isLast) {
       setCompleting(true);
       await completeOnboarding();
@@ -131,6 +278,15 @@ export default function OnboardingPlataformaModal() {
   if (isContextLoading) return null;
 
   const Icon = currentStep.icon;
+
+  // Label e estado do botão próximo
+  const nextLabel = () => {
+    if (savingPwd) return 'Salvando...';
+    if (completing) return 'Carregando...';
+    if (isSenhaStep && !senhaSalva) return <>Criar senha <ShieldCheck className="h-3.5 w-3.5" /></>;
+    if (isLast) return <>Ir para a Trilha <ArrowRight className="h-3.5 w-3.5" /></>;
+    return <>Próximo <ChevronRight className="h-3.5 w-3.5" /></>;
+  };
 
   return (
     /* Overlay */
@@ -195,8 +351,20 @@ export default function OnboardingPlataformaModal() {
             {currentStep.description}
           </p>
 
-          {/* Bullets */}
-          {currentStep.bullets && currentStep.bullets.length > 0 && (
+          {/* Passo de senha — formulário */}
+          {isSenhaStep && (
+            <SenhaStep
+              password={password}
+              confirm={confirm}
+              onPasswordChange={setPassword}
+              onConfirmChange={setConfirm}
+              error={senhaError}
+              success={senhaSalva}
+            />
+          )}
+
+          {/* Bullets (outros passos) */}
+          {!isSenhaStep && currentStep.bullets && currentStep.bullets.length > 0 && (
             <div className="flex flex-col gap-2.5 rounded-xl border border-border/40 bg-muted/[0.04] px-4 py-4">
               {currentStep.bullets.map((bullet, i) => {
                 const BulletIcon = bullet.icon;
@@ -212,7 +380,7 @@ export default function OnboardingPlataformaModal() {
             </div>
           )}
 
-          {/* Ferramenta vazia */}
+          {/* Ferramentas vazia */}
           {currentStep.id === 'ferramentas' && ferramentasBullets.length === 0 && (
             <div className="flex items-center gap-3 rounded-xl border border-border/40 bg-muted/[0.04] px-4 py-3">
               <span className="text-[13px] text-muted-foreground/60">
@@ -232,25 +400,21 @@ export default function OnboardingPlataformaModal() {
           </button>
 
           <div className="flex items-center gap-2">
-            {step > 0 && (
+            {step > 0 && !senhaSalva && (
               <button
                 onClick={() => setStep(s => s - 1)}
-                className="h-9 px-4 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground hover:text-foreground transition-colors"
+                disabled={savingPwd || completing}
+                className="h-9 px-4 rounded-lg text-xs font-medium border border-border/60 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
               >
                 Voltar
               </button>
             )}
             <button
               onClick={handleNext}
-              disabled={completing}
+              disabled={savingPwd || completing || senhaSalva}
               className="h-9 px-5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 transition-colors flex items-center gap-1.5 disabled:opacity-60"
             >
-              {completing
-                ? 'Carregando...'
-                : isLast
-                  ? <>Ir para a Trilha <ArrowRight className="h-3.5 w-3.5" /></>
-                  : <>Próximo <ChevronRight className="h-3.5 w-3.5" /></>
-              }
+              {nextLabel()}
             </button>
           </div>
         </div>
