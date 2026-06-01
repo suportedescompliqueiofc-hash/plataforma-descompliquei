@@ -103,31 +103,15 @@ function SenhaStep({
   onPasswordChange,
   onConfirmChange,
   error,
-  success,
 }: {
   password: string;
   confirm: string;
   onPasswordChange: (v: string) => void;
   onConfirmChange: (v: string) => void;
   error: string | null;
-  success: boolean;
 }) {
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-
-  if (success) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-4 text-center">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100">
-          <ShieldCheck className="h-6 w-6 text-emerald-600" />
-        </div>
-        <p className="text-[13px] font-semibold text-emerald-700">Senha criada com sucesso!</p>
-        <p className="text-[12px] text-muted-foreground/70">
-          Clique em <strong>Próximo</strong> para continuar.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -253,12 +237,17 @@ export default function OnboardingPlataformaModal() {
       const { error } = await supabase.auth.updateUser({ password });
       setSavingPwd(false);
       if (error) {
-        setSenhaError('Erro ao salvar senha: ' + error.message);
+        // Traduzir erros comuns do Supabase
+        if (error.message.includes('different from the old password')) {
+          setSenhaError('Essa senha já está registrada na sua conta. Escolha uma senha diferente.');
+        } else {
+          setSenhaError('Erro ao salvar senha: ' + error.message);
+        }
         return;
       }
+      // Avança imediatamente — sem setTimeout para evitar remontagem por evento de auth
       setSenhaSalva(true);
-      // Avança automaticamente após 1s
-      setTimeout(() => setStep(s => s + 1), 900);
+      setStep(s => s + 1);
       return;
     }
 
@@ -353,14 +342,21 @@ export default function OnboardingPlataformaModal() {
 
           {/* Passo de senha — formulário */}
           {isSenhaStep && (
-            <SenhaStep
-              password={password}
-              confirm={confirm}
-              onPasswordChange={setPassword}
-              onConfirmChange={setConfirm}
-              error={senhaError}
-              success={senhaSalva}
-            />
+            <>
+              <SenhaStep
+                password={password}
+                confirm={confirm}
+                onPasswordChange={setPassword}
+                onConfirmChange={setConfirm}
+                error={senhaError}
+              />
+              <button
+                onClick={() => setStep(s => s + 1)}
+                className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors text-left"
+              >
+                Já tenho senha cadastrada — pular este passo
+              </button>
+            </>
           )}
 
           {/* Bullets (outros passos) */}
