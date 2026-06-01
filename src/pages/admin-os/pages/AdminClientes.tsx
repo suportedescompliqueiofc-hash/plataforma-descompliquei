@@ -79,12 +79,27 @@ export default function AdminClientes() {
   const [filterCerebro, setFilterCerebro] = useState('todos');
 
   // Criar cliente
-  const [products, setProducts] = useState<{ id: string; nome: string }[]>([]);
+  const [products, setProducts] = useState<{ id: string; nome: string; duracao_dias?: number }[]>([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createForm, setCreateForm] = useState({ email: '', clinic_name: '', product_id: '', trial_ends_at: '' });
-  const [createdResult, setCreatedResult] = useState<{ email: string; senha: string; clinic: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [createdResult, setCreatedResult] = useState<{ email: string; clinic: string; emailSent: boolean } | null>(null);
+
+  // Auto-preenche a data de expiração quando o produto é selecionado
+  useEffect(() => {
+    const prod = products.find(p => p.id === createForm.product_id);
+    if (!prod) { return; }
+    if (prod.duracao_dias && prod.duracao_dias < 99999) {
+      const d = new Date();
+      d.setDate(d.getDate() + prod.duracao_dias);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      setCreateForm(f => ({ ...f, trial_ends_at: `${yyyy}-${mm}-${dd}` }));
+    } else {
+      setCreateForm(f => ({ ...f, trial_ends_at: '' }));
+    }
+  }, [createForm.product_id, products]);
 
   // Excluir cliente
   const [deleteTarget, setDeleteTarget] = useState<{ organization_id: string; clinic_name: string } | null>(null);
@@ -135,14 +150,14 @@ export default function AdminClientes() {
         // Produtos para mapear nome
         const { data: prods } = await supabase
           .from('platform_products')
-          .select('id, nome, pilares_liberados')
+          .select('id, nome, pilares_liberados, duracao_dias')
           .eq('ativo', true)
           .order('ordem_index');
         const prodMap: Record<string, { nome: string; has_trilha: boolean }> = {};
         (prods || []).forEach((p: any) => {
           prodMap[p.id] = { nome: p.nome, has_trilha: Array.isArray(p.pilares_liberados) && p.pilares_liberados.length > 0 };
         });
-        setProducts((prods || []).map((p: any) => ({ id: p.id, nome: p.nome })));
+        setProducts((prods || []).map((p: any) => ({ id: p.id, nome: p.nome, duracao_dias: p.duracao_dias })));
 
         // Perfis por organization_id (email e nome real) — prefere não-superadmin, reutiliza query anterior
         const perfilByOrg: Record<string, { id: string; nome_completo: string | null; email: string | null }> = {};
@@ -306,7 +321,7 @@ export default function AdminClientes() {
       }
       if (data?.error) throw new Error(data.error);
       setShowCreateModal(false);
-      setCreatedResult({ email: createForm.email, senha: data.senha_temporaria, clinic: createForm.clinic_name });
+      setCreatedResult({ email: createForm.email, clinic: createForm.clinic_name, emailSent: data.email_sent ?? false });
       setCreateForm({ email: '', clinic_name: '', product_id: '', trial_ends_at: '' });
       await load();
     } catch (err: any) {
@@ -656,7 +671,10 @@ export default function AdminClientes() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Produto</Label>
-              <Select value={createForm.product_id || '__none__'} onValueChange={v => setCreateForm(f => ({ ...f, product_id: v === '__none__' ? '' : v }))}>
+              <Select
+                value={createForm.product_id || '__none__'}
+                onValueChange={v => setCreateForm(f => ({ ...f, product_id: v === '__none__' ? '' : v }))}
+              >
                 <SelectTrigger className="h-10 rounded-lg border-border/60"><SelectValue placeholder="— Nenhum —" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">— Nenhum —</SelectItem>
@@ -664,10 +682,32 @@ export default function AdminClientes() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data de expiração</Label>
-              <Input className="h-10 text-sm rounded-lg border-border/60" type="date" value={createForm.trial_ends_at} onChange={e => setCreateForm(f => ({ ...f, trial_ends_at: e.target.value }))} />
-            </div>
+            {(() => {
+              const selectedProd = products.find(p => p.id === createForm.product_id);
+              const isVitalicio = selectedProd && (selectedProd.duracao_dias ?? 0) >= 99999;
+              return (
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data de expiração</Label>
+                  {isVitalicio ? (
+                    <div className="flex h-10 w-full items-center rounded-lg border border-border/40 bg-muted/30 px-3 text-sm text-muted-foreground">
+                      Vitalício — sem expiração
+                    </div>
+                  ) : (
+                    <Input
+                      className="h-10 text-sm rounded-lg border-border/60"
+                      type="date"
+                      value={createForm.trial_ends_at}
+                      onChange={e => setCreateForm(f => ({ ...f, trial_ends_at: e.target.value }))}
+                    />
+                  )}
+                  {selectedProd && !isVitalicio && selectedProd.duracao_dias && (
+                    <p className="text-[10px] text-muted-foreground/50">
+                      Calculado automaticamente: {selectedProd.duracao_dias} dias a partir de hoje
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" className="h-9 rounded-lg text-xs" onClick={() => setShowCreateModal(false)}>Cancelar</Button>
@@ -712,45 +752,35 @@ export default function AdminClientes() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL — SENHA TEMPORÁRIA */}
+      {/* MODAL — ACESSO CRIADO */}
       <Dialog open={!!createdResult} onOpenChange={o => !o && setCreatedResult(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-emerald-600 flex items-center gap-2">
-              <CheckIcon className="h-4 w-4" /> Acesso criado com sucesso!
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">
-              Envie os dados abaixo para <strong>{createdResult?.clinic}</strong>. O cliente poderá trocar a senha após o primeiro login.
-            </p>
-            <div className="space-y-3 bg-muted/50 p-4 rounded-lg border border-border">
-              <div>
-                <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Email</p>
-                <p className="text-sm font-mono text-foreground">{createdResult?.email}</p>
-              </div>
-              <div>
-                <p className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider">Senha temporária</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-mono font-bold text-foreground bg-background px-2 py-1 rounded border border-border flex-1">
-                    {createdResult?.senha}
-                  </p>
-                  <Button size="sm" variant="outline" onClick={() => {
-                    navigator.clipboard.writeText(createdResult?.senha ?? '');
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}>
-                    {copied ? <CheckIcon className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
-              </div>
+        <DialogContent className="sm:max-w-sm">
+          <div className="flex flex-col items-center text-center py-4 px-2 gap-3">
+            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${createdResult?.emailSent ? 'bg-emerald-100' : 'bg-muted'}`}>
+              {createdResult?.emailSent
+                ? <CheckIcon className="h-7 w-7 text-emerald-600" />
+                : <CheckIcon className="h-7 w-7 text-muted-foreground" />
+              }
             </div>
-          </div>
-          <DialogFooter>
-            <Button className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5" onClick={() => setCreatedResult(null)}>
+            <div>
+              <h3 className="text-[15px] font-bold text-foreground font-display mb-1">Acesso criado com sucesso!</h3>
+              <p className="text-[13px] text-muted-foreground leading-relaxed max-w-xs">
+                {createdResult?.emailSent
+                  ? <>Email de boas-vindas com o link de acesso enviado para <strong className="text-foreground">{createdResult.email}</strong>.</>
+                  : <>Acesso liberado para <strong className="text-foreground">{createdResult?.email}</strong>. O email de boas-vindas não foi enviado — verifique as configurações do Resend.</>
+                }
+              </p>
+              {createdResult?.emailSent && (
+                <p className="text-[11px] text-muted-foreground/50 mt-2">O link de acesso expira em 24 horas.</p>
+              )}
+            </div>
+            <Button
+              className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-6 mt-2"
+              onClick={() => setCreatedResult(null)}
+            >
               Fechar
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 

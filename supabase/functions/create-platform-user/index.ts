@@ -13,14 +13,131 @@ function generatePassword(length = 12): string {
 }
 
 function respond(body: Record<string, any>, _status = 200) {
-  // Sempre retorna 200 — o frontend lê data.error para detectar falhas.
-  // Isso evita o "Edge Function returned a non-2xx status code" genérico.
   return new Response(JSON.stringify(body), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
 
+// ─── Email HTML ────────────────────────────────────────────────────────────────
+function generateWelcomeEmailHtml(opts: {
+  clinicName: string;
+  planName: string;
+  magicLink: string;
+  email: string;
+  isExisting: boolean;
+}): string {
+  const { clinicName, planName, magicLink, email, isExisting } = opts;
+  const headline = isExisting ? 'Seu acesso foi atualizado' : 'Bem-vindo(a) à plataforma';
+  const bodyText = isExisting
+    ? `Seu plano na Plataforma Descompliquei foi atualizado para <strong>${planName}</strong>. Acesse com o link abaixo para continuar de onde parou.`
+    : `Seu acesso à Plataforma Descompliquei está pronto. Clique no botão abaixo para entrar — não é necessária senha no primeiro acesso.`;
+
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${headline}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f1f3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+
+  <!-- Wrapper -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f1f1f3;padding:40px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+
+          <!-- Header -->
+          <tr>
+            <td align="center" style="background:linear-gradient(135deg,#0d0d10 0%,#1c1c28 100%);border-radius:16px 16px 0 0;padding:40px 40px 32px;">
+              <!-- Brand pill -->
+              <div style="display:inline-block;background:#E85D24;border-radius:8px;padding:6px 18px;margin-bottom:24px;">
+                <span style="color:#ffffff;font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;">DESCOMPLIQUEI</span>
+              </div>
+              <h1 style="color:#ffffff;font-size:26px;font-weight:700;margin:0 0 8px;line-height:1.3;">${headline}</h1>
+              <p style="color:rgba(255,255,255,0.45);font-size:14px;margin:0;">${clinicName}</p>
+            </td>
+          </tr>
+
+          <!-- Plan badge strip -->
+          <tr>
+            <td style="background:#fff8f5;border-left:1px solid #fde5d4;border-right:1px solid #fde5d4;padding:14px 40px;">
+              <span style="display:inline-block;background:#E85D24;color:#ffffff;font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;padding:4px 14px;border-radius:20px;">${planName}</span>
+            </td>
+          </tr>
+
+          <!-- Main content -->
+          <tr>
+            <td style="background:#ffffff;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;padding:36px 40px 32px;">
+
+              <p style="color:#111827;font-size:15px;line-height:1.65;margin:0 0 16px;">${bodyText}</p>
+              <p style="color:#6b7280;font-size:13px;line-height:1.65;margin:0 0 32px;">
+                O link é de uso único e expira em <strong style="color:#374151;">24 horas</strong>. Após o primeiro acesso você poderá definir uma senha se preferir.
+              </p>
+
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding-bottom:36px;">
+                    <a href="${magicLink}"
+                       style="display:inline-block;background:#E85D24;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 44px;border-radius:12px;letter-spacing:0.2px;line-height:1;">
+                      Acessar a Plataforma &rarr;
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Divider -->
+              <div style="border-top:1px solid #f3f4f6;margin-bottom:28px;"></div>
+
+              <!-- Info block -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="background:#fafafa;border-radius:10px;border-left:3px solid #E85D24;padding:16px 20px;">
+                    <p style="color:#374151;font-size:13px;font-weight:600;margin:0 0 6px;">O que você encontrará na plataforma</p>
+                    <p style="color:#6b7280;font-size:13px;margin:0;line-height:1.6;">
+                      Trilha de Aprendizado &middot; Cérebro Central &middot; IAs Comerciais &middot;
+                      Sessões Táticas e ferramentas para atrair, atender e fechar mais pacientes.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background:#f9fafb;border:1px solid #e5e7eb;border-top:0;border-radius:0 0 16px 16px;padding:20px 40px;">
+              <p style="color:#9ca3af;font-size:12px;margin:0 0 8px;line-height:1.5;">
+                Se o botão não abrir, copie e cole este link no navegador:
+              </p>
+              <p style="margin:0;">
+                <a href="${magicLink}" style="color:#E85D24;font-size:12px;word-break:break-all;text-decoration:none;">${magicLink}</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Bottom note -->
+          <tr>
+            <td align="center" style="padding:20px 0 0;">
+              <p style="color:#9ca3af;font-size:11px;margin:0;">
+                Descompliquei Marketing &middot; Enviado para ${email}
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>`;
+}
+
+// ─── Main Handler ──────────────────────────────────────────────────────────────
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -68,7 +185,7 @@ Deno.serve(async (req: Request) => {
     // 3. Validar body
     step = 'parse-body';
     const body = await req.json();
-    const { email, clinic_name, product_id, trial_ends_at, monthly_fee } = body;
+    const { email, clinic_name, product_id, trial_ends_at, monthly_fee, send_welcome, site_url, responsible_name } = body;
     console.log(`[step:parse-body] email=${email} clinic=${clinic_name} product_id=${product_id}`);
 
     if (!email || !clinic_name) {
@@ -78,16 +195,18 @@ Deno.serve(async (req: Request) => {
     // 4. Buscar produto (se fornecido)
     step = 'fetch-product';
     let productName: string | null = null;
+    let productPlan: string = 'pca';
     if (product_id) {
       const { data: prod, error: prodErr } = await supabaseAdmin
         .from('platform_products')
-        .select('nome')
+        .select('nome, plano')
         .eq('id', product_id)
         .maybeSingle();
       if (prodErr) console.error(`[step:fetch-product] ERROR: ${prodErr.message}`);
       productName = prod?.nome ?? null;
+      productPlan = prod?.plano ?? 'pca';
     }
-    console.log(`[step:fetch-product] productName=${productName}`);
+    console.log(`[step:fetch-product] productName=${productName} plan=${productPlan}`);
 
     // 5. Gerar senha temporária
     const senha_temporaria = generatePassword(12);
@@ -100,7 +219,7 @@ Deno.serve(async (req: Request) => {
       email,
       password: senha_temporaria,
       email_confirm: true,
-      user_metadata: { full_name: clinic_name },
+      user_metadata: { full_name: responsible_name || clinic_name },
     });
 
     let userIdResolved: string | null = null;
@@ -115,7 +234,6 @@ Deno.serve(async (req: Request) => {
 
       if (isDup) {
         step = 'find-existing-user';
-        // Iterar TODAS as páginas de auth.users até achar pelo email
         let page = 1;
         const perPage = 1000;
         while (page <= 10 && !userIdResolved) {
@@ -134,7 +252,6 @@ Deno.serve(async (req: Request) => {
           page++;
         }
 
-        // Fallback: tentar via perfis se ainda não achou
         if (!userIdResolved) {
           const { data: perfilExistente } = await supabaseAdmin
             .from('perfis')
@@ -148,11 +265,10 @@ Deno.serve(async (req: Request) => {
         }
 
         if (!userIdResolved) {
-          return respond({ error: `Usuário ${email} existe no Auth mas não foi encontrado pelo listUsers. Verifique no painel.` });
+          return respond({ error: `Usuário ${email} existe no Auth mas não foi encontrado. Verifique no painel.` });
         }
 
         isExisting = true;
-        // Atualizar senha do usuário existente
         const { error: updateErr } = await supabaseAdmin.auth.admin.updateUser(userIdResolved, { password: senha_temporaria });
         if (updateErr) {
           console.error(`[step:find-existing-user] updateUser error: ${updateErr.message}`);
@@ -207,38 +323,34 @@ Deno.serve(async (req: Request) => {
       .upsert({
         id: userId,
         organization_id: orgId,
-        nome_completo: clinic_name,
+        nome_completo: responsible_name || clinic_name,
         email: email.toLowerCase(),
       }, { onConflict: 'id' });
     if (perfilError) {
-      console.error(`[step:upsert-perfil] ERROR: ${perfilError.message} code=${perfilError.code} details=${perfilError.details}`);
+      console.error(`[step:upsert-perfil] ERROR: ${perfilError.message}`);
       return respond({ error: `Erro ao criar perfil: ${perfilError.message}` }, 500);
     }
     console.log(`[step:upsert-perfil] OK`);
 
     // 9. Dar papel de admin
     step = 'insert-role';
-    const { data: existingRole, error: roleFindErr } = await supabaseAdmin
+    const { data: existingRole } = await supabaseAdmin
       .from('usuarios_papeis')
       .select('id')
       .eq('usuario_id', userId)
       .eq('papel', 'admin')
       .maybeSingle();
 
-    if (roleFindErr) console.error(`[step:insert-role] find error: ${roleFindErr.message}`);
-
     if (!existingRole) {
       const { error: roleInsertErr } = await supabaseAdmin
         .from('usuarios_papeis')
         .insert({ usuario_id: userId, papel: 'admin' });
       if (roleInsertErr) {
-        console.error(`[step:insert-role] insert ERROR: ${roleInsertErr.message} code=${roleInsertErr.code} details=${roleInsertErr.details}`);
+        console.error(`[step:insert-role] insert ERROR: ${roleInsertErr.message}`);
         return respond({ error: `Erro ao inserir papel: ${roleInsertErr.message}` }, 500);
       }
-      console.log(`[step:insert-role] inserted admin role`);
-    } else {
-      console.log(`[step:insert-role] already has admin role`);
     }
+    console.log(`[step:insert-role] OK`);
 
     // 10. Criar platform_users
     step = 'upsert-platform-user';
@@ -246,30 +358,28 @@ Deno.serve(async (req: Request) => {
       .from('platform_users')
       .upsert({
         id: userId,
-        plan: productName || 'basic',
+        plan: productPlan,
         clinic_name,
         crm_user_id: userId,
         onboarding_complete: false,
         cerebro_complete: false,
       }, { onConflict: 'id' });
     if (puError) {
-      console.error(`[step:upsert-platform-user] ERROR: ${puError.message} code=${puError.code} details=${puError.details}`);
+      console.error(`[step:upsert-platform-user] ERROR: ${puError.message}`);
       return respond({ error: `Erro ao criar platform_users: ${puError.message}` }, 500);
     }
     console.log(`[step:upsert-platform-user] OK`);
 
     // 11. Criar/atualizar platform_tenants
     step = 'upsert-tenant';
-    const { data: existingTenant, error: tenantFindErr } = await supabaseAdmin
+    const { data: existingTenant } = await supabaseAdmin
       .from('platform_tenants')
       .select('id')
       .eq('organization_id', orgId)
       .maybeSingle();
 
-    if (tenantFindErr) console.error(`[step:upsert-tenant] find error: ${tenantFindErr.message}`);
-
     if (existingTenant) {
-      const { error: tenantUpdateErr } = await supabaseAdmin
+      await supabaseAdmin
         .from('platform_tenants')
         .update({
           product_id: product_id || null,
@@ -278,11 +388,6 @@ Deno.serve(async (req: Request) => {
           monthly_fee: monthly_fee ?? 0,
         })
         .eq('id', existingTenant.id);
-      if (tenantUpdateErr) {
-        console.error(`[step:upsert-tenant] update ERROR: ${tenantUpdateErr.message}`);
-        return respond({ error: `Erro ao atualizar tenant: ${tenantUpdateErr.message}` }, 500);
-      }
-      console.log(`[step:upsert-tenant] updated existing tenant`);
     } else {
       const { error: tenantInsertErr } = await supabaseAdmin
         .from('platform_tenants')
@@ -294,21 +399,96 @@ Deno.serve(async (req: Request) => {
           monthly_fee: monthly_fee ?? 0,
         });
       if (tenantInsertErr) {
-        console.error(`[step:upsert-tenant] insert ERROR: ${tenantInsertErr.message} code=${tenantInsertErr.code}`);
+        console.error(`[step:upsert-tenant] insert ERROR: ${tenantInsertErr.message}`);
         return respond({ error: `Erro ao criar tenant: ${tenantInsertErr.message}` }, 500);
       }
-      console.log(`[step:upsert-tenant] inserted new tenant`);
+    }
+    console.log(`[step:upsert-tenant] OK`);
+
+    // 12. Gerar magic link
+    step = 'generate-magic-link';
+    let magicLink: string | null = null;
+    // Sempre usar o domínio de produção — nunca o site_url do request (pode ser localhost)
+    const appUrl = Deno.env.get('PLATFORM_URL') || 'https://plataforma.descompliqueiofc.com';
+
+    const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email,
+      options: { redirectTo: appUrl },
+    });
+
+    if (linkErr) {
+      console.error(`[step:generate-magic-link] ERROR: ${linkErr.message}`);
+    } else {
+      magicLink = (linkData as any)?.properties?.action_link ?? null;
+      console.log(`[step:generate-magic-link] OK link=${magicLink ? 'gerado' : 'null'}`);
     }
 
-    console.log(`[create-platform-user] SUCCESS: ${email} → user=${userId} org=${orgId} existing=${isExisting}`);
+    // 13. Enviar email de boas-vindas via Resend
+    let emailSent = false;
+    let resendError: string | null = null;
+
+    if (send_welcome === false) {
+      console.log(`[step:send-welcome-email] SKIPPED (send_welcome=false)`);
+    } else if (!magicLink) {
+      resendError = 'Magic link não gerado — email não enviado.';
+      console.warn(`[step:send-welcome-email] SKIPPED: magicLink is null`);
+    } else {
+      step = 'send-welcome-email';
+      const resendKey = Deno.env.get('RESEND_API_KEY') || 're_DXMBEgHd_Cz3HntziNJPtTT6gQ3SY8maq';
+      // Domínio verificado no Resend: descompliqueiofc.com
+      // Para alterar o remetente, setar RESEND_FROM_EMAIL nos secrets do Supabase
+      const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Descompliquei <boas-vindas@descompliqueiofc.com>';
+      const displayPlan = productName || productPlan.toUpperCase();
+
+      console.log(`[step:send-welcome-email] Sending via Resend from="${fromEmail}" to="${email}"`);
+
+      const emailHtml = generateWelcomeEmailHtml({
+        clinicName: clinic_name,
+        planName: displayPlan,
+        magicLink,
+        email,
+        isExisting,
+      });
+
+      const resendRes = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [email],
+          subject: isExisting
+            ? `Seu acesso foi atualizado — ${displayPlan}`
+            : `Bem-vindo(a) à Plataforma Descompliquei — ${displayPlan}`,
+          html: emailHtml,
+        }),
+      });
+
+      if (!resendRes.ok) {
+        const errBody = await resendRes.text();
+        resendError = `Resend ${resendRes.status}: ${errBody}`;
+        console.error(`[step:send-welcome-email] FAILED ${resendRes.status}: ${errBody}`);
+      } else {
+        const resendData = await resendRes.json();
+        emailSent = true;
+        console.log(`[step:send-welcome-email] OK id=${resendData?.id}`);
+      }
+    }
+
+    console.log(`[create-platform-user] SUCCESS: ${email} → user=${userId} org=${orgId} existing=${isExisting} emailSent=${emailSent} magicLinkGenerated=${!!magicLink}`);
 
     return respond({
       ok: true,
       user_id: userId,
       org_id: orgId,
-      senha_temporaria,
       product_name: productName,
       is_existing: isExisting,
+      email_sent: emailSent,
+      magic_link_generated: !!magicLink,
+      resend_error: resendError,
     });
 
   } catch (err: any) {

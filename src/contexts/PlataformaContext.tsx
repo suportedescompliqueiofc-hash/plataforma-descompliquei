@@ -54,6 +54,9 @@ type PlataformaContextType = {
   tenant: any | null;
   diasRestantes: number | null;
   acesso: AcessoProduto;
+  isMember: boolean;
+  showOnboarding: boolean;
+  completeOnboarding: () => Promise<void>;
   markModuleComplete: (moduleId: string) => Promise<void>;
   refreshProgress: () => Promise<void>;
 };
@@ -77,9 +80,12 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
     if (prog) setProgress(prog);
   };
 
-  const { role } = useProfile();
+  const { role, profile } = useProfile();
   const roleRef = useRef(role);
   roleRef.current = role;
+  const profileRef = useRef(profile);
+  profileRef.current = profile;
+  const [isMember, setIsMember] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -114,24 +120,17 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
         }
         setPlataformaUser(pUser);
 
-        // REDIRECT LOGIC FOR ONBOARDING
-        if (pUser && pUser.onboarding_complete === false) {
-          const path = window.location.pathname;
-          const isPlatformRoute = path.startsWith('/plataforma');
-
-          if (isPlatformRoute && !path.startsWith('/plataforma/onboarding')) {
-            window.location.href = '/plataforma/onboarding';
-            return;
-          }
-        }
-
         // Carrega tenant + acesso via RPC (SECURITY DEFINER — ignora RLS cross-table)
-        const { data: platformAccess, error: rpcError } = await supabase.rpc('get_my_platform_access');
+        // ⚠️ Deve ser feito ANTES do redirect check para saber se a org já está configurada
+        const { data: platformAccess } = await supabase.rpc('get_my_platform_access');
 
         const tenantData = platformAccess?.tenant ?? null;
         const acessoData = platformAccess?.acesso ?? null;
 
         setTenant(tenantData);
+
+        // Onboarding é mostrado via modal no Hub — não bloqueia nem redireciona aqui.
+        // A flag onboarding_complete é marcada pelo próprio modal quando o usuário conclui.
 
         if (!tenantData) {
           // Sem registro na plataforma → apenas CRM
@@ -179,9 +178,49 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
           setDiasRestantes(null);
         }
 
+        // ── Detectar se é membro da equipe (não dono) ────────────────────────
+        // Consulta direta ao banco — profileRef pode ainda estar vazio pois
+        // useProfile usa TanStack Query (assíncrono) e pode não ter carregado
+        // quando este efeito roda pela primeira vez.
+        const { data: perfil } = await supabase
+          .from('perfis')
+          .select('organization_id')
+          .eq('id', user!.id)
+          .maybeSingle();
+        const orgId = perfil?.organization_id ?? profileRef.current?.organization_id;
+        let isTeamMember = false;
+        let cerebroUserId = user!.id;
+
+        if (orgId) {
+          const { data: memberEntry } = await supabase
+            .from('team_member_permissions')
+            .select('user_id')
+            .eq('user_id', user!.id)
+            .eq('organization_id', orgId)
+            .maybeSingle();
+
+          isTeamMember = !!memberEntry;
+
+          if (isTeamMember) {
+            // Encontrar o dono da org (quem NÃO está em team_member_permissions)
+            const [{ data: orgProfiles }, { data: allMemberPerms }] = await Promise.all([
+              supabase.from('perfis').select('id').eq('organization_id', orgId),
+              supabase.from('team_member_permissions').select('user_id').eq('organization_id', orgId),
+            ]);
+            const memberIds = new Set((allMemberPerms || []).map((m: any) => m.user_id));
+            const ownerProfile = (orgProfiles || []).find((p: any) => !memberIds.has(p.id));
+            if (ownerProfile) cerebroUserId = ownerProfile.id;
+
+            // Membros não acessam Cérebro nem Materiais
+            setAcesso(prev => ({ ...prev, acesso_cerebro: false, acesso_materiais: false }));
+          }
+        }
+
+        setIsMember(isTeamMember);
+
         // Carregar em paralelo
         const [cerebroRes, modulesRes] = await Promise.all([
-          supabase.from('platform_cerebro').select('*').eq('user_id', user!.id).maybeSingle(),
+          supabase.from('platform_cerebro').select('*').eq('user_id', cerebroUserId).maybeSingle(),
           supabase.from('platform_modules').select('id', { count: 'exact', head: true }).eq('active', true),
         ]);
 
@@ -197,6 +236,12 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
 
     loadPlatformData();
   }, [user, authLoading]);
+
+  const completeOnboarding = async () => {
+    if (!user) return;
+    await supabase.from('platform_users').update({ onboarding_complete: true }).eq('id', user.id);
+    setPlataformaUser((prev: any) => prev ? { ...prev, onboarding_complete: true } : prev);
+  };
 
   const markModuleComplete = async (moduleId: string) => {
     if (!user) return;
@@ -239,6 +284,9 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
       tenant,
       diasRestantes,
       acesso,
+      isMember,
+      showOnboarding: plataformaUser?.onboarding_complete === false && !isContextLoading,
+      completeOnboarding,
       markModuleComplete,
       refreshProgress
     }}>
