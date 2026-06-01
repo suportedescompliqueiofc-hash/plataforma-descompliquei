@@ -134,18 +134,19 @@ export function TutorialSpotlight() {
     const vh = window.innerHeight;
 
     // Dynamically shrink tooltip width on narrow viewports so it always fits
-    // Account for sidebar width (typically ~240px when expanded, ~64px when collapsed)
+    // Account for sidebar width — tooltip should never overlap the sidebar
     const sidebarEl = document.querySelector('[data-tutorial="sidebar"]');
-    const sidebarWidth = sidebarEl ? sidebarEl.getBoundingClientRect().right : 0;
-    const availableWidth = vw - Math.max(sidebarWidth, 0);
-    const maxTooltipWidth = Math.min(340, availableWidth - vpMargin * 2);
-    const tooltipWidth = Math.min(maxTooltipWidth, vw - vpMargin * 2);
+    const sidebarRight = sidebarEl ? sidebarEl.getBoundingClientRect().right : 0;
+    const minLeft = Math.max(vpMargin, sidebarRight + 12); // never behind sidebar
+    const availableWidth = vw - minLeft - vpMargin;
+    const maxTooltipWidth = 340;
+    const tooltipWidth = Math.min(maxTooltipWidth, availableWidth);
 
     let style: React.CSSProperties = { maxWidth: tooltipWidth, width: tooltipWidth };
 
     // Helper: clamp value within viewport (ensures tooltip never clips edges)
     const clampTop = (v: number) => Math.max(vpMargin, Math.min(v, vh - tooltipEstHeight - vpMargin));
-    const clampLeft = (v: number) => Math.max(vpMargin, Math.min(v, vw - tooltipWidth - vpMargin));
+    const clampLeft = (v: number) => Math.max(minLeft, Math.min(v, vw - tooltipWidth - vpMargin));
 
     // Helper: check if tooltip rect would overlap target rect
     const overlaps = (tTop: number, tLeft: number) => {
@@ -159,27 +160,30 @@ export function TutorialSpotlight() {
     };
 
     // Helper: find best horizontal position that avoids overlap and stays in viewport
+    // Prefer right side of content area (looks cleaner with sidebar layouts)
+    const contentCenter = minLeft + availableWidth / 2;
     const bestHorizontal = (top: number, defaultLeft: number) => {
       const clamped = clampLeft(defaultLeft);
       if (!overlaps(top, clamped)) return clamped;
 
-      // Try right-aligned to viewport (tooltip on the right side of screen)
+      // Try right-aligned to available area (preferred — avoids content overlap)
       const rightAligned = clampLeft(vw - tooltipWidth - vpMargin);
       if (!overlaps(top, rightAligned)) return rightAligned;
 
-      // Try left-aligned to viewport (tooltip on the left side of screen)
-      if (!overlaps(top, vpMargin)) return vpMargin;
+      // Try center of available area (between sidebar and viewport edge)
+      const centered = clampLeft(contentCenter - tooltipWidth / 2);
+      if (!overlaps(top, centered)) return centered;
 
       // Try placing to the right of the target
       const rightOfTarget = clampLeft(rect.right + tooltipGap);
       if (!overlaps(top, rightOfTarget)) return rightOfTarget;
 
-      // Try placing to the left of the target
+      // Try placing to the left of the target (but never behind sidebar)
       const leftOfTarget = clampLeft(rect.left - tooltipWidth - tooltipGap);
       if (!overlaps(top, leftOfTarget)) return leftOfTarget;
 
-      // Last resort: center in viewport
-      return clampLeft((vw - tooltipWidth) / 2);
+      // Last resort: right side of available area
+      return clampLeft(vw - tooltipWidth - vpMargin);
     };
 
     switch (position) {
@@ -279,8 +283,8 @@ export function TutorialSpotlight() {
       }
     }
 
-    // Final safety clamp — guarantee tooltip is ALWAYS fully within viewport
-    const finalLeft = Math.max(vpMargin, Math.min(style.left as number || vpMargin, vw - tooltipWidth - vpMargin));
+    // Final safety clamp — guarantee tooltip is ALWAYS fully within viewport and never behind sidebar
+    const finalLeft = Math.max(minLeft, Math.min(style.left as number || minLeft, vw - tooltipWidth - vpMargin));
     const finalTop = Math.max(vpMargin, Math.min(style.top as number || vpMargin, vh - tooltipEstHeight - vpMargin));
     style.left = finalLeft;
     style.top = finalTop;
