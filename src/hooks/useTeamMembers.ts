@@ -138,5 +138,16 @@ export function useTeamMembers() {
     onError: (err: any) => toast.error(err.message || 'Erro ao remover membro'),
   });
 
-  return { members, isLoading, createMember, updateMember, resetPassword, deleteMember };
+  const sendAccessEmail = useMutation({
+    mutationFn: async (email: string) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/atualizar-senha`,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => toast.success('Email de acesso enviado com sucesso!'),
+    onError: (err: any) => toast.error(err.message || 'Erro ao enviar email de acesso'),
+  });
+
+  return { members, isLoading, createMember, updateMember, resetPassword, deleteMember, sendAccessEmail };
 }

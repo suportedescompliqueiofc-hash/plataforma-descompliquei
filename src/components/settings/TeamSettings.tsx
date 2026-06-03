@@ -277,7 +277,7 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
 
 // ── EditMemberModal ───────────────────────────────────────────────────────────
 
-function EditMemberModal({ member, onClose }: { member: TeamMember; onClose: () => void }) {
+function EditMemberModal({ member, onClose, initialTab = 'permissions' }: { member: TeamMember; onClose: () => void; initialTab?: 'permissions' | 'password' }) {
   const { updateMember, resetPassword } = useTeamMembers();
   const [role, setRole]                   = useState(member.role);
   const [nome, setNome]                   = useState(member.nome || '');
@@ -285,7 +285,7 @@ function EditMemberModal({ member, onClose }: { member: TeamMember; onClose: () 
   const [readOnly, setReadOnly]           = useState<Record<string, boolean>>(member.read_only || {});
   const [newPassword, setNewPassword]     = useState('');
   const [showNewPwd, setShowNewPwd]       = useState(false);
-  const [tab, setTab]                     = useState<'permissions' | 'password'>('permissions');
+  const [tab, setTab]                     = useState<'permissions' | 'password'>(initialTab);
 
   const handleRoleChange = (r: string) => {
     setRole(r);
@@ -643,11 +643,15 @@ function TeamPerformanceDashboard() {
 // ── TeamSettings ──────────────────────────────────────────────────────────────
 
 export function TeamSettings() {
-  const { members, isLoading, deleteMember } = useTeamMembers();
+  const { members, isLoading, deleteMember, sendAccessEmail } = useTeamMembers();
   const [showAdd, setShowAdd]               = useState(false);
   const [editing, setEditing]               = useState<TeamMember | null>(null);
+  const [editingTab, setEditingTab]         = useState<'permissions' | 'password'>('permissions');
   const [deleting, setDeleting]             = useState<TeamMember | null>(null);
   const [activeTab, setActiveTab]           = useState<'membros' | 'desempenho'>('membros');
+
+  const openEditPermissions = (m: TeamMember) => { setEditingTab('permissions'); setEditing(m); };
+  const openEditPassword    = (m: TeamMember) => { setEditingTab('password');    setEditing(m); };
 
   return (
     <div className="space-y-5">
@@ -763,9 +767,23 @@ export function TeamSettings() {
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <Button
                           variant="ghost" size="icon" className="h-8 w-8 rounded-lg"
-                          onClick={() => setEditing(member)} title="Editar permissões"
+                          onClick={() => openEditPermissions(member)} title="Editar permissões"
                         >
                           <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon" className="h-8 w-8 rounded-lg"
+                          onClick={() => openEditPassword(member)} title="Redefinir senha"
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost" size="icon" className="h-8 w-8 rounded-lg"
+                          onClick={() => sendAccessEmail.mutate(member.email)}
+                          disabled={sendAccessEmail.isPending}
+                          title="Reenviar acesso por email"
+                        >
+                          {sendAccessEmail.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
                         </Button>
                         <Button
                           variant="ghost" size="icon"
@@ -802,7 +820,7 @@ export function TeamSettings() {
 
       {/* Modais */}
       <AddMemberModal open={showAdd} onClose={() => setShowAdd(false)} />
-      {editing && <EditMemberModal member={editing} onClose={() => setEditing(null)} />}
+      {editing && <EditMemberModal member={editing} onClose={() => setEditing(null)} initialTab={editingTab} />}
 
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
