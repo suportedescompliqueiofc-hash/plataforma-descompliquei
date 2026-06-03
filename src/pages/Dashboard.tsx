@@ -12,7 +12,7 @@ import {
 import { useDashboard, type OrigemFilter } from "@/hooks/useDashboard";
 import { usePerformanceBadge } from "@/hooks/usePerformance";
 import { useProfile } from "@/hooks/useProfile";
-import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
+import { DESCOMPLIQUEI_ORG_ID, ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -143,6 +143,7 @@ export default function Dashboard() {
 
   const { profile } = useProfile();
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
+  const isAnnaClaraOrg = profile?.organization_id === ANNA_CLARA_ORG_ID;
   const orgId = profile?.organization_id;
   const { pending: perfPending, total: perfTotal, score: perfScore, pendingTasks: perfPendingTasks } = usePerformanceBadge();
   const currentHour = new Date().getHours();
@@ -243,7 +244,7 @@ export default function Dashboard() {
   const funnelConversion: any[] = metrics.funnelConversion ?? [];
   const pipelineDistribution: { name: string; value: number; color: string }[] = metrics.pipelineDistribution ?? [];
   const allStages = metrics.allStages ?? [];
-  const totalLeads = metrics.totalContatos ?? 0;
+  const totalLeads = metrics.totalLeadsAtivos ?? metrics.totalContatos ?? 0;
   const mqlCount = metrics.mqlCount ?? 0;
   const scheduledCount = metrics.scheduledCount ?? 0;
   const closedCount = metrics.closedCount ?? 0;
@@ -282,7 +283,7 @@ export default function Dashboard() {
         ...funnelConversion.map((s: any) => ({ name: s.to, count: s.toCount })),
       ]
     : [];
-  const funnelTotalEntry = funnelStageNodes[0]?.count || 1;
+  const funnelTotalEntry = metrics.totalLeadsAtivos || funnelStageNodes[0]?.count || 1;
   const FUNNEL_COLORS = ['#6366f1', '#8b5cf6', '#3b82f6', '#0ea5e9', '#10b981', '#22c55e'];
 
   /* ── Pipeline max para escala de barras ── */
@@ -484,6 +485,7 @@ export default function Dashboard() {
               { key: 'marketing',  label: 'Marketing' },
               { key: 'organico',   label: 'Orgânico' },
               { key: 'reativacao', label: 'Reativação' },
+              ...(isAnnaClaraOrg ? [{ key: 'convenio' as OrigemFilter, label: 'Convênio' }] : []),
               { key: 'paciente',   label: 'Paciente' },
             ] as { key: OrigemFilter; label: string }[]).map(({ key, label }) => (
               <button
@@ -594,6 +596,7 @@ export default function Dashboard() {
           { key: 'marketing',  label: 'Marketing',  color: '#f59e0b', bg: '#f59e0b15', count: oc.marketing,  leads: ol?.marketing  ?? [] },
           { key: 'organico',   label: 'Orgânico',   color: '#22c55e', bg: '#22c55e15', count: oc.organico,   leads: ol?.organico   ?? [] },
           { key: 'reativacao', label: 'Reativação', color: '#06b6d4', bg: '#06b6d415', count: oc.reativacao, leads: ol?.reativacao ?? [] },
+          ...(isAnnaClaraOrg ? [{ key: 'convenio', label: 'Convênio', color: '#8b5cf6', bg: '#8b5cf615', count: oc.convenio ?? 0, leads: ol?.convenio ?? [] }] : []),
           // Paciente é excluído do geral — só aparece quando o filtro Paciente está selecionado
           ...(origemFilter !== 'geral' ? [{ key: 'paciente', label: 'Paciente', color: '#14b8a6', bg: '#14b8a615', count: oc.paciente, leads: ol?.paciente ?? [] }] : []),
         ].filter(o => o.count > 0 || origemFilter === 'geral');
@@ -830,102 +833,78 @@ export default function Dashboard() {
       {!isDescompliqueiOrg && (
         <>
           {/* ③ FUNIL DE CONVERSÃO — redesenhado */}
-          {funnelConversion.length > 0 && (
-            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-conversion">
-              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-muted">
-                      <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                    </span>
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">FUNIL DE CONVERSÃO</p>
-                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Taxa de passagem entre as etapas do pipeline no período</p>
+          {/* ③ FUNIL COMERCIAL — 4 etapas fixas de negócio */}
+          {(() => {
+            const cf = metrics.comercialFunnel;
+            if (!cf) return null;
+            const CF_COLORS = ['#6366f1', '#8b5cf6', '#3b82f6', '#10b981'];
+            const stages = [
+              { key: 'leads',        label: 'Leads',        count: cf.leads.count,        pct: cf.leads.pct,        rate: null,                  listKey: 'totalLeadsList',     listTitle: 'Leads no período' },
+              { key: 'mql',          label: 'MQLs',         count: cf.mql.count,          pct: cf.mql.pct,          rate: cf.mql.rate,           listKey: 'mqlLeadsList',       listTitle: 'Leads Qualificados (MQL)' },
+              { key: 'agendamentos', label: 'Agendamentos', count: cf.agendamentos.count, pct: cf.agendamentos.pct, rate: cf.agendamentos.rate,  listKey: 'scheduledLeadsList', listTitle: 'Leads Agendados' },
+              { key: 'fechamentos',  label: 'Fechamentos',  count: cf.fechamentos.count,  pct: cf.fechamentos.pct,  rate: cf.fechamentos.rate,   listKey: 'closedLeadsList',    listTitle: 'Leads Fechados' },
+            ];
+            return (
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-conversion">
+                <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-muted">
+                        <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">FUNIL COMERCIAL</p>
+                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">Conversão nos marcos de negócio do período</p>
+                      </div>
                     </div>
+                    <span className="text-[11px] text-muted-foreground/50 font-mono">{cf.leads.count} leads ativos no período</span>
                   </div>
-                  <span className="text-[11px] text-muted-foreground/50 font-mono">{funnelStageNodes[0]?.count ?? 0} entradas totais</span>
                 </div>
-              </div>
-              <div className="p-4">
-                <div className="flex items-stretch gap-2">
-                  {funnelStageNodes.map((stage, i) => {
-                    const color = FUNNEL_COLORS[i % FUNNEL_COLORS.length];
-                    const pct = funnelTotalEntry > 0 ? Math.round((stage.count / funnelTotalEntry) * 100) : 0;
-                    const convRate = i < funnelConversion.length ? funnelConversion[i].rate : null;
-
-                    const handleFunnelNodeClick = () => {
-                      const matchedStage = allStages.find((s: any) => s.nome === stage.name);
-                      const stagePos = matchedStage?.posicao_ordem;
-                      const lostStage = allStages.find((s: any) => s.nome.toLowerCase() === 'perdido');
-                      const lostPosLocal = lostStage?.posicao_ordem ?? 999;
-                      if (!stagePos) return;
-                      const stageLeads = (metrics.totalLeadsList ?? []).filter(
-                        (l: any) => l.posicao_pipeline >= stagePos && l.posicao_pipeline < lostPosLocal
-                      );
-                      setLeadsModal({ title: `Funil — ${stage.name}`, leads: stageLeads });
-                    };
-
-                    return (
-                      <div key={i} className="flex items-center gap-2 flex-1 min-w-0">
-                        {/* Stage node */}
-                        <div
-                          className="relative flex flex-col justify-between p-3 rounded-xl w-full border transition-colors duration-150 cursor-pointer hover:shadow-md"
-                          style={{ backgroundColor: color + '07', borderColor: color + '30' }}
-                          onClick={handleFunnelNodeClick}
-                        >
-                          <div className="flex items-center justify-between mb-2">
-                            <span
-                              className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
-                              style={{ color, backgroundColor: color + '15' }}
-                            >
-                              {i + 1}
-                            </span>
-                            <span
-                              className="text-[11px] font-bold font-mono"
-                              style={{ color }}
-                            >
-                              {pct}%
-                            </span>
-                          </div>
-                          <div>
-                            <div className="text-[26px] font-bold font-display text-foreground leading-none">
-                              {stage.count}
+                <div className="p-4">
+                  <div className="flex items-stretch gap-2">
+                    {stages.map((stage, i) => {
+                      const color = CF_COLORS[i];
+                      return (
+                        <div key={stage.key} className="flex items-center gap-2 flex-1 min-w-0">
+                          {/* Arrow ANTES do card — mostra taxa de conversão da etapa anterior para esta */}
+                          {i > 0 && stage.rate !== null && (
+                            <div className="flex flex-col items-center gap-1 shrink-0">
+                              <span className="text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-full border"
+                                style={{ color, borderColor: color + '30', backgroundColor: color + '0a' }}>
+                                {stage.rate}%
+                              </span>
+                              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30" />
                             </div>
-                            <div className="text-[11px] text-muted-foreground mt-1 truncate" title={stage.name}>
-                              {stage.name}
+                          )}
+                          <div
+                            className="relative flex flex-col justify-between p-3 rounded-xl w-full border transition-colors duration-150 cursor-pointer hover:shadow-md"
+                            style={{ backgroundColor: color + '07', borderColor: color + '30' }}
+                            onClick={() => setLeadsModal({ title: stage.listTitle, leads: (metrics as any)[stage.listKey] ?? [] })}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ color, backgroundColor: color + '15' }}>
+                                {i + 1}
+                              </span>
+                              <span className="text-[11px] font-bold font-mono" style={{ color }}>
+                                {stage.pct}%
+                              </span>
                             </div>
-                          </div>
-                          <div className="h-1 bg-border/30 rounded-full overflow-hidden mt-2.5">
-                            <div
-                              className="h-full rounded-full transition-all duration-700"
-                              style={{ width: `${Math.max(pct, 3)}%`, backgroundColor: color }}
-                            />
+                            <div>
+                              <div className="text-[26px] font-bold font-display text-foreground leading-none">{stage.count}</div>
+                              <div className="text-[11px] text-muted-foreground mt-1 truncate">{stage.label}</div>
+                            </div>
+                            <div className="h-1 bg-border/30 rounded-full overflow-hidden mt-2.5">
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.max(stage.pct, 3)}%`, backgroundColor: color }} />
+                            </div>
                           </div>
                         </div>
-
-                        {/* Arrow + taxa */}
-                        {convRate !== null && (
-                          <div className="flex flex-col items-center gap-1 shrink-0">
-                            <span
-                              className="text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-full border"
-                              style={{
-                                color: FUNNEL_COLORS[(i + 1) % FUNNEL_COLORS.length],
-                                borderColor: FUNNEL_COLORS[(i + 1) % FUNNEL_COLORS.length] + '30',
-                                backgroundColor: FUNNEL_COLORS[(i + 1) % FUNNEL_COLORS.length] + '0a',
-                              }}
-                            >
-                              {convRate}%
-                            </span>
-                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ④ PERFORMANCE COMERCIAL — 3 cards */}
           <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-performance">

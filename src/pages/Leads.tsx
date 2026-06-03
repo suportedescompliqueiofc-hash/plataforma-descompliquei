@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useLeads, Lead } from "@/hooks/useLeads";
 import { useStages } from "@/hooks/useStages";
+import { useProfile } from "@/hooks/useProfile";
+import { ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { LeadModal } from "@/components/leads/LeadModal";
 import {
   AlertDialog,
@@ -63,6 +65,8 @@ function LeadAvatar({ name }: { name: string }) {
 }
 
 export default function Leads() {
+  const { profile } = useProfile();
+  const isAnnaClaraOrg = profile?.organization_id === ANNA_CLARA_ORG_ID;
   const navigate = useNavigate();
   const [showFilters, setShowFilters] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -442,6 +446,7 @@ export default function Leads() {
                       <SelectItem value="Todos">Todas as origens</SelectItem>
                       <SelectItem value="marketing">Marketing</SelectItem>
                       <SelectItem value="organico">Orgânico</SelectItem>
+                      {isAnnaClaraOrg && <SelectItem value="convenio">Convênio</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>

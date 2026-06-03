@@ -264,6 +264,11 @@ export function useLeads(dateRange?: DateRange) {
         throw new Error('Nenhum campo válido para atualizar');
       }
 
+      // Auto-qualificar como MQL ao ser agendado ou fechado
+      if ((cleanUpdates.is_scheduled === true || cleanUpdates.is_closed === true) && cleanUpdates.is_qualified !== true) {
+        cleanUpdates.is_qualified = true;
+      }
+
       console.log('[updateLead] Atualizando lead:', id, 'com:', cleanUpdates);
       const { error } = await supabase
         .from('leads')

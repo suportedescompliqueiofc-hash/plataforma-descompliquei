@@ -20,6 +20,7 @@ import { useLeadSources } from "@/hooks/useLeadSources";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
+import { ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { VendaModal } from "@/components/vendas/VendaModal";
 import { FormattedText } from "@/components/FormattedText";
 import { TagManager } from "@/components/tags/TagManager";
@@ -122,6 +123,8 @@ const ViewContent = ({
   teamMembers?: MemberSelectOption[];
 }) => {
   /* helpers */
+  const { profile: viewProfile } = useProfile();
+  const isAnnaClaraOrg = viewProfile?.organization_id === ANNA_CLARA_ORG_ID;
   const onEdit = (field: string, value: any) => { if (isEditing && handleInputChange) handleInputChange(field, value); };
   const pipelinePos = isEditing && formData ? formData.posicao_pipeline : lead.posicao_pipeline;
 
@@ -318,6 +321,7 @@ const ViewContent = ({
                   <SelectItem value="organico"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-emerald-500" />Orgânico</div></SelectItem>
                   <SelectItem value="reativacao"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-cyan-500" />Reativação</div></SelectItem>
                   <SelectItem value="paciente"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-teal-500" />Paciente</div></SelectItem>
+                  {isAnnaClaraOrg && <SelectItem value="convenio"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-violet-500" />Convênio</div></SelectItem>}
                 </SelectContent>
               </Select>
             ) : (
@@ -326,9 +330,10 @@ const ViewContent = ({
                 'text-emerald-600': lead.origem === 'organico' || lead.origem === 'indicacao',
                 'text-cyan-600': lead.origem === 'reativacao',
                 'text-teal-600': lead.origem === 'paciente',
-                'text-muted-foreground': !['marketing','organico','indicacao','reativacao','paciente'].includes(lead.origem),
+                'text-violet-600': lead.origem === 'convenio',
+                'text-muted-foreground': !['marketing','organico','indicacao','reativacao','paciente','convenio'].includes(lead.origem),
               })}>
-                {{ marketing: 'Marketing', organico: 'Orgânico', indicacao: 'Orgânico', reativacao: 'Reativação', paciente: 'Paciente' }[lead.origem as string] ?? lead.origem ?? '—'}
+                {{ marketing: 'Marketing', organico: 'Orgânico', indicacao: 'Orgânico', reativacao: 'Reativação', paciente: 'Paciente', convenio: 'Convênio' }[lead.origem as string] ?? lead.origem ?? '—'}
               </span>
             )}
           </div>
@@ -618,6 +623,7 @@ const FormContent = ({ formData, handleInputChange, handleSubmit, stages, handle
   const { allSources } = useLeadSources();
   const { profile: formProfile } = useProfile();
   const formOrgId = formProfile?.organization_id;
+  const isAnnaClaraOrg = formOrgId === ANNA_CLARA_ORG_ID;
   const { data: metaAdsOptions = [] } = useQuery({
     queryKey: ['meta_ads_select', formOrgId],
     queryFn: async () => {
@@ -711,6 +717,11 @@ const FormContent = ({ formData, handleInputChange, handleSubmit, stages, handle
                     <SelectItem value="paciente">
                       <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-teal-500" />Paciente</div>
                     </SelectItem>
+                    {isAnnaClaraOrg && (
+                      <SelectItem value="convenio">
+                        <div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-violet-500" />Convênio</div>
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </FormField>
@@ -858,6 +869,7 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
   const { profile: currentProfile } = useProfile();
   const { members: teamMembers } = useTeamMembersForSelect();
   const currentOrgId = currentProfile?.organization_id;
+  const isAnnaClaraOrg = currentOrgId === ANNA_CLARA_ORG_ID;
   const { data: metaAdsData = [] } = useQuery({
     queryKey: ['meta_ads_select', currentOrgId],
     queryFn: async () => {

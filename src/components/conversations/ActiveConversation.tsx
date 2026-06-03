@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
 import EmojiPicker from 'emoji-picker-react';
 import { format, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useLead, useLeads } from "@/hooks/useLeads";
@@ -31,7 +31,7 @@ import { useLeadCadence } from "@/hooks/useCadences";
 import { useMessages, useSendMessage, Message, Attachment, useDeleteMessage, useEditMessage, useSendAudioMessage, useSendMediaMessage } from "@/hooks/useConversations";
 import { useNotifications, useUpdateNotificationStatus } from "@/hooks/useNotifications";
 import { useStages } from "@/hooks/useStages";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { useBranding } from "@/contexts/BrandingContext";
@@ -160,6 +160,8 @@ interface ActiveConversationProps {
 
 export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMessages }: ActiveConversationProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
   const { branding } = useBranding();
@@ -192,7 +194,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const { mutate: sendAudio, isPending: isSendingAudio } = useSendAudioMessage();
   const { mutate: sendMedia, isPending: isSendingMedia } = useSendMediaMessage();
   const { mutate: updateNotification } = useUpdateNotificationStatus(leadId);
-  const { updateLead } = useLeads();
+  const { updateLead, deleteLead } = useLeads();
   const { mutate: deleteMessage } = useDeleteMessage();
   const { mutate: editMessage, isPending: isEditingMessage } = useEditMessage();
 
@@ -403,15 +405,18 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         motivo: 'Bloqueado manualmente via conversa',
         blocked_by: profile.id,
       });
-      if (error) {
-        if (error.code === '23505') {
-          toast.info('Este número já está na lista de bloqueio.');
-        } else {
-          throw error;
-        }
-      } else {
-        toast.success(`Número ${lead.telefone} bloqueado permanentemente.`);
+      if (error && error.code !== '23505') {
+        throw error;
       }
+      await deleteLead(lead.id);
+      queryClient.setQueryData<any[]>(['conversations', profile.organization_id], (old) =>
+        (old || []).filter((c) => c.id !== lead.id)
+      );
+      toast.success(`Número ${lead.telefone} bloqueado e lead excluído.`);
+      const segments = location.pathname.split('/');
+      segments.pop();
+      navigate(segments.join('/'));
+      return;
     } catch (e: any) {
       console.error('Erro ao bloquear número:', e);
       toast.error('Erro ao bloquear número: ' + (e.message || 'erro desconhecido'));
@@ -537,7 +542,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                         <div className="flex items-center gap-0.5 bg-muted/50 px-1 py-0.5 rounded-md border border-border/40 shrink-0">
                             <Globe className="h-2.5 w-2.5 text-muted-foreground" />
                             <span className="text-[9px] font-bold uppercase text-muted-foreground">
-                                {lead?.origem === 'marketing' ? 'Mkt' : 'Org'}
+                                {{ marketing: 'Mkt', organico: 'Org', indicacao: 'Org', reativacao: 'Reat', paciente: 'Pac', convenio: 'Conv' }[lead?.origem as string] ?? 'Org'}
                             </span>
                         </div>
 

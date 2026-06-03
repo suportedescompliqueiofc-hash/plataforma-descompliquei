@@ -12,7 +12,7 @@ import { useVendas, Venda } from "@/hooks/useVendas";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import {
   CalendarIcon, Check, ChevronsUpDown, Loader2, DollarSign, User,
-  CreditCard, Package, Receipt, FileText, X, Stethoscope,
+  CreditCard, Package, Receipt, FileText, X, Stethoscope, Plus, Trash2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -28,6 +28,11 @@ interface VendaModalProps {
   onSaved?: () => void;
 }
 
+interface PagamentoEntry {
+  metodo: string;
+  valor: number | undefined;
+}
+
 interface VendaFormData {
   id?: string;
   lead_id: string;
@@ -35,8 +40,24 @@ interface VendaFormData {
   data_orcamento: Date | undefined;
   valor_fechado: number | undefined;
   data_fechamento: Date;
-  forma_pagamento: string;
+  formasPagamento: PagamentoEntry[];
   produto_servico: string;
+}
+
+function parseFormasPagamento(raw: string | null | undefined): PagamentoEntry[] {
+  if (!raw) return [{ metodo: '', valor: undefined }];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  return [{ metodo: raw, valor: undefined }];
+}
+
+function serializeFormasPagamento(entries: PagamentoEntry[]): string | null {
+  const valid = entries.filter(e => e.metodo);
+  if (valid.length === 0) return null;
+  if (valid.length === 1 && valid[0].valor === undefined) return valid[0].metodo;
+  return JSON.stringify(valid);
 }
 
 const initialFormState: VendaFormData = {
@@ -45,7 +66,7 @@ const initialFormState: VendaFormData = {
   data_orcamento: undefined,
   valor_fechado: undefined,
   data_fechamento: new Date(),
-  forma_pagamento: "",
+  formasPagamento: [{ metodo: '', valor: undefined }],
   produto_servico: "",
 };
 
@@ -82,7 +103,7 @@ export function VendaModal({ open, onOpenChange, lead: preselectedLead, venda: e
           data_orcamento: editingVenda.data_orcamento ? parseISO(editingVenda.data_orcamento) : undefined,
           valor_fechado: editingVenda.valor_fechado,
           data_fechamento: parseISO(editingVenda.data_fechamento),
-          forma_pagamento: editingVenda.forma_pagamento || "",
+          formasPagamento: parseFormasPagamento(editingVenda.forma_pagamento),
           produto_servico: editingVenda.produto_servico || "",
         });
       } else if (preselectedLead) {
@@ -110,7 +131,7 @@ export function VendaModal({ open, onOpenChange, lead: preselectedLead, venda: e
       valor_fechado: formData.valor_fechado,
       data_orcamento: formData.data_orcamento ? format(formData.data_orcamento, 'yyyy-MM-dd') : null,
       data_fechamento: format(formData.data_fechamento, 'yyyy-MM-dd'),
-      forma_pagamento: formData.forma_pagamento || null,
+      forma_pagamento: serializeFormasPagamento(formData.formasPagamento),
       produto_servico: formData.produto_servico,
     };
 
@@ -375,26 +396,65 @@ export function VendaModal({ open, onOpenChange, lead: preselectedLead, venda: e
               </div>
             </div>
 
-            {/* ── Forma de Pagamento ── */}
-            <div data-tutorial="venda-field-pagamento" className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Forma de Pagamento
-              </Label>
-              <Select value={formData.forma_pagamento} onValueChange={value => setFormData(prev => ({ ...prev, forma_pagamento: value }))}>
-                <SelectTrigger className="h-10 rounded-lg text-sm border-border/60">
-                  <SelectValue placeholder="Selecione a forma de pagamento" />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl border-border/60">
-                  {FORMAS_PAGAMENTO.map(fp => (
-                    <SelectItem key={fp.value} value={fp.value} className="py-2.5">
-                      <div className="flex items-center gap-2">
-                        <fp.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{fp.label}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            {/* ── Formas de Pagamento ── */}
+            <div data-tutorial="venda-field-pagamento" className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Formas de Pagamento
+                </Label>
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, formasPagamento: [...prev.formasPagamento, { metodo: '', valor: undefined }] }))}
+                  className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Adicionar
+                </button>
+              </div>
+              <div className="space-y-2">
+                {formData.formasPagamento.map((fp, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <Select
+                      value={fp.metodo}
+                      onValueChange={val => setFormData(prev => ({
+                        ...prev,
+                        formasPagamento: prev.formasPagamento.map((e, i) => i === idx ? { ...e, metodo: val } : e)
+                      }))}
+                    >
+                      <SelectTrigger className="h-10 rounded-lg text-sm border-border/60 flex-1">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/60">
+                        {FORMAS_PAGAMENTO.map(f => (
+                          <SelectItem key={f.value} value={f.value} className="py-2.5">
+                            <div className="flex items-center gap-2">
+                              <f.icon className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span>{f.label}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <CurrencyInput
+                      value={fp.valor}
+                      onChange={val => setFormData(prev => ({
+                        ...prev,
+                        formasPagamento: prev.formasPagamento.map((e, i) => i === idx ? { ...e, valor: val } : e)
+                      }))}
+                      placeholder="Valor (opcional)"
+                      className="h-10 w-36 rounded-lg text-sm border-border/60"
+                    />
+                    {formData.formasPagamento.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, formasPagamento: prev.formasPagamento.filter((_, i) => i !== idx) }))}
+                        className="h-10 w-10 flex items-center justify-center rounded-lg border border-border/60 text-muted-foreground hover:text-red-500 hover:border-red-300 transition-colors shrink-0"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

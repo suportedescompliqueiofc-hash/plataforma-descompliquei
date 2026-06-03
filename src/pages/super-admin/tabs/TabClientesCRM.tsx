@@ -111,7 +111,8 @@ export default function TabClientesCRM({ toast, user }: any) {
         data.map(async (t: any) => {
           const { data: wp } = await supabase.from('whatsapp_connections').select('status').eq('organization_id', t.organization_id).maybeSingle();
           const { count } = await supabase.from('leads').select('id', { count: 'exact', head: true }).eq('organization_id', t.organization_id);
-          const { data: adminProfile } = await supabase.from('perfis').select('nome_completo, id, email').eq('organization_id', t.organization_id).limit(1).maybeSingle();
+          // Membro mais antigo = dono/responsável principal (usuarios_papeis não tem organization_id)
+          const { data: adminProfile } = await supabase.from('perfis').select('nome_completo, email').eq('organization_id', t.organization_id).order('criado_em', { ascending: true }).limit(1).maybeSingle();
           return { ...t, wp_status: wp?.status || null, lead_count: count || 0, admin_name: adminProfile?.nome_completo || 'Desconhecido', admin_email: adminProfile?.email || 'Nenhum e-mail' };
         })
       );
@@ -290,6 +291,10 @@ export default function TabClientesCRM({ toast, user }: any) {
                 <div>
                   <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">Criado em</span>
                   <p className="text-sm text-muted-foreground">{selectedTenant.created_at ? format(new Date(selectedTenant.created_at), 'dd/MM/yyyy') : '—'}</p>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-[11px] text-muted-foreground uppercase tracking-wider font-semibold">ID da Organização</span>
+                  <p className="text-xs font-mono text-muted-foreground select-all mt-0.5">{selectedTenant.organization_id}</p>
                 </div>
               </div>
 

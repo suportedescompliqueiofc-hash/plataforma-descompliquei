@@ -94,7 +94,17 @@ export function useVendas(dateRange?: DateRange) {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // Avança pipeline para "Procedimento Fechado" (posição padrão 6) se ainda não passou dessa etapa
+      if (data?.lead_id) {
+        await supabase
+          .from('leads')
+          .update({ posicao_pipeline: 6, is_closed: true, is_qualified: true })
+          .eq('id', data.lead_id)
+          .or('posicao_pipeline.is.null,posicao_pipeline.lt.6');
+        queryClient.invalidateQueries({ queryKey: ['leads'] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
       queryClient.invalidateQueries({ queryKey: ['vendas', orgId] });
       toast.success('Venda registrada com sucesso!');
     },

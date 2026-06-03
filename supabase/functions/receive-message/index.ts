@@ -375,6 +375,7 @@ serve(async (req) => {
     }
 
     // ── Encontrar ou Criar Lead ──────────────────────────────────────────────
+    let isNewLead = false;
     let leadQuery = supabaseAdmin
       .from('leads')
       .select('id, organization_id, usuario_id, nome, telefone, ia_ativa, origem, criativo_id')
@@ -433,6 +434,7 @@ serve(async (req) => {
         }
       } else {
         lead = newLead;
+        isNewLead = true;
         console.log(`Novo lead registrado: ${contactName} / ${phoneWithCountryCode} (${detectedOrigem})`);
       }
     } else {
@@ -863,6 +865,41 @@ serve(async (req) => {
             });
           } catch (logErr) {
             console.warn('[IA-DISPATCH] Falha ao registrar log de skip:', logErr);
+          }
+
+          // Triagem de IA para novos leads não-marketing (primeira mensagem apenas)
+          // Se a IA de triagem decidir ativar, ela própria dispara o whatsapp-ai-agent
+          if (isNewLead && lead.ia_ativa === null && !fromMe) {
+            const triageRequest = supabaseAdmin.functions.invoke('triage-lead-ia', {
+              body: {
+                lead_id: lead.id,
+                organization_id: lead.organization_id,
+                mensagem: text,
+                tipo_mensagem: tipoConteudo,
+                media_path: uploadedFilePath || null,
+              },
+            }).catch((err: any) => {
+              console.warn('[TRIAGE-IA] Erro ao invocar triage-lead-ia:', err);
+            });
+            // @ts-ignore
+            if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
+              // @ts-ignore
+              EdgeRuntime.waitUntil(triageRequest);
+            }
+          }
+
+          // Detectar etapa do pipeline automaticamente para leads atendidos por humanos
+          // Fire-and-forget: não bloqueia a resposta ao webhook
+          const detectRequest = supabaseAdmin.functions.invoke('detect-pipeline-stage', {
+            body: { lead_id: lead.id, organization_id: lead.organization_id },
+          }).catch((err: any) => {
+            console.warn('[DETECT-STAGE] Erro ao invocar detect-pipeline-stage:', err);
+          });
+
+          // @ts-ignore
+          if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
+            // @ts-ignore
+            EdgeRuntime.waitUntil(detectRequest);
           }
         }
     }

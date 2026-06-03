@@ -118,7 +118,17 @@ export function useAgendamentos() {
       if (error) throw error;
       return data as Agendamento;
     },
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // Avança pipeline para "Agendado" (posição padrão 5) se ainda não passou dessa etapa
+      if (data?.lead_id) {
+        await supabase
+          .from('leads')
+          .update({ posicao_pipeline: 5, is_scheduled: true, is_qualified: true })
+          .eq('id', data.lead_id)
+          .or('posicao_pipeline.is.null,posicao_pipeline.lt.5');
+        queryClient.invalidateQueries({ queryKey: ['leads'] });
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      }
       queryClient.invalidateQueries({ queryKey: ["agendamentos", orgId] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos-metricas", orgId] });
     },

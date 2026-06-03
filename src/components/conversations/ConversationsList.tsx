@@ -43,6 +43,7 @@ import { LeadModal } from "@/components/leads/LeadModal";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
+import { ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 
@@ -329,6 +330,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
   const { cadences } = useCadences();
   const { startCadence } = useLeadCadence(undefined);
   const { profile } = useProfile();
+  const isAnnaClaraOrg = profile?.organization_id === ANNA_CLARA_ORG_ID;
 
   const [searchTerm, setSearchTerm] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<Conversation | null>(null);
@@ -543,7 +545,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
         }
         const origemLabels: Record<string, string> = {
           marketing: 'Marketing', organico: 'Orgânico',
-          reativacao: 'Reativação', paciente: 'Paciente',
+          reativacao: 'Reativação', paciente: 'Paciente', convenio: 'Convênio',
         };
         toast.success(`Origem atualizada para "${origemLabels[bulkValue] ?? bulkValue}".`);
       } else if (activeAction === 'ai') {
@@ -720,6 +722,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                         <SelectItem value="organico">Orgânico</SelectItem>
                         <SelectItem value="reativacao">Reativação</SelectItem>
                         <SelectItem value="paciente">Paciente</SelectItem>
+                        {isAnnaClaraOrg && <SelectItem value="convenio">Convênio</SelectItem>}
                       </SelectContent>
                     </Select>
                   </div>
@@ -985,6 +988,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                     { value: 'organico',   label: 'Orgânico',   color: '#10b981' },
                     { value: 'reativacao', label: 'Reativação', color: '#06b6d4' },
                     { value: 'paciente',   label: 'Paciente',   color: '#14b8a6' },
+                    ...(isAnnaClaraOrg ? [{ value: 'convenio', label: 'Convênio', color: '#8b5cf6' }] : []),
                   ].map(opt => (
                     <button
                       key={opt.value}

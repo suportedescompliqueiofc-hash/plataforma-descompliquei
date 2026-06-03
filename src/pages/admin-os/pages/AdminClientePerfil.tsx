@@ -94,19 +94,15 @@ export default function AdminClientePerfil() {
     setLoading(true);
     try {
       // id é organization_id — resolver para platform_users.id via perfis
-      // Buscar IDs de superadmin para excluir da seleção de perfil
-      const { data: superadminRoles } = await supabase
-        .from('usuarios_papeis')
-        .select('usuario_id')
-        .eq('papel', 'superadmin');
-      const superadminIds = new Set((superadminRoles ?? []).map((r: any) => r.usuario_id));
-
+      // O membro mais antigo da org é sempre o dono/responsável principal
+      // (usuarios_papeis não tem organization_id — papel é global, não filtrável por org)
       const { data: perfisOrg } = await supabase
         .from('perfis')
         .select('id, nome_completo, email')
-        .eq('organization_id', id);
-      const perfil = perfisOrg?.find(p => !superadminIds.has(p.id))
-        ?? perfisOrg?.[0] ?? null;
+        .eq('organization_id', id)
+        .order('criado_em', { ascending: true });
+
+      const perfil = perfisOrg?.[0] ?? null;
 
       let puId: string | null = null;
       let puData: any = null;
@@ -127,6 +123,13 @@ export default function AdminClientePerfil() {
       if (!puData && perfil) {
         puData = { email: perfil.email, nome_completo: perfil.nome_completo };
       }
+
+      // Buscar nome da organização diretamente (source of truth para o header)
+      const { data: org } = await supabase
+        .from('organizations')
+        .select('name')
+        .eq('id', id)
+        .maybeSingle();
 
       // Buscar dados do tenant (produto, status, expiração)
       const { data: tenant } = await supabase
@@ -166,6 +169,8 @@ export default function AdminClientePerfil() {
 
       setClient(puData ? {
         ...puData,
+        org_name: org?.name ?? null,
+        organization_id: id,
         product_name,
         tenant_status: tenant?.status ?? null,
         trial_ends_at: tenant?.trial_ends_at ?? null,
@@ -258,13 +263,13 @@ export default function AdminClientePerfil() {
             <div className="flex flex-wrap items-start gap-4">
               {/* Avatar */}
               <div className="h-14 w-14 rounded-2xl bg-muted flex items-center justify-center shrink-0">
-                <span className="text-xl font-black text-foreground/60">{(client.clinic_name || client.nome_completo || 'C').charAt(0)}</span>
+                <span className="text-xl font-black text-foreground/60">{(client.org_name || client.clinic_name || client.nome_completo || 'C').charAt(0)}</span>
               </div>
 
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h1 className="text-xl font-bold text-foreground font-display">{client.clinic_name || client.nome_completo || 'Sem nome'}</h1>
+                  <h1 className="text-xl font-bold text-foreground font-display">{client.org_name || client.clinic_name || client.nome_completo || 'Sem nome'}</h1>
                   {client.product_name && (
                     <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full border bg-muted text-muted-foreground border-border/60">
                       {client.product_name}
@@ -272,6 +277,7 @@ export default function AdminClientePerfil() {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground mt-0.5">{client.email || '—'}</p>
+                <p className="text-[10px] font-mono text-muted-foreground/40 mt-0.5 select-all">{client.organization_id}</p>
                 {hasTrilha && (
                   <div className="flex items-center gap-3 mt-3">
                     <div className="flex items-center gap-2 flex-1 max-w-44">
