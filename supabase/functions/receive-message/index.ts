@@ -643,112 +643,66 @@ serve(async (req) => {
       }
     }
 
-    // ── Upload de Mídia ───────────────────────────────────────────────────────
+    // ── Resolução de Mídia (sem upload para Storage) ────────────────────────
+    // Estratégia: armazenar URL direta do UAZAPI em vez de fazer upload para o Supabase Storage.
+    // Isso elimina o consumo de storage e mantém as mídias acessíveis via UAZAPI.
     let uploadedFilePath: string | null = null;
     if (mediaPath && tipoConteudo !== 'texto') {
       try {
-        
         const isUrl = mediaPath.startsWith('http');
-        
-        if (isUrl) {
-            let buffer: ArrayBuffer | null = null;
-            let contentType = 'application/octet-stream';
-            let downloaded = false;
 
-            // Se for link mmg.whatsapp.net protegido, usar a própria UaZAPI para baixar
-            if (mediaPath.includes('mmg.whatsapp.net')) {
-                console.log(`[receive-message] Link protegido do WhatsApp detectado. Solicitando via UaZAPI /message/download...`);
-                
-                let uazapiBaseUrl = rawPayloadData?.BaseUrl;
-                let uazapiToken = rawPayloadData?.token;
-                
-                // Se a mensagem vier do webhook puro da UaZAPI (sem n8n wrapper)
-                // O UaZAPI não manda BaseUrl nem token. Neste caso, buscaremos da tabela de conexões.
-                if (!uazapiBaseUrl || !uazapiToken) {
-                    console.log(`[receive-message] Credenciais ausentes no payload. Buscando da tabela de conexões para a organização ${lead.organization_id}...`);
-                    const { data: conn } = await supabaseAdmin
-                        .from('whatsapp_connections')
-                        .select('uazapi_url, uazapi_token')
-                        .eq('organization_id', lead.organization_id)
-                        .eq('status', 'connected')
-                        .maybeSingle();
-                        
-                    if (conn) {
-                        uazapiBaseUrl = conn.uazapi_url;
-                        uazapiToken = conn.uazapi_token;
-                        console.log(`[receive-message] Credenciais encontradas no banco de dados.`);
-                    } else {
-                         console.error(`[receive-message] Nenhuma conexão ativa encontrada para a organização ${lead.organization_id}.`);
-                    }
+        if (isUrl && mediaPath.includes('mmg.whatsapp.net')) {
+            // Link protegido do WhatsApp — solicitar link permanente via UAZAPI
+            let uazapiBaseUrl = rawPayloadData?.BaseUrl;
+            let uazapiToken = rawPayloadData?.token;
+
+            if (!uazapiBaseUrl || !uazapiToken) {
+                const { data: conn } = await supabaseAdmin
+                    .from('whatsapp_connections')
+                    .select('uazapi_url, uazapi_token')
+                    .eq('organization_id', lead.organization_id)
+                    .eq('status', 'connected')
+                    .maybeSingle();
+                if (conn) {
+                    uazapiBaseUrl = conn.uazapi_url;
+                    uazapiToken = conn.uazapi_token;
                 }
-                
-                if (uazapiBaseUrl && uazapiToken && externalId) {
-                    try {
-                        const dlRes = await fetch(`${uazapiBaseUrl.replace(/\/$/, '')}/message/download`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'token': uazapiToken
-                            },
-                            body: JSON.stringify({ id: externalId, return_base64: true, return_link: false })
-                        });
-                        
-                        if (dlRes.ok) {
-                            const dlData = await dlRes.json();
-                            if (dlData.base64Data) {
-                                const binaryString = atob(dlData.base64Data);
-                                const len = binaryString.length;
-                                const bytes = new Uint8Array(len);
-                                for (let i = 0; i < len; i++) bytes[i] = binaryString.charCodeAt(i);
-                                buffer = bytes.buffer;
-                                contentType = dlData.mimetype || contentType;
-                                downloaded = true;
-                                console.log(`[receive-message] Download via UaZAPI concluído com sucesso. Mime: ${contentType}`);
-                            }
+            }
+
+            if (uazapiBaseUrl && uazapiToken && externalId) {
+                try {
+                    const dlRes = await fetch(`${uazapiBaseUrl.replace(/\/$/, '')}/message/download`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'token': uazapiToken },
+                        body: JSON.stringify({ id: externalId, return_base64: false, return_link: true })
+                    });
+                    if (dlRes.ok) {
+                        const dlData = await dlRes.json();
+                        // UAZAPI retorna o link nos campos: link, url, mediaUrl ou fileUrl
+                        const link = dlData.link || dlData.url || dlData.mediaUrl || dlData.fileUrl;
+                        if (link && typeof link === 'string' && link.startsWith('http')) {
+                            uploadedFilePath = link;
+                            console.log(`[receive-message] Link UAZAPI obtido: ${link}`);
+                        } else {
+                            // Fallback: usar mediaPath original se UAZAPI não retornar link
+                            uploadedFilePath = mediaPath;
+                            console.log(`[receive-message] UAZAPI sem link — usando mediaPath original`);
                         }
-                    } catch (dlErr) {
-                        console.error(`[receive-message] Erro ao chamar /message/download:`, dlErr);
                     }
+                } catch (dlErr) {
+                    console.error(`[receive-message] Erro ao obter link UAZAPI:`, dlErr);
+                    uploadedFilePath = mediaPath; // fallback
                 }
             }
-
-            // Fallback para HTTP GET normal (links públicos)
-            if (!downloaded) {
-                const mediaRes = await fetch(mediaPath);
-                if (mediaRes.ok) {
-                    buffer = await mediaRes.arrayBuffer();
-                    contentType = mediaRes.headers.get('content-type') || contentType;
-                    downloaded = true;
-                }
-            }
-
-            if (downloaded && buffer) {
-                let ext = 'bin';
-                if (contentType.includes('image/jpeg')) ext = 'jpg';
-                else if (contentType.includes('image/png')) ext = 'png';
-                else if (contentType.includes('video/mp4')) ext = 'mp4';
-                else if (contentType.includes('audio/ogg')) ext = 'ogg';
-                else if (contentType.includes('application/pdf')) ext = 'pdf';
-                else if (tipoConteudo === 'audio') ext = 'ogg';
-                else if (tipoConteudo === 'imagem') ext = 'jpg';
-
-                const bucketName = tipoConteudo === 'audio' ? 'audio-mensagens' : 'media-mensagens';
-                const path = `${lead.organization_id}/${lead.id}/${Date.now()}.${ext}`;
-                
-                const { error: uploadErr } = await supabaseAdmin.storage.from(bucketName).upload(path, buffer, {
-                    contentType: contentType,
-                    upsert: true
-                });
-                
-                if (!uploadErr) {
-                    uploadedFilePath = path;
-                }
-            }
+        } else if (isUrl) {
+            // URL pública direta — usar sem processamento
+            uploadedFilePath = mediaPath;
         } else {
+            // Path local do UAZAPI
             uploadedFilePath = mediaPath;
         }
       } catch (e) {
-        console.error('[receive-message] Falha crítica ao baixar mídia:', e);
+        console.error('[receive-message] Falha ao resolver mídia:', e);
       }
     }
 

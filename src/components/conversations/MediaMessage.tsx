@@ -22,6 +22,13 @@ export function MediaMessage({ path, type, onView }: MediaMessageProps) {
       return;
     }
 
+    // URL direta (UAZAPI link ou blob) — usa sem passar pela Edge Function
+    if (path.startsWith('blob:') || path.startsWith('http')) {
+      setMediaUrl(path);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
