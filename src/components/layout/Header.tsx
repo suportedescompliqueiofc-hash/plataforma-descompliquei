@@ -11,9 +11,12 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
 import { NotificationsBell } from "./NotificationsBell";
+import { useLocation } from "react-router-dom";
 
 export function Header({ onMenuClick, isSidebarCollapsed }: { onMenuClick: () => void; isSidebarCollapsed: boolean }) {
   const { user, signOut } = useAuth();
+  const { pathname } = useLocation();
+  const isPlataforma = pathname.startsWith('/plataforma');
 
   const getInitials = (email: string) => {
     return email.substring(0, 2).toUpperCase();
@@ -31,7 +34,7 @@ export function Header({ onMenuClick, isSidebarCollapsed }: { onMenuClick: () =>
 
         {/* Right side */}
         <div className="flex items-center gap-1">
-          <NotificationsBell />
+          {!isPlataforma && <NotificationsBell />}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-2 rounded-full p-1 hover:bg-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring">

@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   ArrowLeft, ChevronRight, Loader2, Save, Brain, Users,
-  CheckSquare2, BookOpen, Zap, Layers, Check, X as XIcon,
+  CheckSquare2, BookOpen, Zap, Layers, Check, X as XIcon, Sparkles,
 } from 'lucide-react';
 import { differenceInDays, parseISO, addDays, format } from 'date-fns';
 
@@ -31,6 +31,7 @@ interface Produto {
   acesso_sessoes_taticas: boolean;
   acesso_materiais: boolean;
   acesso_ia_comercial: boolean;
+  acesso_os: boolean;
   max_leads: number;
   max_usuarios_crm: number;
 }
@@ -86,11 +87,12 @@ function calcBadge(status: string, trial_ends_at: string | null): { badge: Badge
 }
 
 const FUNCIONALIDADES = [
-  { key: 'acesso_cerebro',         label: 'Cérebro',         icon: Brain },
-  { key: 'acesso_crm',             label: 'CRM',             icon: Users },
-  { key: 'acesso_sessoes_taticas', label: 'Sessões Táticas', icon: CheckSquare2 },
-  { key: 'acesso_materiais',       label: 'Materiais',       icon: BookOpen },
-  { key: 'acesso_ia_comercial',    label: 'IA Comercial',    icon: Zap },
+  { key: 'acesso_cerebro',         label: 'Cérebro',            icon: Brain },
+  { key: 'acesso_crm',             label: 'CRM',                icon: Users },
+  { key: 'acesso_sessoes_taticas', label: 'Sessões Táticas',    icon: CheckSquare2 },
+  { key: 'acesso_materiais',       label: 'Materiais',          icon: BookOpen },
+  { key: 'acesso_ia_comercial',    label: 'IA Comercial',       icon: Zap },
+  { key: 'acesso_os',              label: 'Athos GS',           icon: Sparkles },
 ] as const;
 
 // ─── componente ───────────────────────────────────────────────────────────────
@@ -117,11 +119,12 @@ export default function AdminAcessoCliente({ orgId: propOrgId }: { orgId?: strin
     acesso_sessoes_taticas: boolean | null;
     acesso_materiais: boolean | null;
     acesso_ia_comercial: boolean | null;
+    acesso_os: boolean | null;
     pilares_liberados: string[] | null;
     ias_liberadas: string[] | null;
   }>({
     acesso_cerebro: null, acesso_crm: null, acesso_sessoes_taticas: null,
-    acesso_materiais: null, acesso_ia_comercial: null,
+    acesso_materiais: null, acesso_ia_comercial: null, acesso_os: null,
     pilares_liberados: null, ias_liberadas: null,
   });
 
@@ -170,7 +173,7 @@ export default function AdminAcessoCliente({ orgId: propOrgId }: { orgId?: strin
           .select(`organization_id, plan, status, trial_ends_at, monthly_fee, notes,
                    product_id, access_starts_at, organizations(name),
                    acesso_cerebro, acesso_crm, acesso_sessoes_taticas,
-                   acesso_materiais, acesso_ia_comercial,
+                   acesso_materiais, acesso_ia_comercial, acesso_os,
                    pilares_liberados, ias_liberadas`)
           .eq('organization_id', orgId)
           .maybeSingle(),
@@ -249,6 +252,7 @@ export default function AdminAcessoCliente({ orgId: propOrgId }: { orgId?: strin
         acesso_sessoes_taticas: t.acesso_sessoes_taticas ?? null,
         acesso_materiais:       t.acesso_materiais       ?? null,
         acesso_ia_comercial:    t.acesso_ia_comercial    ?? null,
+        acesso_os:              t.acesso_os              ?? null,
         pilares_liberados:      t.pilares_liberados      ?? null,
         ias_liberadas:          t.ias_liberadas          ?? null,
       });
@@ -279,7 +283,7 @@ export default function AdminAcessoCliente({ orgId: propOrgId }: { orgId?: strin
     // Ao trocar produto, limpa overrides (herda defaults do novo produto)
     setFeatureOverrides({
       acesso_cerebro: null, acesso_crm: null, acesso_sessoes_taticas: null,
-      acesso_materiais: null, acesso_ia_comercial: null,
+      acesso_materiais: null, acesso_ia_comercial: null, acesso_os: null,
       pilares_liberados: null, ias_liberadas: null,
     });
   }
@@ -291,6 +295,7 @@ export default function AdminAcessoCliente({ orgId: propOrgId }: { orgId?: strin
     acesso_sessoes_taticas: featureOverrides.acesso_sessoes_taticas ?? produtoSelecionado?.acesso_sessoes_taticas ?? false,
     acesso_materiais:       featureOverrides.acesso_materiais       ?? produtoSelecionado?.acesso_materiais       ?? false,
     acesso_ia_comercial:    featureOverrides.acesso_ia_comercial    ?? produtoSelecionado?.acesso_ia_comercial    ?? false,
+    acesso_os:              featureOverrides.acesso_os              ?? produtoSelecionado?.acesso_os              ?? false,
     pilares_liberados:      featureOverrides.pilares_liberados      ?? produtoSelecionado?.pilares_liberados      ?? [],
     ias_liberadas:          featureOverrides.ias_liberadas          ?? produtoSelecionado?.ias_liberadas          ?? [],
   };
@@ -312,6 +317,7 @@ export default function AdminAcessoCliente({ orgId: propOrgId }: { orgId?: strin
           acesso_sessoes_taticas: featureOverrides.acesso_sessoes_taticas,
           acesso_materiais:       featureOverrides.acesso_materiais,
           acesso_ia_comercial:    featureOverrides.acesso_ia_comercial,
+          acesso_os:              featureOverrides.acesso_os,
           pilares_liberados:      featureOverrides.pilares_liberados,
           ias_liberadas:          featureOverrides.ias_liberadas,
         })

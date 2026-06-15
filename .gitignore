@@ -23,3 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 .dyad/
+.claude/
+
+# Windows reserved device names (created by accident)
+nul
+

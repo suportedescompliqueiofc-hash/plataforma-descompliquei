@@ -5,7 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import {
   StickyNote, Phone, CalendarDays, Bot, ClipboardList,
-  Pencil, Trash2, Loader2, Send, X, FileText,
+  Pencil, Trash2, Loader2, Send, X, FileText, Sparkles,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ const TIPOS = {
   manual:          { label: "Manual",        icon: StickyNote,    color: "text-blue-600",   bg: "bg-blue-50",   border: "border-blue-200/60" },
   formulario_meta: { label: "Meta Lead Ads", icon: ClipboardList, color: "text-amber-600",  bg: "bg-amber-50",  border: "border-amber-200/60" },
   sistema:         { label: "Sistema",       icon: Bot,           color: "text-muted-foreground", bg: "bg-muted/50", border: "border-border/40" },
+  os:              { label: "OS",            icon: Sparkles,      color: "text-purple-600",       bg: "bg-purple-50", border: "border-purple-200/60" },
   reuniao:         { label: "Reunião",       icon: CalendarDays,  color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200/60" },
   ligacao:         { label: "Ligação",       icon: Phone,         color: "text-violet-600", bg: "bg-violet-50", border: "border-violet-200/60" },
 } as const;

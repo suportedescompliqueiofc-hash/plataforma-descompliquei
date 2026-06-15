@@ -8,10 +8,13 @@ import { Loader2, User, Shield, CreditCard, Save, LogOut, Upload, Sun, Moon } fr
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import PasswordChangeCard from "@/components/settings/PasswordChangeCard";
+import { useJornada, getJornadaProgress } from "@/hooks/useJornada";
 
 export default function Configuracoes() {
   const { user } = useAuth();
-  const { plataformaUser, plan, progressPercent } = usePlataforma();
+  const { plataformaUser, plan } = usePlataforma();
+  const { data: jornada } = useJornada();
+  const progressPercent = jornada ? getJornadaProgress(jornada).pct : 0;
 
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -312,7 +315,7 @@ export default function Configuracoes() {
                 </div>
               </div>
               <div className="rounded-lg bg-muted/30 border border-border p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5">Progresso na Trilha</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-1.5">Progresso na Jornada</p>
                 <p className="text-base font-bold text-foreground font-display">{progressPercent}%</p>
                 <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
                   <div className="h-full bg-foreground rounded-full transition-all duration-500" style={{ width: `${progressPercent}%` }} />

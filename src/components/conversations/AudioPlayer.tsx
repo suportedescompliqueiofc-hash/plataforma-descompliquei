@@ -132,7 +132,7 @@ export function AudioPlayer({ audioUrl, variant = 'incoming' }: AudioPlayerProps
 
   return (
     <div className="flex flex-col gap-1 w-[260px] xs:w-[300px] sm:w-[320px]">
-      <audio ref={audioRef} src={audioUrl} preload="metadata" crossOrigin="anonymous" />
+      <audio ref={audioRef} src={audioUrl} preload="metadata" />
       
       <div className="flex items-center gap-2">
         <Button 

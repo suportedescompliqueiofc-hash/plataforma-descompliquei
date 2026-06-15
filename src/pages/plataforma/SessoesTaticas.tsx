@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Calendar as CalendarIcon, Video, PlayCircle, ExternalLink, Download, Clock, Zap, Target, ChevronLeft, ChevronRight, CalendarPlus } from "lucide-react";
-import { format, isPast, isFuture, addHours, differenceInMinutes, startOfWeek, addDays, isSameDay, subWeeks, addWeeks } from "date-fns";
+import { Button } from "@/components/ui/button";
+import {
+  Calendar as CalendarIcon, Video, PlayCircle, Clock, Zap, Target,
+  ChevronLeft, ChevronRight, CalendarPlus, Tv2,
+} from "lucide-react";
+import { format, isPast, isFuture, addHours, isSameDay, subWeeks, addWeeks, startOfWeek, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 type Session = {
   id: string;
@@ -25,386 +28,371 @@ export default function SessoesTaticas() {
 
   useEffect(() => {
     async function loadSessions() {
-      // Usando uma tabela simulada (ou a real se criada) 
       const { data, error } = await supabase
         .from('platform_sessoes_taticas')
         .select('*')
         .eq('active', true)
         .order('scheduled_at', { ascending: true });
-        
+
       if (!error && data) {
         setSessions(data);
-      } else {
-        // Fallback visual/mock no Frontend caso a tabela ainda esteja vazia
-        console.warn('Usando dados mock de sessão', error);
-        const mockData: Session[] = [
-          {
-            id: '1',
-            type: 'Comercial',
-            title: 'Quebra de Objeções Premium',
-            description: 'Aprenda na prática como não dar desconto em Harmonização usando as técnicas de contorno.',
-            scheduled_at: new Date(new Date().getTime() + 1000 * 60 * 60 * 2).toISOString(), // Daqui a 2h
-            meet_link: 'https://meet.google.com/xyz',
-          },
-          {
-            id: '2',
-            type: 'Demanda',
-            title: 'Configurando Campanhas de Remarketing',
-            description: 'Passo a passo no Gerenciador de Anúncios para reativar base.',
-            scheduled_at: new Date(new Date().getTime() + 1000 * 60 * 60 * 24 * 7).toISOString(), // Daqui a 7 dias
-            meet_link: 'https://meet.google.com/abc',
-          },
-          {
-            id: '3',
-            type: 'Comercial',
-            title: 'Script Perfeito de Follow-up',
-            description: 'Revisão do roteiro Tático D+1 e D+3 ao vivo e análise de cases.',
-            scheduled_at: new Date(new Date().getTime() - 1000 * 60 * 60 * 24 * 5).toISOString(), // 5 dias atrás
-            recording_url: 'https://youtube.com',
-          }
-        ];
-        if (!data || data.length === 0) setSessions(mockData);
       }
       setLoading(false);
     }
     loadSessions();
   }, []);
 
-  const now = new Date();
-  const futureSessions = sessions.filter(s => isFuture(new Date(s.scheduled_at))).sort((a,b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
-  const pastSessions = sessions.filter(s => isPast(new Date(s.scheduled_at)) && s.recording_url).sort((a,b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime());
-  
+  const futureSessions = sessions
+    .filter(s => isFuture(new Date(s.scheduled_at)))
+    .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+  const pastSessions = sessions
+    .filter(s => isPast(new Date(s.scheduled_at)) && s.recording_url)
+    .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime());
+
   const nextSession = futureSessions[0];
 
-  const handlePrevWeek = () => setCurrentWeekStart(prev => subWeeks(prev, 1));
-  const handleNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
   const weekDays = Array.from({ length: 7 }).map((_, i) => addDays(currentWeekStart, i));
-
-  const generateICS = (session: Session) => {
-    const startDate = new Date(session.scheduled_at);
-    const endDate = addHours(startDate, 1);
-
-    const pad = (n: number) => n < 10 ? '0' + n : n;
-    const formatICSDate = (date: Date) => {
-      return date.getUTCFullYear() +
-             pad(date.getUTCMonth() + 1) +
-             pad(date.getUTCDate()) + 'T' +
-             pad(date.getUTCHours()) +
-             pad(date.getUTCMinutes()) +
-             pad(date.getUTCSeconds()) + 'Z';
-    };
-
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//Descompliquei//Sessoes Taticas//PT
-BEGIN:VEVENT
-UID:${session.id}@descompliquei.com
-DTSTAMP:${formatICSDate(new Date())}
-DTSTART:${formatICSDate(startDate)}
-DTEND:${formatICSDate(endDate)}
-SUMMARY:Sessão Tática - ${session.type}: ${session.title}
-DESCRIPTION:${session.description}\\n\\nLink para participar: ${session.meet_link || 'Link será disponibilizado na hora'}
-URL:${session.meet_link || ''}
-LOCATION:Online
-BEGIN:VALARM
-ACTION:DISPLAY
-DESCRIPTION:A Sessão Tática vai começar em 15min!
-TRIGGER:-PT15M
-END:VALARM
-END:VEVENT
-END:VCALENDAR`;
-
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `Sessao_Tatica_${session.title.replace(/\\s+/g, '_')}.ics`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
 
   const openGoogleCalendar = (session: Session) => {
     const startDate = new Date(session.scheduled_at);
     const endDate = addHours(startDate, 1);
-    
-    // Format: YYYYMMDDTHHmmssZ
-    const formatGCalDate = (date: Date) => date.toISOString().replace(/-|:|\.\d\d\d/g, '');
-    
+    const fmt = (d: Date) => d.toISOString().replace(/-|:|\.\d\d\d/g, '');
     const params = new URLSearchParams({
       action: 'TEMPLATE',
-      text: `Sessão Tática - ${session.type}: ${session.title}`,
-      dates: `${formatGCalDate(startDate)}/${formatGCalDate(endDate)}`,
-      details: `${session.description || ''}\\n\\nLink para participar: ${session.meet_link || 'Link será disponibilizado na hora'}`,
-      location: session.meet_link ? session.meet_link : 'Online'
+      text: `Sessão Tática — ${session.type}: ${session.title}`,
+      dates: `${fmt(startDate)}/${fmt(endDate)}`,
+      details: `${session.description}\n\nLink: ${session.meet_link || 'disponibilizado na hora'}`,
+      location: session.meet_link || 'Online',
     });
-    
     window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
   };
 
-  const getTypeStyle = (type: string) => {
-    if (type.toLowerCase() === 'comercial') return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400';
-    if (type.toLowerCase() === 'demanda') return 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400';
-    return 'bg-muted text-muted-foreground border-border';
-  };
+  const typeColor = (type: string) =>
+    type.toLowerCase() === 'comercial' ? 'bg-emerald-500' : 'bg-blue-500';
 
-  const getTypeIcon = (type: string) => {
-    if (type.toLowerCase() === 'comercial') return <Target className="w-3.5 h-3.5 mr-1.5" />;
-    if (type.toLowerCase() === 'demanda') return <Zap className="w-3.5 h-3.5 mr-1.5" />;
-    return <Video className="w-3.5 h-3.5 mr-1.5" />;
-  };
+  const typePill = (type: string) =>
+    type.toLowerCase() === 'comercial'
+      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+      : 'bg-blue-500/10 text-blue-600 border-blue-500/20';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10 pb-12">
-      {/* HEADER */}
-      <div className="space-y-6 border-b border-border pb-8" data-tutorial="sessoes-header">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground font-display">Sessões Táticas</h1>
-          <p className="text-muted-foreground text-[15px] mt-1">Mentorias ao vivo toda semana com o time da Descompliquei.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="bg-emerald-50 text-emerald-600 border-emerald-200 px-3 py-0.5 text-xs font-medium">
-            <Target className="w-3 h-3 mr-1.5" /> Comercial
-          </Badge>
-          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200 px-3 py-0.5 text-xs font-medium">
-            <Zap className="w-3 h-3 mr-1.5" /> Demanda
-          </Badge>
+    <div className="max-w-5xl mx-auto space-y-6 pb-12">
+
+      {/* ─── Hero ─── */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-8 py-10 sm:px-12 sm:py-12">
+        <div className="absolute inset-0 opacity-[0.04]" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }} />
+        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full opacity-55 blur-[100px]"
+          style={{ background: 'radial-gradient(circle, #ea580c, transparent 65%)' }} />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-35 blur-[80px]"
+          style={{ background: 'radial-gradient(circle, #d97706, transparent 65%)' }} />
+
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8">
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-white/[0.07] backdrop-blur-sm border border-white/[0.08]">
+                <Tv2 className="h-5 w-5 text-white/80" />
+              </div>
+              <div className="h-px flex-1 max-w-[100px] bg-gradient-to-r from-white/20 to-transparent" />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-display leading-[1.15]">
+                Sessões Táticas
+              </h1>
+              <p className="text-[13px] text-white/40 mt-2 max-w-sm leading-relaxed">
+                Mentorias ao vivo toda semana com o time da Descompliquei.
+              </p>
+            </div>
+          </div>
+
+          {nextSession && (
+            <div className="shrink-0 flex items-center gap-3 bg-white/[0.04] backdrop-blur-sm rounded-2xl px-5 py-4 border border-white/[0.06]">
+              <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', typeColor(nextSession.type))}>
+                <Video className="h-4 w-4 text-white" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Próxima sessão</p>
+                <p className="text-[13px] font-semibold text-white leading-snug mt-0.5 max-w-[180px] line-clamp-1">{nextSession.title}</p>
+                <p className="text-[11px] text-white/40 mt-0.5">
+                  {format(new Date(nextSession.scheduled_at), "dd MMM 'às' HH:mm", { locale: ptBR })}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* PRÓXIMA SESSÃO (DESTAQUE) */}
+      {/* ─── Próxima Sessão (destaque) ─── */}
       {nextSession && (
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-foreground font-display">Próxima Sessão</h2>
-          <div className="rounded-xl border border-border shadow-card bg-card relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-[3px] h-full bg-[#E85D24] rounded-r-full" />
-            <div className="p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div className="space-y-3 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className={getTypeStyle(nextSession.type) + " text-xs font-medium"}>
-                    {getTypeIcon(nextSession.type)} {nextSession.type}
-                  </Badge>
-                  <span className="flex items-center text-xs font-medium text-muted-foreground">
-                    <Clock className="w-3.5 h-3.5 mr-1.5" />
-                    {format(new Date(nextSession.scheduled_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground leading-tight mb-1.5 font-display">{nextSession.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{nextSession.description}</p>
-                </div>
+        <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">PRÓXIMA SESSÃO</p>
               </div>
-              <div className="shrink-0 flex flex-col gap-2 w-full md:w-auto">
-                <Button
-                  size="lg"
-                  onClick={() => window.open(nextSession.meet_link, '_blank')}
-                  className="bg-[#E85D24] hover:bg-[#D04E1A] text-white min-w-[200px] font-medium text-sm"
-                >
-                  <Video className="w-4 h-4 mr-2" /> Entrar na Sessão
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-border text-foreground hover:bg-muted text-sm font-medium"
-                  onClick={() => openGoogleCalendar(nextSession)}
-                >
-                  <CalendarPlus className="w-4 h-4 mr-2" /> Google Calendar
-                </Button>
+            </div>
+          </div>
+
+          <div className="p-6 flex flex-col md:flex-row md:items-center gap-6">
+            <div className="flex-1 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border', typePill(nextSession.type))}>
+                  {nextSession.type.toLowerCase() === 'comercial'
+                    ? <Target className="h-3 w-3" />
+                    : <Zap className="h-3 w-3" />
+                  }
+                  {nextSession.type}
+                </span>
+                <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                  <Clock className="h-3.5 w-3.5" />
+                  {format(new Date(nextSession.scheduled_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                </span>
               </div>
+              <h3 className="text-lg font-bold text-foreground font-display">{nextSession.title}</h3>
+              <p className="text-[13px] text-muted-foreground leading-relaxed">{nextSession.description}</p>
+            </div>
+
+            <div className="flex flex-col gap-2 shrink-0 w-full md:w-auto">
+              <Button
+                onClick={() => nextSession.meet_link && window.open(nextSession.meet_link, '_blank')}
+                className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5"
+              >
+                <Video className="h-3.5 w-3.5" /> Entrar na Sessão
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => openGoogleCalendar(nextSession)}
+                className="h-9 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"
+              >
+                <CalendarPlus className="h-3.5 w-3.5" /> Google Calendar
+              </Button>
             </div>
           </div>
         </div>
       )}
 
-      {/* CALENDÁRIO & GRAVAÇÕES (LAYOUT COM GRID) */}
-      <div className="space-y-12">
-        
-        {/* CALENDÁRIO SEMANAL */}
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-4">
-            <h2 className="text-base font-semibold text-foreground font-display">
-              Calendário da Semana
-            </h2>
-            <div className="flex items-center gap-4 bg-muted/50 p-1 rounded-lg">
-              <Button variant="ghost" size="icon" onClick={handlePrevWeek} className="h-8 w-8 hover:bg-background shadow-sm">
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <span className="font-bold text-foreground capitalize min-w-[120px] text-center text-sm">
-                {format(currentWeekStart, "MMM 'de' yyyy", { locale: ptBR })}
-              </span>
-              <Button variant="ghost" size="icon" onClick={handleNextWeek} className="h-8 w-8 hover:bg-background shadow-sm">
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
+      {/* ─── Calendário Semanal ─── */}
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-muted">
+              <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">CALENDÁRIO DA SEMANA</p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-            {weekDays.map((day, idx) => {
-              const daySessions = sessions.filter(s => isSameDay(new Date(s.scheduled_at), day));
-              const isToday = isSameDay(day, new Date());
-              
-              return (
-                <div key={idx} className={`flex flex-col min-h-[160px] rounded-xl border ${isToday ? 'border-[#E85D24] bg-[#E85D24]/5 ring-1 ring-[#E85D24]/20' : 'border-border bg-card'} overflow-hidden shadow-sm transition-all`}>
-                  <div className={`text-center py-2.5 border-b ${isToday ? 'bg-[#E85D24]/10 border-[#E85D24]/20' : 'border-border bg-muted/30'}`}>
-                    <div className={`text-[10px] uppercase font-bold tracking-wider ${isToday ? 'text-[#E85D24]' : 'text-muted-foreground'}`}>
-                      {format(day, 'EEEE', { locale: ptBR }).split('-')[0]}
-                    </div>
-                    <div className={`text-lg font-bold mt-0.5 font-display ${isToday ? 'text-[#E85D24]' : 'text-foreground'}`}>
-                      {format(day, 'dd')}
-                    </div>
+          <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5">
+            <button
+              onClick={() => setCurrentWeekStart(prev => subWeeks(prev, 1))}
+              className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-background transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </button>
+            <span className="text-[12px] font-semibold text-foreground capitalize px-2 min-w-[110px] text-center">
+              {format(currentWeekStart, "MMM 'de' yyyy", { locale: ptBR })}
+            </span>
+            <button
+              onClick={() => setCurrentWeekStart(prev => addWeeks(prev, 1))}
+              className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-background transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4 grid grid-cols-7 gap-2">
+          {weekDays.map((day, idx) => {
+            const daySessions = sessions.filter(s => isSameDay(new Date(s.scheduled_at), day));
+            const isToday = isSameDay(day, new Date());
+
+            return (
+              <div
+                key={idx}
+                className={cn(
+                  'flex flex-col rounded-xl border overflow-hidden min-h-[130px] transition-all',
+                  isToday
+                    ? 'border-foreground/30 bg-foreground/[0.03]'
+                    : 'border-border/50 bg-background/40'
+                )}
+              >
+                <div className={cn(
+                  'text-center py-2 border-b',
+                  isToday ? 'border-foreground/10 bg-foreground/[0.04]' : 'border-border/40'
+                )}>
+                  <div className={cn(
+                    'text-[9px] uppercase font-bold tracking-wider',
+                    isToday ? 'text-foreground/60' : 'text-muted-foreground/50'
+                  )}>
+                    {format(day, 'EEE', { locale: ptBR }).replace('.', '')}
                   </div>
-                  <div className="p-2 flex-1 flex flex-col gap-2 relative">
-                    {daySessions.length > 0 ? (
-                      daySessions.map(session => (
-                        <div 
-                           key={session.id} 
-                           title={session.description || session.title}
-                           onClick={() => setSelectedSession(session)} 
-                           className="group cursor-pointer rounded-md p-2 text-xs border border-border/60 bg-background hover:border-border/80 hover:shadow-sm transition-all relative overflow-hidden"
-                        >
-                           <div className={`absolute top-0 left-0 w-1 h-full ${session.type.toLowerCase() === 'comercial' ? 'bg-emerald-500' : 'bg-blue-500'}`} />
-                           <div className="pl-1.5 flex flex-col justify-between h-full gap-1.5">
-                             <div className="font-semibold leading-tight line-clamp-2 text-foreground group-hover:text-[#E85D24] transition-colors">
-                               {session.title}
-                             </div>
-                             <div className="flex items-center justify-between mt-auto pt-1 border-t border-border/50">
-                               <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-                                 <Clock className="w-3 h-3" /> {format(new Date(session.scheduled_at), "HH:mm")}
-                               </div>
-                               <Badge variant="outline" className={`text-[8px] px-1 py-0 h-4 border-transparent ${session.type.toLowerCase() === 'comercial' ? 'bg-emerald-500/10 text-emerald-600' : 'bg-blue-500/10 text-blue-600'}`}>
-                                 {session.type.substring(0,3).toUpperCase()}
-                               </Badge>
-                             </div>
-                           </div>
+                  <div className={cn(
+                    'text-base font-bold font-display mt-0.5',
+                    isToday ? 'text-foreground' : 'text-foreground/70'
+                  )}>
+                    {format(day, 'dd')}
+                  </div>
+                </div>
+
+                <div className="p-1.5 flex-1 flex flex-col gap-1.5">
+                  {daySessions.length > 0 ? daySessions.map(session => (
+                    <button
+                      key={session.id}
+                      onClick={() => setSelectedSession(session)}
+                      className="group w-full text-left rounded-lg p-1.5 text-[10px] border border-border/40 bg-card hover:border-border hover:shadow-sm transition-all overflow-hidden relative"
+                    >
+                      <div className={cn('absolute top-0 left-0 w-[3px] h-full', typeColor(session.type))} />
+                      <div className="pl-2.5">
+                        <div className="font-semibold leading-snug text-foreground line-clamp-2">{session.title}</div>
+                        <div className="flex items-center gap-1 mt-1 text-muted-foreground/60">
+                          <Clock className="h-2.5 w-2.5" />
+                          {format(new Date(session.scheduled_at), 'HH:mm')}
                         </div>
-                      ))
-                    ) : (
-                       <div className="absolute inset-0 flex flex-col items-center justify-center opacity-40">
-                         <div className="w-1 h-1 rounded-full bg-muted-foreground/30 mb-1" />
-                         <div className="w-1 h-1 rounded-full bg-muted-foreground/30 mb-1" />
-                         <div className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                       </div>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* GRAVAÇÕES DISPONÍVEIS */}
-        <div className="space-y-6 pt-4 border-t border-border">
-          <h2 className="text-base font-semibold text-foreground font-display">
-            Sessões Gravadas
-          </h2>
-          {pastSessions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {pastSessions.map(session => (
-                <div key={session.id} className="rounded-xl border border-border bg-card shadow-card hover:bg-muted/30 transition-all group cursor-pointer p-4" onClick={() => window.open(session.recording_url, '_blank')}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                      <PlayCircle className="w-4 h-4 text-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="text-[10px] text-muted-foreground font-mono">
-                          {format(new Date(session.scheduled_at), "dd MMM yy", { locale: ptBR })}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/40">•</span>
-                        <span className="text-[10px] text-muted-foreground font-medium">{session.type}</span>
                       </div>
-                      <h4 className="font-semibold text-foreground text-sm truncate">
-                        {session.title}
-                      </h4>
+                    </button>
+                  )) : (
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="flex flex-col gap-0.5 items-center opacity-20">
+                        <div className="w-1 h-1 rounded-full bg-muted-foreground" />
+                        <div className="w-1 h-1 rounded-full bg-muted-foreground" />
+                        <div className="w-1 h-1 rounded-full bg-muted-foreground" />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center p-10 bg-card rounded-xl border border-dashed border-border text-center space-y-4 shadow-card">
-              <div className="w-11 h-11 bg-muted rounded-xl flex items-center justify-center">
-                <PlayCircle className="w-5 h-5 text-muted-foreground" />
               </div>
-              <div className="max-w-xs space-y-1">
-                <h3 className="text-base font-semibold text-foreground font-display">Sem gravações</h3>
-                <p className="text-[13px] text-muted-foreground">As gravações das próximas sessões aparecerão aqui assim que forem disponibilizadas.</p>
-              </div>
-            </div>
-          )}
+            );
+          })}
         </div>
-
       </div>
 
-      {/* MODAL DETALHES DA SESSÃO */}
+      {/* ─── Sessões Gravadas ─── */}
+      <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+        <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-muted">
+              <PlayCircle className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">SESSÕES GRAVADAS</p>
+              <p className="text-[10px] text-muted-foreground/50 mt-0.5">Assista quando quiser</p>
+            </div>
+          </div>
+        </div>
+
+        {pastSessions.length > 0 ? (
+          <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pastSessions.map(session => (
+              <button
+                key={session.id}
+                onClick={() => window.open(session.recording_url, '_blank')}
+                className="group w-full text-left overflow-hidden rounded-xl border border-border/60 bg-background hover:border-border hover:shadow-md transition-all"
+              >
+                <div className={cn('h-[3px] w-full', typeColor(session.type))} />
+                <div className="p-4 flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-muted group-hover:bg-muted/70 transition-colors shrink-0">
+                    <PlayCircle className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className={cn('text-[9px] font-bold uppercase tracking-wider', session.type.toLowerCase() === 'comercial' ? 'text-emerald-500' : 'text-blue-500')}>
+                        {session.type}
+                      </span>
+                      <span className="text-muted-foreground/30 text-[9px]">·</span>
+                      <span className="text-[10px] text-muted-foreground/50 font-mono">
+                        {format(new Date(session.scheduled_at), 'dd MMM yy', { locale: ptBR })}
+                      </span>
+                    </div>
+                    <h4 className="text-[13px] font-semibold text-foreground leading-snug line-clamp-2">{session.title}</h4>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-10 text-center p-6">
+            <div className="p-3 rounded-xl bg-muted/40 mb-3">
+              <PlayCircle className="h-6 w-6 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Nenhuma gravação disponível</p>
+            <p className="text-[11px] text-muted-foreground/50 mt-0.5">As gravações aparecerão aqui após cada sessão.</p>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Modal detalhes ─── */}
       <Dialog open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>
         <DialogContent className="max-w-md">
           {selectedSession && (
             <>
               <DialogHeader>
                 <div className="flex items-center gap-2 mb-2">
-                  <Badge variant="outline" className={getTypeStyle(selectedSession.type) + " font-bold"}>
-                    {getTypeIcon(selectedSession.type)} Tática de {selectedSession.type}
-                  </Badge>
+                  <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border', typePill(selectedSession.type))}>
+                    {selectedSession.type.toLowerCase() === 'comercial' ? <Target className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+                    {selectedSession.type}
+                  </span>
                   {isPast(new Date(selectedSession.scheduled_at)) && (
-                    <Badge variant="outline" className="bg-muted text-muted-foreground border-transparent">Realizada</Badge>
+                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground border border-border/60">
+                      Realizada
+                    </span>
                   )}
                 </div>
-                <DialogTitle className="text-lg font-bold leading-tight font-display">{selectedSession.title}</DialogTitle>
+                <DialogTitle className="text-base font-bold leading-tight font-display">{selectedSession.title}</DialogTitle>
                 <DialogDescription className="text-[13px] text-muted-foreground mt-1">
                   {selectedSession.description}
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="py-4 space-y-4">
-                <div className="flex items-center text-sm font-medium text-foreground bg-muted/30 p-3 rounded-lg border border-border">
-                  <Clock className="w-4 h-4 mr-3 text-muted-foreground" />
+              <div className="py-3 space-y-3">
+                <div className="flex items-center gap-3 text-[13px] font-medium text-foreground bg-muted/30 px-4 py-3 rounded-xl border border-border/60">
+                  <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                   {format(new Date(selectedSession.scheduled_at), "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
                 </div>
-                
                 {selectedSession.meet_link && !isPast(new Date(selectedSession.scheduled_at)) && (
-                   <div className="flex flex-col gap-2">
-                     <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Link de Acesso</p>
-                     <div className="flex items-center gap-2">
-                       <code className="flex-1 bg-muted px-3 py-2 rounded text-xs truncate border border-border">
-                         {selectedSession.meet_link}
-                       </code>
-                     </div>
-                   </div>
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60">Link de acesso</p>
+                    <code className="block bg-muted px-3 py-2 rounded-lg text-[11px] truncate border border-border/60">
+                      {selectedSession.meet_link}
+                    </code>
+                  </div>
                 )}
               </div>
 
-              <DialogFooter className="flex-col sm:flex-row gap-2 mt-2">
+              <DialogFooter className="flex-col sm:flex-row gap-2">
                 {!isPast(new Date(selectedSession.scheduled_at)) ? (
                   <>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       onClick={() => openGoogleCalendar(selectedSession)}
-                      className="w-full sm:w-auto"
+                      className="h-9 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 w-full sm:w-auto"
                     >
-                      <CalendarPlus className="w-4 h-4 mr-2" /> Salvar no Calendar
+                      <CalendarPlus className="h-3.5 w-3.5" /> Salvar no Calendar
                     </Button>
-                    <Button 
-                      onClick={() => window.open(selectedSession.meet_link, '_blank')}
-                      className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold"
+                    <Button
+                      onClick={() => selectedSession.meet_link && window.open(selectedSession.meet_link, '_blank')}
+                      className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 w-full sm:w-auto"
                     >
-                      <Video className="w-4 h-4 mr-2" /> Entrar na Sessão
+                      <Video className="h-3.5 w-3.5" /> Entrar na Sessão
                     </Button>
                   </>
                 ) : (
                   <>
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={() => setSelectedSession(null)}
-                      className="w-full sm:w-auto"
+                      className="h-9 rounded-lg text-[11px] font-medium border-border/60 px-4 w-full sm:w-auto"
                     >
                       Fechar
                     </Button>
                     {selectedSession.recording_url && (
-                      <Button 
+                      <Button
                         onClick={() => window.open(selectedSession.recording_url, '_blank')}
-                        className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold"
+                        className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 w-full sm:w-auto"
                       >
-                        <PlayCircle className="w-4 h-4 mr-2" /> Assistir Gravação
+                        <PlayCircle className="h-3.5 w-3.5" /> Assistir Gravação
                       </Button>
                     )}
                   </>

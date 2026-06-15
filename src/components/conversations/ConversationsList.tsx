@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, GitBranch, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye } from "lucide-react";
+import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, GitBranch, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -40,6 +40,7 @@ import { Label } from "@/components/ui/label";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { DateRange } from "react-day-picker";
 import { LeadModal } from "@/components/leads/LeadModal";
+import { NonLeadAnalysisModal } from "@/components/conversations/NonLeadAnalysisModal";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
@@ -173,9 +174,7 @@ const ConversationItem = ({
                 <Zap className="h-3 w-3 text-orange-500 fill-orange-500/20 shrink-0" title="Em Cadência" />
               )}
 
-              {(conversation as any).excluir_metricas && (
-                <EyeOff className="h-3 w-3 text-muted-foreground/40 shrink-0" title="Desconsiderado das métricas" />
-              )}
+
 
               {conversation.lead_scoring && (
                 <span
@@ -277,19 +276,6 @@ const ConversationItem = ({
                 <Globe className="mr-2 h-4 w-4" />
                 Alterar Origem
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onQuickAction(conversation.id, 'metrics'); }}>
-                {(conversation as any).excluir_metricas ? (
-                  <>
-                    <Eye className="mr-2 h-4 w-4 text-emerald-500" />
-                    <span className="text-emerald-600">Incluir nas métricas</span>
-                  </>
-                ) : (
-                  <>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    Desconsiderar das métricas
-                  </>
-                )}
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
@@ -337,6 +323,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
   const [editingLead, setEditingLead] = useState<Conversation | null>(null);
   const [editingName, setEditingName] = useState("");
   const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
+  const [showNonLeadModal, setShowNonLeadModal] = useState(false);
 
   // Busca profunda em mensagens (estilo WhatsApp)
   const [messageSearchLeadIds, setMessageSearchLeadIds] = useState<Set<string>>(new Set());
@@ -408,6 +395,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
     origin: "all",
     tagId: "all",
     stageId: "all",
+    iaFilter: "all",
     dateRange: undefined as DateRange | undefined,
   });
 
@@ -424,6 +412,9 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
       const originMatch = filters.origin === "all" || c.origem === filters.origin;
       const tagMatch = filters.tagId === "all" || c.tags?.some(tag => tag.id === filters.tagId);
       const stageMatch = filters.stageId === "all" || c.posicao_pipeline?.toString() === filters.stageId;
+      const iaMatch = filters.iaFilter === "all"
+        || (filters.iaFilter === "com_ia" && (c as any).ia_ja_ativada === true)
+        || (filters.iaFilter === "sem_ia" && (c as any).ia_ja_ativada !== true);
 
       let dateMatch = true;
       if (filters.dateRange?.from) {
@@ -436,11 +427,11 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
 
       const outboundMatch = !origemFilter || c.origem === origemFilter || (c as any).fonte === 'prospecao_ativa';
 
-      return nameMatch && originMatch && tagMatch && stageMatch && dateMatch && outboundMatch;
+      return nameMatch && originMatch && tagMatch && stageMatch && iaMatch && dateMatch && outboundMatch;
     });
   }, [conversations, searchTerm, filters, messageSearchLeadIds, origemFilter]);
 
-  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.stageId !== "all" || !!filters.dateRange;
+  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.stageId !== "all" || filters.iaFilter !== "all" || !!filters.dateRange;
 
   const resetFilters = () => {
     setFilters({ origin: "all", tagId: "all", stageId: "all", dateRange: undefined });
@@ -467,19 +458,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
   };
 
   const handleQuickAction = (id: string, action: BulkActionType) => {
-    // Ação de métricas: toggle direto sem diálogo
-    if (action === 'metrics') {
-      const conv = conversations?.find(c => c.id === id);
-      const currentlyExcluded = (conv as any)?.excluir_metricas ?? false;
-      updateLead({ id, excluir_metricas: !currentlyExcluded });
-      toast.success(
-        currentlyExcluded
-          ? 'Lead incluído nas métricas novamente.'
-          : 'Lead desconsiderado das métricas.'
-      );
-      return;
-    }
-
     const conv = conversations?.find(c => c.id === id);
     let initialValue = "";
     if (conv) {
@@ -626,7 +604,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                   <MoreVertical className="h-5 w-5" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent data-tutorial="conversations-header-menu" align="end" className="w-48">
+              <DropdownMenuContent data-tutorial="conversations-header-menu" align="end" className="w-52">
                 <DropdownMenuItem data-tutorial="conversations-select-mode-btn" onClick={() => setIsSelectionMode(true)} className="gap-2">
                   <CheckSquare className="h-4 w-4" /> Selecionar Conversas
                 </DropdownMenuItem>
@@ -638,6 +616,11 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                       <X className="h-4 w-4" /> Cancelar Seleção
                    </DropdownMenuItem>
                 )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setShowNonLeadModal(true)} className="gap-2">
+                  <Sparkles className="h-4 w-4 text-violet-500" />
+                  <span>Analisar não-leads</span>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -687,7 +670,15 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                   <Filter className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent data-tutorial="conversations-filter-panel" className="w-[340px] p-0 shadow-xl border-border/60 rounded-2xl overflow-hidden" align="end">
+              <PopoverContent
+                data-tutorial="conversations-filter-panel"
+                className="w-[calc(100vw-1.5rem)] sm:w-[340px] p-0 shadow-xl border-border/60 rounded-2xl flex flex-col"
+                style={{ maxHeight: 'var(--radix-popover-content-available-height, 80vh)' }}
+                align="end"
+                sideOffset={8}
+                collisionPadding={16}
+                avoidCollisions
+              >
                 {/* Header */}
                 <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 bg-muted/[0.03]">
                   <div className="flex items-center gap-2">
@@ -706,7 +697,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                   )}
                 </div>
 
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-4 overflow-y-auto flex-1 min-h-0">
                   {/* Origem */}
                   <div className="space-y-1.5" data-tutorial="conversations-filter-origin">
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -764,6 +755,23 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                         {availableTags.map(tag => (
                           <SelectItem key={tag.id} value={tag.id}>{tag.name}</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Atendimento IA */}
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Bot className="h-3 w-3" /> Atendimento IA
+                    </p>
+                    <Select value={filters.iaFilter} onValueChange={(v) => setFilters(f => ({ ...f, iaFilter: v }))}>
+                      <SelectTrigger className="h-9 text-xs rounded-lg border-border/60">
+                        <SelectValue placeholder="Todos" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        <SelectItem value="com_ia">Atendidos pela IA</SelectItem>
+                        <SelectItem value="sem_ia">Não atendidos pela IA</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -845,8 +853,16 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
       </ScrollArea>
 
       {/* Dialog para Novo Lead */}
-      <LeadModal 
-        open={isNewLeadModalOpen} 
+      {profile?.organization_id && (
+        <NonLeadAnalysisModal
+          open={showNonLeadModal}
+          onClose={() => setShowNonLeadModal(false)}
+          organizationId={profile.organization_id}
+        />
+      )}
+
+      <LeadModal
+        open={isNewLeadModalOpen}
         onOpenChange={setIsNewLeadModalOpen} 
         mode="create" 
       />

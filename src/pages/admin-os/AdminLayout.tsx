@@ -7,15 +7,16 @@ import { MASTER_ORG_ID } from '@/lib/constants';
 import { supabase } from '@/integrations/supabase/client';
 import {
   LayoutDashboard, Users, PlayCircle, Zap, Calendar,
-  ShieldCheck, ChevronRight, Menu, X, Package, MonitorSmartphone, MessageSquare, LogOut, Settings
+  ShieldCheck, ChevronRight, Menu, X, Package, MonitorSmartphone, MessageSquare, LogOut, Settings, Swords, Route, Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard',                 path: '/admin',           exact: true, badgeType: 'none' },
   { icon: Users,           label: 'Clientes',                  path: '/admin/clientes',  badgeType: 'inactive_clients' },
-  { icon: PlayCircle,      label: 'Trilha de Aprendizado',     path: '/admin/trilha',    badgeType: 'none' },
-  { icon: Zap,             label: 'Inteligências Artificiais', path: '/admin/ias',       badgeType: 'none' },
+  { icon: Swords,          label: 'Arsenal Comercial',         path: '/admin/arsenal',   badgeType: 'none' },
+  { icon: Route,           label: 'Jornadas',                  path: '/admin/jornadas',  badgeType: 'none' },
+  { icon: Bot,             label: 'Agentes de IA',             path: '/admin/agentes',   badgeType: 'none' },
   { icon: Calendar,        label: 'Sessões Táticas',           path: '/admin/sessoes',   badgeType: 'none' },
   { icon: Package,         label: 'Produtos',                  path: '/admin/produtos',  badgeType: 'none' },
   { icon: Settings,        label: 'Sistema & Config',          path: '/admin/sistema',   badgeType: 'none' },

@@ -156,9 +156,10 @@ interface ActiveConversationProps {
   leadId: string;
   showQuickMessages?: boolean;
   onToggleQuickMessages?: () => void;
+  compactMode?: boolean;
 }
 
-export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMessages }: ActiveConversationProps) {
+export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMessages, compactMode = false }: ActiveConversationProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -507,7 +508,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
-      <header data-tutorial="conversation-header" className="flex flex-col border-b border-border/60 bg-card z-10 flex-shrink-0">
+      {!compactMode && <header data-tutorial="conversation-header" className="flex flex-col border-b border-border/60 bg-card z-10 flex-shrink-0">
         <div className="flex items-center justify-between px-3 py-2.5 gap-2">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 rounded-full" onClick={() => navigate('/crm/conversas')}><ChevronLeft className="h-5 w-5" /></Button>
@@ -766,23 +767,6 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 )}
                 {lead && (
                   <Button
-                    data-tutorial="conversation-exclude-metrics"
-                    variant="ghost"
-                    size="sm"
-                    title={lead.excluir_metricas ? "Lead desconsiderado das métricas — clique para incluir" : "Desconsiderar das métricas"}
-                    className={cn(
-                      "h-6 w-6 p-0 rounded-full transition-colors",
-                      lead.excluir_metricas
-                        ? "text-amber-600 bg-amber-50 hover:bg-amber-100"
-                        : "text-muted-foreground/60 hover:text-amber-600 hover:bg-amber-50"
-                    )}
-                    onClick={() => updateLead({ id: lead.id, excluir_metricas: !lead.excluir_metricas })}
-                  >
-                    <EyeOff className="h-3 w-3" />
-                  </Button>
-                )}
-                {lead && (
-                  <Button
                     data-tutorial="conversation-notas"
                     variant="ghost"
                     size="sm"
@@ -799,7 +783,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 <div className="xs:block">{lead && <AiLockControl lead={lead} lastIncomingMessage={lastIncomingMessage?.conteudo} lastIncomingMessageType={lastIncomingMessage?.tipo_conteudo} messages={messages} />}</div>
             </div>
         </div>
-      </header>
+      </header>}
 
       {/* Painel de Notas */}
       {showNotas && lead && lead.organization_id && (
@@ -860,7 +844,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         </div>
       )}
 
-      {notifications && notifications.length > 0 && (
+      {!compactMode && notifications && notifications.length > 0 && (
         <div className="border-b border-border/40 flex-shrink-0 divide-y divide-border/30">
           {notifications.map(notif => (
             <div key={notif.id} className="flex items-start gap-3 p-3 bg-card hover:bg-muted/20 transition-colors">

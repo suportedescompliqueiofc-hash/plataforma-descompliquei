@@ -6,7 +6,7 @@ import type { AcessoProduto } from '@/contexts/PlataformaContext';
 interface AcessoGuardProps {
   children: React.ReactNode;
   accessKey?: keyof Pick<AcessoProduto,
-    'acesso_cerebro' | 'acesso_crm' | 'acesso_sessoes_taticas' | 'acesso_materiais' | 'acesso_ia_comercial'
+    'acesso_cerebro' | 'acesso_crm' | 'acesso_sessoes_taticas' | 'acesso_materiais' | 'acesso_ia_comercial' | 'acesso_os'
   >;
   /** Checa se o array (pilares_liberados ou ias_liberadas) tem pelo menos 1 item */
   arrayKey?: keyof Pick<AcessoProduto, 'pilares_liberados' | 'ias_liberadas'>;

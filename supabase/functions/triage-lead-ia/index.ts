@@ -15,10 +15,10 @@ const openrouter = new OpenAI({
 const SYSTEM_PROMPT = `Você é um triador de mensagens de WhatsApp para clínicas estéticas e de saúde.
 Analise a PRIMEIRA mensagem de um novo contato e decida se o atendimento automático (IA de pré-atendimento) deve ser ativado.
 
-ATIVE a IA ({"ativar_ia": true}) quando a mensagem indica:
-- Pessoa nova buscando informações sobre procedimentos, tratamentos ou serviços
+ATIVE a IA ({"ativar_ia": true}) quando a mensagem indica CLARAMENTE:
+- Pessoa nova buscando informações sobre procedimentos, tratamentos ou serviços estéticos/de saúde
 - Pergunta genérica sobre preços, agenda, disponibilidade ou como funciona
-- Cumprimento simples de primeiro contato ("oi", "olá", "bom dia", "boa tarde")
+- Cumprimento simples de primeiro contato ("oi", "olá", "bom dia", "boa tarde") sem outro contexto
 - Interesse inicial sem contexto prévio com a clínica
 - Lead que veio de indicação mas está fazendo contato inicial ("minha amiga indicou")
 
@@ -29,6 +29,9 @@ NÃO ATIVE a IA ({"ativar_ia": false}) quando a mensagem indica:
 - Situação muito específica que exige contexto humano (exame, resultado, reclamação)
 - Mensagem de fornecedor, parceiro ou contexto claramente não-paciente
 - Reagendamento ou cancelamento de consulta já marcada
+- Candidato a vaga de emprego, estágio ou processo seletivo ("processo seletivo", "vaga", "currículo", "candidatura", "disponibilidade para trabalhar", "sou técnica em", "formação", "experiência profissional")
+- Mensagem com tom de apresentação pessoal/profissional (dados pessoais, formação acadêmica, experiências de trabalho)
+- Pessoa que pergunta se "há vagas" ou menciona querer "trabalhar" no local
 
 Em caso de dúvida, prefira NÃO ativar ({"ativar_ia": false}) — é melhor um humano avaliar do que a IA entrar em contexto errado.
 
@@ -60,14 +63,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Se não há texto (ex: áudio ou mídia sem legenda), ativar IA por padrão
-    // (primeiro contato via áudio é improvável que seja follow-up)
     const textoMensagem = mensagem?.trim() || "";
     let ativarIa = false;
 
     if (!textoMensagem) {
-      console.log(`[triage-lead-ia] Lead ${lead_id} — sem texto (${tipo_mensagem}), ativando IA por padrão`);
-      ativarIa = true;
+      // Sem texto: diferenciar por tipo de mídia
+      // - áudio/voz: comportamento natural de lead → ativar IA
+      // - documento/pdf: candidato a emprego, currículo, fornecedor → NÃO ativar
+      // - imagem sem legenda: comportamento atípico de lead → NÃO ativar
+      // - demais tipos sem texto: não ativar por segurança
+      const tipoNorm = (tipo_mensagem || "").toLowerCase();
+      if (tipoNorm === "audio" || tipoNorm === "voz" || tipoNorm === "ptt") {
+        console.log(`[triage-lead-ia] Lead ${lead_id} — áudio sem texto, ativando IA`);
+        ativarIa = true;
+      } else {
+        console.log(`[triage-lead-ia] Lead ${lead_id} — mídia sem texto (${tipo_mensagem}), NÃO ativando IA (possível candidato, fornecedor ou comportamento atípico)`);
+        ativarIa = false;
+      }
     } else {
       // Chamar DeepSeek V4 Flash para classificar a mensagem
       const completion = await openrouter.chat.completions.create({
@@ -94,7 +106,7 @@ Deno.serve(async (req) => {
 
     if (ativarIa) {
       // 1. Ativar IA no lead
-      await supabase.from("leads").update({ ia_ativa: true }).eq("id", lead_id);
+      await supabase.from("leads").update({ ia_ativa: true, ia_ja_ativada: true }).eq("id", lead_id);
       console.log(`[triage-lead-ia] Lead ${lead_id} — IA ativada`);
 
       // 2. Disparar whatsapp-ai-agent para responder à primeira mensagem

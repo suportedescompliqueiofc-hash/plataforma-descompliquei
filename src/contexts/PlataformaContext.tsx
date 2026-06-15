@@ -11,6 +11,7 @@ export type AcessoProduto = {
   acesso_sessoes_taticas: boolean;
   acesso_materiais: boolean;
   acesso_ia_comercial: boolean;
+  acesso_os: boolean;
   max_leads: number;
   max_usuarios_crm: number;
 };
@@ -23,6 +24,7 @@ const ACESSO_TOTAL: AcessoProduto = {
   acesso_sessoes_taticas: true,
   acesso_materiais: true,
   acesso_ia_comercial: true,
+  acesso_os: true,
   max_leads: 999999,
   max_usuarios_crm: 999,
 };
@@ -36,6 +38,7 @@ const ACESSO_CRM_ONLY: AcessoProduto = {
   acesso_sessoes_taticas: false,
   acesso_materiais: false,
   acesso_ia_comercial: false,
+  acesso_os: false,
   max_leads: 999999,
   max_usuarios_crm: 999,
 };
@@ -145,6 +148,7 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
             acesso_sessoes_taticas: acessoData.acesso_sessoes_taticas ?? false,
             acesso_materiais: acessoData.acesso_materiais ?? false,
             acesso_ia_comercial: acessoData.acesso_ia_comercial ?? false,
+            acesso_os: acessoData.acesso_os ?? false,
             max_leads: acessoData.max_leads ?? 999999,
             max_usuarios_crm: acessoData.max_usuarios_crm ?? 999,
           });

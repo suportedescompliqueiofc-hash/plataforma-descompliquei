@@ -103,7 +103,41 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           if (origemFilter === 'convenio')   return l.origem === 'convenio';
           return l.origem !== 'paciente'; // 'geral' exclui pacientes
         };
-        const filteredAllLeads = leads.filter(filterByOrigem).filter((l: any) => l.fonte !== 'importado');
+
+        // --- Leads com atividade CRM real no período ---
+        // Um lead "conta" no período se foi criado nele OU teve atividade significativa:
+        // mudança de etapa, qualificação (MQL), agendamento ou fechamento.
+        // Leads que apenas enviaram uma mensagem (atualizado_em via webhook) NÃO são contados.
+        const leadsComAtividadeReal = new Set<string>();
+
+        // 1. Criados no período
+        for (const l of leads) {
+          const criado = new Date(l.criado_em).getTime();
+          if (criado >= new Date(startDate).getTime() && criado <= new Date(endDate).getTime()) {
+            leadsComAtividadeReal.add(l.id);
+          }
+        }
+        // 2. Mudaram de etapa no período (lead_stage_history)
+        for (const sh of stageHistory) {
+          leadsComAtividadeReal.add(sh.lead_id);
+        }
+        // 3. Foram qualificados como MQL no período (lead_notas sistema)
+        for (const nota of mqlNotas) {
+          leadsComAtividadeReal.add(nota.lead_id);
+        }
+        // 4. Tiveram agendamento criado no período
+        for (const ag of agendamentosData) {
+          if (ag.lead_id) leadsComAtividadeReal.add(ag.lead_id);
+        }
+        // 5. Foram fechados (venda) no período
+        for (const v of vendas) {
+          if (v.lead_id) leadsComAtividadeReal.add(v.lead_id);
+        }
+
+        const filteredAllLeads = leads
+          .filter(filterByOrigem)
+          .filter((l: any) => l.fonte !== 'importado')
+          .filter((l: any) => leadsComAtividadeReal.has(l.id));
         const filteredLeadsIds = new Set(filteredAllLeads.map((l: any) => l.id as string));
 
         // --- Métricas de Tempo de Resposta (IA vs Humano) ---
@@ -311,8 +345,10 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
 
         // Contagens por origem
         // 'indicacao' unificado com 'organico'; 'paciente' excluído do 'geral'
-        // Origem usa todos os leads ativos no período (criados OU atualizados), não só os novos
-        const leadsAtivosPeriodo = leads.filter((l: any) => l.fonte !== 'importado');
+        // Origem usa apenas leads com atividade real no período (mesma base do totalLeads)
+        const leadsAtivosPeriodo = leads
+          .filter((l: any) => l.fonte !== 'importado')
+          .filter((l: any) => leadsComAtividadeReal.has(l.id));
         const origemCounts = {
           marketing:  leadsAtivosPeriodo.filter((l: any) => l.origem === 'marketing'),
           organico:   leadsAtivosPeriodo.filter((l: any) => l.origem === 'organico' || l.origem === 'indicacao'),
@@ -354,6 +390,66 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           closedVendas.map((v: any) => v.lead_id).filter(Boolean)
         );
         const closedCount = closedLeadIdsSet.size || vendas.length;
+
+        // --- Tempo de conversão (cadastro → fechamento) ---
+        const temposFechamento: { dias: number; lead: any; venda: any }[] = [];
+        for (const v of closedVendas) {
+          if (!v.lead_id || !v.data_fechamento) continue;
+          const lead = leadsById.get(v.lead_id);
+          if (!lead?.criado_em) continue;
+          const dias = Math.round(
+            (new Date(v.data_fechamento).getTime() - new Date(lead.criado_em).getTime()) / (1000 * 60 * 60 * 24)
+          );
+          if (dias < 0) continue;
+          temposFechamento.push({ dias, lead, venda: v });
+        }
+        const tfTotal = temposFechamento.length;
+        const tfSorted = [...temposFechamento].sort((a, b) => a.dias - b.dias);
+        const tfMedia  = tfTotal > 0 ? Math.round(temposFechamento.reduce((s, t) => s + t.dias, 0) / tfTotal) : 0;
+        const tfMediana = tfTotal > 0 ? tfSorted[Math.floor(tfTotal / 2)].dias : 0;
+        const tfMin = tfTotal > 0 ? tfSorted[0].dias : 0;
+        const tfMax = tfTotal > 0 ? tfSorted[tfTotal - 1].dias : 0;
+
+        const tfBuckets = [
+          { label: 'No mesmo dia',  min: 0,  max: 0  },
+          { label: 'Até 7 dias',    min: 1,  max: 7  },
+          { label: '8 a 15 dias',   min: 8,  max: 15 },
+          { label: '16 a 30 dias',  min: 16, max: 30 },
+          { label: '31 a 60 dias',  min: 31, max: 60 },
+          { label: '61 a 90 dias',  min: 61, max: 90 },
+          { label: 'Mais de 90 dias', min: 91, max: Infinity },
+        ];
+        const tfDistribuicao = tfBuckets.map(b => {
+          const matched = temposFechamento.filter(t => t.dias >= b.min && t.dias <= b.max);
+          return {
+            label: b.label,
+            count: matched.length,
+            leads: matched.map(t => t.lead),
+            items: matched.map(t => ({ lead: t.lead, dias: t.dias })),
+            pct: tfTotal > 0 ? Math.round((matched.length / tfTotal) * 100) : 0,
+          };
+        });
+
+        const tfOrigens = ['marketing', 'organico', 'indicacao', 'reativacao', 'paciente', 'convenio'];
+        const tfPorOrigem = tfOrigens.map(o => {
+          const ts = temposFechamento.filter(t => t.lead?.origem === o);
+          return {
+            origem: o,
+            count: ts.length,
+            media: ts.length > 0 ? Math.round(ts.reduce((s, t) => s + t.dias, 0) / ts.length) : 0,
+            leads: ts.map(t => t.lead),
+          };
+        }).filter(o => o.count > 0);
+
+        const tempoFunil = {
+          total: tfTotal,
+          media: tfMedia,
+          mediana: tfMediana,
+          minimo: tfMin,
+          maximo: tfMax,
+          distribuicao: tfDistribuicao,
+          porOrigem: tfPorOrigem,
+        };
 
         // --- Funil passo-a-passo (modelo por evento via lead_stage_history) ---
         const sortedFunnelStages = [...funnelStages].sort((a, b) => a.posicao_ordem - b.posicao_ordem);
@@ -446,6 +542,17 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const ticketMedio = closedCount > 0 ? faturamentoTotal / closedCount : 0;
         const custoPerLead = mktLeads.length > 0 ? totalInvestment / mktLeads.length : 0;
 
+        // --- Métricas de leads CADASTRADOS no período ---
+        const cadastradosIds = new Set(leadsCreatedInPeriod.map((l: any) => l.id));
+        const vendasCadastrados = closedVendas.filter((v: any) => cadastradosIds.has(v.lead_id));
+        const cadastradosFaturamento = vendasCadastrados.reduce((sum: number, v: any) => sum + Number(v.valor_fechado || 0), 0);
+        const cadastradosClosedIds = new Set(vendasCadastrados.map((v: any) => v.lead_id).filter(Boolean));
+        const cadastradosVendasCount = vendasCadastrados.length;
+        const cadastradosTicketMedio = cadastradosClosedIds.size > 0 ? cadastradosFaturamento / cadastradosClosedIds.size : 0;
+        const cadastradosTaxaConversao = leadsCreatedInPeriod.length > 0
+          ? parseFloat(((cadastradosClosedIds.size / leadsCreatedInPeriod.length) * 100).toFixed(1))
+          : 0;
+
         // --- Performance da IA ---
         const handoffStage = allStages.find(s =>
           s.nome.toLowerCase().includes('handoff') ||
@@ -511,9 +618,19 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
 
         // --- Top procedimentos (baseado em vendas fechadas com procedimentos cadastrados) ---
         const procedimentoMap: Record<string, number> = {};
+        const procedimentoLeadsMap: Record<string, any[]> = {};
         vendas.forEach((v: any) => {
           const proc = (v.produto_servico as string | undefined)?.trim();
-          if (proc) procedimentoMap[proc] = (procedimentoMap[proc] || 0) + 1;
+          if (!proc) return;
+          procedimentoMap[proc] = (procedimentoMap[proc] || 0) + 1;
+          const lead = leadsById.get(v.lead_id);
+          if (lead) {
+            if (!procedimentoLeadsMap[proc]) procedimentoLeadsMap[proc] = [];
+            // evitar duplicatas (mesmo lead em múltiplas vendas do mesmo procedimento)
+            if (!procedimentoLeadsMap[proc].some((l: any) => l.id === lead.id)) {
+              procedimentoLeadsMap[proc].push(lead);
+            }
+          }
         });
         const topProcedimentos = Object.entries(procedimentoMap)
           .sort((a, b) => b[1] - a[1])
@@ -521,7 +638,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           .map(([name, count]) => ({
             name,
             count,
-            leads: [],
+            leads: procedimentoLeadsMap[name] ?? [],
           }));
 
         return {
@@ -659,6 +776,15 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           allStages,
           filteredAllLeadsList: filteredAllLeads,
           totalLeadsList: filteredAllLeads,
+          tempoFunil,
+          // Cadastrados no período
+          cadastradosTotal: leadsCreatedInPeriod.length,
+          cadastradosFaturamento,
+          cadastradosVendasCount,
+          cadastradosTicketMedio,
+          cadastradosTaxaConversao,
+          cadastradosList: leadsCreatedInPeriod,
+          cadastradosClosedList: [...cadastradosClosedIds].map(id => leadsById.get(id)).filter(Boolean),
           marketingLeadsList: mktLeads,
           organicLeadsList: leadsCreatedInPeriod.filter(l => l.origem === 'organico'),
           importedLeadsList: importedLeadsInPeriodList,

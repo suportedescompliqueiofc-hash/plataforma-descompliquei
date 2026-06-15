@@ -64,14 +64,21 @@ import AdminClientes from "./pages/admin-os/pages/AdminClientes";
 import AdminClientePerfil from "./pages/admin-os/pages/AdminClientePerfil";
 import AdminTrilha from "./pages/admin-os/pages/AdminTrilha";
 import AdminTrilhaWrapper from "./pages/admin-os/AdminTrilhaWrapper";
+import AdminArsenal from "./pages/admin-os/pages/AdminArsenal";
+import AdminJornadas from "./pages/admin-os/pages/AdminJornadas";
+import AdminJornadaEditor from "./pages/admin-os/pages/AdminJornadaEditor";
+import AdminAgentes from "./pages/admin-os/pages/AdminAgentes";
 import AdminIAs from "./pages/admin-os/pages/AdminIAs";
 import AdminSessoes from "./pages/admin-os/pages/AdminSessoes";
 import AdminSistema from "./pages/admin-os/pages/AdminSistema";
 import AdminProdutos from "./pages/admin-os/pages/AdminProdutos";
 import AdminAcessoCliente from "./pages/admin-os/pages/AdminAcessoCliente";
 import { AcessoGuard } from "./components/AcessoGuard";
+import { OnboardingGuard } from "./components/plataforma/OnboardingGuard";
 import { CrmGuard } from "./components/CrmGuard";
 import { getRedirectDestino } from "./utils/redirectUtils";
+import { DashboardLeadsModalProvider, useDashboardLeadsModal } from "./contexts/DashboardLeadsModalContext";
+import { DashboardLeadsModal } from "./components/dashboard/DashboardLeadsModal";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { SidebarContent } from "@/components/layout/SidebarContent";
 import { useLocalStorage } from "./hooks/use-local-storage";
@@ -83,14 +90,20 @@ import { MASTER_ORG_ID } from "./lib/constants";
 // Componentes da Plataforma
 import Hub from "./pages/plataforma/Hub";
 import Trilha from "./pages/plataforma/Trilha";
+import Arsenal from "./pages/plataforma/Arsenal";
+import Jornada from "./pages/plataforma/Jornada";
+import ArsenalCategoria from "./pages/plataforma/ArsenalCategoria";
+import ArsenalFerramenta from "./pages/plataforma/ArsenalFerramenta";
+import DescompliqueiOS from "./pages/plataforma/DescompliqueiOS";
 import Modulo from "./pages/plataforma/Modulo";
 import Pilar from "./pages/plataforma/Pilar";
-import Cerebro from "./pages/plataforma/Cerebro";
 import IAHub from "./pages/plataforma/IAHub";
 import IATipo from "./pages/plataforma/IATipo";
 import SessoesTaticas from "./pages/plataforma/SessoesTaticas";
 import Onboarding from "./pages/plataforma/Onboarding";
+import OnboardingAthos from "./pages/plataforma/OnboardingAthos";
 import Materiais from "./pages/plataforma/Materiais";
+import MateriaisEditor from "./pages/plataforma/MateriaisEditor";
 import Configuracoes from "./pages/plataforma/Configuracoes";
 import Evolucao from "./pages/plataforma/Evolucao";
 import PlataformaLogin from "./pages/plataforma/PlataformaLogin";
@@ -178,8 +191,9 @@ function RootRedirect() {
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('sidebar-collapsed', false);
+  const { modal, closeModal } = useDashboardLeadsModal();
   const location = useLocation();
-  const isConversationsPage = location.pathname.startsWith('/crm/conversas') || location.pathname.startsWith('/outbound/conversas');
+  const isConversationsPage = location.pathname.startsWith('/crm/conversas') || location.pathname.startsWith('/outbound/conversas') || location.pathname.startsWith('/plataforma/os');
   const isPlataformaRoute = location.pathname.startsWith('/plataforma');
 
   // Usar hook para verificar se é superadmin
@@ -261,6 +275,17 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           {children}
         </div>
       </main>
+
+      {/* Modal de leads do dashboard — renderizado aqui para persistir entre rotas */}
+      {modal && (
+        <DashboardLeadsModal
+          open={!!modal}
+          onClose={closeModal}
+          title={modal.title}
+          leads={modal.leads}
+          stages={modal.stages}
+        />
+      )}
     </div>
   );
 };
@@ -278,6 +303,7 @@ const App = () => (
         <AuthProvider>
           <BrandingProvider>
             <PlataformaProvider>
+              <DashboardLeadsModalProvider>
               <TutorialProvider>
               <TutorialSpotlight />
               <TutorialHelpCenter />
@@ -303,6 +329,7 @@ const App = () => (
                 <Route path="/crm/notificacoes" element={<Notifications />} />
                 <Route path="/crm/vendas" element={<Vendas />} />
                 <Route path="/crm/metas" element={<Metas />} />
+                <Route path="/crm/evolucao" element={<Evolucao />} />
                 <Route path="/crm/performance" element={<Performance />} />
                 <Route path="/crm/onboarding" element={<CrmOnboarding />} />
                 <Route path="/crm/procedimentos" element={<Procedimentos />} />
@@ -354,6 +381,10 @@ const App = () => (
                 <Route path="/admin/trilha" element={<AdminTrilhaWrapper />} />
                 <Route path="/admin/trilha/pilar/:pillarId" element={<AdminTrilhaWrapper />} />
                 <Route path="/admin/trilha/modulo/:moduleId" element={<AdminTrilhaWrapper />} />
+                <Route path="/admin/arsenal" element={<AdminArsenal />} />
+                <Route path="/admin/jornadas" element={<AdminJornadas />} />
+                <Route path="/admin/jornadas/:id" element={<AdminJornadaEditor />} />
+                <Route path="/admin/agentes" element={<AdminAgentes />} />
                 <Route path="/admin/ias" element={<AdminIAs />} />
                 <Route path="/admin/sessoes" element={<AdminSessoes />} />
                 <Route path="/admin/sistema" element={<AdminSistema />} />
@@ -365,18 +396,25 @@ const App = () => (
             <Route path="/plataforma/login" element={<Navigate to="/login" replace />} />
             <Route element={<AppLayoutRoute />}>
               <Route element={<PlataformaGuard />}>
-                <Route path="/plataforma" element={<Hub />} />
+                {/* Rotas de onboarding — acessíveis mesmo antes de concluir */}
                 <Route path="/plataforma/onboarding" element={<Onboarding />} />
-                <Route path="/plataforma/trilha" element={<AcessoGuard arrayKey="pilares_liberados"><Trilha /></AcessoGuard>} />
-                <Route path="/plataforma/trilha/pilar/:pilarId" element={<AcessoGuard arrayKey="pilares_liberados"><Pilar /></AcessoGuard>} />
-                <Route path="/plataforma/trilha/:moduloId" element={<AcessoGuard arrayKey="pilares_liberados"><Modulo /></AcessoGuard>} />
-                <Route path="/plataforma/cerebro" element={<AcessoGuard accessKey="acesso_cerebro"><Cerebro /></AcessoGuard>} />
-                <Route path="/plataforma/ia-comercial" element={<AcessoGuard accessKey="acesso_ia_comercial"><IAHub /></AcessoGuard>} />
-                <Route path="/plataforma/ia-comercial/:tipo" element={<AcessoGuard accessKey="acesso_ia_comercial"><IATipo /></AcessoGuard>} />
-                <Route path="/plataforma/sessoes-taticas" element={<AcessoGuard accessKey="acesso_sessoes_taticas"><SessoesTaticas /></AcessoGuard>} />
-                <Route path="/plataforma/materiais" element={<AcessoGuard accessKey="acesso_materiais"><Materiais /></AcessoGuard>} />
-                <Route path="/plataforma/evolucao" element={<AcessoGuard accessKey="acesso_crm"><Evolucao /></AcessoGuard>} />
-                <Route path="/plataforma/configuracoes" element={<Configuracoes />} />
+                <Route path="/plataforma/onboarding/athos" element={<OnboardingAthos />} />
+                {/* Rotas protegidas — redirecionam para /onboarding se não concluído */}
+                <Route element={<OnboardingGuard />}>
+                  <Route path="/plataforma" element={<Hub />} />
+                  <Route path="/plataforma/trilha" element={<AcessoGuard arrayKey="pilares_liberados"><Trilha /></AcessoGuard>} />
+                  <Route path="/plataforma/trilha/pilar/:pilarId" element={<AcessoGuard arrayKey="pilares_liberados"><Pilar /></AcessoGuard>} />
+                  <Route path="/plataforma/trilha/:moduloId" element={<AcessoGuard arrayKey="pilares_liberados"><Modulo /></AcessoGuard>} />
+                  <Route path="/plataforma/jornada" element={<Jornada />} />
+                  <Route path="/plataforma/arsenal" element={<Arsenal />} />
+                  <Route path="/plataforma/arsenal/:slug" element={<ArsenalCategoria />} />
+                  <Route path="/plataforma/arsenal/:slug/:ferrSlug" element={<ArsenalFerramenta />} />
+                  <Route path="/plataforma/sessoes-taticas" element={<AcessoGuard accessKey="acesso_sessoes_taticas"><SessoesTaticas /></AcessoGuard>} />
+                  <Route path="/plataforma/materiais" element={<AcessoGuard accessKey="acesso_materiais"><Materiais /></AcessoGuard>} />
+                  <Route path="/plataforma/materiais/:id" element={<AcessoGuard accessKey="acesso_materiais"><MateriaisEditor /></AcessoGuard>} />
+                  <Route path="/plataforma/configuracoes" element={<Configuracoes />} />
+                  <Route path="/plataforma/os" element={<AcessoGuard accessKey="acesso_os"><DescompliqueiOS /></AcessoGuard>} />
+                </Route>
               </Route>
             </Route>
             {/* Legados Plataforma */}
@@ -384,9 +422,6 @@ const App = () => (
             <Route path="/trilha" element={<Navigate to="/plataforma/trilha" replace />} />
             <Route path="/trilha/pilar/:pilarId" element={<RedirectParam to="/plataforma/trilha/pilar/:pilarId" />} />
             <Route path="/trilha/:moduloId" element={<RedirectParam to="/plataforma/trilha/:moduloId" />} />
-            <Route path="/cerebro" element={<Navigate to="/plataforma/cerebro" replace />} />
-            <Route path="/ia-comercial" element={<Navigate to="/plataforma/ia-comercial" replace />} />
-            <Route path="/ia-comercial/:tipo" element={<RedirectParam to="/plataforma/ia-comercial/:tipo" />} />
             <Route path="/sessoes-taticas" element={<Navigate to="/plataforma/sessoes-taticas" replace />} />
             <Route path="/materiais" element={<Navigate to="/plataforma/materiais" replace />} />
             <Route path="/configuracoes" element={<Navigate to="/plataforma/configuracoes" replace />} />
@@ -394,6 +429,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
               </TutorialProvider>
+              </DashboardLeadsModalProvider>
             </PlataformaProvider>
           </BrandingProvider>
         </AuthProvider>

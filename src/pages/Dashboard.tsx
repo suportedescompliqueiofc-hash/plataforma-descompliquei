@@ -3,7 +3,7 @@ import {
   Megaphone, Users, CalendarCheck, BadgeCheck, ArrowRight,
   Target, Activity, ChevronRight, ArrowUpRight, ArrowDownRight,
   Wallet, Zap, Bot, Clock, UserCheck, BarChart3, Stethoscope, Layers, Timer, Gauge,
-  Trophy, CheckCircle2, Bell
+  Trophy, CheckCircle2, Bell, ListChecks
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
@@ -23,7 +23,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { Button } from "@/components/ui/button";
-import { DashboardLeadsModal } from "@/components/dashboard/DashboardLeadsModal";
+import { useDashboardLeadsModal } from "@/contexts/DashboardLeadsModalContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 /* ─── Custom Active Dot ─── */
@@ -137,7 +137,9 @@ export default function Dashboard() {
   const initialDateRange: DateRange = { from: startOfMonth(today), to: endOfMonth(today) };
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialDateRange);
   const [origemFilter, setOrigemFilter] = useState<OrigemFilter>('geral');
-  const [leadsModal, setLeadsModal] = useState<{ title: string; leads: any[] } | null>(null);
+  const [metricsMode, setMetricsMode] = useState<'geral' | 'cadastrados'>('geral');
+  const [detalharBucket, setDetalharBucket] = useState<{ label: string; leads: any[]; items: Array<{ lead: any; dias: number }> } | null>(null);
+  const { openModal: openLeadsModal } = useDashboardLeadsModal();
   const [showTempoRespostaDetail, setShowTempoRespostaDetail] = useState(false);
   const [showSemRespostaDetail, setShowSemRespostaDetail] = useState(false);
 
@@ -550,37 +552,75 @@ export default function Dashboard() {
             })()
           ) : (
             /* ── Clientes: 5 KPIs no hero ── */
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border/40">
-              {[
-                { label: 'Total de Leads',         value: totalLeads.toString(),                                           sub: 'no período',            icon: UserPlus,    color: '#E85D24', listKey: 'totalLeadsList' },
-                { label: 'Faturamento',            value: fmtCurrency(metrics.faturamentoTotal ?? 0),                     sub: 'receita no período',    icon: DollarSign,  color: '#10b981', listKey: null },
-                { label: 'Ticket Médio',           value: fmtCurrency(metrics.ticketMedio ?? 0),                          sub: 'por venda fechada',     icon: Wallet,      color: '#6366f1', listKey: null },
-                { label: 'Taxa de Conversão',      value: `${(metrics.taxaConversaoGlobal ?? 0).toFixed(1)}%`,            sub: 'leads → fechamentos',   icon: TrendingUp,  color: '#8b5cf6', listKey: null },
-                { label: 'Vendas',                 value: (metrics.vendasCount ?? 0).toString(),                          sub: 'fechamentos no período', icon: BadgeCheck,  color: '#3b82f6', listKey: null },
-              ].map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div
-                    key={item.label}
+            <div className="flex flex-col">
+              {/* Toggle Geral / Cadastrados */}
+              <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/40">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">Visão Geral</p>
+                <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1">
+                  <button
                     className={cn(
-                      "flex flex-col gap-2 px-5 py-5 bg-card transition-colors duration-150",
-                      item.listKey && "cursor-pointer hover:bg-muted/20"
+                      "px-3 py-1 text-[11px] font-semibold rounded-lg transition-all",
+                      metricsMode === 'geral'
+                        ? "bg-foreground text-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
-                    onClick={() => item.listKey && setLeadsModal({ title: item.label, leads: (metrics as any)[item.listKey] ?? [] })}
+                    onClick={() => setMetricsMode('geral')}
                   >
-                    <div className="flex items-center gap-1.5">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: item.color + '15' }}>
-                        <Icon className="h-3.5 w-3.5" style={{ color: item.color }} />
-                      </span>
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">{item.label}</span>
+                    Geral
+                  </button>
+                  <button
+                    className={cn(
+                      "px-3 py-1 text-[11px] font-semibold rounded-lg transition-all",
+                      metricsMode === 'cadastrados'
+                        ? "bg-foreground text-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => setMetricsMode('cadastrados')}
+                  >
+                    Cadastrados no período
+                  </button>
+                </div>
+              </div>
+
+              {/* Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border/40">
+                {(metricsMode === 'geral' ? [
+                  { label: 'Total de Leads',    value: totalLeads.toString(),                                sub: 'com atividade no período', icon: UserPlus,   color: '#E85D24', listKey: 'totalLeadsList' },
+                  { label: 'Faturamento',       value: fmtCurrency(metrics.faturamentoTotal ?? 0),          sub: 'receita no período',       icon: DollarSign, color: '#10b981', listKey: null },
+                  { label: 'Ticket Médio',      value: fmtCurrency(metrics.ticketMedio ?? 0),               sub: 'por venda fechada',        icon: Wallet,     color: '#6366f1', listKey: null },
+                  { label: 'Taxa de Conversão', value: `${(metrics.taxaConversaoGlobal ?? 0).toFixed(1)}%`, sub: 'leads → fechamentos',      icon: TrendingUp, color: '#8b5cf6', listKey: null },
+                  { label: 'Vendas',            value: (metrics.vendasCount ?? 0).toString(),               sub: 'fechamentos no período',   icon: BadgeCheck, color: '#3b82f6', listKey: null },
+                ] : [
+                  { label: 'Total de Leads',    value: (metrics.cadastradosTotal ?? 0).toString(),                                 sub: 'cadastrados no período',   icon: UserPlus,   color: '#E85D24', listKey: 'cadastradosList' },
+                  { label: 'Faturamento',       value: fmtCurrency(metrics.cadastradosFaturamento ?? 0),                          sub: 'dos cadastrados',          icon: DollarSign, color: '#10b981', listKey: null },
+                  { label: 'Ticket Médio',      value: fmtCurrency(metrics.cadastradosTicketMedio ?? 0),                          sub: 'por venda fechada',        icon: Wallet,     color: '#6366f1', listKey: null },
+                  { label: 'Taxa de Conversão', value: `${(metrics.cadastradosTaxaConversao ?? 0).toFixed(1)}%`,                  sub: 'cadastrados → fechamentos',icon: TrendingUp, color: '#8b5cf6', listKey: null },
+                  { label: 'Vendas',            value: (metrics.cadastradosVendasCount ?? 0).toString(),                          sub: 'dos cadastrados',          icon: BadgeCheck, color: '#3b82f6', listKey: 'cadastradosClosedList' },
+                ]).map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div
+                      key={item.label}
+                      className={cn(
+                        "flex flex-col gap-2 px-5 py-5 bg-card transition-colors duration-150",
+                        item.listKey && "cursor-pointer hover:bg-muted/20"
+                      )}
+                      onClick={() => item.listKey && openLeadsModal(item.label, (metrics as any)[item.listKey] ?? [], allStages)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: item.color + '15' }}>
+                          <Icon className="h-3.5 w-3.5" style={{ color: item.color }} />
+                        </span>
+                        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">{item.label}</span>
+                      </div>
+                      <div>
+                        <span className="text-[28px] font-bold font-display text-foreground leading-none tracking-tight">{item.value}</span>
+                        <p className="text-[10px] text-muted-foreground/50 mt-1">{item.sub}</p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-[28px] font-bold font-display text-foreground leading-none tracking-tight">{item.value}</span>
-                      <p className="text-[10px] text-muted-foreground/50 mt-1">{item.sub}</p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>
@@ -618,7 +658,7 @@ export default function Dashboard() {
               {origens.map(o => (
                 <div
                   key={o.key}
-                  onClick={() => o.count > 0 && setLeadsModal({ title: `Leads · ${o.label}`, leads: o.leads })}
+                  onClick={() => o.count > 0 && openLeadsModal(`Leads · ${o.label}`, o.leads, allStages)}
                   className={cn("flex flex-col items-center gap-2 p-5 bg-card transition-colors text-center flex-1 min-w-[160px]", o.count > 0 ? "cursor-pointer hover:bg-muted/20" : "opacity-40")}
                 >
                   <div className="flex items-center gap-1.5">
@@ -844,6 +884,35 @@ export default function Dashboard() {
               { key: 'agendamentos', label: 'Agendamentos', count: cf.agendamentos.count, pct: cf.agendamentos.pct, rate: cf.agendamentos.rate,  listKey: 'scheduledLeadsList', listTitle: 'Leads Agendados' },
               { key: 'fechamentos',  label: 'Fechamentos',  count: cf.fechamentos.count,  pct: cf.fechamentos.pct,  rate: cf.fechamentos.rate,   listKey: 'closedLeadsList',    listTitle: 'Leads Fechados' },
             ];
+            // Leads que não avançaram para a próxima etapa
+            // count = diferença simples entre etapas (intuitivo para o usuário)
+            // list  = filtro real por ID (para o modal de detalhe)
+            const allCfLists = {
+              totalLeadsList:    ((metrics as any).totalLeadsList    ?? []) as any[],
+              mqlLeadsList:      ((metrics as any).mqlLeadsList      ?? []) as any[],
+              scheduledLeadsList:((metrics as any).scheduledLeadsList ?? []) as any[],
+              closedLeadsList:   ((metrics as any).closedLeadsList   ?? []) as any[],
+            };
+            const mqlIds    = new Set(allCfLists.mqlLeadsList.map((l: any) => l.id));
+            const schedIds  = new Set(allCfLists.scheduledLeadsList.map((l: any) => l.id));
+            const closedIds = new Set(allCfLists.closedLeadsList.map((l: any) => l.id));
+            const cfTransitions = [
+              {
+                count: Math.max(0, cf.leads.count - cf.mql.count),
+                lost:  allCfLists.totalLeadsList.filter((l: any) => !mqlIds.has(l.id)),
+                title: 'Leads sem qualificação (MQL)',
+              },
+              {
+                count: Math.max(0, cf.mql.count - cf.agendamentos.count),
+                lost:  allCfLists.mqlLeadsList.filter((l: any) => !schedIds.has(l.id)),
+                title: 'MQLs sem agendamento',
+              },
+              {
+                count: Math.max(0, cf.agendamentos.count - cf.fechamentos.count),
+                lost:  allCfLists.scheduledLeadsList.filter((l: any) => !closedIds.has(l.id)),
+                title: 'Agendados sem fechamento',
+              },
+            ];
             return (
               <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-conversion">
                 <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
@@ -866,20 +935,32 @@ export default function Dashboard() {
                       const color = CF_COLORS[i];
                       return (
                         <div key={stage.key} className="flex items-center gap-2 flex-1 min-w-0">
-                          {/* Arrow ANTES do card — mostra taxa de conversão da etapa anterior para esta */}
-                          {i > 0 && stage.rate !== null && (
-                            <div className="flex flex-col items-center gap-1 shrink-0">
-                              <span className="text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-full border"
-                                style={{ color, borderColor: color + '30', backgroundColor: color + '0a' }}>
-                                {stage.rate}%
-                              </span>
-                              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30" />
-                            </div>
-                          )}
+                          {/* Arrow ANTES do card — mostra taxa de conversão + perdidos */}
+                          {i > 0 && stage.rate !== null && (() => {
+                            const t = cfTransitions[i - 1];
+                            return (
+                              <div className="flex flex-col items-center gap-1 shrink-0">
+                                <span className="text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-full border"
+                                  style={{ color, borderColor: color + '30', backgroundColor: color + '0a' }}>
+                                  {stage.rate}%
+                                </span>
+                                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30" />
+                                {t.count > 0 && (
+                                  <button
+                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold tabular-nums transition-colors bg-destructive/8 text-destructive/60 border border-destructive/15 hover:bg-destructive/15 hover:text-destructive/80 cursor-pointer"
+                                    title={t.title}
+                                    onClick={() => openLeadsModal(t.title, t.lost.slice(0, t.count), allStages)}
+                                  >
+                                    -{t.count}
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
                           <div
                             className="relative flex flex-col justify-between p-3 rounded-xl w-full border transition-colors duration-150 cursor-pointer hover:shadow-md"
                             style={{ backgroundColor: color + '07', borderColor: color + '30' }}
-                            onClick={() => setLeadsModal({ title: stage.listTitle, leads: (metrics as any)[stage.listKey] ?? [] })}
+                            onClick={() => openLeadsModal(stage.listTitle, (metrics as any)[stage.listKey] ?? [], allStages)}
                           >
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ color, backgroundColor: color + '15' }}>
@@ -957,7 +1038,7 @@ export default function Dashboard() {
                       "flex flex-col gap-3 p-5 bg-card transition-colors duration-150",
                       item.listKey && "cursor-pointer hover:bg-muted/20"
                     )}
-                    onClick={() => item.listKey && setLeadsModal({ title: item.listTitle!, leads: (metrics as any)[item.listKey] ?? [] })}
+                    onClick={() => item.listKey && openLeadsModal(item.listTitle!, (metrics as any)[item.listKey] ?? [], allStages)}
                   >
                     <div className="flex items-center justify-between">
                       <span
@@ -1089,7 +1170,7 @@ export default function Dashboard() {
                         <div
                           key={item.label}
                           className={cn("flex flex-col gap-3 p-5 bg-card", clickable && "cursor-pointer hover:bg-muted/20 transition-colors")}
-                          onClick={() => clickable && setLeadsModal({ title: `Comparecimentos — ${item.label}`, leads: item.list! })}
+                          onClick={() => clickable && openLeadsModal(`Comparecimentos — ${item.label}`, item.list!, allStages)}
                         >
                           <span
                             className="flex h-8 w-8 items-center justify-center rounded-lg"
@@ -1220,6 +1301,201 @@ export default function Dashboard() {
             );
           })()}
 
+          {/* ── TEMPO DE CONVERSÃO ── */}
+          {!isDescompliqueiOrg && (() => {
+            const tf = metrics?.tempoFunil;
+            if (!tf || tf.total === 0) return null;
+            const fmtDias = (d: number) => d === 0 ? 'No dia' : d === 1 ? '1 dia' : `${d} dias`;
+            const maxBucket = Math.max(...tf.distribuicao.map((b: any) => b.count), 1);
+            const maxMedia  = Math.max(...tf.porOrigem.map((o: any) => o.media), 1);
+            const origemLabel: Record<string, string> = {
+              marketing: 'Marketing', organico: 'Orgânico', indicacao: 'Indicação',
+              reativacao: 'Reativação', paciente: 'Paciente', convenio: 'Convênio',
+            };
+            return (
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TEMPO DE CONVERSÃO</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                        Do cadastro ao fechamento · {tf.total} venda{tf.total !== 1 ? 's' : ''} analisada{tf.total !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4 KPIs */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/40">
+                  {([
+                    { label: 'Tempo Médio',  value: fmtDias(tf.media),   sub: 'média de conversão',     color: '#6366f1', Icon: BarChart3 },
+                    { label: 'Mediana',      value: fmtDias(tf.mediana), sub: '50% fecham antes disso', color: '#8b5cf6', Icon: Gauge },
+                    { label: 'Mais rápido',  value: fmtDias(tf.minimo),  sub: 'conversão mais rápida',  color: '#10b981', Icon: Zap },
+                    { label: 'Mais lento',   value: fmtDias(tf.maximo),  sub: 'conversão mais lenta',   color: '#f59e0b', Icon: Clock },
+                  ] as const).map(({ label, value, sub, color, Icon }) => (
+                    <div key={label} className="flex flex-col gap-2 px-5 py-5 bg-card">
+                      <div className="flex items-center gap-1.5">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: color + '15' }}>
+                          <Icon className="h-3.5 w-3.5" style={{ color }} />
+                        </span>
+                        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">{label}</span>
+                      </div>
+                      <div>
+                        <span className="text-[28px] font-bold font-display text-foreground leading-none tracking-tight">{value}</span>
+                        <p className="text-[10px] text-muted-foreground/50 mt-1">{sub}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Distribuição + Por origem */}
+                <div className={cn("grid gap-6 p-5", tf.porOrigem.length > 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1")}>
+                  {/* Distribuição por prazo */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">Distribuição por prazo</p>
+                    <div className="space-y-3">
+                      {tf.distribuicao.map((bucket: any) => (
+                        <div key={bucket.label} className="flex items-center gap-3 group">
+                          <span
+                            className={cn("text-[11px] text-muted-foreground w-28 shrink-0 transition-colors", bucket.count > 0 && "cursor-pointer group-hover:text-foreground")}
+                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads, allStages)}
+                          >{bucket.label}</span>
+                          <div
+                            className={cn("flex-1 bg-muted/40 rounded-full h-1.5 overflow-hidden", bucket.count > 0 && "cursor-pointer")}
+                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads, allStages)}
+                          >
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${maxBucket > 0 ? (bucket.count / maxBucket) * 100 : 0}%`,
+                                backgroundColor: bucket.count === maxBucket && bucket.count > 0 ? '#6366f1' : '#94a3b8',
+                              }}
+                            />
+                          </div>
+                          <span className="text-[11px] font-semibold tabular-nums w-5 text-right">{bucket.count}</span>
+                          <span className="text-[10px] text-muted-foreground/50 w-9 text-right">{bucket.count > 0 ? `${bucket.pct}%` : ''}</span>
+                          {bucket.count > 0 ? (
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                              onClick={(e) => { e.stopPropagation(); setDetalharBucket({ label: bucket.label, leads: bucket.leads, items: bucket.items ?? [] }); }}
+                            >
+                              <ListChecks className="h-3 w-3" />
+                              Detalhar
+                            </Button>
+                          ) : <span className="w-[68px] shrink-0" />}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tempo médio por origem */}
+                  {tf.porOrigem.length > 1 && (
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">Tempo médio por origem</p>
+                      <div className="space-y-3">
+                        {[...tf.porOrigem].sort((a: any, b: any) => a.media - b.media).map((o: any) => (
+                          <div
+                            key={o.origem}
+                            className={cn("flex items-center gap-3", o.leads?.length && "cursor-pointer group")}
+                            onClick={() => o.leads?.length && openLeadsModal(`Conversão · ${origemLabel[o.origem] ?? o.origem}`, o.leads, allStages)}
+                          >
+                            <span className="text-[11px] text-muted-foreground w-24 shrink-0 group-hover:text-foreground transition-colors">
+                              {origemLabel[o.origem] ?? o.origem}
+                            </span>
+                            <div className="flex-1 bg-muted/40 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                                style={{ width: `${(o.media / maxMedia) * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-semibold tabular-nums">{fmtDias(o.media)}</span>
+                            <span className="text-[10px] text-muted-foreground/50 w-14 text-right">{o.count} venda{o.count !== 1 ? 's' : ''}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Dialog: detalhar distribuição por prazo dia a dia */}
+          {detalharBucket && (() => {
+            const grouped: Record<number, Array<{ lead: any; dias: number }>> = {};
+            detalharBucket.items.forEach((item) => {
+              const d = item.dias;
+              if (!grouped[d]) grouped[d] = [];
+              grouped[d].push(item);
+            });
+            const days = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+            const fmtD = (d: number) => d === 0 ? 'No mesmo dia' : d === 1 ? 'Dia 1' : `Dia ${d}`;
+            return (
+              <Dialog open onOpenChange={(v) => { if (!v) setDetalharBucket(null); }}>
+                <DialogContent className="flex flex-col p-0 gap-0 max-w-[480px] w-[480px] max-h-[70vh]">
+                  <DialogHeader className="sr-only">
+                    <DialogTitle>Detalhar: {detalharBucket.label}</DialogTitle>
+                  </DialogHeader>
+                  <div className="px-5 py-4 border-b border-border/40 shrink-0">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-muted">
+                        <ListChecks className="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
+                      <div>
+                        <p className="text-[13px] font-bold">Detalhe · {detalharBucket.label}</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                          {detalharBucket.leads.length} venda{detalharBucket.leads.length !== 1 ? 's' : ''} · distribuição dia a dia
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+                    {days.map(day => {
+                      const dayItems = grouped[day];
+                      return (
+                        <div key={day}>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{fmtD(day)}</span>
+                            <span className="h-px flex-1 bg-border/40" />
+                            <span className="text-[10px] text-muted-foreground/50">{dayItems.length} lead{dayItems.length !== 1 ? 's' : ''}</span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {dayItems.map(({ lead, dias }) => (
+                              <div
+                                key={lead.id}
+                                className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                                onClick={() => { setDetalharBucket(null); openLeadsModal(`Conversão: ${detalharBucket.label}`, detalharBucket.leads, allStages); }}
+                              >
+                                <div
+                                  className="h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                  style={{ backgroundColor: allStages?.find((s: any) => s.posicao_ordem === lead.posicao_pipeline)?.cor ?? '#94a3b8' }}
+                                >
+                                  {(lead.nome || '?').trim().split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[12px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
+                                  <p className="text-[10px] text-muted-foreground/60 truncate">{lead.telefone || '—'}</p>
+                                </div>
+                                <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                                  {dias === 0 ? 'No dia' : dias === 1 ? '1 dia' : `${dias} dias`}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            );
+          })()}
+
           {/* ⑧ TOP PROCEDIMENTOS + DISTRIBUIÇÃO DO PIPELINE */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
 
@@ -1256,7 +1532,7 @@ export default function Dashboard() {
                         <div
                           key={proc.name}
                           className="group flex items-center gap-3 rounded-xl px-2 py-1.5 -mx-2 cursor-pointer hover:bg-muted/40 transition-colors"
-                          onClick={() => setLeadsModal({ title: proc.name, leads: proc.leads ?? [] })}
+                          onClick={() => openLeadsModal(proc.name, proc.leads ?? [], allStages)}
                         >
                           <span
                             className="flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold text-white shrink-0"
@@ -1320,7 +1596,7 @@ export default function Dashboard() {
                             const stageLeads = (metrics.filteredAllLeadsList ?? []).filter(
                               (l: any) => l.posicao_pipeline === stage.posicao_ordem
                             );
-                            setLeadsModal({ title: `Etapa: ${entry.name}`, leads: stageLeads });
+                            openLeadsModal(`Etapa: ${entry.name}`, stageLeads, allStages);
                           }}
                         >
                           <div className="flex items-center justify-between mb-1.5">
@@ -1372,15 +1648,14 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
-            <div className="px-4 pb-4 pt-2">
-              <div className="h-[260px] [&_.recharts-bar-rectangle]:cursor-pointer [&_.recharts-bar-rectangle_path]:cursor-pointer">
+            <div className="px-2 pb-4 pt-2">
+              <div className="h-[280px] [&_.recharts-bar-rectangle]:cursor-pointer [&_.recharts-bar-rectangle_path]:cursor-pointer">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={metrics.leadsOverTime ?? []}
-                    margin={{ top: 24, right: 8, left: -10, bottom: 0 }}
-                    barCategoryGap="25%"
-                    barGap={2}
-                    barSize={16}
+                    margin={{ top: 28, right: 16, left: 16, bottom: 0 }}
+                    barCategoryGap="30%"
+                    barGap={3}
                   >
                     <XAxis
                       dataKey="day"
@@ -1390,15 +1665,15 @@ export default function Dashboard() {
                       stroke="hsl(var(--muted-foreground))"
                       dy={8}
                       tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      interval="preserveStartEnd"
+                      interval={Math.max(0, Math.floor((metrics.leadsOverTime?.length ?? 30) / 12) - 1)}
                     />
                     <YAxis hide />
                     <Tooltip content={<BarChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3, radius: 4 }} />
                     <Bar dataKey="captados" name="Captados" fill="#E85D24" shape={<RoundedBar />} label={<BarLabel />} cursor="pointer"
-                      onClick={(data: any) => data?.captadosList?.length && setLeadsModal({ title: `Captados em ${data.day}`, leads: data.captadosList })}
+                      onClick={(data: any) => data?.captadosList?.length && openLeadsModal(`Captados em ${data.day}`, data.captadosList, allStages)}
                     />
-                    <Bar dataKey="convertidos" name="Convertidos" fill="#10b981" shape={<RoundedBar />} cursor="pointer"
-                      onClick={(data: any) => data?.convertidosList?.length && setLeadsModal({ title: `Convertidos em ${data.day}`, leads: data.convertidosList })}
+                    <Bar dataKey="convertidos" name="Convertidos" fill="#10b981" shape={<RoundedBar />} label={<BarLabel />} cursor="pointer"
+                      onClick={(data: any) => data?.convertidosList?.length && openLeadsModal(`Convertidos em ${data.day}`, data.convertidosList, allStages)}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1431,7 +1706,7 @@ export default function Dashboard() {
                   <div
                     key={item.label}
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => setLeadsModal({ title: item.listTitle, leads: (metrics as any)[item.listKey] ?? [] })}
+                    onClick={() => openLeadsModal(item.listTitle, (metrics as any)[item.listKey] ?? [], allStages)}
                   >
                     <span className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ backgroundColor: item.color + '12' }}>
                       <Icon className="h-4 w-4" style={{ color: item.color }} />
@@ -1473,14 +1748,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      <DashboardLeadsModal
-        open={!!leadsModal}
-        onClose={() => setLeadsModal(null)}
-        title={leadsModal?.title ?? ''}
-        leads={leadsModal?.leads ?? []}
-        stages={allStages}
-      />
 
       {/* ── Modal: Conversas Sem Resposta em 24h ── */}
       {(() => {
@@ -1563,7 +1830,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => {
                           setShowSemRespostaDetail(false);
-                          setLeadsModal({ title: 'Leads sem resposta em 24h', leads: semRespostaLeads });
+                          openLeadsModal('Leads sem resposta em 24h', semRespostaLeads, allStages);
                         }}
                         className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                       >
@@ -1592,7 +1859,7 @@ export default function Dashboard() {
                           className="px-4 py-3 text-center text-[11px] text-muted-foreground hover:bg-muted/20 cursor-pointer transition-colors"
                           onClick={() => {
                             setShowSemRespostaDetail(false);
-                            setLeadsModal({ title: 'Leads sem resposta em 24h', leads: semRespostaLeads });
+                            openLeadsModal('Leads sem resposta em 24h', semRespostaLeads, allStages);
                           }}
                         >
                           + {semRespostaLeads.length - 8} leads a mais · clique para ver todos
@@ -1670,7 +1937,7 @@ export default function Dashboard() {
                     {periodos.map((p: any) => (
                       <div
                         key={p.id}
-                        onClick={() => p.count > 0 && setLeadsModal({ title: `Leads · ${p.label} (${periodoLabel(p.id)})`, leads: p.leads })}
+                        onClick={() => p.count > 0 && openLeadsModal(`Leads · ${p.label} (${periodoLabel(p.id)})`, p.leads, allStages)}
                         className={`rounded-xl border border-border/60 bg-card p-4 transition-colors ${p.count > 0 ? 'cursor-pointer hover:bg-muted/30 hover:border-border' : ''}`}
                       >
                         <div className="text-[13px] font-semibold text-foreground mb-0.5">{p.label}</div>
@@ -1732,7 +1999,7 @@ export default function Dashboard() {
                             style={{ cursor: 'pointer' }}
                             onClick={(data: any) => {
                               if (data?.count > 0) {
-                                setLeadsModal({ title: `Leads · ${data.label}`, leads: data.leads });
+                                openLeadsModal(`Leads · ${data.label}`, data.leads, allStages);
                               }
                             }}
                           >
@@ -1772,7 +2039,7 @@ export default function Dashboard() {
                         {melhoresHoras.map((d: any, i: number) => (
                           <div
                             key={d.hora}
-                            onClick={() => setLeadsModal({ title: `Leads · ${d.label}`, leads: d.leads })}
+                            onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads, allStages)}
                             className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 hover:border-border transition-colors"
                           >
                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: '#22c55e20', color: '#22c55e' }}>
@@ -1793,7 +2060,7 @@ export default function Dashboard() {
                         {pioresHoras.map((d: any, i: number) => (
                           <div
                             key={d.hora}
-                            onClick={() => setLeadsModal({ title: `Leads · ${d.label}`, leads: d.leads })}
+                            onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads, allStages)}
                             className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 hover:border-border transition-colors"
                           >
                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: '#ef444420', color: '#ef4444' }}>
@@ -1827,7 +2094,7 @@ export default function Dashboard() {
                           .map((d: any) => (
                             <div
                               key={d.hora}
-                              onClick={() => setLeadsModal({ title: `Leads · ${d.label}`, leads: d.leads })}
+                              onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads, allStages)}
                               className="grid grid-cols-3 px-4 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
                             >
                               <span className="text-[12px] font-medium text-foreground">{d.label}</span>

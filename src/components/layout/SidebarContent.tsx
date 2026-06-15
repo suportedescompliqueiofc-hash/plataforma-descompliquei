@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { 
+import {
   LayoutDashboard, Users, GitBranch, BarChart3, Settings, LogOut, ChevronLeft,
   MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, ShieldCheck,
   PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay, PenLine,
-  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp
+  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Sparkles, Swords, Route
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -33,7 +33,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   const { signOut, user } = useAuth();
   const { profile, role } = useProfile();
   const { branding } = useBranding();
-  const { plataformaUser, plan, progressPercent, cerebroPercent, acesso, isContextLoading: plataformaLoading, isMember } = usePlataforma();
+  const { plataformaUser, plan, progressPercent, acesso, isContextLoading: plataformaLoading, isMember } = usePlataforma();
   const { pending: performancePending } = usePerformanceBadge();
   const { showInSidebar: showOnboarding, completedCount: onboardingDone, totalCount: onboardingTotal } = useOnboarding();
 
@@ -63,7 +63,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
 
   const temPlataforma =
     isSuperAdmin || // superadmin sempre vê o botão Plataforma
-    acesso.acesso_cerebro ||
     acesso.acesso_sessoes_taticas ||
     acesso.acesso_materiais ||
     acesso.acesso_ia_comercial ||
@@ -86,6 +85,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
     { title: "Procedimentos", icon: Stethoscope, path: "/crm/procedimentos" },
     { title: "Metas", icon: Target, path: "/crm/metas" },
+    { title: "Evolução", icon: TrendingUp, path: "/crm/evolucao" },
     { isSeparator: true, title: "Automação" },
     { title: "Msgs Rápidas", icon: Zap, path: "/crm/quick-messages" },
     { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },
@@ -125,18 +125,18 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   // Durante o loading, manter os itens visíveis (evitar flicker na navegação)
   const temTrilha = plataformaLoading || (acesso.pilares_liberados?.length ?? 0) > 0;
   const temIAs = plataformaLoading || acesso.acesso_ia_comercial || (acesso.ias_liberadas?.length ?? 0) > 0;
+  const temOS = plataformaLoading || acesso.acesso_os;
 
   const platformMenuItems = [
     { title: "Hub", icon: LayoutDashboard, path: "/plataforma" },
     { isSeparator: true, title: "Aprendizado" },
-    ...(temTrilha ? [{ title: "Trilha de Aprendizado", icon: PlayCircle, path: "/plataforma/trilha" }] : []),
-    { title: "Cérebro Central", icon: Brain, path: "/plataforma/cerebro", accessKey: 'acesso_cerebro' as const },
+    { title: "Jornada", icon: Route, path: "/plataforma/jornada" },
+    { title: "Arsenal", icon: Swords, path: "/plataforma/arsenal" },
     { title: "Meus Materiais", icon: Target, path: "/plataforma/materiais", accessKey: 'acesso_materiais' as const },
     { isSeparator: true, title: "Ao Vivo" },
     { title: "Sessões Táticas", icon: Calendar, path: "/plataforma/sessoes-taticas", accessKey: 'acesso_sessoes_taticas' as const },
     { isSeparator: true, title: "Ferramenta" },
-    ...(temIAs ? [{ title: "IAs Comerciais", icon: Zap, path: "/plataforma/ia-comercial" }] : []),
-    ...(!isMember && acesso.acesso_crm ? [{ title: "Evolução", icon: TrendingUp, path: "/plataforma/evolucao", accessKey: 'acesso_crm' as const }] : []),
+    ...(temOS ? [{ title: "Athos GS", icon: Sparkles, path: "/plataforma/os" }] : []),
     { title: "Acessar CRM", icon: BarChart3, path: "/crm", accessKey: 'acesso_crm' as const },
     { isSeparator: true, title: "Admin", superadminOnly: true },
     { title: "Super Admin", icon: ShieldCheck, path: "/admin", superadminOnly: true }
@@ -162,7 +162,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
 
   // Chaves que partem como `true` em ACESSO_TOTAL mas devem ser `false` para membros.
   // Escondê-las durante o loading evita o flash antes da detecção de membro terminar.
-  const MEMBER_RESTRICTED_KEYS = new Set(['acesso_cerebro', 'acesso_materiais']);
+  const MEMBER_RESTRICTED_KEYS = new Set(['acesso_materiais']);
 
   const menuItems = isPlatformMode
     ? platformMenuItems.filter(item => {
@@ -224,12 +224,11 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/settings': 'sidebar-settings',
     // Plataforma
     '/plataforma': 'sidebar-hub',
+    '/plataforma/arsenal': 'sidebar-arsenal',
     '/plataforma/trilha': 'sidebar-trilha',
-    '/plataforma/cerebro': 'sidebar-cerebro',
     '/plataforma/materiais': 'sidebar-materiais',
     '/plataforma/sessoes-taticas': 'sidebar-sessoes',
-    '/plataforma/ia-comercial': 'sidebar-ias',
-    '/plataforma/evolucao': 'sidebar-evolucao',
+    '/crm/evolucao': 'sidebar-evolucao',
   };
 
   const hasImpersonationFlag = !!localStorage.getItem('original_master_org_id');
@@ -309,16 +308,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
                 {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[#E85D24]" />}
                 <Icon className="h-[18px] w-[18px] flex-shrink-0" />
                 <span className="truncate text-[13px] flex-1">{item.title}</span>
-                {item.title === 'Trilha de Aprendizado' && progressPercent > 0 && (
-                  <span className={`ml-auto text-[10px] font-medium tabular-nums ${progressPercent === 100 ? 'text-emerald-400' : 'text-white/40'}`}>
-                    {progressPercent}%
-                  </span>
-                )}
-                {item.title === 'Cérebro Central' && cerebroPercent !== undefined && (
-                  <span className={`ml-auto text-[10px] font-medium tabular-nums ${cerebroPercent === 100 ? 'text-emerald-400' : 'text-white/40'}`}>
-                    {cerebroPercent}%
-                  </span>
-                )}
                 {item.title === 'Performance' && performancePending > 0 && (
                   <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold tabular-nums px-1">
                     {performancePending}
