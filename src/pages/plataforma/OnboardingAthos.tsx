@@ -218,15 +218,31 @@ function AvatarAthos({ size = 7 }: { size?: number }) {
   );
 }
 
-function BubbleAthos({ content, streaming }: { content: string; streaming?: boolean }) {
+function BubbleAthos({ content, streaming, loadingLabel }: { content: string; streaming?: boolean; loadingLabel?: string }) {
+  const isEmpty = content === "" && streaming;
   return (
     <div className="flex gap-3 items-start">
       <AvatarAthos />
       <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-white border border-border/40 px-4 py-3 shadow-sm">
-        <p className="text-[14px] text-foreground leading-relaxed whitespace-pre-wrap">
-          {content}
-          {streaming && <span className="inline-block w-0.5 h-4 bg-foreground/60 animate-pulse ml-0.5 align-middle" />}
-        </p>
+        {isEmpty ? (
+          <div className="space-y-2">
+            <p className="text-[13px] text-muted-foreground/70 italic">{loadingLabel ?? "Pensando..."}</p>
+            <div className="flex gap-1 items-center">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce"
+                  style={{ animationDelay: `${i * 150}ms` }}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="text-[14px] text-foreground leading-relaxed whitespace-pre-wrap">
+            {content}
+            {streaming && <span className="inline-block w-0.5 h-4 bg-foreground/60 animate-pulse ml-0.5 align-middle" />}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -276,7 +292,7 @@ function JornadaPronta({ nomeClinica, onClick, loading }: { nomeClinica: string;
           disabled={loading}
           className="flex items-center gap-2 h-10 px-5 rounded-xl bg-foreground text-background text-[13px] font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60"
         >
-          {loading ? "Abrindo jornada..." : "Ver minha jornada"}
+          {loading ? "Abrindo..." : "Ir para o Athos"}
           <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -523,7 +539,7 @@ export default function OnboardingAthos() {
           { onConflict: "user_id" }
         ),
       ]);
-      navigate("/plataforma/jornada", { replace: true });
+      navigate("/plataforma/descompliquei-os", { replace: true });
     } catch {
       toast.error("Erro ao finalizar. Tente novamente.");
       setConcluindo(false);
@@ -580,19 +596,16 @@ export default function OnboardingAthos() {
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-2xl mx-auto px-5 py-8 space-y-5">
 
-          {/* Estado inicial de análise */}
+          {/* Estado inicial — antes da primeira bolha ser criada */}
           {inicializando && mensagens.length === 0 && (
             <div className="flex gap-3 items-start">
               <AvatarAthos />
               <div className="rounded-2xl rounded-tl-sm bg-white border border-border/40 px-4 py-3 shadow-sm">
-                <p className="text-[13px] text-muted-foreground mb-2">Athos está analisando seu diagnóstico...</p>
+                <p className="text-[13px] text-muted-foreground/70 italic mb-2">Analisando seu diagnóstico...</p>
                 <div className="flex gap-1 items-center">
                   {[0, 1, 2].map((i) => (
-                    <span
-                      key={i}
-                      className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce"
-                      style={{ animationDelay: `${i * 150}ms` }}
-                    />
+                    <span key={i} className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce"
+                      style={{ animationDelay: `${i * 150}ms` }} />
                   ))}
                 </div>
               </div>
@@ -602,12 +615,13 @@ export default function OnboardingAthos() {
           {/* Mensagens */}
           {mensagens
             .filter((m) => !m.hidden)
-            .map((m) =>
+            .map((m, idx) =>
               m.role === "athos" ? (
                 <BubbleAthos
                   key={m.id}
                   content={m.content}
                   streaming={streamingId === m.id}
+                  loadingLabel={idx === 0 ? "Analisando seu diagnóstico..." : "Pensando..."}
                 />
               ) : (
                 <BubbleUser key={m.id} content={m.content} />
