@@ -467,7 +467,7 @@ export default function Onboarding() {
   useEffect(() => {
     if (loading) return;
     if (etapa === "athos" || etapa === "concluido") {
-      navigate("/plataforma/onboarding/athos", { replace: true });
+      navigate("/plataforma/descompliquei-os?agente=onboarding", { replace: true });
       return;
     }
     if (blocoAtual > 0) setTela(blocoAtual);
@@ -510,7 +510,7 @@ export default function Onboarding() {
     const nomeClinica = respostas.p1 || "Minha Clínica";
     await salvarDocumento(markdown, nomeClinica);
     await concluirDiagnostico();
-    navigate("/plataforma/onboarding/athos");
+    navigate("/plataforma/descompliquei-os?agente=onboarding");
   };
 
   // Progresso

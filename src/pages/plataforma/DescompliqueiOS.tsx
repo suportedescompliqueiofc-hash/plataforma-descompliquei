@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { formatDistanceToNow, isToday, isYesterday, parseISO } from "date-fns";
@@ -379,10 +380,75 @@ function groupConversations(conversations: OSConversation[]) {
   return { today, yesterday, older };
 }
 
+// ── Tipos de Agentes ──────────────────────────────────────────────────────────
+
+interface AthosAgente {
+  id: string;
+  slug: string;
+  nome: string;
+  descricao: string | null;
+  system_prompt: string;
+}
+
+// ── Extração e salvamento de jornada (onboarding agent) ───────────────────────
+
+function extrairJornadaOS(text: string): any | null {
+  const bloco = text.match(/```json\s*([\s\S]+?)\s*```/);
+  if (bloco) {
+    try { const j = JSON.parse(bloco[1]); if (j?.titulo && Array.isArray(j?.estagios)) return j; } catch {}
+  }
+  const bruto = text.match(/\{\s*"titulo"\s*:[\s\S]*?"estagios"\s*:\s*\[[\s\S]*?\]\s*\}/);
+  if (bruto) {
+    try { const j = JSON.parse(bruto[0]); if (j?.titulo && Array.isArray(j?.estagios)) return j; } catch {}
+  }
+  return null;
+}
+
+async function salvarJornadaOS(json: any, userId: string): Promise<boolean> {
+  try {
+    const { data: ferramentas } = await (supabase as any).from("arsenal_ferramentas").select("id, slug").eq("ativo", true);
+    const slugMap = new Map<string, string>((ferramentas ?? []).map((f: any) => [f.slug, f.id]));
+
+    const { data: jornada, error: errJ } = await (supabase as any)
+      .from("jornadas").insert({ user_id: userId, titulo: json.titulo, status: "ativa", gerada_por: "ia" }).select("id").single();
+    if (errJ || !jornada) return false;
+
+    const hoje = new Date();
+    let cursorDias = 0;
+    for (const est of json.estagios) {
+      const dataInicio = new Date(hoje);
+      dataInicio.setDate(dataInicio.getDate() + cursorDias);
+      cursorDias += (est.prazo_dias ?? 7) + 1;
+
+      const { data: estagio, error: errE } = await (supabase as any)
+        .from("jornada_estagios").insert({
+          jornada_id: jornada.id, titulo: est.titulo, descricao: est.descricao ?? null,
+          ordem: est.ordem ?? 0, prazo_dias: est.prazo_dias ?? 7,
+          data_inicio: dataInicio.toISOString().slice(0, 10),
+        }).select("id").single();
+      if (errE || !estagio) continue;
+
+      for (const passo of est.passos) {
+        const ferramentaId = passo.tipo === "ferramenta_arsenal" && passo.ferramenta_slug ? (slugMap.get(passo.ferramenta_slug) ?? null) : null;
+        await (supabase as any).from("jornada_passos").insert({
+          estagio_id: estagio.id, titulo: passo.titulo, descricao: passo.descricao ?? null,
+          ordem: passo.ordem ?? 0, tipo: passo.tipo ?? "acao_livre",
+          ferramenta_id: ferramentaId, prazo_dias: passo.prazo_dias ?? null, obrigatorio: passo.obrigatorio ?? true,
+        });
+      }
+    }
+    return true;
+  } catch { return false; }
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function DescompliqueiOS() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const [agentes, setAgentes] = useState<AthosAgente[]>([]);
+  const [selectedAgentSlug, setSelectedAgentSlug] = useState<string | null>(() => searchParams.get("agente") ?? null);
+  const jornadaSalvaRef = useRef(false);
   const [conversations, setConversations] = useState<OSConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<OSMessage[]>([]);
@@ -456,16 +522,28 @@ export default function DescompliqueiOS() {
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  // Carrega agentes disponíveis
+  useEffect(() => {
+    if (!user) return;
+    (supabase as any).from("athos_agentes").select("id, slug, nome, descricao, system_prompt")
+      .eq("ativo", true).order("created_at")
+      .then(({ data }: any) => { if (data) setAgentes(data); });
+  }, [user?.id]);
+
   const loadConversations = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("os_conversations" as any)
+    let q = (supabase as any)
+      .from("os_conversations")
       .select("id, titulo, criado_em, atualizado_em")
-      .eq("user_id", user.id)
-      .order("atualizado_em", { ascending: false })
-      .limit(50);
+      .eq("user_id", user.id);
+    if (selectedAgentSlug) {
+      q = q.eq("agente_slug", selectedAgentSlug);
+    } else {
+      q = q.is("agente_slug", null);
+    }
+    const { data } = await q.order("atualizado_em", { ascending: false }).limit(50);
     if (data) setConversations(data as any);
-  }, [user]);
+  }, [user, selectedAgentSlug]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
   useEffect(() => {
@@ -499,8 +577,23 @@ export default function DescompliqueiOS() {
   const newConversation = () => {
     setCurrentConversationId(null);
     setMessages([]);
+    jornadaSalvaRef.current = false;
     setTimeout(() => textareaRef.current?.focus(), 50);
   };
+
+  // Detecta JSON de jornada quando o agente de onboarding está ativo
+  useEffect(() => {
+    if (selectedAgentSlug !== "onboarding" || isStreaming || jornadaSalvaRef.current) return;
+    const lastMsg = [...messages].reverse().find(m => m.role === "assistant" && !m.isStreaming && m.content);
+    if (!lastMsg) return;
+    const jornada = extrairJornadaOS(lastMsg.content);
+    if (jornada && user) {
+      jornadaSalvaRef.current = true;
+      salvarJornadaOS(jornada, user.id).then(ok => {
+        if (ok) toast.success("Jornada salva com sucesso!");
+      });
+    }
+  }, [isStreaming, messages, selectedAgentSlug, user?.id]);
 
   const deleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -608,6 +701,21 @@ export default function DescompliqueiOS() {
       const history = messages.filter(m => !m.isStreaming).slice(-20)
         .map(m => ({ role: m.role, content: m.content }));
 
+      // Monta o system_prompt_override do agente selecionado
+      const selectedAgent = agentes.find(a => a.slug === selectedAgentSlug);
+      let systemPromptOverride = selectedAgent?.system_prompt ?? undefined;
+
+      // Agente de onboarding: injeta diagnóstico no primeiro contexto
+      if (selectedAgentSlug === "onboarding" && !currentConversationId) {
+        const { data: diagDoc } = await (supabase as any)
+          .from("meus_materiais").select("conteudo")
+          .eq("user_id", user!.id).eq("categoria", "diagnostico")
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (diagDoc?.conteudo) {
+          systemPromptOverride = (systemPromptOverride ?? "") + `\n\n---\n\nDIAGNÓSTICO DO CLIENTE:\n${diagDoc.conteudo}`;
+        }
+      }
+
       const res = await fetch(`${SUPABASE_URL}/functions/v1/descompliquei-os`, {
         method: "POST",
         signal: abortController.signal,
@@ -622,6 +730,7 @@ export default function DescompliqueiOS() {
           history,
           model: activeModel,
           attachments: atts.map(a => ({ name: a.name, mimeType: a.mimeType, base64: a.base64 })),
+          ...(systemPromptOverride ? { system_prompt_override: systemPromptOverride } : {}),
         }),
       });
 
@@ -680,10 +789,14 @@ export default function DescompliqueiOS() {
               } : m));
             }
             if (ev.type === "done") {
-              // Flush imediato do texto acumulado antes de marcar como concluído
               flushText();
               if (ev.conversation_id && !currentConversationId) {
                 setCurrentConversationId(ev.conversation_id);
+                if (selectedAgentSlug) {
+                  (supabase as any).from("os_conversations")
+                    .update({ agente_slug: selectedAgentSlug })
+                    .eq("id", ev.conversation_id);
+                }
               }
               loadConversations();
               setMessages(prev => prev.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
@@ -907,10 +1020,66 @@ export default function DescompliqueiOS() {
       )}>
         {/* Keep content visible only when sidebar is open */}
         <div className="flex flex-col h-full w-60">
-          <div className="px-3 pt-4 pb-3 border-b border-border/40 shrink-0">
-            <div className="flex items-center gap-2 mb-3 px-1">
-              <span className="text-[12px] font-bold tracking-wide text-muted-foreground uppercase">Conversas</span>
+
+          {/* ── Agent cards ── */}
+          <div className="shrink-0 px-3 pt-4 pb-3 border-b border-border/40">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 px-1 mb-2">Agentes</p>
+            <div className="space-y-0.5">
+              {/* Athos GS — padrão */}
+              <button
+                onClick={() => { if (selectedAgentSlug !== null) { setSelectedAgentSlug(null); newConversation(); } }}
+                className={cn(
+                  "flex items-center gap-2.5 w-full px-2 py-2 rounded-xl text-left transition-all",
+                  selectedAgentSlug === null
+                    ? "bg-foreground text-background"
+                    : "hover:bg-muted/60 text-foreground/70 hover:text-foreground"
+                )}
+              >
+                <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold",
+                  selectedAgentSlug === null ? "bg-white/15 text-background" : "bg-muted text-muted-foreground")}>
+                  <Sparkles className="h-3.5 w-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[12px] font-semibold leading-none">Athos GS</p>
+                  <p className={cn("text-[10px] mt-0.5 leading-none truncate",
+                    selectedAgentSlug === null ? "text-background/50" : "text-muted-foreground/50")}>
+                    Assistente CRM
+                  </p>
+                </div>
+              </button>
+
+              {/* Agentes da tabela */}
+              {agentes.map(ag => (
+                <button
+                  key={ag.slug}
+                  onClick={() => { if (selectedAgentSlug !== ag.slug) { setSelectedAgentSlug(ag.slug); newConversation(); } }}
+                  className={cn(
+                    "flex items-center gap-2.5 w-full px-2 py-2 rounded-xl text-left transition-all",
+                    selectedAgentSlug === ag.slug
+                      ? "bg-foreground text-background"
+                      : "hover:bg-muted/60 text-foreground/70 hover:text-foreground"
+                  )}
+                >
+                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                    selectedAgentSlug === ag.slug ? "bg-white/15" : "bg-muted")}>
+                    <Bot className={cn("h-3.5 w-3.5", selectedAgentSlug === ag.slug ? "text-background" : "text-muted-foreground")} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[12px] font-semibold leading-none truncate">{ag.nome}</p>
+                    {ag.descricao && (
+                      <p className={cn("text-[10px] mt-0.5 leading-none truncate",
+                        selectedAgentSlug === ag.slug ? "text-background/50" : "text-muted-foreground/50")}>
+                        {ag.descricao}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
             </div>
+          </div>
+
+          {/* ── Conversas ── */}
+          <div className="px-3 pt-3 pb-2 shrink-0">
             <button
               onClick={newConversation}
               className="flex items-center justify-center gap-1.5 w-full h-8 rounded-lg border border-border/60 bg-background text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
@@ -1038,7 +1207,7 @@ export default function DescompliqueiOS() {
           </button>
           <div className="h-4 w-px bg-border/60 shrink-0" />
           <span className="text-[13px] font-semibold text-foreground truncate flex-1 font-display">
-            {currentTitle ?? "Athos GS"}
+            {currentTitle ?? (selectedAgentSlug ? (agentes.find(a => a.slug === selectedAgentSlug)?.nome ?? "Athos GS") : "Athos GS")}
           </span>
 
         </div>
