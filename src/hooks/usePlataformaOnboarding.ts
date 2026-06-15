@@ -31,16 +31,6 @@ export const PLATFORM_ONBOARDING_STEPS: PlataformaOnboardingStep[] = [
     ctaLabel: 'Iniciar tour',
   },
   {
-    key: 'cerebro',
-    title: 'Preencha o Cérebro Central',
-    description: 'Configure a identidade da sua clínica para personalizar todas as IAs da plataforma',
-    icon: 'Brain',
-    mandatory: true,
-    path: '/plataforma/cerebro',
-    tutorialId: 'platform-cerebro',
-    ctaLabel: 'Configurar Cérebro',
-  },
-  {
     key: 'crm',
     title: 'Configure seu CRM',
     description: 'Acesse o CRM para configurar o pipeline, as etiquetas e o WhatsApp da sua clínica',
@@ -54,10 +44,11 @@ export const PLATFORM_ONBOARDING_STEPS: PlataformaOnboardingStep[] = [
 
 // Páginas onde o modal NÃO bloqueia (usuário está configurando algo)
 export const PLATFORM_ONBOARDING_ALLOWED_PATHS = [
-  '/plataforma/cerebro',
   '/plataforma/trilha',
   '/plataforma/ia-comercial',
   '/plataforma/sessoes-taticas',
+  '/plataforma/onboarding',
+  '/plataforma/arsenal',
 ];
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

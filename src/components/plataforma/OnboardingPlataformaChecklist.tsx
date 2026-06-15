@@ -129,7 +129,6 @@ function CelebrationScreen({ onContinue }: { onContinue: () => void }) {
 // Mapa: tutorialId → stepKey do onboarding
 const TUTORIAL_TO_STEP: Record<string, string> = {
   'platform-tour': 'tour',
-  'platform-cerebro': 'cerebro',
 };
 
 export function OnboardingPlataformaChecklist() {

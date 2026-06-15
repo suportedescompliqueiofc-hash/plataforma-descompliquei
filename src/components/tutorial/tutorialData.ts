@@ -1909,68 +1909,59 @@ export const tutorials: Tutorial[] = [
     icon: 'Map',
     category: 'onboarding' as any,
     steps: [
-      // ── 1. Hub ──────────────────────────────────────────────────────────────
+      // ── 1. Sidebar ──────────────────────────────────────────────────────────
       {
         target: 'sidebar',
         title: 'Menu da plataforma',
-        description: 'Este é o **menu lateral** — por ele você navega entre todas as ferramentas disponíveis no seu plano.\n\nEstá organizado em seções:\n\n• **Aprendizado** — Trilha e Cérebro Central\n• **Ao Vivo** — Sessões Táticas\n• **Ferramenta** — IAs Comerciais, Evolução e CRM',
+        description: 'Este é o **menu lateral** — por ele você navega entre todas as ferramentas disponíveis no seu plano.\n\nEstá organizado em seções:\n\n• **Hub** — ponto de partida e visão geral\n• **Arsenal** — ferramentas comerciais práticas\n• **Trilha** — aprendizado guiado\n• **Meus Materiais** — seus documentos e construções\n• **Athos GS** — IA estratégica da sua clínica\n• **Sessões Táticas** — encontros ao vivo',
       },
-      {
-        target: 'hub-header',
-        title: 'Hub — Sua central de comando',
-        description: 'Este é o **Hub**, seu ponto de partida. Aqui você vê o progresso geral, acessa rapidamente o próximo módulo e tem atalhos para todas as ferramentas.\n\nSempre que entrar na plataforma, você começa por aqui.',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 500 },
-      },
+      // ── 2. Hub ──────────────────────────────────────────────────────────────
       {
         target: 'hub-tools',
-        title: 'Ferramentas do seu plano',
-        description: 'Cada card representa uma ferramenta disponível. Clique em qualquer um para acessar diretamente.\n\nOs cards com **barra de progresso** mostram o quanto você já avançou naquela área.',
+        title: 'Hub — Sua central de comando',
+        description: 'O **Hub** é seu ponto de partida. Aqui você tem atalhos rápidos para todas as ferramentas do plano e acompanha o progresso geral.\n\nSempre que entrar na plataforma, você começa por aqui.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 500 },
       },
-      // ── 2. Trilha de Aprendizado ────────────────────────────────────────────
+      // ── 3. Arsenal ──────────────────────────────────────────────────────────
+      {
+        target: 'arsenal-header',
+        title: 'Arsenal Comercial',
+        description: 'O **Arsenal** é a sua caixa de ferramentas comerciais — construções prontas que transformam conhecimento em ação.\n\nOrganizado por categorias:\n\n• **Estratégia de captação** — anúncios, scripts, fluxos\n• **Qualificação** — filtros, argumentos, objeções\n• **Fechamento** — propostas, follow-up, reativação\n\nCada ferramenta tem uma construção que você preenche e salva em **Meus Materiais**.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-arsenal"]', delay: 600 },
+      },
+      // ── 4. Trilha de Aprendizado ────────────────────────────────────────────
       {
         target: 'trilha-header',
         title: 'Trilha de Aprendizado',
-        description: 'A **Trilha** é onde você aprende o método completo de captação e conversão de pacientes — do tráfego até o fechamento.\n\n• Módulos em **vídeo** com materiais complementares\n• Progresso salvo **automaticamente**\n• Conteúdo dividido em **pilares** que desbloqueiam em sequência\n\n**Dica:** Assista na ordem. Cada pilar é pré-requisito para o próximo.',
+        description: 'A **Trilha** é onde você aprende o método completo de captação e conversão — do tráfego até o fechamento.\n\n• Módulos em **vídeo** com materiais complementares\n• Progresso salvo **automaticamente**\n• Conteúdo dividido em **pilares** que desbloqueiam em sequência\n\n**Dica:** Assista na ordem. Cada pilar é pré-requisito para o próximo.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-trilha"]', delay: 600 },
       },
-      // ── 3. Cérebro Central ──────────────────────────────────────────────────
+      // ── 5. Meus Materiais ───────────────────────────────────────────────────
       {
-        target: 'cerebro-header',
-        title: 'Cérebro Central',
-        description: 'O **Cérebro Central** é a memória estratégica da sua clínica. Tudo o que você registra aqui alimenta as IAs.\n\nSão **5 fases de configuração**:\n\n• **Identidade** — quem você é, especialidade, cidade\n• **Procedimentos** — o que oferece e como precifica\n• **Operação** — horários, pagamentos, comercial\n• **FAQ & Objeções** — perguntas frequentes e respostas\n• **Trilha** — materiais gerados nos módulos',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-cerebro"]', delay: 600 },
+        target: 'materiais-header',
+        title: 'Meus Materiais',
+        description: '**Meus Materiais** é onde ficam todos os documentos que você constrói na plataforma.\n\n• Tudo que você preenche no **Arsenal** é salvo aqui automaticamente\n• Você pode criar e editar documentos livremente\n• O **Diagnóstico Estratégico** gerado no onboarding fica fixado aqui como base de conhecimento\n\nPense como seu **arquivo estratégico pessoal**.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-materiais"]', delay: 600 },
       },
+      // ── 6. Athos GS ─────────────────────────────────────────────────────────
       {
-        target: 'cerebro-nav',
-        title: 'Navegue entre as fases',
-        description: 'Use estas abas para alternar entre as fases. O Cérebro **salva automaticamente** cada campo que você preenche.\n\n**Quanto mais completo, mais inteligentes ficam suas IAs.** A barra de progresso no topo mostra o percentual preenchido.',
+        target: 'sidebar-os',
+        title: 'Athos GS — Descompliquei OS',
+        description: 'O **Athos GS** é a sua IA estratégica — treinada com o método Descompliquei e com os dados da sua clínica.\n\nUse para:\n\n• Tirar dúvidas sobre estratégia comercial\n• Analisar situações e tomar decisões\n• Criar materiais, scripts e planos de ação\n• Revisar o que está funcionando e o que não está\n\nO Athos conhece o seu **Diagnóstico Estratégico** — as conversas são contextualizadas para a realidade da sua clínica.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-os"]', delay: 600 },
       },
-      // ── 4. IAs Comerciais ───────────────────────────────────────────────────
+      // ── 7. Sessões Táticas ──────────────────────────────────────────────────
       {
-        target: 'iahub-header',
-        title: 'IAs Comerciais',
-        description: 'Aqui ficam as **IAs especializadas** para o comercial da sua clínica. Cada uma é treinada para uma função diferente:\n\n• **Pré-atendimento** — responde dúvidas de leads\n• **Objeções** — contorna resistências de preço\n• **Remarketing** — reativa leads frios\n• **Copywriter** — cria textos para anúncios\n• **Scripts** — gera roteiros de atendimento\n\nAs respostas são personalizadas com os dados do **Cérebro Central** — por isso é importante preenchê-lo primeiro.',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-ias"]', delay: 600 },
-      },
-      // ── 5. Sessões Táticas ──────────────────────────────────────────────────
-      {
-        target: 'sessoes-header',
+        target: 'sidebar-sessoes',
         title: 'Sessões Táticas',
-        description: 'As **Sessões Táticas** são encontros ao vivo com especialistas, focados em temas práticos do dia a dia comercial.\n\n• Calendário semanal com **próximas sessões**\n• Link do Google Meet direto na plataforma\n• **Gravações** disponíveis depois de cada sessão\n\nParticipe ao vivo para tirar dúvidas em tempo real.',
+        description: 'As **Sessões Táticas** são encontros ao vivo com especialistas, focados em temas práticos do dia a dia comercial.\n\n• Calendário com **próximas sessões**\n• Link direto para o Google Meet\n• **Gravações** disponíveis após cada sessão\n\nParticipe ao vivo para tirar dúvidas em tempo real.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-sessoes"]', delay: 600 },
       },
-      // ── 6. Evolução ─────────────────────────────────────────────────────────
+      // ── 8. Encerramento ─────────────────────────────────────────────────────
       {
-        target: 'evolucao-header',
-        title: 'Evolução',
-        description: 'A página de **Evolução** compara o desempenho da sua clínica **entre dois períodos** — semana a semana, mês a mês.\n\n• Volume de leads, qualificados e agendamentos\n• Taxas de conversão em cada etapa do funil\n• Top procedimentos vendidos\n\nUse para identificar o que está melhorando e o que precisa de atenção.',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-evolucao"]', delay: 600 },
-      },
-      // ── 7. Volta ao Hub — Encerramento ──────────────────────────────────────
-      {
-        target: 'hub-header',
+        target: 'hub-tools',
         title: 'Tour concluído!',
-        description: 'Agora você conhece todas as seções da plataforma.\n\n**Próximos passos recomendados:**\n\n• Preencha o **Cérebro Central** (é o mais importante!)\n• Comece pela **Fase 1 — Identidade**\n• Depois explore as **IAs Comerciais**\n• E configure o **CRM** para gerenciar seus leads\n\nVocê pode refazer este tour a qualquer momento pela Central de Ajuda.',
+        description: 'Agora você conhece todas as seções da plataforma.\n\n**Por onde começar:**\n\n• Explore o **Arsenal** e complete as construções da sua clínica\n• Assista os módulos da **Trilha** na ordem\n• Use o **Athos GS** sempre que precisar de orientação estratégica\n• Configure o **CRM** para gerenciar seus leads\n\nVocê pode refazer este tour a qualquer momento pela Central de Ajuda.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 600 },
       },
     ],

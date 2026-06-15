@@ -228,6 +228,8 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/plataforma/trilha': 'sidebar-trilha',
     '/plataforma/materiais': 'sidebar-materiais',
     '/plataforma/sessoes-taticas': 'sidebar-sessoes',
+    '/plataforma/descompliquei-os': 'sidebar-os',
+    '/plataforma/jornada': 'sidebar-jornada',
     '/crm/evolucao': 'sidebar-evolucao',
   };
 
