@@ -448,6 +448,7 @@ export default function DescompliqueiOS() {
   const [searchParams] = useSearchParams();
   const [agentes, setAgentes] = useState<AthosAgente[]>([]);
   const [selectedAgentSlug, setSelectedAgentSlug] = useState<string | null>(() => searchParams.get("agente") ?? null);
+  const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const jornadaSalvaRef = useRef(false);
   const [conversations, setConversations] = useState<OSConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
@@ -1021,65 +1022,25 @@ export default function DescompliqueiOS() {
         {/* Keep content visible only when sidebar is open */}
         <div className="flex flex-col h-full w-60">
 
-          {/* ── Agent cards ── */}
-          <div className="shrink-0 px-3 pt-4 pb-3 border-b border-border/40">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 px-1 mb-2">Agentes</p>
-            <div className="space-y-0.5">
-              {/* Athos GS — padrão */}
-              <button
-                onClick={() => { if (selectedAgentSlug !== null) { setSelectedAgentSlug(null); newConversation(); } }}
-                className={cn(
-                  "flex items-center gap-2.5 w-full px-2 py-2 rounded-xl text-left transition-all",
-                  selectedAgentSlug === null
-                    ? "bg-foreground text-background"
-                    : "hover:bg-muted/60 text-foreground/70 hover:text-foreground"
-                )}
-              >
-                <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-[11px] font-bold",
-                  selectedAgentSlug === null ? "bg-white/15 text-background" : "bg-muted text-muted-foreground")}>
-                  <Sparkles className="h-3.5 w-3.5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[12px] font-semibold leading-none">Athos GS</p>
-                  <p className={cn("text-[10px] mt-0.5 leading-none truncate",
-                    selectedAgentSlug === null ? "text-background/50" : "text-muted-foreground/50")}>
-                    Assistente CRM
-                  </p>
-                </div>
-              </button>
-
-              {/* Agentes da tabela */}
-              {agentes.map(ag => (
+          {/* ── Header ── */}
+          <div className="px-3 pt-4 pb-3 border-b border-border/40 shrink-0 space-y-2">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[12px] font-bold tracking-wide text-muted-foreground uppercase">Conversas</span>
+              {agentes.length > 0 && (
                 <button
-                  key={ag.slug}
-                  onClick={() => { if (selectedAgentSlug !== ag.slug) { setSelectedAgentSlug(ag.slug); newConversation(); } }}
+                  onClick={() => setAgentPickerOpen(v => !v)}
+                  title="Agentes"
                   className={cn(
-                    "flex items-center gap-2.5 w-full px-2 py-2 rounded-xl text-left transition-all",
-                    selectedAgentSlug === ag.slug
-                      ? "bg-foreground text-background"
-                      : "hover:bg-muted/60 text-foreground/70 hover:text-foreground"
+                    "flex items-center justify-center h-6 w-6 rounded-md transition-colors",
+                    selectedAgentSlug
+                      ? "text-foreground bg-foreground/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                   )}
                 >
-                  <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                    selectedAgentSlug === ag.slug ? "bg-white/15" : "bg-muted")}>
-                    <Bot className={cn("h-3.5 w-3.5", selectedAgentSlug === ag.slug ? "text-background" : "text-muted-foreground")} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[12px] font-semibold leading-none truncate">{ag.nome}</p>
-                    {ag.descricao && (
-                      <p className={cn("text-[10px] mt-0.5 leading-none truncate",
-                        selectedAgentSlug === ag.slug ? "text-background/50" : "text-muted-foreground/50")}>
-                        {ag.descricao}
-                      </p>
-                    )}
-                  </div>
+                  <Bot className="h-3.5 w-3.5" />
                 </button>
-              ))}
+              )}
             </div>
-          </div>
-
-          {/* ── Conversas ── */}
-          <div className="px-3 pt-3 pb-2 shrink-0">
             <button
               onClick={newConversation}
               className="flex items-center justify-center gap-1.5 w-full h-8 rounded-lg border border-border/60 bg-background text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
@@ -1088,6 +1049,73 @@ export default function DescompliqueiOS() {
               Nova conversa
             </button>
           </div>
+
+          {/* ── Agent picker panel ── */}
+          {agentPickerOpen && agentes.length > 0 && (
+            <div className="absolute inset-x-0 top-[104px] bottom-0 z-10 bg-background/95 backdrop-blur-sm border-t border-border/40 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+                <div className="flex items-center gap-2">
+                  <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Agentes</span>
+                </div>
+                <button
+                  onClick={() => setAgentPickerOpen(false)}
+                  className="h-5 w-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {agentes.map(ag => (
+                  <button
+                    key={ag.slug}
+                    onClick={() => {
+                      const next = selectedAgentSlug === ag.slug ? null : ag.slug;
+                      setSelectedAgentSlug(next);
+                      setAgentPickerOpen(false);
+                      newConversation();
+                    }}
+                    className={cn(
+                      "flex items-start gap-3 w-full px-3 py-2.5 rounded-xl text-left transition-all",
+                      selectedAgentSlug === ag.slug
+                        ? "bg-foreground text-background"
+                        : "hover:bg-muted/60 text-foreground/80 hover:text-foreground"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5",
+                      selectedAgentSlug === ag.slug ? "bg-white/15" : "bg-muted"
+                    )}>
+                      <Bot className={cn("h-3.5 w-3.5", selectedAgentSlug === ag.slug ? "text-background" : "text-muted-foreground")} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12px] font-semibold leading-tight">{ag.nome}</p>
+                      {ag.descricao && (
+                        <p className={cn("text-[10px] mt-0.5 leading-snug line-clamp-2",
+                          selectedAgentSlug === ag.slug ? "text-background/60" : "text-muted-foreground/60")}>
+                          {ag.descricao}
+                        </p>
+                      )}
+                    </div>
+                    {selectedAgentSlug === ag.slug && (
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-background/70" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              {selectedAgentSlug && (
+                <div className="px-3 py-2.5 border-t border-border/40">
+                  <button
+                    onClick={() => { setSelectedAgentSlug(null); setAgentPickerOpen(false); newConversation(); }}
+                    className="flex items-center gap-1.5 w-full justify-center text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                    Voltar ao Athos GS
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
             {conversations.length === 0 ? (
@@ -1207,8 +1235,24 @@ export default function DescompliqueiOS() {
           </button>
           <div className="h-4 w-px bg-border/60 shrink-0" />
           <span className="text-[13px] font-semibold text-foreground truncate flex-1 font-display">
-            {currentTitle ?? (selectedAgentSlug ? (agentes.find(a => a.slug === selectedAgentSlug)?.nome ?? "Athos GS") : "Athos GS")}
+            {currentTitle ?? "Athos GS"}
           </span>
+
+          {selectedAgentSlug && (() => {
+            const ag = agentes.find(a => a.slug === selectedAgentSlug);
+            return ag ? (
+              <div className="flex items-center gap-1 shrink-0 bg-muted/60 border border-border/60 rounded-full px-2 py-0.5">
+                <Bot className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[10px] font-semibold text-muted-foreground">{ag.nome}</span>
+                <button
+                  onClick={() => { setSelectedAgentSlug(null); newConversation(); }}
+                  className="ml-0.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ) : null;
+          })()}
 
         </div>
 
