@@ -3,7 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, ExternalLink, BrainCircuit, BookOpen, Bot, FolderOpen, TrendingUp, FileText, Clock, Activity, KeyRound, Trophy } from 'lucide-react';
+import { Loader2, ArrowLeft, ExternalLink, BrainCircuit, BookOpen, Bot, FolderOpen, TrendingUp, FileText, Clock, Activity, KeyRound, Trophy, RotateCcw } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 import AbaVisaoGeral from './cliente/AbaVisaoGeral';
@@ -88,6 +93,34 @@ export default function AdminClientePerfil() {
   const [healthHistory, setHealthHistory] = useState<any[]>([]);
   const [totalModulesCount, setTotalModulesCount] = useState(0);
   const [productAccess, setProductAccess] = useState<ProductAccess | null>(null);
+  const [resetting, setResetting] = useState(false);
+
+  async function handleResetOnboarding() {
+    if (!client?.id) return;
+    setResetting(true);
+    try {
+      const puId = client.id;
+      await Promise.all([
+        supabase.from('platform_users').update({
+          onboarding_concluido: false,
+          platform_onboarding_enabled: true,
+          platform_onboarding_steps: [],
+          onboarding_iniciado_em: null,
+          onboarding_concluido_em: null,
+        }).eq('id', puId),
+        supabase.from('onboarding_diagnosticos').delete().eq('user_id', puId),
+        supabase.from('onboarding_progresso').delete().eq('user_id', puId),
+        supabase.from('jornadas').delete().eq('user_id', puId),
+        supabase.from('meus_materiais').delete().eq('user_id', puId).eq('categoria', 'diagnostico'),
+      ]);
+      toast.success('Onboarding reiniciado com sucesso');
+      loadAll();
+    } catch {
+      toast.error('Erro ao reiniciar onboarding');
+    } finally {
+      setResetting(false);
+    }
+  }
 
   async function loadAll() {
     if (!id) return;
@@ -293,10 +326,36 @@ export default function AdminClientePerfil() {
               </div>
 
               {/* Ações rápidas */}
-              <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs gap-1.5 border-border/60 shrink-0"
-                onClick={() => window.open(`/plataforma`, '_blank')}>
-                <ExternalLink className="h-3.5 w-3.5" /> Ver Plataforma
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs gap-1.5 border-border/60"
+                  onClick={() => window.open(`/plataforma`, '_blank')}>
+                  <ExternalLink className="h-3.5 w-3.5" /> Ver Plataforma
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-8 rounded-lg text-xs gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={resetting}>
+                      {resetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                      Reiniciar
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reiniciar onboarding do cliente?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Isso vai apagar todo o progresso do diagnóstico, jornada e materiais do onboarding.
+                        O cliente será redirecionado ao fluxo inicial como se fosse a primeira vez.
+                        Esta ação não pode ser desfeita.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleResetOnboarding} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                        Sim, reiniciar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
             </div>
           </div>
         </div>
