@@ -7,8 +7,13 @@ export function OnboardingGuard() {
   // Aguarda o contexto carregar antes de decidir
   if (isContextLoading) return null;
 
-  // Só aplica o guard para o dono da conta (não para membros da equipe)
-  if (!isMember && plataformaUser && plataformaUser.onboarding_concluido === false) {
+  // Só aplica o guard para novos donos de conta que precisam completar o onboarding diagnóstico
+  // platform_onboarding_enabled=true indica que é um novo usuário; usuários antigos ficam false
+  if (
+    !isMember &&
+    plataformaUser?.platform_onboarding_enabled === true &&
+    plataformaUser?.onboarding_concluido === false
+  ) {
     return <Navigate to="/plataforma/onboarding" replace />;
   }
 
