@@ -339,11 +339,32 @@ export default function OnboardingAthos() {
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const jornadaDetectadaRef = useRef(false);
 
   // Scroll automático
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens, enviando, inicializando]);
+
+  // Re-escaneia todas as mensagens por JSON quando o streaming termina (fallback)
+  useEffect(() => {
+    if (jornadaSalva || erroJornada || jornadaDetectadaRef.current) return;
+    if (enviando || streamingId || inicializando) return;
+    if (!user || mensagens.length === 0) return;
+
+    const athosMsgs = mensagens.filter((m) => m.role === "athos" && m.content);
+    for (const msg of athosMsgs) {
+      const jornada = extrairJornada(msg.content);
+      if (jornada) {
+        jornadaDetectadaRef.current = true;
+        salvarJornada(jornada, user.id).then((ok) => {
+          if (ok) setJornadaSalva(true);
+          else setErroJornada(true);
+        });
+        break;
+      }
+    }
+  }, [enviando, streamingId, inicializando, jornadaSalva, erroJornada]);
 
   // ── Inicialização ─────────────────────────────────────────────────────────────
 
@@ -576,7 +597,7 @@ export default function OnboardingAthos() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+        <div className="flex items-center gap-4 text-[12px] text-muted-foreground">
           <div className="flex items-center gap-1.5">
             {[1, 2, 3].map((n) => (
               <div
@@ -589,6 +610,15 @@ export default function OnboardingAthos() {
             ))}
           </div>
           <span className="font-medium">Etapa 3 de 3 — Montando sua jornada</span>
+          {!inicializando && mensagens.length > 0 && (
+            <button
+              onClick={handleConcluir}
+              disabled={concluindo}
+              className="ml-2 text-[11px] text-muted-foreground/50 hover:text-muted-foreground underline underline-offset-2 transition-colors"
+            >
+              {concluindo ? "Saindo..." : "Ir para a plataforma →"}
+            </button>
+          )}
         </div>
       </header>
 
