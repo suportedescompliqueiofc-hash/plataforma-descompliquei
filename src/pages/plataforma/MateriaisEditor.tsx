@@ -41,6 +41,63 @@ function useFerramentasArsenal() {
 
 type SaveStatus = 'idle' | 'dirty' | 'saving' | 'saved';
 
+function markdownToHtml(md: string): string {
+  if (!md) return '';
+  // If content already has HTML tags, return as-is
+  if (/<[a-z][\s\S]*>/i.test(md)) return md;
+
+  const lines = md.split(/\r?\n/);
+  const out: string[] = [];
+  let inList = false;
+
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const inline = (s: string) =>
+    esc(s)
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  for (const raw of lines) {
+    const line = raw.trim();
+
+    if (!line) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      continue;
+    }
+
+    // headings
+    const h = line.match(/^(#{1,4})\s+(.+)/);
+    if (h) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      const lvl = Math.min(h[1].length, 4);
+      out.push(`<h${lvl}>${inline(h[2])}</h${lvl}>`);
+      continue;
+    }
+
+    // list items
+    const li = line.match(/^[-*•]\s+(.+)/);
+    if (li) {
+      if (!inList) { out.push('<ul>'); inList = true; }
+      out.push(`<li>${inline(li[1])}</li>`);
+      continue;
+    }
+
+    // horizontal rule
+    if (/^[-*_]{3,}$/.test(line)) {
+      if (inList) { out.push('</ul>'); inList = false; }
+      out.push('<hr>');
+      continue;
+    }
+
+    // paragraph
+    if (inList) { out.push('</ul>'); inList = false; }
+    out.push(`<p>${inline(line)}</p>`);
+  }
+
+  if (inList) out.push('</ul>');
+  return out.join('\n');
+}
+
 export default function MateriaisEditor() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -203,7 +260,7 @@ export default function MateriaisEditor() {
             'rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] px-8 py-8',
             EDITOR_STYLES,
           )}
-          dangerouslySetInnerHTML={{ __html: doc.conteudo || '' }}
+          dangerouslySetInnerHTML={{ __html: markdownToHtml(doc.conteudo || '') }}
         />
       </div>
     );
