@@ -8,7 +8,6 @@ export type EventoTipo =
   | 'mensagem'
   | 'agendamento'
   | 'venda'
-  | 'etapa'
   | 'scoring'
   | 'tag'
   | 'nota'
@@ -40,7 +39,6 @@ export interface JornadaLead {
   origem?: string;
   fonte?: string;
   status: string;
-  posicao_pipeline: number;
   criado_em: string;
   atualizado_em: string;
   lead_scoring?: string | null;
@@ -62,8 +60,6 @@ export interface JornadaStats {
   totalVendas: number;
   totalFaturamento: number;
   diasNoCRM: number;
-  etapaAtual?: string;
-  etapaAtualCor?: string;
   tempoRespostaMin?: number;
   totalSessoes: number;
 }
@@ -98,8 +94,6 @@ export function useJornadaPaciente(leadId: string | undefined) {
         mensagensResult,
         agendamentosResult,
         vendasResult,
-        stageHistoryResult,
-        etapasResult,
         notasResult,
         aiLogsResult,
         cadenciaLogsResult,
@@ -126,15 +120,6 @@ export function useJornadaPaciente(leadId: string | undefined) {
           .select('id, produto_servico, valor_fechado, data_fechamento, forma_pagamento, criado_em')
           .eq('lead_id', leadId)
           .order('data_fechamento', { ascending: true }),
-        supabase
-          .from('lead_stage_history')
-          .select('id, stage_position, from_stage_position, entered_at')
-          .eq('lead_id', leadId)
-          .order('entered_at', { ascending: true }),
-        supabase
-          .from('etapas')
-          .select('posicao_ordem, nome, cor')
-          .eq('organization_id', orgId),
         supabase
           .from('lead_notas')
           .select('id, conteudo, tipo, criado_em, metadados')
@@ -170,8 +155,6 @@ export function useJornadaPaciente(leadId: string | undefined) {
       const mensagens       = mensagensResult.data || [];
       const agendamentos    = agendamentosResult.data || [];
       const vendas          = vendasResult.data || [];
-      const stageHistory    = stageHistoryResult.data || [];
-      const etapas          = etapasResult.data || [];
       const notas           = notasResult.data || [];
       const aiLogs          = aiLogsResult.data || [];
       const cadenciaLogs    = cadenciaLogsResult.data || [];
@@ -198,22 +181,9 @@ export function useJornadaPaciente(leadId: string | undefined) {
         }
       }
 
-      // Mapas auxiliares para enriquecer eventos existentes com autor
-      // etapaAutorMap: posicao_pipeline → AutorEvento (último registro, caso haja múltiplos)
-      const etapaAutorMap = new Map<number, AutorEvento>();
-      for (const at of atividades) {
-        if (at.tipo === 'etapa' && at.user_id) {
-          const autor = autorPerfisMap.get(at.user_id);
-          if (autor) etapaAutorMap.set(at.metadados?.posicao_pipeline, autor);
-        }
-      }
       const criacaoAutor = atividades.find(a => a.tipo === 'criacao' && a.user_id)
         ? autorPerfisMap.get(atividades.find(a => a.tipo === 'criacao')!.user_id!)
         : undefined;
-
-      // stage map: posicao_ordem → { nome, cor }
-      const stageMap = new Map<number, { nome: string; cor: string }>();
-      for (const e of etapas) stageMap.set(e.posicao_ordem, { nome: e.nome, cor: e.cor || '#888' });
 
       const eventos: JornadaEvento[] = [];
 
@@ -235,63 +205,7 @@ export function useJornadaPaciente(leadId: string | undefined) {
       });
 
       // ─────────────────────────────────────────
-      // 2. ETAPAS DO PIPELINE (via lead_stage_history + trigger)
-      // Backfill entries (from_stage_position = null) são apenas âncoras
-      // para o trigger — NÃO exibir na timeline.
-      // Etapas de handoff são enriquecidas com duração do pré-atendimento IA.
-      // ─────────────────────────────────────────
-
-      // Identificar posições de etapas de handoff para enriquecimento
-      const handoffStagePositions = new Set<number>();
-      for (const [pos, info] of stageMap.entries()) {
-        if (info.nome.toLowerCase().includes('handoff') || info.nome.toLowerCase().includes('humano')) {
-          handoffStagePositions.add(pos);
-        }
-      }
-
-      for (const sh of stageHistory) {
-        const fromPos = (sh as any).from_stage_position as number | null;
-        // Pular backfill — representa posição atual, não uma transição real
-        if (fromPos === null || fromPos === undefined) continue;
-
-        const etapa = stageMap.get(sh.stage_position);
-        const fromEtapa = stageMap.get(fromPos);
-        const isHandoffStage = handoffStagePositions.has(sh.stage_position);
-
-        // Para etapas de handoff: calcular duração do pré-atendimento IA
-        let handoffDescricao: string | undefined;
-        if (isHandoffStage) {
-          const handoffTime = new Date(sh.entered_at || lead.criado_em).getTime();
-          const entradaTime = new Date(lead.criado_em).getTime();
-          const diffMin = Math.max(0, Math.round((handoffTime - entradaTime) / 60000));
-          const tLabel = diffMin < 1 ? '< 1 min'
-            : diffMin < 60 ? `${diffMin} min`
-            : `${Math.floor(diffMin / 60)}h${diffMin % 60 > 0 ? ` ${diffMin % 60}min` : ''}`;
-          handoffDescricao = `Pre-atendimento automatizado durou ${tLabel}.`;
-        }
-
-        eventos.push({
-          id: `etapa-${sh.id}`,
-          tipo: 'etapa',
-          data: sh.entered_at || lead.criado_em,
-          titulo: isHandoffStage
-            ? 'IA transferiu para atendente humano'
-            : `Movido para "${etapa?.nome || `Posição ${sh.stage_position}`}"`,
-          descricao: handoffDescricao,
-          metadata: {
-            stage_position: sh.stage_position,
-            etapa_nome: etapa?.nome,
-            etapa_cor: etapa?.cor,
-            from_stage_nome: fromEtapa?.nome || undefined,
-            from_stage_cor: fromEtapa?.cor || undefined,
-            subtipo: isHandoffStage ? 'handoff' : undefined,
-          },
-          autor: etapaAutorMap.get(sh.stage_position),
-        });
-      }
-
-      // ─────────────────────────────────────────
-      // 3. MENSAGENS — sessões de conversa + marcos-chave
+      // 2. MENSAGENS — sessões de conversa + marcos-chave
       // ─────────────────────────────────────────
       const primeiraRecebida = mensagens.find(m => m.direcao === 'entrada');
       const primeiraEnviada  = mensagens.find(m => m.direcao === 'saida');
@@ -378,7 +292,6 @@ export function useJornadaPaciente(leadId: string | undefined) {
         const tipoAgLabel: Record<string, string> = {
           consulta: 'Consulta',
           retorno: 'Retorno',
-          avaliacao: 'Avaliação',
           procedimento: 'Procedimento',
           reuniao: 'Reunião',
         };
@@ -458,7 +371,7 @@ export function useJornadaPaciente(leadId: string | undefined) {
             id: `nota-mql-${nota.id}`,
             tipo: 'scoring',
             data: nota.criado_em,
-            titulo: 'Lead qualificado como MQL',
+            titulo: 'Lead qualificado',
             descricao: 'Lead marcado como qualificado para o comercial.',
             metadata: { subtipo: 'mql', nota_id: nota.id },
           });
@@ -515,59 +428,47 @@ export function useJornadaPaciente(leadId: string | undefined) {
       }
 
       // ─────────────────────────────────────────
-      // 7. HANDOFF standalone — apenas quando NÃO há transição real no pipeline
-      // Se handoffStageEntry existe → já foi tratado na seção 2 (enriquecido no card da etapa)
+      // 7. HANDOFF — detectado via aiLogs
       // ─────────────────────────────────────────
       const iaRespondeuAlguma = aiLogs.some(l => AI_ETAPAS_RESPOSTA.has(l.etapa));
 
-      const handoffStageEntry = stageHistory.find(sh =>
-        handoffStagePositions.has(sh.stage_position) && (sh as any).from_stage_position !== null
-      );
+      const handoffLog = aiLogs.find(l => l.etapa === 'handoff');
+      let handoffTimestamp: string | null = null;
+      let handoffInferido = false;
 
-      // Só cria evento standalone se NÃO há transição de pipeline registrada
-      if (!handoffStageEntry) {
-        const handoffLog = aiLogs.find(l => l.etapa === 'handoff');
-        let handoffTimestamp: string | null = null;
-        let handoffInferido = false;
-
-        if (handoffLog) {
-          handoffTimestamp = handoffLog.criado_em;
-        } else if (iaRespondeuAlguma) {
-          const lastAiLog = [...aiLogs].reverse().find(l => AI_ETAPAS_RESPOSTA.has(l.etapa));
-          if (lastAiLog) {
-            handoffTimestamp = lastAiLog.criado_em;
-            handoffInferido = true;
-          }
-        }
-
-        if (handoffTimestamp) {
-          const handoffTime = new Date(handoffTimestamp).getTime();
-          const entradaTime = new Date(lead.criado_em).getTime();
-          const diffMin = Math.max(0, Math.round((handoffTime - entradaTime) / 60000));
-          const tLabel = diffMin < 1 ? '< 1 min'
-            : diffMin < 60 ? `${diffMin} min`
-            : `${Math.floor(diffMin / 60)}h${diffMin % 60 > 0 ? ` ${diffMin % 60}min` : ''}`;
-          eventos.push({
-            id: `handoff-${handoffLog?.id || lead.id}`,
-            tipo: 'etapa',
-            data: handoffTimestamp,
-            titulo: 'IA transferiu para atendente humano',
-            descricao: `Pre-atendimento automatizado durou ${tLabel}.`,
-            metadata: {
-              subtipo: 'handoff',
-              tempo_ia_min: diffMin,
-              etapa_nome: 'Handoff',
-              etapa_cor: '#8b5cf6',
-              inferido: handoffInferido,
-            },
-          });
+      if (handoffLog) {
+        handoffTimestamp = handoffLog.criado_em;
+      } else if (iaRespondeuAlguma) {
+        const lastAiLog = [...aiLogs].reverse().find(l => AI_ETAPAS_RESPOSTA.has(l.etapa));
+        if (lastAiLog) {
+          handoffTimestamp = lastAiLog.criado_em;
+          handoffInferido = true;
         }
       }
 
+      if (handoffTimestamp) {
+        const handoffTime = new Date(handoffTimestamp).getTime();
+        const entradaTime = new Date(lead.criado_em).getTime();
+        const diffMin = Math.max(0, Math.round((handoffTime - entradaTime) / 60000));
+        const tLabel = diffMin < 1 ? '< 1 min'
+          : diffMin < 60 ? `${diffMin} min`
+          : `${Math.floor(diffMin / 60)}h${diffMin % 60 > 0 ? ` ${diffMin % 60}min` : ''}`;
+        eventos.push({
+          id: `handoff-${handoffLog?.id || lead.id}`,
+          tipo: 'mensagem',
+          data: handoffTimestamp,
+          titulo: 'IA transferiu para atendente humano',
+          descricao: `Pre-atendimento automatizado durou ${tLabel}.`,
+          metadata: {
+            subtipo: 'handoff',
+            tempo_ia_min: diffMin,
+            inferido: handoffInferido,
+          },
+        });
+      }
+
       // Timestamp do handoff para calcular "tempo até humano assumir"
-      const handoffTimestampFinal = handoffStageEntry?.entered_at
-        || aiLogs.find(l => l.etapa === 'handoff')?.criado_em
-        || null;
+      const handoffTimestampFinal = aiLogs.find(l => l.etapa === 'handoff')?.criado_em || null;
 
       // ─────────────────────────────────────────
       // 7a. HUMANO ASSUMIU — primeira msg humana após IA
@@ -683,9 +584,8 @@ export function useJornadaPaciente(leadId: string | undefined) {
       // Prioridade narrativa para eventos no mesmo timestamp
       const TIPO_PRIORIDADE: Record<string, number> = {
         entrada: 0,
-        etapa: 1,
-        mensagem: 2,     // primeiro contato, primeira resposta, humano assumiu
-        agendamento: 3,
+        mensagem: 1,
+        agendamento: 2,
         venda: 4,
         scoring: 5,
         nota: 6,
@@ -713,7 +613,6 @@ export function useJornadaPaciente(leadId: string | undefined) {
       });
 
       // Stats
-      const etapaAtual = stageMap.get(lead.posicao_pipeline);
       const stats: JornadaStats = {
         totalMensagens:    mensagens.length,
         mensagensEnviadas: mensagens.filter(m => m.direcao === 'saida').length,
@@ -722,8 +621,6 @@ export function useJornadaPaciente(leadId: string | undefined) {
         totalVendas:       vendas.length,
         totalFaturamento:  vendas.reduce((s, v) => s + v.valor_fechado, 0),
         diasNoCRM:         differenceInDays(new Date(), new Date(lead.criado_em)),
-        etapaAtual:        etapaAtual?.nome,
-        etapaAtualCor:     etapaAtual?.cor,
         tempoRespostaMin,
         totalSessoes:      sessCount,
       };

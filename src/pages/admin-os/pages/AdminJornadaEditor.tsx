@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Route, ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save,
-  Loader2, CheckCircle2, Zap, Circle, GripVertical, Sparkles,
+  Loader2, CheckCircle2, Zap, Circle, GripVertical,
   ExternalLink, Clock, AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
   useAdminJornada, useUpdateJornadaMeta, useSaveJornadaEstrutura, useDeleteJornada, jornadaToDraft,
   type DraftEstagio, type DraftPasso,
 } from '@/hooks/useAdminJornadas';
+import { useAdminFerramentas, useAdminCategorias } from '@/hooks/useAdminArsenal';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -28,7 +29,7 @@ function newId() { return `_draft_${++_idCounter}`; }
 function blankPasso(): DraftPasso {
   return {
     _id: newId(), titulo: '', descricao: '', tipo: 'acao_livre',
-    ferramenta_id: null, categoria_id: null, prazo_dias: null, obrigatorio: false,
+    ferramenta_id: null, categoria_id: null, aula_id: null, prazo_dias: null, obrigatorio: false,
     concluido: false, concluido_em: null, concluido_por: null,
   };
 }
@@ -49,11 +50,12 @@ function StatusBadge({ status }: { status: JStatus }) {
 // ─── Passo editor ─────────────────────────────────────────────────────────────
 
 function PassoEditor({
-  passo, ferramentas, categorias, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
+  passo, ferramentas, categorias, aulas, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast,
 }: {
   passo: DraftPasso;
   ferramentas: any[];
   categorias: any[];
+  aulas: any[];
   onChange: (p: DraftPasso) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -61,7 +63,6 @@ function PassoEditor({
   isFirst: boolean;
   isLast: boolean;
 }) {
-  // Categoria de filtro para ferramentas (derivada da ferramenta selecionada ou vazia)
   const currentFerramenta = ferramentas.find(f => f.id === passo.ferramenta_id);
   const [filterCatId, setFilterCatId] = useState<string>(
     currentFerramenta?.arsenal_categorias?.id ?? ''
@@ -73,12 +74,11 @@ function PassoEditor({
 
   function handleTipoChange(v: string) {
     setFilterCatId('');
-    onChange({ ...passo, tipo: v as DraftPasso['tipo'], ferramenta_id: null, categoria_id: null });
+    onChange({ ...passo, tipo: v as DraftPasso['tipo'], ferramenta_id: null, categoria_id: null, aula_id: null });
   }
 
   function handleFilterCatChange(catId: string) {
     setFilterCatId(catId);
-    // Reset ferramenta se não pertence à nova categoria
     const tool = ferramentas.find(f => f.id === passo.ferramenta_id);
     if (tool?.arsenal_categorias?.id !== catId) {
       onChange({ ...passo, ferramenta_id: null });
@@ -125,6 +125,7 @@ function PassoEditor({
               <SelectItem value="acao_livre">Ação livre</SelectItem>
               <SelectItem value="categoria_arsenal">Categoria do Arsenal</SelectItem>
               <SelectItem value="ferramenta_arsenal">Ferramenta do Arsenal</SelectItem>
+              <SelectItem value="aula_arsenal">Aula do Arsenal</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -213,6 +214,32 @@ function PassoEditor({
         </div>
       )}
 
+      {passo.tipo === 'aula_arsenal' && (
+        <div className="space-y-1">
+          <Label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Aula
+          </Label>
+          <Select
+            value={passo.aula_id ?? ''}
+            onValueChange={v => onChange({ ...passo, aula_id: v || null })}
+          >
+            <SelectTrigger className="h-8 text-[12px] rounded-lg border-border/60">
+              <SelectValue placeholder="Selecionar aula..." />
+            </SelectTrigger>
+            <SelectContent>
+              {aulas.map((a: any) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.arsenal_blocos?.nome ? `${a.arsenal_blocos.nome} — ` : ''}{a.nome}
+                </SelectItem>
+              ))}
+              {aulas.length === 0 && (
+                <div className="px-3 py-2 text-[12px] text-muted-foreground">Nenhuma aula cadastrada</div>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <Switch
           checked={passo.obrigatorio}
@@ -233,11 +260,12 @@ function PassoEditor({
 // ─── Estagio editor ───────────────────────────────────────────────────────────
 
 function EstagioEditor({
-  estagio, ferramentas, categorias, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast, index,
+  estagio, ferramentas, categorias, aulas, onChange, onDelete, onMoveUp, onMoveDown, isFirst, isLast, index,
 }: {
   estagio: DraftEstagio;
   ferramentas: any[];
   categorias: any[];
+  aulas: any[];
   onChange: (e: DraftEstagio) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -317,6 +345,7 @@ function EstagioEditor({
             passo={p}
             ferramentas={ferramentas}
             categorias={categorias}
+            aulas={aulas}
             onChange={updated => updatePasso(i, updated)}
             onDelete={() => deletePasso(i)}
             onMoveUp={() => movePasso(i, -1)}
@@ -349,31 +378,20 @@ export default function AdminJornadaEditor() {
 
   const [titulo, setTitulo] = useState('');
   const [estagios, setEstagios] = useState<DraftEstagio[]>([]);
-  const [aiPrompt, setAiPrompt] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
-  const { data: ferramentas } = useQuery({
-    queryKey: ['arsenal-ferramentas-all'],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from('arsenal_ferramentas')
-        .select('id, nome, slug, arsenal_categorias(id, nome, slug)')
-        .eq('ativo', true)
-        .order('nome');
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
+  const { data: ferramentas } = useAdminFerramentas();
+  const { data: categorias } = useAdminCategorias();
 
-  const { data: categorias } = useQuery({
-    queryKey: ['arsenal-categorias-all'],
+  const { data: aulas } = useQuery({
+    queryKey: ['arsenal-aulas-all-editor'],
     queryFn: async () => {
       const { data, error } = await (supabase as any)
-        .from('arsenal_categorias')
-        .select('id, nome, slug')
+        .from('arsenal_aulas')
+        .select('id, nome, slug, arsenal_blocos(nome)')
         .eq('ativo', true)
-        .order('ordem_index');
+        .order('ordem');
       if (error) throw error;
       return data ?? [];
     },
@@ -538,34 +556,6 @@ export default function AdminJornadaEditor() {
         </div>
       </div>
 
-      {/* ─── AI generation ─── */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
-          <div className="flex items-center gap-2">
-            <span className="p-1.5 rounded-lg bg-muted"><Sparkles className="h-3.5 w-3.5 text-muted-foreground" /></span>
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">GERAR COM IA</p>
-              <p className="text-[10px] text-muted-foreground/50 mt-0.5">Athos GS irá montar a estrutura</p>
-            </div>
-          </div>
-        </div>
-        <div className="p-5 space-y-3">
-          <Textarea
-            value={aiPrompt}
-            onChange={e => setAiPrompt(e.target.value)}
-            placeholder="Descreva o perfil do cliente, diagnóstico, objetivos e contexto para a IA montar a jornada..."
-            className="min-h-[100px] text-sm rounded-lg border-border/60 resize-none"
-          />
-          <Button
-            disabled
-            className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 opacity-40"
-          >
-            <Sparkles className="h-3.5 w-3.5" /> Gerar com Athos GS
-          </Button>
-          <p className="text-[11px] text-muted-foreground/50">Em breve — integração com Athos GS em desenvolvimento.</p>
-        </div>
-      </div>
-
       {/* ─── Estrutura ─── */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
@@ -586,6 +576,7 @@ export default function AdminJornadaEditor() {
             estagio={e}
             ferramentas={ferramentas ?? []}
             categorias={categorias ?? []}
+            aulas={aulas ?? []}
             onChange={updated => updateEstagio(i, updated)}
             onDelete={() => deleteEstagio(i)}
             onMoveUp={() => moveEstagio(i, -1)}

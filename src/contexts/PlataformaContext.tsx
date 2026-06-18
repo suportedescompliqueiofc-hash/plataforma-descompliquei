@@ -8,6 +8,7 @@ export type AcessoProduto = {
   ias_liberadas: string[];
   acesso_cerebro: boolean;
   acesso_crm: boolean;
+  acesso_arsenal: boolean;
   acesso_sessoes_taticas: boolean;
   acesso_materiais: boolean;
   acesso_ia_comercial: boolean;
@@ -21,6 +22,7 @@ const ACESSO_TOTAL: AcessoProduto = {
   ias_liberadas: [],
   acesso_cerebro: true,
   acesso_crm: true,
+  acesso_arsenal: true,
   acesso_sessoes_taticas: true,
   acesso_materiais: true,
   acesso_ia_comercial: true,
@@ -35,6 +37,7 @@ const ACESSO_CRM_ONLY: AcessoProduto = {
   ias_liberadas: [],
   acesso_cerebro: false,
   acesso_crm: true,
+  acesso_arsenal: false,
   acesso_sessoes_taticas: false,
   acesso_materiais: false,
   acesso_ia_comercial: false,
@@ -58,8 +61,10 @@ type PlataformaContextType = {
   diasRestantes: number | null;
   acesso: AcessoProduto;
   isMember: boolean;
+  hasPlataformaAccess: boolean;
   showOnboarding: boolean;
   completeOnboarding: () => Promise<void>;
+  setConcluido: () => void;
   markModuleComplete: (moduleId: string) => Promise<void>;
   refreshProgress: () => Promise<void>;
 };
@@ -145,6 +150,7 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
             ias_liberadas: acessoData.ias_liberadas ?? [],
             acesso_cerebro: acessoData.acesso_cerebro ?? false,
             acesso_crm: acessoData.acesso_crm ?? false,
+            acesso_arsenal: acessoData.acesso_arsenal ?? false,
             acesso_sessoes_taticas: acessoData.acesso_sessoes_taticas ?? false,
             acesso_materiais: acessoData.acesso_materiais ?? false,
             acesso_ia_comercial: acessoData.acesso_ia_comercial ?? false,
@@ -239,12 +245,17 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
     }
 
     loadPlatformData();
-  }, [user, authLoading]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, authLoading]);
 
   const completeOnboarding = async () => {
     if (!user) return;
     await supabase.from('platform_users').update({ onboarding_complete: true }).eq('id', user.id);
     setPlataformaUser((prev: any) => prev ? { ...prev, onboarding_complete: true } : prev);
+  };
+
+  const setConcluido = () => {
+    setPlataformaUser((prev: any) => prev ? { ...prev, onboarding_concluido: true } : prev);
   };
 
   const markModuleComplete = async (moduleId: string) => {
@@ -273,6 +284,9 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
      cerebroPercent = Math.round((filled / fields.length) * 100);
   }
 
+  const hasPlataformaAccess = acesso.acesso_arsenal || acesso.acesso_os ||
+    acesso.acesso_sessoes_taticas || acesso.acesso_materiais;
+
   return (
     <PlataformaContext.Provider value={{
       plataformaUser,
@@ -289,8 +303,10 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
       diasRestantes,
       acesso,
       isMember,
-      showOnboarding: plataformaUser?.platform_onboarding_enabled === true && plataformaUser?.onboarding_complete === false && !isContextLoading,
+      hasPlataformaAccess,
+      showOnboarding: hasPlataformaAccess && plataformaUser?.platform_onboarding_enabled === true && plataformaUser?.onboarding_complete === false && plataformaUser?.onboarding_concluido === true && !isContextLoading,
       completeOnboarding,
+      setConcluido,
       markModuleComplete,
       refreshProgress
     }}>

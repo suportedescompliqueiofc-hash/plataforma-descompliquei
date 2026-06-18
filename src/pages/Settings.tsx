@@ -7,7 +7,6 @@ import {
   Save,
   Palette,
   Tag,
-  GitBranch,
   Radio,
   Smartphone,
   Brush,
@@ -17,6 +16,7 @@ import {
   Mail,
   Users,
   Camera,
+  LifeBuoy,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,12 +25,12 @@ import { useClinicSettings } from "@/hooks/useClinicSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { ThemeSettings } from "@/components/settings/ThemeSettings";
 import { TagSettings } from "@/components/settings/TagSettings";
-import { PipelineSettings } from "@/components/settings/PipelineSettings";
 import { SourceSettings } from "@/components/settings/SourceSettings";
 import { BrandingSettings } from "@/components/settings/BrandingSettings";
 import { WhatsAppSettings } from "@/components/settings/WhatsAppSettings";
 import PasswordChangeCard from "@/components/settings/PasswordChangeCard";
 import { TeamSettings } from "@/components/settings/TeamSettings";
+import { SuporteTab } from "@/components/settings/SuporteTab";
 import { usePermissions } from "@/hooks/usePermissions";
 import { cn } from "@/lib/utils";
 
@@ -135,7 +135,6 @@ export default function Settings() {
     ...(isOwner ? [{
       title: "CRM",
       items: [
-        { id: "pipeline", label: "Etapas do Pipeline", icon: GitBranch },
         { id: "sources",  label: "Fontes",             icon: Radio     },
         { id: "tags",     label: "Etiquetas",           icon: Tag       },
       ],
@@ -153,6 +152,12 @@ export default function Settings() {
         { id: "team", label: "Equipe Comercial", icon: Users },
       ],
     }] : []),
+    {
+      title: "Ajuda",
+      items: [
+        { id: "suporte", label: "Central de Suporte", icon: LifeBuoy },
+      ],
+    },
   ];
 
   return (
@@ -432,7 +437,6 @@ export default function Settings() {
 
           {/* ── OTHER SECTIONS ── */}
           <div className="w-full overflow-hidden">
-            {activeSection === "pipeline" && <div data-tutorial="settings-pipeline"><PipelineSettings /></div>}
             {activeSection === "sources" && <div data-tutorial="settings-sources"><SourceSettings /></div>}
             {activeSection === "tags" && <div data-tutorial="settings-tags"><TagSettings /></div>}
             {activeSection === "marca" && <div data-tutorial="settings-marca"><BrandingSettings /></div>}
@@ -440,6 +444,7 @@ export default function Settings() {
             {activeSection === "appearance" && <div data-tutorial="settings-appearance"><ThemeSettings /></div>}
             {activeSection === "security" && <div data-tutorial="settings-security"><PasswordChangeCard /></div>}
             {activeSection === "team" && isOwner && <div data-tutorial="settings-team"><TeamSettings /></div>}
+            {activeSection === "suporte" && <SuporteTab />}
           </div>
         </div>
       </div>

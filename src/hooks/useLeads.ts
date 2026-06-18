@@ -205,6 +205,7 @@ export function useLeads(dateRange?: DateRange) {
     },
     onSuccess: (data) => {
       queryClient.setQueryData<Lead[]>(['leads', orgId, dateRange], (old) => [data, ...(old || [])]);
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       toast.success('Lead criado com sucesso!');
       // Registrar quem criou o lead
       if (data?.id && orgId) {
@@ -245,7 +246,7 @@ export function useLeads(dateRange?: DateRange) {
       const allowedFields: (keyof Lead)[] = [
         'nome', 'telefone', 'email', 'cpf', 'idade', 'genero', 'endereco',
         'queixa_principal', 'procedimento_interesse', 'resumo', 'origem', 'fonte',
-        'criativo_id', 'status', 'posicao_pipeline', 'ultimo_contato', 'agendamento',
+        'criativo_id', 'status', 'ultimo_contato', 'agendamento',
         'data_nascimento', 'ia_ativa', 'ia_paused_until', 'is_qualified', 'is_scheduled', 'is_closed', 'excluir_metricas', 'lead_scoring', 'responsavel_id',
       ];
 
@@ -280,28 +281,13 @@ export function useLeads(dateRange?: DateRange) {
         throw new Error(`Erro ao atualizar lead: ${error.message} (código: ${error.code})`);
       }
 
-      // Nota: lead_stage_history é populado automaticamente pelo trigger
-      // trg_track_stage_change no banco — não inserir manualmente aqui.
-
-      // Registrar atividade quando etapa do pipeline muda (atribuição de autor)
-      if ('posicao_pipeline' in cleanUpdates) {
-        await supabase.from('lead_atividades' as any).insert({
-          lead_id: id,
-          organization_id: orgId,
-          user_id: user?.id,
-          tipo: 'etapa',
-          descricao: `Etapa alterada para posição ${cleanUpdates.posicao_pipeline}`,
-          metadados: { posicao_pipeline: cleanUpdates.posicao_pipeline },
-        });
-      }
-
       // Registrar nota do sistema quando is_qualified muda para true
       // (para ter timestamp exato na Jornada do Paciente)
       if (cleanUpdates.is_qualified === true) {
         await supabase.from('lead_notas').insert({
           lead_id: id,
           organization_id: orgId,
-          conteudo: 'Lead marcado como qualificado (MQL)',
+          conteudo: 'Lead marcado como qualificado',
           tipo: 'sistema',
           metadados: { evento: 'mql', is_qualified: true },
         });
@@ -343,12 +329,15 @@ export function useLeads(dateRange?: DateRange) {
     onMutate: async (variables) => {
       const listQueryKey = ['leads', orgId, dateRange];
       const singleQueryKey = ['lead', variables.id, orgId];
+      const convsKey = ['conversations', orgId];
 
       await queryClient.cancelQueries({ queryKey: listQueryKey });
       await queryClient.cancelQueries({ queryKey: singleQueryKey });
+      await queryClient.cancelQueries({ queryKey: convsKey });
 
       const previousLeads = queryClient.getQueryData<Lead[]>(listQueryKey);
       const previousLead = queryClient.getQueryData<Lead>(singleQueryKey);
+      const previousConversations = queryClient.getQueryData<any[]>(convsKey);
 
       queryClient.setQueryData<Lead[]>(listQueryKey, (old) => {
         return (old || []).map((lead) => lead.id === variables.id ? { ...lead, ...variables } : lead);
@@ -358,7 +347,13 @@ export function useLeads(dateRange?: DateRange) {
         queryClient.setQueryData<Lead>(singleQueryKey, { ...previousLead, ...variables });
       }
 
-      return { previousLeads, previousLead };
+      // Propaga mudanças para o cache de conversas (sidebar + página de conversas)
+      queryClient.setQueryData<any[]>(convsKey, (old) => {
+        if (!old) return old;
+        return old.map((conv) => conv.id === variables.id ? { ...conv, ...variables } : conv);
+      });
+
+      return { previousLeads, previousLead, previousConversations };
     },
     onError: (err: any, variables, context) => {
       console.error('[updateLead] Erro:', err?.message || err);
@@ -368,11 +363,16 @@ export function useLeads(dateRange?: DateRange) {
       if (context?.previousLead) {
         queryClient.setQueryData(['lead', variables.id, orgId], context.previousLead);
       }
+      if (context?.previousConversations) {
+        queryClient.setQueryData(['conversations', orgId], context.previousConversations);
+      }
       toast.error('Erro ao atualizar lead: ' + (err?.message || 'Tente novamente.'));
     },
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['leads', orgId] });
       queryClient.invalidateQueries({ queryKey: ['lead', variables.id, orgId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
     },
   });
 
@@ -386,18 +386,31 @@ export function useLeads(dateRange?: DateRange) {
       return id;
     },
     onMutate: async (id) => {
-      const queryKey = ['leads', orgId, dateRange];
-      await queryClient.cancelQueries({ queryKey });
-      const previousLeads = queryClient.getQueryData<Lead[]>(queryKey);
-      queryClient.setQueryData<Lead[]>(queryKey, (old) => (old || []).filter((lead) => lead.id !== id));
-      return { previousLeads };
+      const leadsKey = ['leads', orgId, dateRange];
+      const convsKey = ['conversations', orgId];
+      await queryClient.cancelQueries({ queryKey: leadsKey });
+      await queryClient.cancelQueries({ queryKey: convsKey });
+
+      const previousLeads = queryClient.getQueryData<Lead[]>(leadsKey);
+      const previousConversations = queryClient.getQueryData<any[]>(convsKey);
+
+      queryClient.setQueryData<Lead[]>(leadsKey, (old) => (old || []).filter((lead) => lead.id !== id));
+      queryClient.setQueryData<any[]>(convsKey, (old) => (old || []).filter((conv) => conv.id !== id));
+
+      return { previousLeads, previousConversations };
     },
     onError: (err: any, _id, context) => {
       if (context?.previousLeads) {
-        const queryKey = ['leads', orgId, dateRange];
-        queryClient.setQueryData(queryKey, context.previousLeads);
+        queryClient.setQueryData(['leads', orgId, dateRange], context.previousLeads);
+      }
+      if (context?.previousConversations) {
+        queryClient.setQueryData(['conversations', orgId], context.previousConversations);
       }
       toast.error(`Falha ao excluir lead: ${err.message}`);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['conversations', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
     },
   });
 
@@ -412,16 +425,25 @@ export function useLeads(dateRange?: DateRange) {
       return lead.id;
     },
     onMutate: async (lead) => {
-      const queryKey = ['leads', orgId, dateRange];
-      await queryClient.cancelQueries({ queryKey });
-      const previousLeads = queryClient.getQueryData<Lead[]>(queryKey);
-      queryClient.setQueryData<Lead[]>(queryKey, (old) => (old || []).filter((item) => item.id !== lead.id));
-      return { previousLeads };
+      const leadsKey = ['leads', orgId, dateRange];
+      const convsKey = ['conversations', orgId];
+      await queryClient.cancelQueries({ queryKey: leadsKey });
+      await queryClient.cancelQueries({ queryKey: convsKey });
+
+      const previousLeads = queryClient.getQueryData<Lead[]>(leadsKey);
+      const previousConversations = queryClient.getQueryData<any[]>(convsKey);
+
+      queryClient.setQueryData<Lead[]>(leadsKey, (old) => (old || []).filter((item) => item.id !== lead.id));
+      queryClient.setQueryData<any[]>(convsKey, (old) => (old || []).filter((conv) => conv.id !== lead.id));
+
+      return { previousLeads, previousConversations };
     },
     onError: (err: any, lead, context) => {
       if (context?.previousLeads) {
-        const queryKey = ['leads', orgId, dateRange];
-        queryClient.setQueryData(queryKey, context.previousLeads);
+        queryClient.setQueryData(['leads', orgId, dateRange], context.previousLeads);
+      }
+      if (context?.previousConversations) {
+        queryClient.setQueryData(['conversations', orgId], context.previousConversations);
       }
       toast.error(`Falha ao bloquear ${lead.nome || lead.telefone}: ${err.message}`);
     },
@@ -430,6 +452,8 @@ export function useLeads(dateRange?: DateRange) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['leads', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['conversations', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
     },
   });
 

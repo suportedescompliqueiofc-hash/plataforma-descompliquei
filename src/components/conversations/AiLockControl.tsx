@@ -113,7 +113,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
     }
 
     setIsRestarting(true);
-    const sessionId = lead.telefone?.replace(/\D/g, '') || lead.id;
+    const sessionId = lead.id;
 
     try {
       // 1. Limpar memória do agente para este lead

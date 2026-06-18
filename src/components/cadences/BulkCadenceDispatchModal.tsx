@@ -29,7 +29,7 @@ interface BulkCadenceDispatchModalProps {
 export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfirm, origemFilter }: BulkCadenceDispatchModalProps) {
   const { leads: allLeads } = useLeads();
   const leads = useMemo(() => origemFilter ? allLeads.filter(l => l.origem === origemFilter || (l as any).fonte === 'prospecao_ativa') : allLeads, [allLeads, origemFilter]);
-  const { stages, sources } = useLeadOptions();
+  const { sources } = useLeadOptions();
   const { availableTags } = useTags();
   const [minDelay, setMinDelay] = useState(60);
   const [maxDelay, setMaxDelay] = useState(150);
@@ -40,7 +40,6 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
 
   // Filters state
   const [daysSinceContact, setDaysSinceContact] = useState("");
-  const [pipelineStage, setPipelineStage] = useState("all");
   const [source, setSource] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedTag, setSelectedTag] = useState("all");
@@ -69,7 +68,6 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
         if (!matchesSearch) return false;
 
         if (segmentation === 'filters') {
-            if (pipelineStage !== "all" && l.posicao_pipeline.toString() !== pipelineStage) return false;
             if (source !== "all" && l.fonte !== source) return false;
 
             if (daysSinceContact) {
@@ -90,7 +88,7 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
         if (hideAlreadySent && alreadySentSet.has(l.id)) return false;
         return true;
     });
-  }, [leads, searchTerm, segmentation, pipelineStage, source, dateRange, selectedTag, hideAlreadySent, alreadySentSet]);
+  }, [leads, searchTerm, segmentation, source, dateRange, selectedTag, hideAlreadySent, alreadySentSet]);
 
 
   const toggleLead = (id: string) => {
@@ -169,16 +167,6 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
                       <div className="space-y-1">
                           <Label className="text-[10px] uppercase font-bold text-muted-foreground">ÚLTIMO CONTATO HÁ + DE (DIAS)</Label>
                           <Input placeholder="Ex: 7" className="h-8" value={daysSinceContact} onChange={e => setDaysSinceContact(e.target.value)} />
-                      </div>
-                      <div className="space-y-1">
-                          <Label className="text-[10px] uppercase font-bold text-muted-foreground">ETAPA DO PIPELINE</Label>
-                          <Select value={pipelineStage} onValueChange={setPipelineStage}>
-                              <SelectTrigger className="h-8"><SelectValue placeholder="Todas" /></SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="all">Todas as Etapas</SelectItem>
-                                  {stages.map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}
-                              </SelectContent>
-                          </Select>
                       </div>
                       <div className="space-y-1">
                           <Label className="text-[10px] uppercase font-bold text-muted-foreground">ORIGEM DO LEAD</Label>

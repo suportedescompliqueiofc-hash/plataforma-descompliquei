@@ -17,26 +17,31 @@ export function useOnboardingDiagnostico() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [diagRes, progRes] = await Promise.all([
-        supabase
-          .from("onboarding_diagnosticos" as any)
-          .select("respostas, concluido")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-        supabase
-          .from("onboarding_progresso" as any)
-          .select("bloco_atual, etapa")
-          .eq("user_id", user.id)
-          .maybeSingle(),
-      ]);
-      if ((diagRes.data as any)?.respostas) {
-        setRespostasState((diagRes.data as any).respostas as Respostas);
+      try {
+        const [diagRes, progRes] = await Promise.all([
+          supabase
+            .from("onboarding_diagnosticos" as any)
+            .select("respostas, concluido")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("onboarding_progresso" as any)
+            .select("bloco_atual, etapa")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+        ]);
+        if ((diagRes.data as any)?.respostas) {
+          setRespostasState((diagRes.data as any).respostas as Respostas);
+        }
+        if (progRes.data) {
+          setBlocoAtualState((progRes.data as any).bloco_atual ?? 0);
+          setEtapa(((progRes.data as any).etapa ?? "diagnostico") as EtapaOnboarding);
+        }
+      } catch (err) {
+        console.error("useOnboardingDiagnostico: erro ao carregar", err);
+      } finally {
+        setLoading(false);
       }
-      if (progRes.data) {
-        setBlocoAtualState((progRes.data as any).bloco_atual ?? 0);
-        setEtapa(((progRes.data as any).etapa ?? "diagnostico") as EtapaOnboarding);
-      }
-      setLoading(false);
     })();
   }, [user?.id]);
 

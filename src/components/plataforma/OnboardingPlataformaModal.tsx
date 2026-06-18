@@ -123,7 +123,7 @@ function SenhaStep({
 
 // ─── Modal principal ──────────────────────────────────────────────────────────
 export default function OnboardingPlataformaModal() {
-  const { plataformaUser, completeOnboarding, isContextLoading } = usePlataforma();
+  const { plataformaUser, completeOnboarding, isContextLoading, hasPlataformaAccess } = usePlataforma();
   const { role } = useProfile();
   const [step, setStep] = useState(0);
   const [completing, setCompleting] = useState(false);
@@ -135,10 +135,13 @@ export default function OnboardingPlataformaModal() {
   const [savingPwd, setSavingPwd] = useState(false);
 
   // Nunca mostrar para superadmins, clientes antigos, ou quem já completou
+  // Também não mostrar enquanto o usuário ainda está no fluxo do Athos (onboarding_concluido = false)
+  // Exclusivo para produtos com acesso à plataforma — produto CRM isolado não vê este modal
   const isSuperAdmin = role === 'superadmin';
   const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
   const onboardingComplete = plataformaUser?.onboarding_complete === true;
-  if (isSuperAdmin || !onboardingEnabled || onboardingComplete) return null;
+  const onboardingConcluido = plataformaUser?.onboarding_concluido === true;
+  if (isSuperAdmin || !onboardingEnabled || onboardingComplete || !onboardingConcluido || !hasPlataformaAccess) return null;
   if (isContextLoading) return null;
 
   const currentStep = STEPS[step];

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { createPortal } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import { toast } from "sonner";
 import { formatDistanceToNow, isToday, isYesterday, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -10,7 +10,7 @@ import {
   CheckCircle2, PanelLeftOpen, PanelLeftClose, Trash2, Bot,
   TrendingUp, Zap, MessageSquare, Paperclip, X, ImageIcon, Mic,
   Clock, ArrowDownToLine, ArrowUpFromLine, Square,
-  MoreHorizontal, Pin, Archive, Pencil, ChevronDown,
+  MoreHorizontal, Pin, Archive, Pencil, ChevronDown, AlertCircle, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePlataforma } from "@/contexts/PlataformaContext";
+import { extrairJornadaOS, salvarJornadaOS } from "@/lib/jornadaUtils";
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
@@ -101,6 +103,9 @@ interface OSMessage {
   content: string;
   tool_calls?: ToolCallEvent[];
   isStreaming?: boolean;
+  processingAttachments?: number;
+  errorMessage?: string;
+  retryText?: string;
   criado_em: string;
   attachmentPreviews?: Array<{ url: string; name: string; isImage: boolean }>;
   usage?: {
@@ -130,7 +135,7 @@ const SUGGESTIONS = [
   { Icon: BarChart3,  text: "Como está meu funil esta semana?" },
   { Icon: Users,      text: "Quais leads estão parados no pipeline?" },
   { Icon: Target,     text: "Estou no caminho certo para bater a meta?" },
-  { Icon: BadgeCheck, text: "Me mostre os leads qualificados (MQL)" },
+  { Icon: BadgeCheck, text: "Me mostre os leads qualificados" },
   { Icon: Calendar,   text: "Quais são meus próximos agendamentos?" },
   { Icon: DollarSign, text: "Qual foi minha receita nos últimos 30 dias?" },
 ];
@@ -390,66 +395,20 @@ interface AthosAgente {
   system_prompt: string;
 }
 
-// ── Extração e salvamento de jornada (onboarding agent) ───────────────────────
-
-function extrairJornadaOS(text: string): any | null {
-  const bloco = text.match(/```json\s*([\s\S]+?)\s*```/);
-  if (bloco) {
-    try { const j = JSON.parse(bloco[1]); if (j?.titulo && Array.isArray(j?.estagios)) return j; } catch {}
-  }
-  const bruto = text.match(/\{\s*"titulo"\s*:[\s\S]*?"estagios"\s*:\s*\[[\s\S]*?\]\s*\}/);
-  if (bruto) {
-    try { const j = JSON.parse(bruto[0]); if (j?.titulo && Array.isArray(j?.estagios)) return j; } catch {}
-  }
-  return null;
-}
-
-async function salvarJornadaOS(json: any, userId: string): Promise<boolean> {
-  try {
-    const { data: ferramentas } = await (supabase as any).from("arsenal_ferramentas").select("id, slug").eq("ativo", true);
-    const slugMap = new Map<string, string>((ferramentas ?? []).map((f: any) => [f.slug, f.id]));
-
-    const { data: jornada, error: errJ } = await (supabase as any)
-      .from("jornadas").insert({ user_id: userId, titulo: json.titulo, status: "ativa", gerada_por: "ia" }).select("id").single();
-    if (errJ || !jornada) return false;
-
-    const hoje = new Date();
-    let cursorDias = 0;
-    for (const est of json.estagios) {
-      const dataInicio = new Date(hoje);
-      dataInicio.setDate(dataInicio.getDate() + cursorDias);
-      cursorDias += (est.prazo_dias ?? 7) + 1;
-
-      const { data: estagio, error: errE } = await (supabase as any)
-        .from("jornada_estagios").insert({
-          jornada_id: jornada.id, titulo: est.titulo, descricao: est.descricao ?? null,
-          ordem: est.ordem ?? 0, prazo_dias: est.prazo_dias ?? 7,
-          data_inicio: dataInicio.toISOString().slice(0, 10),
-        }).select("id").single();
-      if (errE || !estagio) continue;
-
-      for (const passo of est.passos) {
-        const ferramentaId = passo.tipo === "ferramenta_arsenal" && passo.ferramenta_slug ? (slugMap.get(passo.ferramenta_slug) ?? null) : null;
-        await (supabase as any).from("jornada_passos").insert({
-          estagio_id: estagio.id, titulo: passo.titulo, descricao: passo.descricao ?? null,
-          ordem: passo.ordem ?? 0, tipo: passo.tipo ?? "acao_livre",
-          ferramenta_id: ferramentaId, prazo_dias: passo.prazo_dias ?? null, obrigatorio: passo.obrigatorio ?? true,
-        });
-      }
-    }
-    return true;
-  } catch { return false; }
-}
+// ── Extração e salvamento de jornada (onboarding agent) — ver @/lib/jornadaUtils ──
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function DescompliqueiOS() {
   const { user } = useAuth();
+  const { setConcluido } = usePlataforma();
   const [searchParams] = useSearchParams();
   const [agentes, setAgentes] = useState<AthosAgente[]>([]);
   const [selectedAgentSlug, setSelectedAgentSlug] = useState<string | null>(() => searchParams.get("agente") ?? null);
   const [agentPickerOpen, setAgentPickerOpen] = useState(false);
   const jornadaSalvaRef = useRef(false);
+  const autoStartRef = useRef(false);
+  const conversationsLoadedRef = useRef(false);
   const [conversations, setConversations] = useState<OSConversation[]>([]);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<OSMessage[]>([]);
@@ -498,6 +457,16 @@ export default function DescompliqueiOS() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const stopStreaming = () => {
+    // flushSync força o React a aplicar o state IMEDIATAMENTE, bypassando a fila de renders.
+    // Crítico quando o markdown rendering está saturado (tabelas/listas longas em streaming):
+    // sem flushSync o clique fica pendente e o usuário acha que o botão não funciona.
+    flushSync(() => {
+      setIsStreaming(false);
+      setMessages(prev => prev.map(m => m.isStreaming
+        ? { ...m, isStreaming: false, processingAttachments: undefined }
+        : m));
+    });
+    // Aborta o fetch DEPOIS do setState — assim a UI já liberou mesmo se o abort demorar
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
   };
@@ -544,9 +513,37 @@ export default function DescompliqueiOS() {
     }
     const { data } = await q.order("atualizado_em", { ascending: false }).limit(50);
     if (data) setConversations(data as any);
+    conversationsLoadedRef.current = true;
   }, [user, selectedAgentSlug]);
 
+  // Reset dos refs de auto-start quando o agente muda
+  useEffect(() => {
+    autoStartRef.current = false;
+    conversationsLoadedRef.current = false;
+  }, [selectedAgentSlug]);
+
   useEffect(() => { loadConversations(); }, [loadConversations]);
+
+  // Auto-start do Athos no fluxo de onboarding — dispara a primeira mensagem automaticamente
+  useEffect(() => {
+    if (
+      selectedAgentSlug !== "onboarding" ||
+      autoStartRef.current ||
+      !conversationsLoadedRef.current ||
+      conversations.length > 0 ||
+      agentes.length === 0 ||
+      isStreaming ||
+      currentConversationId
+    ) return;
+
+    autoStartRef.current = true;
+    const timer = setTimeout(() => {
+      sendMessage("Olá! Acabei de finalizar o diagnóstico.");
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAgentSlug, conversations, agentes, isStreaming, currentConversationId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -590,11 +587,36 @@ export default function DescompliqueiOS() {
     const jornada = extrairJornadaOS(lastMsg.content);
     if (jornada && user) {
       jornadaSalvaRef.current = true;
-      salvarJornadaOS(jornada, user.id).then(ok => {
-        if (ok) toast.success("Jornada salva com sucesso!");
+      salvarJornadaOS(jornada, user.id).then(async ok => {
+        if (ok) {
+          toast.success("Jornada salva com sucesso!");
+          // Marca onboarding como concluído e atualiza contexto local para exibir o checklist
+          await (supabase as any).from("platform_users")
+            .update({ onboarding_concluido: true })
+            .eq("crm_user_id", user!.id);
+          setConcluido();
+        }
       });
     }
   }, [isStreaming, messages, selectedAgentSlug, user?.id]);
+
+  // Hard timeout via useEffect — 120s absolutos.
+  // Dispara enquanto QUALQUER mensagem ou o state global indicar streaming,
+  // garantindo que o usuário nunca fique preso mesmo com state dessincronizado.
+  const hasAnyStreaming = isStreaming || messages.some(m => m.isStreaming);
+  useEffect(() => {
+    if (!hasAnyStreaming) return;
+    const timer = window.setTimeout(() => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+      setMessages(prev => prev.map(m => m.isStreaming
+        ? { ...m, isStreaming: false, processingAttachments: undefined,
+            errorMessage: "Tempo limite atingido (120s). O modelo demorou demais para responder." }
+        : m));
+      setIsStreaming(false);
+    }, 120_000);
+    return () => window.clearTimeout(timer);
+  }, [hasAnyStreaming]);
 
   const deleteConversation = async (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -666,6 +688,7 @@ export default function DescompliqueiOS() {
     setMessages(prev => [...prev, {
       id: aId, role: "assistant", content: "",
       tool_calls: [], isStreaming: true, criado_em: new Date().toISOString(),
+      retryText: text.trim(),
     }]);
 
     // ── Streaming buffer ─────────────────────────────────────────────────────
@@ -739,8 +762,27 @@ export default function DescompliqueiOS() {
       if (!res.body) throw new Error("Stream vazio");
 
       const reader = res.body.getReader();
+      // Garante cancelamento do reader quando abort dispara (reader.cancel resolve em vez de rejeitar)
+      const cancelReaderOnAbort = () => { reader.cancel().catch(() => {}); };
+      abortController.signal.addEventListener("abort", cancelReaderOnAbort, { once: true });
       const decoder = new TextDecoder();
       let buffer = "";
+      // Inactivity = nenhum byte do servidor (NEM heartbeat) por N ms.
+      // Heartbeats chegam a cada 3s do backend, então 30s é mais que suficiente.
+      // O hard timeout de 120s no useEffect global é a rede de segurança final.
+      const INACTIVITY_TIMEOUT_MS = 30_000;
+      let timedOutByInactivity = false;
+      let inactivityTimer = setTimeout(() => {
+        timedOutByInactivity = true;
+        abortController.abort();
+      }, INACTIVITY_TIMEOUT_MS);
+      const resetInactivity = () => {
+        clearTimeout(inactivityTimer);
+        inactivityTimer = setTimeout(() => {
+          timedOutByInactivity = true;
+          abortController.abort();
+        }, INACTIVITY_TIMEOUT_MS);
+      };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -753,72 +795,98 @@ export default function DescompliqueiOS() {
           if (!line.startsWith("data: ")) continue;
           const raw = line.slice(6).trim();
           if (!raw || raw === "[DONE]") continue;
-          try {
-            const ev = JSON.parse(raw);
-            if (ev.type === "processing_attachments") {
-              setMessages(prev => prev.map(m => m.id === aId
-                ? { ...m, content: `Analisando ${ev.count} anexo${ev.count > 1 ? "s" : ""}...` }
-                : m));
-            }
-            if (ev.type === "tool_start") {
-              activeToolCalls.push({ tool: ev.tool, input: ev.input, status: "running" });
-              // Tool calls sempre atualizam imediatamente (são eventos raros)
-              const tc = [...activeToolCalls];
-              setMessages(prev => prev.map(m => m.id === aId ? { ...m, tool_calls: tc } : m));
-            }
-            if (ev.type === "tool_result") {
-              const idx = [...activeToolCalls].reverse().findIndex(tc => tc.tool === ev.tool && tc.status === "running");
-              const ri = idx >= 0 ? activeToolCalls.length - 1 - idx : -1;
-              if (ri >= 0) activeToolCalls[ri] = { ...activeToolCalls[ri], result: ev.result, status: "done" };
-              const tc = [...activeToolCalls];
-              setMessages(prev => prev.map(m => m.id === aId ? { ...m, tool_calls: tc } : m));
-            }
-            if (ev.type === "text_delta") {
-              streamedText += ev.delta;
-              scheduleFlush(); // batched — sem re-render em cada caractere
-            }
-            if (ev.type === "usage") {
-              setMessages(prev => prev.map(m => m.id === aId ? {
-                ...m,
-                usage: {
-                  inputTokens:   ev.input_tokens    ?? 0,
-                  outputTokens:  ev.output_tokens   ?? 0,
-                  totalTimeMs:   ev.total_time_ms   ?? 0,
-                  toolCallsCount: ev.tool_calls_count ?? 0,
-                  model:         ev.model            ?? "",
-                },
-              } : m));
-            }
-            if (ev.type === "done") {
-              flushText();
-              if (ev.conversation_id && !currentConversationId) {
-                setCurrentConversationId(ev.conversation_id);
-                if (selectedAgentSlug) {
-                  (supabase as any).from("os_conversations")
-                    .update({ agente_slug: selectedAgentSlug })
-                    .eq("id", ev.conversation_id);
-                }
+          let ev: any;
+          try { ev = JSON.parse(raw); } catch { continue; }
+          // Heartbeat (e qualquer outro evento) reseta o timer — basta um sinal de vida do servidor.
+          resetInactivity();
+          if (ev.type === "processing_attachments") {
+            setMessages(prev => prev.map(m => m.id === aId
+              ? { ...m, processingAttachments: ev.count }
+              : m));
+          }
+          if (ev.type === "attachments_done") {
+            setMessages(prev => prev.map(m => m.id === aId
+              ? { ...m, processingAttachments: undefined }
+              : m));
+          }
+          if (ev.type === "tool_start") {
+            activeToolCalls.push({ tool: ev.tool, input: ev.input, status: "running" });
+            const tc = [...activeToolCalls];
+            setMessages(prev => prev.map(m => m.id === aId ? { ...m, tool_calls: tc } : m));
+          }
+          if (ev.type === "tool_result") {
+            const idx = [...activeToolCalls].reverse().findIndex(tc => tc.tool === ev.tool && tc.status === "running");
+            const ri = idx >= 0 ? activeToolCalls.length - 1 - idx : -1;
+            if (ri >= 0) activeToolCalls[ri] = { ...activeToolCalls[ri], result: ev.result, status: "done" };
+            const tc = [...activeToolCalls];
+            setMessages(prev => prev.map(m => m.id === aId ? { ...m, tool_calls: tc } : m));
+          }
+          if (ev.type === "text_delta") {
+            streamedText += ev.delta;
+            scheduleFlush();
+          }
+          if (ev.type === "usage") {
+            setMessages(prev => prev.map(m => m.id === aId ? {
+              ...m,
+              usage: {
+                inputTokens:   ev.input_tokens    ?? 0,
+                outputTokens:  ev.output_tokens   ?? 0,
+                totalTimeMs:   ev.total_time_ms   ?? 0,
+                toolCallsCount: ev.tool_calls_count ?? 0,
+                model:         ev.model            ?? "",
+              },
+            } : m));
+          }
+          if (ev.type === "done") {
+            flushText();
+            if (ev.conversation_id && !currentConversationId) {
+              setCurrentConversationId(ev.conversation_id);
+              if (selectedAgentSlug) {
+                await (supabase as any).from("os_conversations")
+                  .update({ agente_slug: selectedAgentSlug })
+                  .eq("id", ev.conversation_id);
               }
-              loadConversations();
-              setMessages(prev => prev.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
             }
-            if (ev.type === "error") throw new Error(ev.message);
-          } catch { /* ignore parse errors */ }
+            loadConversations();
+            setMessages(prev => prev.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
+          }
+          if (ev.type === "error") throw new Error(ev.message);
         }
       }
 
-      // Garante flush final caso o stream termine sem evento "done"
+      clearTimeout(inactivityTimer);
+      abortController.signal.removeEventListener("abort", cancelReaderOnAbort);
       flushText();
+      // Stream terminou — log para debug
+      console.log("[Athos] Stream ended. aborted:", abortController.signal.aborted);
+      // Stream terminou sem evento "done" (conexão caiu, tab switch, timeout do browser)
+      // Sempre limpar o estado — se "done" já tratou, é no-op
+      setMessages(prev => prev.map(m => m.id === aId && m.isStreaming
+        ? { ...m, isStreaming: false, processingAttachments: undefined,
+            ...(!m.content && !abortController.signal.aborted
+              ? { errorMessage: "Conexão perdida com o servidor. Tente novamente." }
+              : {}) }
+        : m));
     } catch (err: any) {
       flushStreamRef.current = null;
       if (flushTimer) clearTimeout(flushTimer);
+      abortController.signal.removeEventListener("abort", cancelReaderOnAbort);
       if (err.name === "AbortError") {
-        // Interrompido pelo usuário — mantém o texto parcial já gerado, apenas finaliza
+        // Distingue abort por timeout (silêncio do servidor) vs cancelamento explícito do usuário.
         flushText();
-        setMessages(prev => prev.map(m => m.id === aId ? { ...m, isStreaming: false } : m));
+        const errorMessage = timedOutByInactivity
+          ? "Sem resposta do servidor por 30 segundos. A conexão pode ter caído — tente novamente."
+          : undefined;
+        setMessages(prev => prev.map(m => m.id === aId
+          ? { ...m, isStreaming: false, processingAttachments: undefined,
+              ...(errorMessage && !m.content ? { errorMessage } : {}) }
+          : m));
       } else {
-        toast.error("Erro ao enviar: " + (err.message ?? "Tente novamente"));
-        setMessages(prev => prev.filter(m => m.id !== aId));
+        const errMsg = err.message ?? "Erro desconhecido";
+        flushText();
+        setMessages(prev => prev.map(m => m.id === aId
+          ? { ...m, isStreaming: false, processingAttachments: undefined, errorMessage: errMsg }
+          : m));
       }
     } finally {
       flushStreamRef.current = null;
@@ -1353,7 +1421,7 @@ export default function DescompliqueiOS() {
                       { Icon: BarChart3,   label: "Resumo do dia",             prompt: "Me dê um resumo completo do dia de hoje" },
                       { Icon: TrendingUp,  label: "Análise do funil",           prompt: "Como está meu funil esta semana?" },
                       { Icon: Users,       label: "Leads parados",              prompt: "Quais leads estão parados no pipeline?" },
-                      { Icon: BadgeCheck,  label: "Leads qualificados (MQL)",   prompt: "Me mostre os leads qualificados (MQL)" },
+                      { Icon: BadgeCheck,  label: "Leads qualificados",   prompt: "Me mostre os leads qualificados" },
                       { Icon: Calendar,    label: "Próximos agendamentos",      prompt: "Quais são meus próximos agendamentos?" },
                       { Icon: DollarSign,  label: "Vendas recentes",            prompt: "Me mostre as vendas fechadas recentemente" },
                       { Icon: Target,      label: "Meta do mês",                prompt: "Estou no caminho certo para bater a meta do mês?" },
@@ -1438,7 +1506,7 @@ export default function DescompliqueiOS() {
                 )}
               </div>
 
-              {isStreaming ? (
+              {(isStreaming || messages.some(m => m.isStreaming)) ? (
                 <button
                   onClick={stopStreaming}
                   className="shrink-0 flex items-center justify-center h-8 w-8 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-all"
@@ -1729,10 +1797,32 @@ function MessageBubble({ msg, onImageClick }: { msg: OSMessage; onImageClick: (u
               <span className="inline-block w-[3px] h-4 bg-foreground/30 rounded-sm ml-0.5 animate-pulse align-middle" />
             )}
           </div>
+        ) : msg.errorMessage ? (
+          <div className="flex flex-col gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
+              <span className="text-[13px] text-destructive">{msg.errorMessage}</span>
+            </div>
+            {msg.retryText && (
+              <button
+                onClick={() => sendMessage(msg.retryText!)}
+                className="flex items-center gap-1.5 self-start rounded-md bg-destructive/15 hover:bg-destructive/25 border border-destructive/20 px-2.5 py-1 text-[11px] font-medium text-destructive transition-colors"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Tentar novamente
+              </button>
+            )}
+          </div>
         ) : msg.isStreaming && (!msg.tool_calls || msg.tool_calls.every(tc => tc.status === "done")) ? (
           <div className="flex items-center gap-2">
             <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground/60" />
-            <span className="text-[13px] text-muted-foreground">Pensando...</span>
+            {msg.processingAttachments ? (
+              <span className="text-[13px] text-muted-foreground">
+                Analisando {msg.processingAttachments} anexo{msg.processingAttachments > 1 ? "s" : ""}...
+              </span>
+            ) : (
+              <span className="text-[13px] text-muted-foreground">Pensando...</span>
+            )}
             {elapsedSec > 0 && (
               <span className="text-[11px] text-muted-foreground/50 tabular-nums">{elapsedSec}s</span>
             )}

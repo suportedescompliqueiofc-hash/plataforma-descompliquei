@@ -12,11 +12,11 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { toast } from "sonner";
 
 const CATEGORIAS = [
-  "Estetica Facial",
-  "Estetica Corporal",
+  "Estética Facial",
+  "Estética Corporal",
   "Capilar",
   "Odontologia",
-  "Medico",
+  "Médico",
   "Outro",
 ];
 
@@ -61,7 +61,7 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.nome.trim()) {
-      toast.error("O nome do procedimento e obrigatorio.");
+      toast.error("O nome do procedimento é obrigatório.");
       return;
     }
     const payload: ProcedimentoInput = {
@@ -92,7 +92,7 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
             </DialogHeader>
           </div>
           <DialogDescription className="text-xs text-muted-foreground/70 ml-10">
-            {isEditMode ? "Atualize os detalhes do procedimento" : "Cadastre um novo procedimento no seu catalogo"}
+            {isEditMode ? "Atualize os detalhes do procedimento" : "Cadastre um novo procedimento no seu catálogo"}
           </DialogDescription>
         </div>
 
@@ -105,7 +105,7 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
                 Nome <span className="text-destructive">*</span>
               </Label>
               <Input
-                placeholder="Ex: Botox, Harmonizacao Facial, Preenchimento..."
+                placeholder="Ex: Botox, Harmonização Facial, Preenchimento..."
                 value={form.nome}
                 onChange={e => setForm(p => ({ ...p, nome: e.target.value }))}
                 className="h-10 rounded-lg text-sm border-border/60"
@@ -147,7 +147,7 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
               </div>
               <div data-tutorial="procedimento-field-duracao" className="space-y-1.5">
                 <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Duracao (minutos)
+                  Duração (minutos)
                 </Label>
                 <Input
                   type="number"
@@ -163,10 +163,10 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
             {/* Descricao */}
             <div data-tutorial="procedimento-field-descricao" className="space-y-1.5">
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Descricao
+                Descrição
               </Label>
               <Textarea
-                placeholder="Descreva o procedimento, indicacoes, cuidados pos..."
+                placeholder="Descreva o procedimento, indicações, cuidados pós..."
                 value={form.descricao || ""}
                 onChange={e => setForm(p => ({ ...p, descricao: e.target.value || null }))}
                 className="rounded-lg text-sm border-border/60 min-h-[80px] resize-none"
@@ -178,7 +178,7 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
               <div>
                 <p className="text-[13px] font-medium text-foreground">Procedimento ativo</p>
                 <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                  Procedimentos inativos nao aparecem nas sugestoes de vendas
+                  Procedimentos inativos não aparecem nas sugestões de vendas
                 </p>
               </div>
               <Switch
@@ -206,7 +206,7 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
             >
               {isMutating ? (
                 <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando...</>
-              ) : isEditMode ? "Salvar Alteracoes" : "Criar Procedimento"}
+              ) : isEditMode ? "Salvar Alterações" : "Criar Procedimento"}
             </Button>
           </div>
         </form>

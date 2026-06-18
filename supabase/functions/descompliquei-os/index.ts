@@ -177,7 +177,7 @@ async function calcularMetricasPainel(
   while (true) {
     const { data } = await supabase
       .from("leads")
-      .select("id, nome, telefone, origem, fonte, is_qualified, is_scheduled, is_closed, posicao_pipeline, criado_em, atualizado_em, excluir_metricas")
+      .select("id, nome, telefone, origem, fonte, is_qualified, is_scheduled, is_closed, criado_em, atualizado_em, excluir_metricas")
       .eq("organization_id", orgId)
       .or(`and(criado_em.gte.${startDate},criado_em.lte.${endDate}),and(atualizado_em.gte.${startDate},atualizado_em.lte.${endDate})`)
       .range(from, from + PAGE - 1);
@@ -273,7 +273,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         properties: {
           limite: { type: "number" }, busca: { type: "string" },
           is_qualified: { type: "boolean" }, is_scheduled: { type: "boolean" }, is_closed: { type: "boolean" },
-          origem: { type: "string" }, posicao_pipeline: { type: "number" }, etapa_nome: { type: "string" },
+          origem: { type: "string" },
           tag: { type: "string" }, dias_sem_atividade: { type: "number" },
         },
       },
@@ -307,22 +307,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           data_inicial: { type: "string", description: "YYYY-MM-DD" },
           data_final:   { type: "string", description: "YYYY-MM-DD" },
           apenas_marketing: { type: "boolean" },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "obter_pipeline",
-      description: "Etapas com contagem de leads. Sem período = estoque geral. Com período = leads criados no período por etapa.",
-      parameters: {
-        type: "object",
-        properties: {
-          periodo_nome: { type: "string", enum: ["hoje", "semana", "mes", "ano"] },
-          periodo_dias: { type: "number" },
-          data_inicial: { type: "string" },
-          data_final:   { type: "string" },
         },
       },
     },
@@ -392,11 +376,11 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "analisar_leads_parados",
-      description: "Identifica leads travados no pipeline sem atividade recente.",
+      description: "Identifica leads sem atividade recente.",
       parameters: {
         type: "object",
         properties: {
-          dias_sem_atividade: { type: "number" }, posicao_pipeline: { type: "number" },
+          dias_sem_atividade: { type: "number" },
         },
       },
     },
@@ -465,7 +449,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         properties: {
           nome: { type: "string" }, telefone: { type: "string" }, email: { type: "string" },
           origem: { type: "string" }, fonte: { type: "string" },
-          procedimento_interesse: { type: "string" }, posicao_pipeline: { type: "number" },
+          procedimento_interesse: { type: "string" },
           observacoes: { type: "string" },
         },
         required: ["nome", "telefone"],
@@ -501,18 +485,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           lead_id: { type: "string" }, is_qualified: { type: "boolean" },
         },
         required: ["lead_id", "is_qualified"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "mover_etapa_pipeline",
-      description: "Move um lead para outra etapa do pipeline.",
-      parameters: {
-        type: "object",
-        properties: { lead_id: { type: "string" }, posicao_pipeline: { type: "number" } },
-        required: ["lead_id", "posicao_pipeline"],
       },
     },
   },
@@ -1255,6 +1227,151 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "obter_config_ia",
+      description: "Lê a configuração completa da IA de pré-atendimento desta clínica: prompt base (override da org ou global), instruções específicas, horário, formas de pagamento, contraindicações, palavras proibidas, modelo e status. Use antes de qualquer alteração ou diagnóstico da IA.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "atualizar_prompt_base_ia",
+      description: "Salva um prompt base personalizado para a IA de pré-atendimento DESTA clínica especificamente, sem afetar nenhuma outra clínica da plataforma. Se já existir um override, substitui. Se não existir, cria. Use obter_config_ia primeiro para ver o prompt atual antes de alterar.",
+      parameters: {
+        type: "object",
+        properties: {
+          prompt_base: { type: "string", description: "Novo texto completo do prompt base da IA de pré-atendimento para esta clínica." },
+          motivo: { type: "string", description: "Motivo da alteração (para registro interno)." },
+        },
+        required: ["prompt_base"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "configurar_dados_clinica_ia",
+      description: "Configura TODOS os dados específicos da clínica usados pela IA de pré-atendimento: identidade, emojis, procedimentos, FAQ, contato, horário de atendimento e formas de pagamento. Os procedimentos do CRM são importados automaticamente — você só precisa das descrições (sem preços). Use quando o cliente quiser configurar ou atualizar qualquer dado da clínica na IA.",
+      parameters: {
+        type: "object",
+        properties: {
+          nome_agente: { type: "string", description: "Nome da IA (ex: Sofia, Bia, Clara)" },
+          nome_clinica: { type: "string", description: "Nome da clínica" },
+          nome_profissional: { type: "string", description: "Nome do profissional (ex: Dra. Ana Lima)" },
+          especialidade: { type: "string", description: "Especialidade (ex: Odontologia Estética, Medicina Estética)" },
+          usar_emojis: { type: "boolean", description: "Se a IA deve usar emojis nas mensagens" },
+          emojis_permitidos: { type: "string", description: "Emojis permitidos quando usar_emojis=true (ex: 😊 ✨ 💙)" },
+          quem_chamar: { type: "string", enum: ["equipe", "secretaria", "doutor"], description: "Quem a IA deve chamar ao fazer handoff" },
+          nome_pessoa_chamada: { type: "string", description: "Nome da pessoa que assume o atendimento (quando quem_chamar != equipe)" },
+          tom_de_voz: { type: "string", description: "Descrição do tom de voz e personalidade do agente" },
+          descricoes_procedimentos: {
+            type: "array",
+            description: "Descrições opcionais para cada procedimento (sem preços). Os nomes são importados do CRM automaticamente.",
+            items: {
+              type: "object",
+              properties: {
+                nome: { type: "string", description: "Nome exato do procedimento conforme cadastrado no CRM" },
+                descricao: { type: "string", description: "Descrição do procedimento para a IA (sem preços)" },
+              },
+              required: ["nome"],
+            },
+          },
+          faq: {
+            type: "array",
+            description: "Perguntas frequentes da clínica",
+            items: {
+              type: "object",
+              properties: {
+                pergunta: { type: "string" },
+                resposta: { type: "string" },
+              },
+              required: ["pergunta", "resposta"],
+            },
+          },
+          instagram: { type: "string", description: "Link do Instagram da clínica (ex: https://instagram.com/clinica)" },
+          endereco: { type: "string", description: "Endereço da clínica" },
+          instrucoes_pontuais: { type: "string", description: "Instruções específicas adicionais para o agente" },
+          contraindicacoes: { type: "string", description: "Situações ou condições em que a IA NÃO deve atender ou deve encaminhar imediatamente (ex: 'gestantes', 'menores de 18 anos sem responsável', 'emergências odontológicas'). Texto livre." },
+          palavras_proibidas: {
+            type: "array",
+            description: "Palavras ou expressões que a IA NUNCA pode usar nas mensagens (ex: 'barato', 'promoção', 'desconto', 'amiga')",
+            items: { type: "string" },
+          },
+          ia_ativa: { type: "boolean", description: "true = ativar a IA de pré-atendimento, false = desativar. Use true quando o cliente confirmar que quer ligar a IA." },
+          horario_atendimento: {
+            type: "object",
+            description: "Horário de atendimento da clínica. Informe apenas os campos que souber.",
+            properties: {
+              weekday_open:    { type: "string", description: "Hora de abertura de segunda a sexta (formato HH:MM, ex: 09:00)" },
+              weekday_close:   { type: "string", description: "Hora de fechamento de segunda a sexta (formato HH:MM, ex: 18:00)" },
+              saturday_open:   { type: "string", description: "Hora de abertura no sábado (formato HH:MM). Deixar vazio se sábado_fechado=true" },
+              saturday_close:  { type: "string", description: "Hora de fechamento no sábado (formato HH:MM). Deixar vazio se sábado_fechado=true" },
+              saturday_closed: { type: "boolean", description: "true = clínica fechada no sábado" },
+              sunday_closed:   { type: "boolean", description: "true = clínica fechada no domingo (quase sempre true)" },
+            },
+          },
+          formas_pagamento: {
+            type: "object",
+            description: "Formas de pagamento aceitas pela clínica",
+            properties: {
+              pix:          { type: "boolean", description: "Aceita Pix" },
+              dinheiro:     { type: "boolean", description: "Aceita dinheiro" },
+              credito:      { type: "boolean", description: "Aceita cartão de crédito" },
+              debito:       { type: "boolean", description: "Aceita cartão de débito" },
+              parcelamento: { type: "string", description: "Condições de parcelamento (ex: 'até 12x no crédito'). Deixar vazio se não parcelar." },
+              observacoes:  { type: "string", description: "Observações adicionais sobre pagamento" },
+            },
+          },
+        },
+        required: ["nome_agente", "nome_clinica", "nome_profissional", "especialidade"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "criar_jornada",
+      description: "Cria a jornada personalizada do cliente na plataforma. Use quando precisar salvar a jornada com estágios e passos. Retorna o ID da jornada criada.",
+      parameters: {
+        type: "object",
+        properties: {
+          titulo: { type: "string", description: "Título da jornada (ex: 'Jornada Estratégica — Clínica Bella')" },
+          estagios: {
+            type: "array",
+            description: "Lista de estágios da jornada (3 a 8 estágios recomendados)",
+            items: {
+              type: "object",
+              properties: {
+                titulo: { type: "string", description: "Nome do estágio" },
+                descricao: { type: "string", description: "Descrição curta do objetivo do estágio" },
+                prazo_dias: { type: "number", description: "Duração em dias (padrão: 7)" },
+                passos: {
+                  type: "array",
+                  description: "Passos dentro deste estágio",
+                  items: {
+                    type: "object",
+                    properties: {
+                      titulo: { type: "string", description: "Nome do passo" },
+                      descricao: { type: "string", description: "O que o cliente deve fazer neste passo" },
+                      tipo: { type: "string", enum: ["acao_livre", "ferramenta_arsenal"], description: "Tipo do passo. Use 'ferramenta_arsenal' tanto para ferramentas quanto para aulas do arsenal." },
+                      ferramenta_slug: { type: "string", description: "Slug da ferramenta OU da aula do arsenal (se tipo=ferramenta_arsenal). O sistema resolve automaticamente se é ferramenta ou aula." },
+                      obrigatorio: { type: "boolean", description: "Se o passo é obrigatório (padrão: true)" },
+                    },
+                    required: ["titulo"],
+                  },
+                },
+              },
+              required: ["titulo"],
+            },
+          },
+        },
+        required: ["titulo", "estagios"],
+      },
+    },
+  },
 ];
 
 async function executeTool(name: string, input: any, orgId: string, platformUserId: string): Promise<string> {
@@ -1273,7 +1390,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         if (input.is_scheduled !== undefined) q = q.eq("is_scheduled", input.is_scheduled);
         if (input.is_closed !== undefined) q = q.eq("is_closed", input.is_closed);
         if (input.origem) q = q.eq("origem", input.origem);
-        if (input.posicao_pipeline !== undefined) q = q.eq("posicao_pipeline", input.posicao_pipeline);
         if (input.dias_sem_atividade) {
           const corte = new Date(); corte.setDate(corte.getDate() - input.dias_sem_atividade);
           q = q.lt("atualizado_em", corte.toISOString());
@@ -1285,10 +1401,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
             const ids = (ltIds || []).map((r: any) => r.lead_id);
             if (ids.length > 0) q = q.in("id", ids); else return JSON.stringify({ total: 0, leads: [] });
           }
-        }
-        if (input.etapa_nome) {
-          const { data: etapa } = await supabase.from("etapas").select("posicao_ordem").eq("organization_id", orgId).ilike("nome", `%${input.etapa_nome}%`).limit(1).maybeSingle();
-          if (etapa) q = q.eq("posicao_pipeline", etapa.posicao_ordem);
         }
         const { data, error } = await q;
         if (error) return JSON.stringify({ error: error.message });
@@ -1322,7 +1434,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         }
         if (!leadId) return JSON.stringify({ error: "Lead nao encontrado" });
         const [leadRes, notasRes, etapasRes, agRes, vendasRes, tagsRes, msgsRes, cadenciasAtivasRes] = await Promise.all([
-          supabase.from("leads").select("id, nome, telefone, email, origem, fonte, is_qualified, is_scheduled, is_closed, posicao_pipeline, procedimento_interesse, excluir_metricas, observacoes, lead_scoring, criado_em, atualizado_em").eq("id", leadId).eq("organization_id", orgId).single(),
+          supabase.from("leads").select("id, nome, telefone, email, origem, fonte, is_qualified, is_scheduled, is_closed, procedimento_interesse, excluir_metricas, observacoes, lead_scoring, criado_em, atualizado_em").eq("id", leadId).eq("organization_id", orgId).single(),
           supabase.from("lead_notas").select("id, conteudo, tipo, criado_em, metadados").eq("lead_id", leadId).order("criado_em", { ascending: false }).limit(10),
           supabase.from("lead_stage_history").select("stage_position, from_stage_position, entered_at").eq("lead_id", leadId).not("from_stage_position", "is", null).order("entered_at", { ascending: false }).limit(10),
           supabase.from("agendamentos").select("id, titulo, tipo, data_hora_inicio, data_hora_fim, status, descricao").eq("lead_id", leadId).order("data_hora_inicio", { ascending: false }).limit(5),
@@ -1372,6 +1484,11 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
             tipo_remetente: m.remetente === "bot" ? "IA" : isHumanRemetente(m.remetente) ? "Humano" : "Lead",
             criado_em: toHoraBRT(m.criado_em),
           })),
+          mensagens_exibidas: todasMsgs.length,
+          mensagens_limite: 30,
+          aviso_mensagens: todasMsgs.length >= 30
+            ? "ATENÇÃO: limite de 30 mensagens atingido. Use buscar_conversas_lead(lead_id, limite=100) para obter o histórico completo antes de analisar a conversa."
+            : null,
         });
       }
 
@@ -1399,43 +1516,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         });
       }
 
-      case "obter_pipeline": {
-        // Determinar filtro de período (opcional)
-        let pipelinePeriod: ReturnType<typeof buildPeriod> | null = null;
-        if (input.periodo_nome) {
-          pipelinePeriod = buildCalendarPeriod(input.periodo_nome);
-        } else if (input.data_inicial && input.data_final) {
-          pipelinePeriod = buildPeriod({ fromStr: input.data_inicial, toStr: input.data_final });
-        } else if (input.periodo_dias) {
-          pipelinePeriod = buildPeriod(input.periodo_dias);
-        }
-
-        let leadsQuery = supabase.from("leads").select("posicao_pipeline")
-          .eq("organization_id", orgId)
-          .not("status", "in", "(\"Inativo\",\"Excluido\")");
-
-        if (pipelinePeriod) {
-          // Leads criados no período (mesma lógica do funil)
-          leadsQuery = leadsQuery
-            .gte("criado_em", pipelinePeriod.startDate)
-            .lte("criado_em", pipelinePeriod.endDate);
-        } else {
-          // Estoque geral: apenas leads ativos (não fechados)
-          leadsQuery = leadsQuery.eq("is_closed", false);
-        }
-
-        const [{ data: etapas }, { data: leads }] = await Promise.all([
-          supabase.from("etapas").select("nome, posicao_ordem, cor").eq("organization_id", orgId).order("posicao_ordem"),
-          leadsQuery,
-        ]);
-        const countMap: Record<number, number> = {};
-        leads?.forEach((l: any) => { const p = l.posicao_pipeline ?? 0; countMap[p] = (countMap[p] ?? 0) + 1; });
-        return JSON.stringify({
-          tipo: pipelinePeriod ? `leads criados de ${pipelinePeriod.startDayStr} a ${pipelinePeriod.endDayStr}` : "estoque geral (todos ativos)",
-          total_leads: leads?.length ?? 0,
-          etapas: etapas?.map((e: any) => ({ nome: e.nome, posicao: e.posicao_ordem, cor: e.cor, total_leads: countMap[e.posicao_ordem] ?? 0 })) ?? [],
-        });
-      }
 
       case "obter_agendamentos": {
         const dias = input.periodo_dias ?? 7;
@@ -1642,7 +1722,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         const aguardandoIds = apenasIA.filter(id => leadMap[id].ultimaMsg?.remetente === "lead");
         let leadsAguardando: any[] = [];
         if (input.incluir_aguardando !== false && aguardandoIds.length > 0) {
-          const { data: ld } = await supabase.from("leads").select("id, nome, telefone, posicao_pipeline").in("id", aguardandoIds.slice(0, 20));
+          const { data: ld } = await supabase.from("leads").select("id, nome, telefone").in("id", aguardandoIds.slice(0, 20));
           leadsAguardando = (ld ?? []).map((l: any) => ({
             ...l,
             ultima_mensagem_em: toHoraBRT(leadMap[l.id]?.ultimaMsg?.criado_em),
@@ -1663,7 +1743,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           organization_id: orgId, nome: input.nome, telefone: input.telefone, email: input.email,
           origem: input.origem ?? "organico", fonte: input.fonte,
           procedimento_interesse: input.procedimento_interesse,
-          posicao_pipeline: input.posicao_pipeline ?? 0, observacoes: input.observacoes,
+          observacoes: input.observacoes,
         }).select("id, nome, telefone").single();
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ sucesso: true, lead: data });
@@ -1686,11 +1766,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         return JSON.stringify({ sucesso: true, lead_id: input.lead_id, acao: input.is_qualified ? "marcado como MQL" : "removido do MQL" });
       }
 
-      case "mover_etapa_pipeline": {
-        const { error } = await supabase.from("leads").update({ posicao_pipeline: input.posicao_pipeline }).eq("id", input.lead_id).eq("organization_id", orgId);
-        if (error) return JSON.stringify({ error: error.message });
-        return JSON.stringify({ sucesso: true, lead_id: input.lead_id, nova_posicao: input.posicao_pipeline });
-      }
 
       case "adicionar_nota": {
         const { error } = await supabase.from("lead_notas").insert({ lead_id: input.lead_id, organization_id: orgId, conteudo: input.conteudo, tipo: "os", metadados: { evento: "os" } });
@@ -2446,6 +2521,309 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         return JSON.stringify({ sucesso: true, mensagem: "Nota excluída." });
       }
 
+      case "criar_jornada": {
+        // Busca ferramentas e aulas do arsenal para vincular por slug
+        const [{ data: ferramentas }, { data: aulas }] = await Promise.all([
+          (supabase as any).from("arsenal_ferramentas").select("id, slug").eq("ativo", true),
+          (supabase as any).from("arsenal_aulas").select("id, slug").eq("ativo", true),
+        ]);
+        const slugMap = new Map<string, string>(
+          (ferramentas ?? []).map((f: any) => [f.slug, f.id])
+        );
+        const aulaSlugMap = new Map<string, string>(
+          (aulas ?? []).map((a: any) => [a.slug, a.id])
+        );
+
+        const { data: jornadaCriada, error: errJ } = await (supabase as any)
+          .from("jornadas")
+          .insert({ user_id: platformUserId, titulo: input.titulo, status: "ativa", gerada_por: "ia" })
+          .select("id")
+          .single();
+        if (errJ || !jornadaCriada) return JSON.stringify({ error: errJ?.message ?? "Erro ao criar jornada" });
+
+        const hoje = new Date();
+        let cursorDias = 0;
+        let totalPassos = 0;
+        const estagiosResult: any[] = [];
+
+        for (const [idx, est] of (input.estagios ?? []).entries()) {
+          const dataInicio = new Date(hoje);
+          dataInicio.setDate(dataInicio.getDate() + cursorDias);
+          const prazoDias = est.prazo_dias ?? 7;
+          cursorDias += prazoDias + 1;
+
+          const { data: estagio, error: errE } = await (supabase as any)
+            .from("jornada_estagios")
+            .insert({
+              jornada_id: jornadaCriada.id,
+              titulo: est.titulo,
+              descricao: est.descricao ?? null,
+              ordem: idx,
+              prazo_dias: prazoDias,
+              data_inicio: dataInicio.toISOString().slice(0, 10),
+            })
+            .select("id")
+            .single();
+          if (errE || !estagio) continue;
+
+          const passos = est.passos ?? [];
+          for (const [pi, passo] of passos.entries()) {
+            const rawSlug = passo.ferramenta_slug ?? null;
+            // 'aula' é alias para 'ferramenta_arsenal' — normaliza aqui
+            const rawTipo: string = passo.tipo ?? "acao_livre";
+            const isAulaOuFerramenta = rawTipo === "ferramenta_arsenal" || rawTipo === "aula";
+            const normalizedTipo = rawTipo === "aula" ? "ferramenta_arsenal" : rawTipo;
+
+            const ferramentaId =
+              isAulaOuFerramenta && rawSlug
+                ? (slugMap.get(rawSlug) ?? null)
+                : null;
+            const aulaId =
+              isAulaOuFerramenta && rawSlug && !ferramentaId
+                ? (aulaSlugMap.get(rawSlug) ?? null)
+                : null;
+            await (supabase as any).from("jornada_passos").insert({
+              estagio_id: estagio.id,
+              titulo: passo.titulo,
+              descricao: passo.descricao ?? null,
+              ordem: pi,
+              tipo: normalizedTipo,
+              ferramenta_id: ferramentaId,
+              aula_id: aulaId,
+              prazo_dias: passo.prazo_dias ?? null,
+              obrigatorio: passo.obrigatorio ?? true,
+            });
+            totalPassos++;
+          }
+
+          estagiosResult.push({ titulo: est.titulo, total_passos: passos.length });
+        }
+
+        // Marca onboarding_concluido no platform_users
+        await supabase.from("platform_users").update({ onboarding_concluido: true }).eq("id", platformUserId);
+
+        return JSON.stringify({
+          sucesso: true,
+          jornada_id: jornadaCriada.id,
+          titulo: input.titulo,
+          total_estagios: estagiosResult.length,
+          total_passos: totalPassos,
+          estagios: estagiosResult,
+        });
+      }
+
+      case "obter_config_ia": {
+        // Lê o override de prompt base desta org (se existir) e o global como fallback
+        const [orgOverrideRes, globalRes, orgConfigRes] = await Promise.all([
+          supabase.from("system_ai_config")
+            .select("valor, atualizado_em")
+            .eq("chave", "prompt_base_agente")
+            .eq("organization_id", orgId)
+            .maybeSingle(),
+          supabase.from("system_ai_config")
+            .select("valor")
+            .eq("chave", "prompt_base_agente")
+            .is("organization_id", null)
+            .maybeSingle(),
+          supabase.from("organization_ai_prompts")
+            .select("prompt, ia_ativa, modelo_ia, horario_atendimento, formas_pagamento, contraindicacoes, palavras_proibidas")
+            .eq("organization_id", orgId)
+            .maybeSingle(),
+        ]);
+
+        const temOverride = !!orgOverrideRes.data?.valor;
+        const promptBase = temOverride
+          ? orgOverrideRes.data!.valor
+          : (globalRes.data?.valor ?? "(não configurado)");
+
+        return JSON.stringify({
+          prompt_base: {
+            origem: temOverride ? "override_desta_org" : "global_plataforma",
+            conteudo: promptBase,
+            ultima_alteracao: temOverride ? toHoraBRT(orgOverrideRes.data?.atualizado_em) : null,
+            aviso: temOverride
+              ? "Esta org tem um prompt base próprio. Alterações via atualizar_prompt_base_ia só afetam esta org."
+              : "Esta org usa o prompt base global da plataforma. Use atualizar_prompt_base_ia para criar um override exclusivo.",
+          },
+          instrucoes_especificas_org: (orgConfigRes.data?.prompt ?? "").trim() || "(não configurado)",
+          configuracoes_org: {
+            ia_ativa: orgConfigRes.data?.ia_ativa ?? false,
+            modelo_ia: orgConfigRes.data?.modelo_ia ?? "não configurado",
+            horario_atendimento: orgConfigRes.data?.horario_atendimento ?? null,
+            formas_pagamento: orgConfigRes.data?.formas_pagamento ?? null,
+            contraindicacoes: orgConfigRes.data?.contraindicacoes ?? null,
+            palavras_proibidas: orgConfigRes.data?.palavras_proibidas ?? [],
+          },
+        });
+      }
+
+      case "atualizar_prompt_base_ia": {
+        if (!input.prompt_base?.trim()) {
+          return JSON.stringify({ error: "prompt_base não pode ser vazio." });
+        }
+
+        const novoValor = input.prompt_base.trim();
+
+        // Verifica se já existe override para esta org
+        const { data: existing } = await supabase.from("system_ai_config")
+          .select("id")
+          .eq("chave", "prompt_base_agente")
+          .eq("organization_id", orgId)
+          .maybeSingle();
+
+        let erro: any = null;
+        let acao: string;
+
+        if (existing?.id) {
+          // Atualiza o override existente (trigger atualiza atualizado_em automaticamente)
+          const { error } = await supabase.from("system_ai_config")
+            .update({ valor: novoValor })
+            .eq("id", existing.id);
+          erro = error;
+          acao = "atualizado";
+        } else {
+          // Cria novo override exclusivo para esta org
+          const { error } = await supabase.from("system_ai_config")
+            .insert({ chave: "prompt_base_agente", organization_id: orgId, valor: novoValor });
+          erro = error;
+          acao = "criado";
+        }
+
+        if (erro) return JSON.stringify({ error: erro.message });
+
+        return JSON.stringify({
+          sucesso: true,
+          acao,
+          mensagem: "Prompt base da IA " + (acao === "criado" ? "criado com override exclusivo" : "atualizado") + " para esta clínica. A próxima mensagem recebida já usará o novo prompt (cache de 5 min no agente).",
+          motivo: input.motivo ?? null,
+          chars: novoValor.length,
+        });
+      }
+
+      case "configurar_dados_clinica_ia": {
+        // Lê procedimentos ativos do CRM (sem preços)
+        const { data: procsData } = await supabase
+          .from("procedimentos")
+          .select("nome")
+          .eq("organization_id", orgId)
+          .eq("ativo", true)
+          .order("nome", { ascending: true });
+
+        // Monta mapa de descrições fornecidas pelo Athos
+        const descMap = new Map<string, string>();
+        for (const d of (input.descricoes_procedimentos ?? [])) {
+          if (d.nome) descMap.set(d.nome.toLowerCase().trim(), d.descricao ?? "");
+        }
+
+        const procedimentosLinhas = (procsData ?? []).map((p: any) => {
+          const descExtra = descMap.get(p.nome.toLowerCase().trim()) || "";
+          return descExtra ? `- ${p.nome}: ${descExtra}` : `- ${p.nome}`;
+        });
+
+        const faqBlocos = (input.faq ?? []).map((f: any) =>
+          `**Pergunta:** ${f.pergunta}\n**Resposta:** ${f.resposta}`
+        );
+
+        const callTarget = input.quem_chamar ?? "equipe";
+        const callPersonName = callTarget !== "equipe" ? (input.nome_pessoa_chamada ?? "") : "";
+
+        const promptMarkdown = [
+          "## IDENTIDADE DO AGENTE",
+          `Nome do agente: ${input.nome_agente}`,
+          `Nome da clínica: ${input.nome_clinica}`,
+          `Nome do profissional: ${input.nome_profissional}`,
+          `Especialidade: ${input.especialidade}`,
+          "",
+          "## EMOJIS",
+          `A IA deve usar emojis?: ${input.usar_emojis ? "Sim" : "Não"}`,
+          `Emojis permitidos: ${input.usar_emojis ? (input.emojis_permitidos ?? "") : ""}`,
+          "",
+          "## FORMA DE CHAMADA",
+          `Quem a IA deve chamar?: ${callTarget}`,
+          `Nome da pessoa: ${callPersonName}`,
+          "",
+          "## TOM DE VOZ E PERSONALIDADE",
+          input.tom_de_voz ?? "",
+          "",
+          "## PROCEDIMENTOS OFERECIDOS",
+          procedimentosLinhas.join("\n"),
+          "",
+          "## FAQ",
+          faqBlocos.join("\n"),
+          "",
+          "## REDES SOCIAIS E CONTATO",
+          `Instagram: ${input.instagram ?? ""}`,
+          `Endereço: ${input.endereco ?? ""}`,
+          "",
+          "## INSTRUÇÕES PONTUAIS",
+          input.instrucoes_pontuais ?? "",
+        ].join("\n").trim();
+
+        // Verifica se já existe config para preservar horário, formas de pagamento, etc.
+        const { data: existingConfig } = await supabase
+          .from("organization_ai_prompts")
+          .select("id")
+          .eq("organization_id", orgId)
+          .maybeSingle();
+
+        let erroConfig: any = null;
+        let acaoConfig: string;
+
+        // Monta payload com campos opcionais
+        const extraPayload: Record<string, unknown> = {};
+        if (input.horario_atendimento && typeof input.horario_atendimento === "object") {
+          extraPayload.horario_atendimento = input.horario_atendimento;
+        }
+        if (input.formas_pagamento && typeof input.formas_pagamento === "object") {
+          extraPayload.formas_pagamento = input.formas_pagamento;
+        }
+        if (typeof input.contraindicacoes === "string") {
+          extraPayload.contraindicacoes = input.contraindicacoes;
+        }
+        if (Array.isArray(input.palavras_proibidas)) {
+          extraPayload.palavras_proibidas = input.palavras_proibidas;
+        }
+        if (typeof input.ia_ativa === "boolean") {
+          extraPayload.ia_ativa = input.ia_ativa;
+        }
+
+        if (existingConfig?.id) {
+          const { error } = await supabase
+            .from("organization_ai_prompts")
+            .update({ prompt: promptMarkdown, updated_at: new Date().toISOString(), ...extraPayload })
+            .eq("id", existingConfig.id);
+          erroConfig = error;
+          acaoConfig = "atualizado";
+        } else {
+          const { error } = await supabase
+            .from("organization_ai_prompts")
+            .insert({ organization_id: orgId, prompt: promptMarkdown, ia_ativa: false, ...extraPayload });
+          erroConfig = error;
+          acaoConfig = "criado";
+        }
+
+        if (erroConfig) return JSON.stringify({ error: erroConfig.message });
+
+        return JSON.stringify({
+          sucesso: true,
+          acao: acaoConfig,
+          mensagem: `Dados da clínica ${acaoConfig === "criado" ? "configurados" : "atualizados"} com sucesso. A IA de pré-atendimento já usará as novas informações.${acaoConfig === "criado" ? " A IA foi criada com status INATIVA — ative-a no CRM em Configurações > Inteligência Artificial." : ""}`,
+          procedimentos_importados: (procsData ?? []).length,
+          horario_salvo: !!input.horario_atendimento,
+          pagamento_salvo: !!input.formas_pagamento,
+          resumo: {
+            nome_agente: input.nome_agente,
+            nome_clinica: input.nome_clinica,
+            procedimentos: (procsData ?? []).length,
+            faq: (input.faq ?? []).length,
+            horario: input.horario_atendimento ? `${input.horario_atendimento.weekday_open ?? "?"}–${input.horario_atendimento.weekday_close ?? "?"}` : "não informado",
+            pagamentos: input.formas_pagamento
+              ? Object.entries(input.formas_pagamento).filter(([k, v]) => v === true).map(([k]) => k).join(", ") || "nenhum"
+              : "não informado",
+          },
+        });
+      }
+
       default:
         return JSON.stringify({ error: "Ferramenta desconhecida: " + name });
     }
@@ -2462,12 +2840,15 @@ interface Attachment {
   base64: string;
 }
 
-const VISION_MODEL = "google/gemini-2.5-flash-lite";
+// Modelo de visão: GPT-4o-mini é rápido (~2-3s por imagem), suporta visão e tem latência previsível via OpenRouter
+const VISION_MODEL = "openai/gpt-4o-mini";
+// Timeout máximo por anexo — se exceder, retorna mensagem de erro e não bloqueia os demais
+const ATTACHMENT_TIMEOUT_MS = 20_000;
 
-async function processAttachment(att: Attachment): Promise<string> {
+async function _processAttachmentCore(att: Attachment): Promise<string> {
   const { name, mimeType, base64 } = att;
 
-  // Texto puro — decodifica direto
+  // Texto puro — decodifica direto (sem chamada LLM)
   if (mimeType === "text/plain" || mimeType === "text/csv") {
     try {
       const text = atob(base64);
@@ -2477,68 +2858,68 @@ async function processAttachment(att: Attachment): Promise<string> {
     }
   }
 
-  // Imagens — Gemini Flash via OpenRouter
+  // Imagens
   if (mimeType.startsWith("image/")) {
-    try {
-      const resp = await (openrouter.chat.completions.create as any)({
-        model: VISION_MODEL,
-        messages: [{ role: "user", content: [
-          { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
-          { type: "text", text: "Analise esta imagem detalhadamente. Descreva todo o conteúdo visível: textos, números, nomes, tabelas, gráficos e qualquer informação relevante. Seja preciso e completo. Responda em português." },
-        ]}],
-        max_tokens: 1500,
-        thinking: { type: "disabled" },
-      });
-      const desc = resp.choices[0]?.message?.content ?? "Não foi possível analisar a imagem.";
-      return `[Análise da imagem "${name}"]:\n${desc}\n[Fim da análise]`;
-    } catch (e) {
-      return `[Erro ao analisar imagem "${name}": ${e instanceof Error ? e.message : String(e)}]`;
-    }
+    const resp = await (openrouter.chat.completions.create as any)({
+      model: VISION_MODEL,
+      messages: [{ role: "user", content: [
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+        { type: "text", text: "Analise esta imagem detalhadamente. Descreva todo o conteúdo visível: textos, números, nomes, tabelas, gráficos e qualquer informação relevante. Seja preciso e completo. Responda em português." },
+      ]}],
+      max_tokens: 1500,
+    });
+    const desc = resp.choices[0]?.message?.content ?? "Não foi possível analisar a imagem.";
+    return `[Análise da imagem "${name}"]:\n${desc}\n[Fim da análise]`;
   }
 
-  // Áudio — Gemini Flash via OpenRouter (aceita áudio nativo via data URL)
+  // Áudio
   if (mimeType.startsWith("audio/")) {
-    try {
-      const resp = await (openrouter.chat.completions.create as any)({
-        model: VISION_MODEL,
-        messages: [{ role: "user", content: [
-          { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
-          { type: "text", text: "Transcreva todo o conteúdo deste áudio com precisão. Se houver múltiplos falantes, identifique-os. Responda em português." },
-        ]}],
-        max_tokens: 2000,
-        thinking: { type: "disabled" },
-      });
-      const transcription = resp.choices[0]?.message?.content ?? "Não foi possível transcrever o áudio.";
-      return `[Transcrição do áudio "${name}"]:\n${transcription}\n[Fim da transcrição]`;
-    } catch (e) {
-      return `[Erro ao transcrever áudio "${name}": ${e instanceof Error ? e.message : String(e)}]`;
-    }
+    const resp = await (openrouter.chat.completions.create as any)({
+      model: VISION_MODEL,
+      messages: [{ role: "user", content: [
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+        { type: "text", text: "Transcreva todo o conteúdo deste áudio com precisão. Se houver múltiplos falantes, identifique-os. Responda em português." },
+      ]}],
+      max_tokens: 2000,
+    });
+    const transcription = resp.choices[0]?.message?.content ?? "Não foi possível transcrever o áudio.";
+    return `[Transcrição do áudio "${name}"]:\n${transcription}\n[Fim da transcrição]`;
   }
 
-  // PDF e documentos — Gemini Flash via OpenRouter
+  // PDF e documentos
   if (mimeType === "application/pdf" || mimeType.includes("document") || mimeType.includes("msword") || mimeType.includes("spreadsheet") || mimeType.includes("excel")) {
-    try {
-      const resp = await (openrouter.chat.completions.create as any)({
-        model: VISION_MODEL,
-        messages: [{ role: "user", content: [
-          { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
-          { type: "text", text: "Extraia e transcreva todo o conteúdo deste documento. Preserve a estrutura, textos, tabelas, listas e qualquer informação relevante. Responda em português." },
-        ]}],
-        max_tokens: 2000,
-        thinking: { type: "disabled" },
-      });
-      const content = resp.choices[0]?.message?.content ?? "Não foi possível ler o documento.";
-      return `[Conteúdo do documento "${name}"]:\n${content}\n[Fim do documento]`;
-    } catch (e) {
-      return `[Erro ao processar documento "${name}": ${e instanceof Error ? e.message : String(e)}]`;
-    }
+    const resp = await (openrouter.chat.completions.create as any)({
+      model: VISION_MODEL,
+      messages: [{ role: "user", content: [
+        { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+        { type: "text", text: "Extraia e transcreva todo o conteúdo deste documento. Preserve a estrutura, textos, tabelas, listas e qualquer informação relevante. Responda em português." },
+      ]}],
+      max_tokens: 2000,
+    });
+    const content = resp.choices[0]?.message?.content ?? "Não foi possível ler o documento.";
+    return `[Conteúdo do documento "${name}"]:\n${content}\n[Fim do documento]`;
   }
 
   return `[Arquivo "${name}" (${mimeType}) — tipo não suportado para análise automática]`;
 }
 
+async function processAttachment(att: Attachment): Promise<string> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error("timeout")), ATTACHMENT_TIMEOUT_MS)
+  );
+  try {
+    return await Promise.race([_processAttachmentCore(att), timeout]);
+  } catch (e) {
+    const reason = e instanceof Error && e.message === "timeout"
+      ? "tempo esgotado (>20s)"
+      : (e instanceof Error ? e.message : String(e));
+    return `[Anexo "${att.name}" — análise indisponível: ${reason}]`;
+  }
+}
+
 async function processAttachments(attachments: Attachment[]): Promise<string> {
   if (!attachments?.length) return "";
+  // Paralelo com timeout individual — se uma imagem falhar/demorar, as demais continuam
   const results = await Promise.all(attachments.map(processAttachment));
   return "\n\n" + results.join("\n\n");
 }
@@ -2692,9 +3073,8 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
   const cached = _promptCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.prompt;
 
-  const [puRes, etapasRes, procsRes, orgRes, diagRes] = await Promise.all([
+  const [puRes, procsRes, orgRes, diagRes] = await Promise.all([
     supabase.from("platform_users").select("clinic_name, specialty, whatsapp").eq("id", platformUserId).maybeSingle(),
-    supabase.from("etapas").select("nome, posicao_ordem").eq("organization_id", orgId).order("posicao_ordem"),
     supabase.from("procedimentos").select("nome, valor_base").eq("organization_id", orgId).eq("ativo", true).limit(10),
     supabase.from("organizations").select("nome").eq("id", orgId).maybeSingle(),
     supabase.from("meus_materiais" as any).select("conteudo, titulo").eq("user_id", platformUserId).eq("categoria", "diagnostico").maybeSingle(),
@@ -2707,7 +3087,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
   const nomeClinica = pu?.clinic_name || org?.nome || "Não informado";
   const especialidade = pu?.specialty || "Não informada";
 
-  const etapas = etapasRes.data ?? [];
   const procs  = procsRes.data  ?? [];
 
   const dataAtual = new Date().toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "America/Sao_Paulo" });
@@ -2717,10 +3096,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "Nome: " + nomeClinica,
     "Especialidade: " + especialidade,
   ].filter(Boolean).join("\n");
-
-  const pipelineInfo = etapas.length > 0
-    ? etapas.map((e: any) => "  Posição " + e.posicao_ordem + ": " + e.nome).join("\n")
-    : "  Nenhuma etapa configurada";
 
   const procsInfo = procs.length > 0
     ? procs.map((p: any) => "  - " + p.nome + (p.valor_base ? " (R$ " + p.valor_base + ")" : "")).join("\n")
@@ -2732,18 +3107,12 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "",
     "REGRA 1: Zero emojis nas respostas, exceto ao simular mensagens WhatsApp para o usuário.",
     "REGRA 2: Nunca use 'Agente' para o humano — use 'atendente', 'você' ou 'o profissional'.",
+    "REGRA 3 — ABSOLUTA: NUNCA crie seção 'Linha do Tempo', 'Histórico de Mensagens', 'Conversa' ou qualquer tabela/lista com as mensagens em ordem cronológica. O usuário já conhece a conversa. Ao analisar atendimento: vá direto para Diagnóstico → Pontos de Melhoria → Ações. Nenhuma reprodução de mensagens, jamais.",
     "",
     "DATA: " + dataAtual + " | HORA: " + horaAtual,
     "",
     "## CLÍNICA",
     clinicaInfo,
-    "",
-    "## PIPELINE — REGRA ABSOLUTA",
-    "As etapas do pipeline são posições operacionais internas que NÃO refletem o momento real do lead. A clínica ajusta as etapas constantemente e elas estão frequentemente desatualizadas.",
-    "PROIBIDO: mencionar etapas, nomes de etapas (Handoff, Agendado, Qualificado, etc.) ou posição do pipeline em qualquer análise, diagnóstico, plano de ação ou recomendação.",
-    "PERMITIDO apenas: (1) responder se o usuário perguntar explicitamente 'em qual etapa está X', (2) mover um lead quando solicitado.",
-    "Se receber dados de etapa de uma ferramenta, IGNORE completamente para análise — não mencione, não cite, não use como critério.",
-    pipelineInfo,
     "",
     "## FUNIL COMERCIAL (use ESTE para toda análise e diagnóstico)",
     "O funil real da clínica tem 4 marcos — use SEMPRE estes para análise, comparativo, taxa de conversão e diagnóstico:",
@@ -2752,7 +3121,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "  3. AGENDAMENTOS — agendamentos realizados (tabela agendamentos)",
     "  4. FECHAMENTOS — vendas registradas (tabela vendas)",
     "Taxas: tx_mql = MQL/Leads | tx_agendamento = Agend/MQL | tx_fechamento = Fech/Agend",
-    "Quando analisar performance, comparar períodos, ou fazer diagnóstico comercial: use SEMPRE o funil acima, nunca etapas de pipeline.",
+    "Quando analisar performance, comparar períodos, ou fazer diagnóstico comercial: use SEMPRE o funil acima.",
     "",
     "## PROCEDIMENTOS",
     procsInfo,
@@ -2761,7 +3130,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "Remetentes: 'bot'=IA | 'agente'/'humano'/'atendente'=humano | 'lead'=cliente.",
     "",
     "## MÉTRICAS (idênticas ao painel — modelo por EVENTO, não estado atual)",
-    "Leads no período: criado OU mudou etapa OU qualificado MQL OU agendamento OU venda — no período.",
+    "Leads no período: criado OU qualificado MQL OU agendamento OU venda — no período.",
     "Excluídos: excluir_metricas=true, fonte='importado', origem='paciente'.",
     "MQL=lead_notas sistema evento='mql' | AGENDAMENTOS=agendamentos.data_hora_inicio | FECHAMENTOS=vendas.data_fechamento",
     "Taxas: tx_mql=MQL/Leads | tx_agendamento=Agend/MQL | tx_fechamento=Fech/Agend",
@@ -2772,13 +3141,87 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "",
     "## MATERIAIS: HTML obrigatório (TipTap). Use <h2>/<h3>, <p>, <strong>, <ul><li>, <ol><li>, <hr>. Nunca texto plano.",
     "",
-    "## FLUXOS",
-    "Enviar msg/cadência: obter_lead_completo(telefone|nome) → lead_id → enviar_mensagem ou listar_cadencias → disparar_cadencia.",
-    "Overview do dia: obter_resumo_geral. Análise de lead: obter_lead_completo retorna histórico completo.",
+    "## ROTEAMENTO DE FERRAMENTAS — SIGA RIGOROSAMENTE",
+    "Antes de responder qualquer pedido, identifique a intenção e chame a ferramenta correta. NUNCA responda com dados inventados — sempre busque primeiro.",
+    "",
+    "### Consultas sobre LEADS",
+    "- 'Quantos leads?', 'lista de leads', filtrar leads → buscar_leads",
+    "- 'Me fala do lead X', 'detalhes do lead', 'histórico de X', análise de lead específico → obter_lead_completo (aceita nome, telefone ou lead_id)",
+    "- 'Leads parados', 'leads sem atividade' → analisar_leads_parados",
+    "- 'Contatos que não são leads', 'spam', 'limpeza' → analisar_nao_leads",
+    "",
+    "### Consultas sobre CONVERSAS e MENSAGENS",
+    "- 'O que o lead falou?', 'conversa do lead', 'mensagens de X', 'analisa a conversa', 'o que foi conversado' → buscar_conversas_lead (precisa de lead_id — use obter_lead_completo antes se só tiver nome/telefone)",
+    "- REGRA AUTOMÁTICA: se obter_lead_completo retornar aviso_mensagens não-nulo (mensagens_exibidas >= 30), chame IMEDIATAMENTE buscar_conversas_lead(lead_id, limite=100) antes de analisar qualquer coisa da conversa. Não mencione isso ao usuário — apenas execute.",
+    "- 'Envia mensagem para X' → obter_lead_completo(nome/telefone) → enviar_mensagem(lead_id, mensagem)",
+    "- 'Agenda mensagem para X' → obter_lead_completo → agendar_mensagem",
+    "",
+    "### Consultas sobre MÉTRICAS e FUNIL",
+    "- 'Como está o funil?', 'métricas', 'taxa de conversão', 'quantos MQLs?' → obter_metricas_funil",
+    "- 'Resumo do dia', 'como está hoje?', 'overview' → obter_resumo_geral",
+    "- 'Receita', 'faturamento', 'ticket médio' → obter_metricas_receita",
+    "- 'Ranking de procedimentos', 'mais vendidos' → analisar_ranking_procedimentos",
+    "- 'Análise da IA', 'como está o atendimento automático?', 'handoffs' → analisar_atendimento_ia",
+    "",
+    "### Ações sobre LEADS",
+    "- 'Cria um lead' → criar_lead",
+    "- 'Atualiza o lead X' → obter_lead_completo → atualizar_lead",
+    "- 'Qualifica o lead X', 'marca como MQL' → obter_lead_completo → qualificar_lead",
+    "- 'Adiciona nota no lead X' → obter_lead_completo → adicionar_nota",
+    "- 'Tags do lead X' → obter_lead_completo → gerenciar_tags_lead",
+    "- 'Exclui o lead X' → obter_lead_completo → excluir_lead_permanente (SEMPRE confirmar antes)",
+    "- 'Exclui esses leads' → excluir_lote (SEMPRE confirmar antes)",
+    "- 'Bloqueia o número' → bloquear_numero | 'Desbloqueia' → desbloquear_numero",
+    "",
+    "### AGENDAMENTOS",
+    "- 'Próximos agendamentos', 'agenda' → obter_agendamentos",
+    "- 'Cria agendamento para X' → obter_lead_completo → criar_agendamento",
+    "- 'Remarcar/cancelar agendamento' → atualizar_agendamento",
+    "- 'Excluir agendamento' → excluir_agendamento (confirmar antes)",
+    "",
+    "### VENDAS",
+    "- 'Vendas recentes', 'últimas vendas' → obter_vendas_recentes",
+    "- 'Registra venda para X' → obter_lead_completo → registrar_venda",
+    "- 'Atualiza a venda' → atualizar_venda",
+    "- 'Exclui venda' → excluir_venda (confirmar antes)",
+    "",
+    "### CADÊNCIAS",
+    "- 'Lista cadências' → listar_cadencias",
+    "- 'Detalhes da cadência X' → obter_cadencia_detalhes",
+    "- 'Cria cadência' → criar_cadencia",
+    "- 'Dispara cadência para X' → obter_lead_completo → listar_cadencias → disparar_cadencia",
+    "- 'Cancela cadência do lead X' → cancelar_cadencia_lead",
+    "",
+    "### METAS, TAGS, PROCEDIMENTOS, NOTIFICAÇÕES",
+    "- 'Metas', 'progresso das metas' → obter_metas",
+    "- 'Criar meta' → criar_meta | 'Atualizar meta' → atualizar_meta | 'Excluir meta' → excluir_meta",
+    "- 'Tags disponíveis' → obter_tags | 'Criar tag' → criar_tag | 'Excluir tag' → excluir_tag",
+    "- 'Procedimentos cadastrados' → obter_procedimentos | 'Criar procedimento' → criar_procedimento",
+    "- 'Notificações' → obter_notificacoes | 'Marcar como lida' → marcar_notificacao_lida",
+    "- 'Blacklist', 'números bloqueados' → obter_blacklist",
+    "",
+    "### IA de PRÉ-ATENDIMENTO",
+    "- 'Como está a IA?', 'configuração da IA', 'prompt da IA' → obter_config_ia",
+    "- 'Altera o prompt da IA', 'muda o prompt base' → obter_config_ia (ler antes) → atualizar_prompt_base_ia",
+    "- 'Configura a clínica na IA', 'nome do agente', 'horário', 'pagamento' → obter_config_ia → configurar_dados_clinica_ia",
+    "",
+    "### PLATAFORMA (Jornada, Arsenal, Materiais)",
+    "- 'Minha jornada', 'progresso da jornada' → obter_minha_jornada",
+    "- 'Marca passo como concluído' → marcar_passo_jornada",
+    "- 'Ferramentas do Arsenal', 'categorias' → listar_arsenal",
+    "- 'Detalhe da ferramenta X' → obter_arsenal_ferramenta",
+    "- 'Materiais complementares' → listar_materiais_complementares | 'Ler material X' → ler_material_complementar",
+    "- 'Meus materiais' → listar_meus_materiais | 'Criar material' → criar_material",
+    "- 'Criar jornada' → criar_jornada",
+    "",
+    "### REGRA DE ENCADEAMENTO",
+    "Quando o usuário menciona um lead por NOME ou TELEFONE (não por ID), SEMPRE chame obter_lead_completo primeiro para resolver o lead_id, depois chame a ferramenta de ação.",
+    "Exemplo: 'Envia mensagem pro João' → obter_lead_completo(nome='João') → enviar_mensagem(lead_id=resultado, mensagem=...)",
+    "Exemplo: 'Analisa a conversa da Maria' → obter_lead_completo(nome='Maria') → buscar_conversas_lead(lead_id=resultado)",
     "",
     "## COMPORTAMENTO",
     "Antes de consulta ampla sem período definido, PERGUNTE: 'De qual período? Esta semana, este mês, últimos 30 dias?'",
-    "Pedido genérico (ex: 'diagnóstico'): pergunte o foco — funil, atendimento, pipeline ou receita?",
+    "Pedido genérico (ex: 'diagnóstico'): pergunte o foco — funil, atendimento ou receita?",
     "Pedido específico (ex: 'vendas deste mês'): execute direto.",
     "",
     "## FORMATAÇÃO (obrigatório em todas as respostas)",
@@ -2794,6 +3237,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- Antes de excluir, peça confirmação explícita",
     "- Direto e estratégico — diagnósticos + ações concretas",
     "- Use 'clínica', nunca 'organização'",
+    "- NUNCA reproduza a linha do tempo da conversa nem liste as mensagens em sequência cronológica. O usuário já conhece o conteúdo. Ao analisar um atendimento ou conversa, vá direto para o diagnóstico, pontos de melhoria e ações — sem transcrever ou resumir o histórico de mensagens.",
     ...(diag?.conteudo ? [
       "",
       "## DIAGNÓSTICO ESTRATÉGICO DO CLIENTE (base de conhecimento permanente)",
@@ -2820,7 +3264,7 @@ Deno.serve(async (req) => {
 
   let body: any;
   try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: "Body invalido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
-  const { message, conversation_id, history = [], model: requestedModel, attachments = [], system_prompt_override } = body;
+  const { message, conversation_id, history = [], model: requestedModel, attachments = [], system_prompt_override, tools_override } = body;
   const model = (requestedModel && typeof requestedModel === "string" && requestedModel.trim()) ? requestedModel.trim() : DEFAULT_MODEL;
   if (!message?.trim() && !attachments?.length) return new Response(JSON.stringify({ error: "Mensagem vazia" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
@@ -2828,13 +3272,47 @@ Deno.serve(async (req) => {
     async start(controller) {
       const encoder = new TextEncoder();
       const send = (data: object) => { try { controller.enqueue(encoder.encode("data: " + JSON.stringify(data) + "\n\n")); } catch { /**/ } };
+      // Timeout global absoluto — fecha o stream à força após 120s independente do que estiver acontecendo
+      const GLOBAL_TIMEOUT_MS = 120_000;
+      const globalTimeout = setTimeout(() => {
+        console.error("[descompliquei-os] GLOBAL TIMEOUT atingido — forçando encerramento do stream");
+        try { send({ type: "error", message: "Tempo limite excedido (120s). A IA demorou demais para responder. Tente novamente." }); } catch { /**/ }
+        try { controller.close(); } catch { /**/ }
+      }, GLOBAL_TIMEOUT_MS);
       try {
+        const DIAG_PLACEHOLDER = "[INSERIDO AUTOMATICAMENTE PELO SISTEMA]";
+
+        let resolvedSystemPrompt: string;
+        if (system_prompt_override) {
+          const raw = String(system_prompt_override);
+          if (raw.includes(DIAG_PLACEHOLDER)) {
+            // Injetar diagnóstico do cliente no prompt do agente de onboarding
+            const { data: diagMat } = await supabase
+              .from("meus_materiais" as any)
+              .select("conteudo")
+              .eq("user_id", platformUserId)
+              .eq("categoria", "diagnostico")
+              .maybeSingle();
+            const diagContent = (diagMat as any)?.conteudo;
+            resolvedSystemPrompt = diagContent
+              ? raw.replace(DIAG_PLACEHOLDER, diagContent)
+              : raw.replace(DIAG_PLACEHOLDER, "(Diagnóstico ainda não preenchido pelo cliente)");
+          } else {
+            resolvedSystemPrompt = raw;
+          }
+        } else {
+          resolvedSystemPrompt = await buildSystemPrompt(orgId, platformUserId);
+        }
+
+        if (attachments?.length) {
+          send({ type: "processing_attachments", count: attachments.length });
+        }
         const [systemPrompt, attachmentContext] = await Promise.all([
-          system_prompt_override ? Promise.resolve(String(system_prompt_override)) : buildSystemPrompt(orgId, platformUserId),
+          Promise.resolve(resolvedSystemPrompt),
           processAttachments(attachments),
         ]);
-        if (attachmentContext) {
-          send({ type: "processing_attachments", count: attachments.length });
+        if (attachments?.length) {
+          send({ type: "attachments_done" });
         }
         const userContent = [message?.trim(), attachmentContext, "\n[LEMBRETE: (1) Zero emojis. (2) Nunca use 'Agente' para o humano — use 'atendente' ou 'você'. (3) Escreva SEMPRE em português correto com todos os acentos — médio, catálogo, período, gráfico, etc. Nunca omita acentuação.]"].filter(Boolean).join("\n\n");
         const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -2848,45 +3326,80 @@ Deno.serve(async (req) => {
         const startMs = Date.now();
         let lastCompletionUsage: any = null;
 
-        // Helper: chama o LLM com heartbeat SSE para evitar timeout na UI durante thinking
+        // Chamada buffered (sem streaming) — mais confiável no Deno Deploy para tool calls.
+        // O hard timeout de 120s no FRONTEND é a rede de segurança final.
+        // Aqui, AbortController + Promise.race garante cancelamento em 90s.
+        const LLM_TIMEOUT_MS = 90_000;
         const callLLM = async (params: any) => {
-          // Heartbeat: envia evento ping a cada 3s enquanto aguarda resposta do LLM
           let heartbeatActive = true;
           const heartbeatInterval = setInterval(() => {
             if (heartbeatActive) {
               try { send({ type: "heartbeat" }); } catch { /**/ }
             }
           }, 3000);
+          const abortCtrl = new AbortController();
+          let timeoutId: ReturnType<typeof setTimeout> | null = null;
           try {
-            const result = await (openrouter.chat.completions.create(params) as Promise<any>);
+            const timeoutPromise = new Promise<never>((_, reject) => {
+              timeoutId = setTimeout(() => {
+                abortCtrl.abort();
+                reject(new Error("Tempo esgotado aguardando resposta da IA (>90s). Tente novamente."));
+              }, LLM_TIMEOUT_MS);
+            });
+            const callPromise = openrouter.chat.completions.create(
+              params,
+              { signal: abortCtrl.signal },
+            ) as Promise<any>;
+            const result = await Promise.race([callPromise, timeoutPromise]);
             return result;
           } finally {
+            if (timeoutId !== null) clearTimeout(timeoutId);
             heartbeatActive = false;
             clearInterval(heartbeatInterval);
           }
         };
 
         // Parâmetros base da chamada LLM
+        const filteredTools = Array.isArray(tools_override) && tools_override.length > 0
+          ? TOOLS.filter(t => tools_override.includes(t.function.name))
+          : null;
         const baseLLMParams: any = {
           model,
           messages,
-          // Se system_prompt_override presente, é modo agente puro sem ferramentas CRM
-          ...(system_prompt_override ? {} : { tools: TOOLS, tool_choice: "auto" }),
-          max_tokens: system_prompt_override ? 8192 : 4096,
+          // Se system_prompt_override presente sem tools_override, é modo agente puro sem ferramentas
+          // Se tools_override presente, envia apenas as ferramentas filtradas
+          ...(system_prompt_override
+            ? (filteredTools?.length ? { tools: filteredTools, tool_choice: "auto" } : {})
+            : { tools: TOOLS, tool_choice: "auto" }),
+          // Limite generoso para respostas longas estruturadas (análises, relatórios).
+          // Continuação automática cobre o caso de a saída atingir o teto.
+          max_tokens: 16384,
           temperature: 0.7,
         };
-        // Desativa thinking estendido do Gemini para evitar travamento (ficava "Pensando..." indefinidamente)
-        if (model.startsWith("google/")) {
+        // Desativa thinking estendido APENAS em modelos específicos onde travamentos foram observados.
+        // Atenção: desabilitar thinking em modelos errados causa respostas truncadas (modelo para cedo).
+        // Mantemos a lista mínima e específica.
+        const THINKING_DISABLED_MODELS = new Set<string>([
+          "google/gemini-3.5-flash",
+        ]);
+        if (THINKING_DISABLED_MODELS.has(model)) {
           baseLLMParams.thinking = { type: "disabled" };
         }
 
+        // Limite de continuações por truncamento (finish_reason="length") — separado de tool iterations.
+        const MAX_LENGTH_CONTINUATIONS = 4;
+        let lengthContinuations = 0;
         while (iteration < MAX_TOOL_ITERATIONS) {
           iteration++;
+          console.log(`[descompliquei-os] LLM call #${iteration} starting — model: ${model}, messages: ${messages.length}`);
+          const llmStartMs = Date.now();
           const completion = await callLLM({ ...baseLLMParams, messages });
+          const finishReason = completion.choices?.[0]?.finish_reason;
+          console.log(`[descompliquei-os] LLM call #${iteration} completed in ${Date.now() - llmStartMs}ms — finish_reason: ${finishReason}`);
           lastCompletionUsage = completion.usage ?? null;
           const choice = completion.choices[0];
           const assistantMsg = choice.message;
-          if (choice.finish_reason === "tool_calls" && assistantMsg.tool_calls?.length) {
+          if (finishReason === "tool_calls" && assistantMsg.tool_calls?.length) {
             messages.push(assistantMsg as OpenAI.Chat.ChatCompletionMessageParam);
             const toolResults: OpenAI.Chat.ChatCompletionToolMessageParam[] = [];
             for (const tc of assistantMsg.tool_calls) {
@@ -2902,8 +3415,21 @@ Deno.serve(async (req) => {
               toolResults.push({ role: "tool", tool_call_id: tc.id, content: result });
             }
             messages.push(...toolResults);
+          } else if (finishReason === "length" && lengthContinuations < MAX_LENGTH_CONTINUATIONS) {
+            // Resposta truncada por max_tokens — acumula o parcial e pede continuação.
+            // Sem isso, a UI recebia respostas cortadas no meio de uma palavra.
+            const partial = assistantMsg.content ?? "";
+            finalText += partial;
+            lengthContinuations++;
+            console.log(`[descompliquei-os] finish_reason=length — pedindo continuação #${lengthContinuations} (parcial: ${partial.length} chars)`);
+            messages.push({ role: "assistant", content: partial });
+            messages.push({
+              role: "user",
+              content: "Continue exatamente de onde parou. Não repita nada do texto anterior, não recapitule, não diga 'continuando'. Apenas siga o próximo caractere.",
+            });
+            continue;
           } else {
-            finalText = assistantMsg.content ?? "";
+            finalText += assistantMsg.content ?? "";
             break;
           }
         }
@@ -2939,10 +3465,11 @@ Deno.serve(async (req) => {
         }
         send({ type: "done", conversation_id: savedConvId, model });
       } catch (err) {
-        console.error("[descompliquei-os]", err);
+        console.error("[descompliquei-os] ERROR:", err);
         send({ type: "error", message: String(err) });
       } finally {
-        controller.close();
+        clearTimeout(globalTimeout);
+        try { controller.close(); } catch { /**/ }
       }
     },
   });

@@ -560,7 +560,7 @@ export default function OnboardingAthos() {
           { onConflict: "user_id" }
         ),
       ]);
-      navigate("/plataforma/descompliquei-os", { replace: true });
+      navigate("/plataforma/athos-gs", { replace: true });
     } catch {
       toast.error("Erro ao finalizar. Tente novamente.");
       setConcluindo(false);

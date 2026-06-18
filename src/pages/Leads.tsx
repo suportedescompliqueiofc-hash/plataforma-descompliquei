@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Filter, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, UserCheck, Ban, Upload, Users, Phone, Calendar, MoreHorizontal, X, SlidersHorizontal, ArrowUpDown, Clock, Tag, MapPin, ArrowRightLeft, ShieldBan, Activity, UserCog } from "lucide-react";
+import { Search, Filter, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, UserCheck, Ban, Upload, Users, Phone, Calendar, MoreHorizontal, X, SlidersHorizontal, ArrowUpDown, Clock, Tag, MapPin, ShieldBan, ShieldOff, Activity, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useLeads, Lead } from "@/hooks/useLeads";
-import { useStages } from "@/hooks/useStages";
 import { useProfile } from "@/hooks/useProfile";
 import { ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { LeadModal } from "@/components/leads/LeadModal";
@@ -46,6 +45,8 @@ import { ImportLeadsDialog } from "@/components/leads/ImportLeadsDialog";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { cn } from "@/lib/utils";
 import { useTeamMembersForSelect } from "@/hooks/useTeamMembersForSelect";
+import { useBlacklist } from "@/hooks/useBlacklist";
+import { format as formatDate2 } from "date-fns";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -78,18 +79,18 @@ export default function Leads() {
   const [modalMode, setModalMode] = useState<'create' | 'edit' | 'view'>('create');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activeView, setActiveView] = useState<'leads' | 'blacklist'>('leads');
 
   const { leads, isLoading: leadsLoading, deleteLead, blacklistLead, updateLead } = useLeads();
-  const { stages, isLoading: stagesLoading } = useStages();
+  const { entries: blacklistEntries, isLoading: blacklistLoading, removeFromBlacklist } = useBlacklist();
   const { allSources } = useLeadSources();
   const { availableTags } = useTags();
   const { members: teamMembers } = useTeamMembersForSelect();
 
-  const isLoading = leadsLoading || stagesLoading;
+  const isLoading = leadsLoading;
 
   const [filters, setFilters] = useState({
     searchTerm: "",
-    posicao_pipeline: "Todos",
     origem: "Todos",
     fonte: "Todos",
     tagId: "Todos",
@@ -104,7 +105,6 @@ export default function Leads() {
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (filters.posicao_pipeline !== "Todos") count++;
     if (filters.origem !== "Todos") count++;
     if (filters.fonte !== "Todos") count++;
     if (filters.tagId !== "Todos") count++;
@@ -116,7 +116,6 @@ export default function Leads() {
   const clearFilters = () => {
     setFilters({
       searchTerm: filters.searchTerm,
-      posicao_pipeline: "Todos",
       origem: "Todos",
       fonte: "Todos",
       tagId: "Todos",
@@ -129,17 +128,12 @@ export default function Leads() {
     setCurrentPage(1);
   }, [filters]);
 
-  const getStageByPosition = (position: number) => {
-    return stages.find((stage) => stage.posicao_ordem === position);
-  };
-
   const filteredLeads = useMemo(() => {
     return leads.filter((lead) => {
       const searchTermMatch =
         (lead.nome && lead.nome.toLowerCase().includes(filters.searchTerm.toLowerCase())) ||
         lead.telefone.includes(filters.searchTerm);
 
-      const etapaMatch = filters.posicao_pipeline === "Todos" || lead.posicao_pipeline.toString() === filters.posicao_pipeline;
       const origemMatch = filters.origem === "Todos" || lead.origem === filters.origem;
       const fonteMatch = filters.fonte === "Todos" || (lead.fonte && lead.fonte === filters.fonte);
       const tagMatch = filters.tagId === "Todos" ||
@@ -158,7 +152,7 @@ export default function Leads() {
         cadastroMatch = isWithinInterval(leadDate, { start: rangeFrom, end: rangeTo });
       }
 
-      return searchTermMatch && etapaMatch && origemMatch && fonteMatch && tagMatch && responsavelMatch && cadastroMatch;
+      return searchTermMatch && origemMatch && fonteMatch && tagMatch && responsavelMatch && cadastroMatch;
     });
   }, [leads, filters, cadastroRange]);
 
@@ -372,8 +366,28 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* ══════════ Search + Filters ══════════ */}
-      <div className="space-y-3" data-tutorial="leads-search">
+      {/* ══════════ Tabs ══════════ */}
+      <div className="bg-muted/40 rounded-xl p-1 inline-flex gap-0.5">
+        <button
+          className={cn("px-4 py-1.5 text-xs font-medium rounded-lg transition-colors", activeView === 'leads' ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          onClick={() => setActiveView('leads')}
+        >
+          Leads
+        </button>
+        <button
+          className={cn("px-4 py-1.5 text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5", activeView === 'blacklist' ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+          onClick={() => setActiveView('blacklist')}
+        >
+          <ShieldBan className="h-3 w-3" />
+          Blacklist
+          {blacklistEntries.length > 0 && (
+            <span className={cn("text-[10px] rounded-full px-1.5 py-0.5 font-mono tabular-nums", activeView === 'blacklist' ? "bg-background/20" : "bg-muted text-muted-foreground")}>{blacklistEntries.length}</span>
+          )}
+        </button>
+      </div>
+
+      {/* ══════════ Search + Filters + Table (view: leads) ══════════ */}
+      {activeView === 'leads' && (<><div className="space-y-3" data-tutorial="leads-search">
         <div className="flex items-center gap-2">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
@@ -421,23 +435,6 @@ export default function Leads() {
             </div>
             <div className="p-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-medium text-muted-foreground/70">Etapa do Funil</Label>
-                  <Select value={filters.posicao_pipeline} onValueChange={(value) => handleFilterChange('posicao_pipeline', value)}>
-                    <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background"><SelectValue /></SelectTrigger>
-                    <SelectContent className="rounded-xl">
-                      <SelectItem value="Todos">Todas as etapas</SelectItem>
-                      {stages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.posicao_ordem.toString()}>
-                          <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.cor }} />
-                            {stage.nome}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
                 <div className="space-y-1.5" data-tutorial="leads-origin-filter">
                   <Label className="text-[11px] font-medium text-muted-foreground/70">Origem</Label>
                   <Select value={filters.origem} onValueChange={(value) => handleFilterChange('origem', value)}>
@@ -536,33 +533,6 @@ export default function Leads() {
           <div className="h-4 w-px bg-background/15 mx-1" />
 
           <div className="flex items-center gap-1.5 ml-auto">
-            {/* Mover de Etapa */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1.5 font-medium text-background/80 hover:text-background hover:bg-background/10">
-                  <ArrowRightLeft className="h-3 w-3" />
-                  <span className="hidden sm:inline">Mover Etapa</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-48 rounded-xl">
-                {stages.map((stage) => (
-                  <DropdownMenuItem
-                    key={stage.id}
-                    className="text-xs gap-2 rounded-lg"
-                    onClick={() => {
-                      Array.from(selectedIds).forEach(id => {
-                        updateLead({ id, updates: { posicao_pipeline: stage.posicao_ordem } });
-                      });
-                      setSelectedIds(new Set());
-                    }}
-                  >
-                    <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stage.cor }} />
-                    {stage.nome}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
             {/* Bloquear Números */}
             <Button variant="ghost" size="sm" className="h-7 text-[11px] gap-1.5 font-medium text-amber-300 hover:text-amber-200 hover:bg-background/10" onClick={() => {
               // Block all selected leads
@@ -612,7 +582,6 @@ export default function Leads() {
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Origem</TableHead>
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Etiquetas</TableHead>
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Responsável</TableHead>
-                  <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Etapa</TableHead>
                   <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">Cadastro</TableHead>
                   <TableHead className="w-12"></TableHead>
                 </TableRow>
@@ -620,7 +589,7 @@ export default function Leads() {
               <TableBody>
                 {currentLeads.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={9} className="py-20">
+                    <TableCell colSpan={8} className="py-20">
                       <div className="flex flex-col items-center justify-center text-center">
                         <div className="bg-muted/40 p-6 rounded-2xl mb-4">
                           <Users className="h-8 w-8 text-muted-foreground/25" />
@@ -632,8 +601,6 @@ export default function Leads() {
                   </TableRow>
                 ) : (
                   currentLeads.map((lead, idx) => {
-                    const stage = getStageByPosition(lead.posicao_pipeline);
-
                     return (
                       <TableRow
                         key={lead.id}
@@ -662,7 +629,7 @@ export default function Leads() {
                                 {lead.is_qualified && (
                                   <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/60">
                                     <UserCheck className="h-2.5 w-2.5" />
-                                    MQL
+                                    Qualificado
                                   </span>
                                 )}
                               </div>
@@ -693,9 +660,15 @@ export default function Leads() {
                               "inline-flex text-[10px] font-semibold px-1.5 py-0.5 rounded-md",
                               lead.origem === 'marketing'
                                 ? "bg-amber-50 text-amber-700 border border-amber-200/60"
+                                : lead.origem === 'reativacao'
+                                ? "bg-cyan-50 text-cyan-700 border border-cyan-200/60"
+                                : lead.origem === 'paciente'
+                                ? "bg-teal-50 text-teal-700 border border-teal-200/60"
+                                : lead.origem === 'convenio'
+                                ? "bg-violet-50 text-violet-700 border border-violet-200/60"
                                 : "bg-emerald-50 text-emerald-700 border border-emerald-200/60"
                             )}>
-                              {lead.origem === 'marketing' ? 'Marketing' : 'Orgânico'}
+                              {{ marketing: 'Marketing', organico: 'Orgânico', indicacao: 'Indicação', reativacao: 'Reativação', paciente: 'Paciente', convenio: 'Convênio' }[lead.origem as string] ?? lead.origem ?? 'Orgânico'}
                             </span>
                             {lead.fonte && (
                               <span className="text-[10px] text-muted-foreground/50 block truncate max-w-[100px]">{lead.fonte}</span>
@@ -746,24 +719,6 @@ export default function Leads() {
                               </div>
                             );
                           })()}
-                        </TableCell>
-
-                        {/* Etapa */}
-                        <TableCell>
-                          {stage ? (
-                            <span
-                              className="inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-md border"
-                              style={{
-                                backgroundColor: `${stage.cor}15`,
-                                color: stage.cor,
-                                borderColor: `${stage.cor}30`,
-                              }}
-                            >
-                              {stage.nome}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-muted-foreground/30">-</span>
-                          )}
                         </TableCell>
 
                         {/* Cadastro */}
@@ -859,7 +814,67 @@ export default function Leads() {
             </div>
           </div>
         )}
-      </div>
+      </div></>)}
+
+      {/* ══════════ Blacklist (view: blacklist) ══════════ */}
+      {activeView === 'blacklist' && (
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <ShieldBan className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">BLACKLIST</p>
+                <p className="text-[10px] text-muted-foreground/50 mt-0.5">Números bloqueados permanentemente — não receberão atendimento</p>
+              </div>
+            </div>
+          </div>
+
+          {blacklistLoading ? (
+            <div className="p-6 space-y-3">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-12 rounded-lg bg-muted/40 animate-pulse" />)}
+            </div>
+          ) : blacklistEntries.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                <ShieldOff className="h-6 w-6 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">Nenhum número bloqueado</p>
+              <p className="text-[11px] text-muted-foreground/50 mt-0.5">Números bloqueados via "Bloquear número" aparecem aqui</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/40">
+              {blacklistEntries.map((entry) => (
+                <div key={entry.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/20 transition-colors group">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                      <ShieldBan className="h-3.5 w-3.5 text-red-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-foreground font-mono tabular-nums">{entry.telefone}</p>
+                      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                        {entry.motivo || 'Sem motivo registrado'}
+                        <span className="mx-1.5 text-border">·</span>
+                        {formatDate2(new Date(entry.created_at), 'dd/MM/yyyy HH:mm')}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                    onClick={() => removeFromBlacklist(entry.id)}
+                  >
+                    <ShieldOff className="h-3 w-3" />
+                    Remover
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ══════════ Modals ══════════ */}
       <LeadModal open={isModalOpen} onOpenChange={handleModalOpenChange} lead={selectedLead} mode={modalMode} />

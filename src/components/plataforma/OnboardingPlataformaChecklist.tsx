@@ -134,12 +134,13 @@ const TUTORIAL_TO_STEP: Record<string, string> = {
 export function OnboardingPlataformaChecklist() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { plataformaUser, isContextLoading, isMember } = usePlataforma();
+  const { plataformaUser, isContextLoading, isMember, hasPlataformaAccess } = usePlataforma();
   const { startTutorial, activeTutorialId, isTutorialCompleted } = useTutorialContext();
   const { role } = useProfile();
 
   const isSuperAdmin = role === 'superadmin';
   const onboardingEnabled = plataformaUser?.platform_onboarding_enabled === true;
+  const onboardingConcluido = plataformaUser?.onboarding_concluido === true;
   const phase1Complete = plataformaUser?.onboarding_complete === true;
 
   // ⚠️ TODOS os hooks devem ficar ANTES de qualquer return condicional (React rules of hooks)
@@ -178,7 +179,8 @@ export function OnboardingPlataformaChecklist() {
   // ── Condições de ocultação ──────────────────────────────────────────────────
 
   // Superadmin nunca vê; clientes antigos (flag false/null) nunca veem; membros não veem Phase 2
-  if (isSuperAdmin || !onboardingEnabled || isMember) return null;
+  // Exclusivo para produtos com acesso à plataforma — produto CRM isolado não vê este checklist
+  if (isSuperAdmin || !onboardingEnabled || isMember || !hasPlataformaAccess) return null;
 
   // Esconde completamente enquanto um tutorial está ativo (spotlight precisa ficar visível)
   if (activeTutorialId) return null;
@@ -193,6 +195,8 @@ export function OnboardingPlataformaChecklist() {
   );
   if (isAllowedPath && !celebrating) return null;
 
+  // Nunca mostrar antes do Athos concluir — mesmo que onboarding_complete esteja incorretamente setado
+  if (!onboardingConcluido) return null;
   if (!shouldShowChecklist && !celebrating) return null;
   if (isContextLoading) return null;
 

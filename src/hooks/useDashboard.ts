@@ -8,6 +8,54 @@ import { useEffect } from 'react';
 
 export type OrigemFilter = 'geral' | 'marketing' | 'organico' | 'reativacao' | 'paciente' | 'convenio';
 
+async function fetchAllBotMessages(orgId: string, startDate: string, endDate: string) {
+  const PAGE_SIZE = 1000;
+  let all: { lead_id: string; criado_em: string }[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select('lead_id, criado_em')
+      .eq('organization_id', orgId)
+      .eq('remetente', 'bot')
+      .gte('criado_em', startDate)
+      .lte('criado_em', endDate)
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) break;
+    if (!data || data.length === 0) break;
+    all = all.concat(data as any);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
+async function fetchAllHumanMessages(orgId: string, startDate: string, endDate: string) {
+  const PAGE_SIZE = 1000;
+  let all: { lead_id: string; criado_em: string }[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select('lead_id, criado_em')
+      .eq('organization_id', orgId)
+      .in('remetente', ['agente', 'humano'])
+      .gte('criado_em', startDate)
+      .lte('criado_em', endDate)
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) break;
+    if (!data || data.length === 0) break;
+    all = all.concat(data as any);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
 async function fetchAllLeads(orgId: string, startDate: string, endDate: string) {
   const PAGE_SIZE = 1000;
   let allLeads: any[] = [];
@@ -68,22 +116,21 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
       const endDayStr = format(endOfDay(dateRange.to), 'yyyy-MM-dd');
 
       try {
-        const [ leadsData, stagesRes, vendasRes, expensesRes, criativosRes, metaInsightsRes, agendamentosRes, mensagensRes, mqlNotasRes, stageHistoryRes ] = await Promise.all([
+        const [ leadsData, vendasRes, expensesRes, criativosRes, metaInsightsRes, agendamentosRes, mensagensRes, mqlNotasRes, allBotMsgs, allHumanMsgs ] = await Promise.all([
           fetchAllLeads(orgId, startDate, endDate),
-          supabase.from('etapas').select('*').order('posicao_ordem'),
           supabase.from('vendas').select('*, lead_id, lead:leads(origem)').eq('organization_id', orgId).gte('data_fechamento', startDayStr).lte('data_fechamento', endDayStr),
           supabase.from('marketing_expenses').select('amount').eq('organization_id', orgId).gte('expense_date', startDayStr).lte('expense_date', endDayStr),
           supabase.from('criativos').select('platform_metrics').eq('organization_id', orgId),
           supabase.from('meta_insights' as any).select('gasto').eq('organization_id', orgId).eq('nivel', 'campaign').gte('data_ref', startDayStr).lte('data_ref', endDayStr),
-          supabase.from('agendamentos').select('id, status, valor_orcado, lead_id, data_hora_inicio, lead:leads(id, nome, telefone, posicao_pipeline, atualizado_em, criado_em, origem)').eq('organization_id', orgId).gte('data_hora_inicio', startDate).lte('data_hora_inicio', endDate),
+          supabase.from('agendamentos').select('id, status, valor_orcado, lead_id, data_hora_inicio, lead:leads(id, nome, telefone, atualizado_em, criado_em, origem)').eq('organization_id', orgId).gte('data_hora_inicio', startDate).lte('data_hora_inicio', endDate),
           supabase.from('mensagens').select('lead_id, remetente, criado_em').eq('organization_id', orgId).in('remetente', ['lead', 'bot', 'agente', 'humano']).gte('criado_em', startDate).lte('criado_em', endDate).order('criado_em', { ascending: true }).limit(8000),
           supabase.from('lead_notas').select('lead_id').eq('organization_id', orgId).eq('tipo', 'sistema').filter('metadados->>evento', 'eq', 'mql').gte('criado_em', startDate).lte('criado_em', endDate),
-          supabase.from('lead_stage_history').select('lead_id, stage_position').eq('organization_id', orgId).not('from_stage_position', 'is', null).gte('entered_at', startDate).lte('entered_at', endDate),
+          fetchAllBotMessages(orgId, startDate, endDate),
+          fetchAllHumanMessages(orgId, startDate, endDate),
         ]);
 
         // Exclui leads marcados como "fora das métricas" (testes, spam, etc.)
         const leads = leadsData.filter((l: any) => !l.excluir_metricas);
-        const allStages = stagesRes.data || [];
         const vendas = vendasRes.data || [];
         const expenses = expensesRes.data || [];
         const criativos = criativosRes.data || [];
@@ -91,7 +138,6 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const agendamentosData = agendamentosRes.data || [];
         const mensagens = (mensagensRes.data as any[]) || [];
         const mqlNotas = (mqlNotasRes.data as any[]) || [];
-        const stageHistory = (stageHistoryRes.data as any[]) || [];
 
         // --- Filtro de origem (definido aqui para ser usado em TODAS as métricas) ---
         // Nota: 'indicacao' foi unificado com 'organico' — leads de indicação são tratados como orgânicos
@@ -101,7 +147,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           if (origemFilter === 'reativacao') return l.origem === 'reativacao';
           if (origemFilter === 'paciente')   return l.origem === 'paciente';
           if (origemFilter === 'convenio')   return l.origem === 'convenio';
-          return l.origem !== 'paciente'; // 'geral' exclui pacientes
+          return true; // 'geral' inclui todas as origens
         };
 
         // --- Leads com atividade CRM real no período ---
@@ -117,11 +163,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
             leadsComAtividadeReal.add(l.id);
           }
         }
-        // 2. Mudaram de etapa no período (lead_stage_history)
-        for (const sh of stageHistory) {
-          leadsComAtividadeReal.add(sh.lead_id);
-        }
-        // 3. Foram qualificados como MQL no período (lead_notas sistema)
+        // 2. Foram qualificados como MQL no período (lead_notas sistema)
         for (const nota of mqlNotas) {
           leadsComAtividadeReal.add(nota.lead_id);
         }
@@ -170,6 +212,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const duracaoHumValues: number[] = [];       // duração total do atendimento
         let conversasComHumano = 0;
         let conversasComIA = 0;
+        let iaHandoffConversas = 0;
+        const iaConversasLeadIds = new Set<string>();
+        const iaHandoffLeadIds = new Set<string>();
         // Mapa hora (0-23) → { min, leadId } (para distribuição horária com drilldown)
         const primeiraRespostaPorHoraMap = new Map<number, { min: number; leadId: string }[]>();
         // Conversas sem resposta humana dentro de 24h
@@ -180,7 +225,17 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           const iaMsgs = msgs.filter(isIA);
           const humMsgs = msgs.filter(isHuman);
 
-          if (iaMsgs.length > 0) conversasComIA++;
+          if (iaMsgs.length > 0) {
+            conversasComIA++;
+            iaConversasLeadIds.add(leadId);
+            // Handoff: alguma mensagem humana veio APÓS a última mensagem bot
+            const lastBotTime = iaMsgs[iaMsgs.length - 1].criado_em;
+            const humanAfterBot = humMsgs.some((m: any) => m.criado_em > lastBotTime);
+            if (humanAfterBot) {
+              iaHandoffConversas++;
+              iaHandoffLeadIds.add(leadId);
+            }
+          }
           if (humMsgs.length > 0) conversasComHumano++;
 
           // --- PRIMEIRA RESPOSTA HUMANA ---
@@ -261,6 +316,98 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           ? parseFloat(((semRespostaLeadIds.length / totalConversasComMsgLead) * 100).toFixed(1))
           : 0;
 
+        // --- Efetividade da IA (queries dedicadas, sem limite de 8000) ---
+        // Leads únicos que receberam ≥1 mensagem bot no período
+        const iaDedicadaLeadIds = new Set<string>();
+        for (const m of allBotMsgs) {
+          if (m.lead_id) iaDedicadaLeadIds.add(m.lead_id);
+        }
+
+        // Último timestamp de bot por lead
+        const lastBotByLead = new Map<string, string>();
+        for (const m of allBotMsgs) {
+          if (!m.lead_id) continue;
+          const prev = lastBotByLead.get(m.lead_id);
+          if (!prev || m.criado_em > prev) lastBotByLead.set(m.lead_id, m.criado_em);
+        }
+
+        // Handoff: lead com bot E mensagem humana APÓS o último bot
+        const iaDedicadaHandoffIds = new Set<string>();
+        for (const m of allHumanMsgs) {
+          if (!m.lead_id || !iaDedicadaLeadIds.has(m.lead_id)) continue;
+          const lastBot = lastBotByLead.get(m.lead_id);
+          if (lastBot && m.criado_em > lastBot) {
+            iaDedicadaHandoffIds.add(m.lead_id);
+          }
+        }
+
+        // Tempo de resposta humana após handoff (por lead)
+        // Para cada lead com handoff, encontra a PRIMEIRA msg humana APÓS o último bot
+        const firstHumanAfterBotByLead = new Map<string, string>();
+        for (const m of allHumanMsgs) {
+          if (!m.lead_id || !iaDedicadaHandoffIds.has(m.lead_id)) continue;
+          const lastBot = lastBotByLead.get(m.lead_id);
+          if (!lastBot || m.criado_em <= lastBot) continue;
+          const prev = firstHumanAfterBotByLead.get(m.lead_id);
+          if (!prev || m.criado_em < prev) firstHumanAfterBotByLead.set(m.lead_id, m.criado_em);
+        }
+
+        const handoffTempos: { leadId: string; minutos: number }[] = [];
+        for (const [leadId, firstHuman] of firstHumanAfterBotByLead) {
+          const lastBot = lastBotByLead.get(leadId)!;
+          const diffMs = new Date(firstHuman).getTime() - new Date(lastBot).getTime();
+          const min = diffMs / 60000;
+          if (min >= 0) handoffTempos.push({ leadId, minutos: min });
+        }
+
+        const htSorted = [...handoffTempos].sort((a, b) => a.minutos - b.minutos);
+        const htTotal = htSorted.length;
+        const htMedia = htTotal > 0 ? handoffTempos.reduce((s, t) => s + t.minutos, 0) / htTotal : 0;
+        const htMediana = htTotal > 0 ? htSorted[Math.floor(htTotal / 2)].minutos : 0;
+        const htMin = htTotal > 0 ? htSorted[0].minutos : 0;
+        const htMax = htTotal > 0 ? htSorted[htTotal - 1].minutos : 0;
+
+        const htBuckets = [
+          { label: 'Até 1 min',      min: 0,   max: 1 },
+          { label: '1–5 min',        min: 1,   max: 5 },
+          { label: '5–15 min',       min: 5,   max: 15 },
+          { label: '15–30 min',      min: 15,  max: 30 },
+          { label: '30 min–1h',      min: 30,  max: 60 },
+          { label: '1h–3h',          min: 60,  max: 180 },
+          { label: '3h–12h',         min: 180, max: 720 },
+          { label: 'Mais de 12h',    min: 720, max: Infinity },
+        ];
+        const htDistribuicao = htBuckets.map(b => {
+          const matched = handoffTempos.filter(t => t.minutos >= b.min && (b.max === Infinity ? true : t.minutos < b.max));
+          return {
+            label: b.label,
+            count: matched.length,
+            leads: idsToLeads(matched.map(t => t.leadId)),
+            pct: htTotal > 0 ? Math.round((matched.length / htTotal) * 100) : 0,
+          };
+        });
+
+        const iaTempoHandoff = {
+          total: htTotal,
+          media: htMedia,
+          mediana: htMediana,
+          minimo: htMin,
+          maximo: htMax,
+          distribuicao: htDistribuicao,
+          detalhes: htSorted.map(t => ({
+            lead: leadsById.get(t.leadId),
+            minutos: t.minutos,
+            ultimoBot: lastBotByLead.get(t.leadId),
+            primeiroHumano: firstHumanAfterBotByLead.get(t.leadId),
+          })).filter(d => d.lead),
+        };
+
+        const iaDedicadaTotal = iaDedicadaLeadIds.size;
+        const iaDedicadaHandoff = iaDedicadaHandoffIds.size;
+        const iaTaxaEfetividade = iaDedicadaTotal > 0
+          ? parseFloat(((iaDedicadaHandoff / iaDedicadaTotal) * 100).toFixed(1))
+          : 0;
+
         const trHumano = {
           tempoResposta: avgOf(primeiraRespostaValues),
           duracaoAtendimento: avgOf(duracaoHumValues),
@@ -305,23 +452,6 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const agLeadsRealizados = uniqueLeads(agendamentosFiltered.filter((a: any) => a.status === 'realizado').map(agLeadFromAg));
         const agLeadsNoShow = uniqueLeads(agendamentosFiltered.filter((a: any) => a.status === 'no_show' || a.status === 'nao_compareceu').map(agLeadFromAg));
         const agLeadsCancelados = uniqueLeads(agendamentosFiltered.filter((a: any) => a.status === 'cancelado').map(agLeadFromAg));
-
-        const funnelStages = allStages.filter(s => s.em_funil);
-        const lostPos = allStages.find(s => s.nome.toLowerCase() === 'perdido')?.posicao_ordem || 999;
-        const convertedStage = funnelStages[funnelStages.length - 1];
-        const convertedPos = convertedStage?.posicao_ordem || 6;
-
-        const isLeadInFunnel = (lead: any) => {
-          const leadStage = allStages.find(s => s.posicao_ordem === lead.posicao_pipeline);
-          return !!leadStage?.em_funil;
-        };
-
-        const isLeadConvertedInPeriod = (lead: any) =>
-          isLeadInFunnel(lead) &&
-          lead.posicao_pipeline >= convertedPos &&
-          lead.posicao_pipeline < lostPos &&
-          lead.atualizado_em >= startDate &&
-          lead.atualizado_em <= endDate;
 
         // faturamentoTotal calculado abaixo após leadsCreatedInPeriod (para respeitar origem)
 
@@ -372,16 +502,15 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         );
         const mqlCount = mqlLeadIdsSet.size;
 
-        // Agendamentos: leads com agendamento no período (data_hora_inicio), filtro por origem via lead embutido
+        // Agendamentos: leads únicos com agendamento realizado no período
+        const scheduledRealizados = agendamentosData
+          .filter((a: any) => a.status === 'realizado' && (!a.lead || filterByOrigem(a.lead)));
         const scheduledLeadIdsSet = new Set<string>(
-          agendamentosData
-            .filter((a: any) => !a.lead || filterByOrigem(a.lead))
-            .map((a: any) => a.lead_id)
-            .filter(Boolean)
+          scheduledRealizados.map((a: any) => a.lead_id).filter(Boolean)
         );
         const scheduledCount = scheduledLeadIdsSet.size;
 
-        // Fechamentos: vendas com data_fechamento no período, filtro por origem via lead embutido ou leadsById
+        // Fechamentos: leads únicos com venda no período
         const closedVendas = vendas.filter((v: any) => {
           const lead = (v as any).lead || leadsById.get((v as any).lead_id);
           return !lead || filterByOrigem(lead);
@@ -389,7 +518,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const closedLeadIdsSet = new Set<string>(
           closedVendas.map((v: any) => v.lead_id).filter(Boolean)
         );
-        const closedCount = closedLeadIdsSet.size || vendas.length;
+        const closedCount = closedLeadIdsSet.size;
 
         // --- Tempo de conversão (cadastro → fechamento) ---
         const temposFechamento: { dias: number; lead: any; venda: any }[] = [];
@@ -451,64 +580,6 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           porOrigem: tfPorOrigem,
         };
 
-        // --- Funil passo-a-passo (modelo por evento via lead_stage_history) ---
-        const sortedFunnelStages = [...funnelStages].sort((a, b) => a.posicao_ordem - b.posicao_ordem);
-
-        // Mapa: posicao_ordem → Set de lead_ids que ENTRARAM nessa etapa no período
-        const entriesPerStage = new Map<number, Set<string>>();
-
-        // Etapas 2+: usa lead_stage_history (trigger AFTER UPDATE — captura transições reais)
-        for (const entry of stageHistory) {
-          const pos = entry.stage_position as number;
-          if (!entriesPerStage.has(pos)) entriesPerStage.set(pos, new Set());
-          entriesPerStage.get(pos)!.add(entry.lead_id as string);
-        }
-
-        // Etapa 1 (Novo Lead): o evento de entrada é a criação do lead (criado_em),
-        // pois o trigger só dispara em UPDATE — leads novos não geram entrada no histórico.
-        const firstFunnelStage = sortedFunnelStages[0];
-        if (firstFunnelStage) {
-          const firstStagePos = firstFunnelStage.posicao_ordem;
-          if (!entriesPerStage.has(firstStagePos)) entriesPerStage.set(firstStagePos, new Set());
-          for (const lead of leadsCreatedInPeriod.filter(filterByOrigem)) {
-            entriesPerStage.get(firstStagePos)!.add(lead.id as string);
-          }
-        }
-
-        // Total de leads com qualquer atividade no período — denominador comum do funil
-        const totalLeadsAtivos = filteredAllLeads.length || 1;
-
-        const funnelConversion = sortedFunnelStages.slice(0, -1).map((stage, i) => {
-          const nextStage = sortedFunnelStages[i + 1];
-          const fromCount = entriesPerStage.get(stage.posicao_ordem)?.size || 0;
-          const toCount = entriesPerStage.get(nextStage.posicao_ordem)?.size || 0;
-          return {
-            from: stage.nome,
-            to: nextStage.nome,
-            fromCount,
-            toCount,
-            // Taxa relativa ao total ativo no período — nunca passa de 100%
-            rate: parseFloat(((toCount / totalLeadsAtivos) * 100).toFixed(1)),
-          };
-        });
-
-        // --- Distribuição do pipeline — snapshot do estado atual (onde cada lead está agora) ---
-        const PIPE_COLORS = ['#6366f1', '#3b82f6', '#f59e0b', '#f97316', '#10b981', '#22c55e'];
-        const pipelineDistribution = sortedFunnelStages.map((stage, i) => ({
-          name: stage.nome,
-          value: filteredAllLeads.filter((l: any) => l.posicao_pipeline === stage.posicao_ordem).length,
-          color: (stage.cor as string | null) || PIPE_COLORS[i % PIPE_COLORS.length]
-        }));
-
-        // --- Funil Comercial — 4 etapas fixas de negócio (evento-based) ---
-        const _totalFunil = filteredAllLeads.length || 1;
-        const comercialFunnel = {
-          leads:        { count: filteredAllLeads.length, label: 'Leads',         pct: 100 },
-          mql:          { count: mqlCount,       label: 'MQLs',          pct: parseFloat(((mqlCount / _totalFunil) * 100).toFixed(1)),       rate: parseFloat(((mqlCount / _totalFunil) * 100).toFixed(1)) },
-          agendamentos: { count: scheduledCount, label: 'Agendamentos',  pct: parseFloat(((scheduledCount / _totalFunil) * 100).toFixed(1)), rate: mqlCount > 0 ? parseFloat(((scheduledCount / mqlCount) * 100).toFixed(1)) : 0 },
-          fechamentos:  { count: closedCount,    label: 'Fechamentos',   pct: parseFloat(((closedCount / _totalFunil) * 100).toFixed(1)),    rate: scheduledCount > 0 ? parseFloat(((closedCount / scheduledCount) * 100).toFixed(1)) : 0 },
-        };
-
         // --- Taxas de performance ---
         // Quando filtro é 'marketing', leadsCreatedInPeriod JÁ é só marketing
         const mktLeads = origemFilter === 'marketing'
@@ -554,12 +625,6 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           : 0;
 
         // --- Performance da IA ---
-        const handoffStage = allStages.find(s =>
-          s.nome.toLowerCase().includes('handoff') ||
-          s.nome.toLowerCase().includes('humano')
-        );
-        const handoffPos = handoffStage?.posicao_ordem || 4;
-
         let leadsAtendidosIA = 0;
         let taxaHandoffIA = 0;
         let tempoMedioIA = 0;
@@ -600,21 +665,12 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
                 .in('id', uniqueLeadIds)
                 .eq('organization_id', orgId);
               leadsAtendidosIAList = aiLeadsData || [];
-              const handoffCount = leadsAtendidosIAList.filter((l: any) =>
-                l.posicao_pipeline >= handoffPos &&
-                l.posicao_pipeline < lostPos
-              ).length;
-              taxaHandoffIA = parseFloat(((handoffCount / uniqueLeadIds.length) * 100).toFixed(1));
             }
           }
         } catch (_) { /* tabela opcional */ }
 
-        // Aguardando contato humano: leads ativos no período que estão em handoff sem IA
-        // Usa os dados já buscados (period-aligned) para manter coerência com os demais cards de IA
-        const aguardandoContatoHumanoList: any[] = filteredAllLeads.filter(
-          (l: any) => l.posicao_pipeline === handoffPos && l.ia_ativa === false
-        );
-        const aguardandoContatoHumano = aguardandoContatoHumanoList.length;
+        const aguardandoContatoHumanoList: any[] = [];
+        const aguardandoContatoHumano = 0;
 
         // --- Top procedimentos (baseado em vendas fechadas com procedimentos cadastrados) ---
         const procedimentoMap: Record<string, number> = {};
@@ -678,28 +734,17 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           faturamentoTotal,
           vendasCount,
           cac: vendas.length > 0 ? totalInvestment / vendas.length : 0,
-          leadsByStage: leads.map(l => ({ etapa_id: l.posicao_pipeline })),
           leadsOverTime: eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(d => {
             const dayStr = format(d, 'yyyy-MM-dd');
             const captadosList = filteredAllLeads.filter(l => l.criado_em.startsWith(dayStr));
-            const convertidosList = filteredAllLeads.filter(l =>
-              isLeadInFunnel(l) &&
-              l.posicao_pipeline >= convertedPos &&
-              l.posicao_pipeline < lostPos &&
-              l.atualizado_em?.startsWith(dayStr)
-            );
             return {
               day: format(d, 'dd/MM'),
               captados: captadosList.length,
-              convertidos: convertidosList.length,
+              convertidos: 0,
               captadosList,
-              convertidosList,
+              convertidosList: [],
             };
           }),
-          // Novos campos
-          funnelConversion,
-          comercialFunnel,
-          pipelineDistribution,
           taxaMQL,
           taxaAgendamento,
           taxaFechamento,
@@ -732,6 +777,14 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           tempoMedioIA,
           aguardandoContatoHumano,
           aguardandoContatoHumanoList,
+          iaConversasTotal: iaDedicadaTotal,
+          iaConversasLeadsList: idsToLeads([...iaDedicadaLeadIds]),
+          iaHandoffConversas: iaDedicadaHandoff,
+          iaHandoffLeadsList: idsToLeads([...iaDedicadaHandoffIds]),
+          iaPerdidosConversas: iaDedicadaTotal - iaDedicadaHandoff,
+          iaPerdidosLeadsList: idsToLeads([...iaDedicadaLeadIds].filter(id => !iaDedicadaHandoffIds.has(id))),
+          iaTaxaEfetividade,
+          iaTempoHandoff,
           tempoResposta: {
             humano: trHumano,
             geral: trGeral,
@@ -773,7 +826,6 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
             count: leadsCreatedInPeriod.filter(l => l.origem === 'marketing' && l.is_qualified && l.lead_scoring === s).length,
           })),
           // Arrays de leads por segmento (para drilldown nos cards do dashboard)
-          allStages,
           filteredAllLeadsList: filteredAllLeads,
           totalLeadsList: filteredAllLeads,
           tempoFunil,

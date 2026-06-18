@@ -12,6 +12,7 @@ export interface JornadaPasso {
   tipo: 'acao_livre' | 'ferramenta_arsenal' | 'categoria_arsenal';
   ferramenta_id: string | null;
   categoria_id: string | null;
+  aula_id: string | null;
   prazo_dias: number | null;
   obrigatorio: boolean;
   concluido: boolean;
@@ -23,6 +24,7 @@ export interface JornadaPasso {
     arsenal_categorias: { id: string; nome: string; slug: string };
   } | null;
   arsenal_categorias: { id: string; nome: string; slug: string } | null;
+  arsenal_aulas: { id: string; slug: string } | null;
 }
 
 export interface JornadaEstagio {
@@ -91,7 +93,8 @@ export function useJornada() {
             jornada_passos (
               *,
               arsenal_ferramentas ( id, nome, slug, arsenal_categorias ( id, nome, slug ) ),
-              arsenal_categorias ( id, nome, slug )
+              arsenal_categorias ( id, nome, slug ),
+              arsenal_aulas ( id, slug )
             )
           )
         `)

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "./useProfile";
+import { useEffect } from "react";
 
 export interface Agendamento {
   id: string;
@@ -63,6 +64,7 @@ export interface AgendamentoInput {
   resultado?: string | null;
   observacoes_pos?: string | null;
   procedimento_interesse?: string | null;
+  procedimento_id?: string | null;
   valor_orcado?: number | null;
 }
 
@@ -70,6 +72,26 @@ export function useAgendamentos() {
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!orgId) return;
+
+    const channel = supabase
+      .channel('agendamentos_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'agendamentos', filter: `organization_id=eq.${orgId}` },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['agendamentos', orgId] });
+          queryClient.invalidateQueries({ queryKey: ['agendamentos-metricas', orgId] });
+          queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+          queryClient.invalidateQueries({ queryKey: ['lead-agendamento'] });
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [orgId, queryClient]);
 
   const { data: agendamentos = [], isLoading } = useQuery({
     queryKey: ["agendamentos", orgId],
@@ -119,18 +141,17 @@ export function useAgendamentos() {
       return data as Agendamento;
     },
     onSuccess: async (data) => {
-      // Avança pipeline para "Agendado" (posição padrão 5) se ainda não passou dessa etapa
       if (data?.lead_id) {
         await supabase
           .from('leads')
-          .update({ posicao_pipeline: 5, is_scheduled: true, is_qualified: true })
-          .eq('id', data.lead_id)
-          .or('posicao_pipeline.is.null,posicao_pipeline.lt.5');
+          .update({ is_scheduled: true, is_qualified: true })
+          .eq('id', data.lead_id);
         queryClient.invalidateQueries({ queryKey: ['leads'] });
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
       }
       queryClient.invalidateQueries({ queryKey: ["agendamentos", orgId] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos-metricas", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
     },
   });
 
@@ -165,6 +186,7 @@ export function useAgendamentos() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agendamentos", orgId] });
       queryClient.invalidateQueries({ queryKey: ["agendamentos-metricas", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-metrics"] });
     },
   });
 

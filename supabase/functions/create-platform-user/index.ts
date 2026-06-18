@@ -26,12 +26,21 @@ function generateWelcomeEmailHtml(opts: {
   magicLink: string;
   email: string;
   isExisting: boolean;
+  isCrmOnly: boolean;
 }): string {
-  const { clinicName, planName, magicLink, email, isExisting } = opts;
-  const headline = isExisting ? 'Seu acesso foi atualizado' : 'Bem-vindo(a) à plataforma';
+  const { clinicName, planName, magicLink, email, isExisting, isCrmOnly } = opts;
+  const productLabel = isCrmOnly ? 'CRM Descompliquei' : 'Plataforma Descompliquei';
+  const headline = isExisting ? 'Seu acesso foi atualizado' : isCrmOnly ? 'Bem-vindo(a) ao CRM!' : 'Bem-vindo(a) à plataforma';
   const bodyText = isExisting
-    ? `Seu plano na Plataforma Descompliquei foi atualizado para <strong>${planName}</strong>. Acesse com o link abaixo para continuar de onde parou.`
-    : `Seu acesso à Plataforma Descompliquei está pronto. Clique no botão abaixo para entrar — não é necessária senha no primeiro acesso.`;
+    ? `Seu plano no ${productLabel} foi atualizado para <strong>${planName}</strong>. Acesse com o link abaixo para continuar de onde parou.`
+    : isCrmOnly
+      ? `Seu acesso ao CRM Descompliquei está pronto. Clique no botão abaixo para entrar — não é necessária senha no primeiro acesso.`
+      : `Seu acesso à Plataforma Descompliquei está pronto. Clique no botão abaixo para entrar — não é necessária senha no primeiro acesso.`;
+  const ctaLabel = isCrmOnly ? 'Acessar o CRM &rarr;' : 'Acessar a Plataforma &rarr;';
+  const infoTitle = isCrmOnly ? 'O que você encontrará no CRM' : 'O que você encontrará na plataforma';
+  const infoBody = isCrmOnly
+    ? 'Gestão de leads &middot; Conversas WhatsApp &middot; Agendamentos &middot; Vendas e métricas comerciais.'
+    : 'Trilha de Aprendizado &middot; Cérebro Central &middot; IAs Comerciais &middot; Sessões Táticas e ferramentas para atrair, atender e fechar mais pacientes.';
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -82,7 +91,7 @@ function generateWelcomeEmailHtml(opts: {
                   <td align="center" style="padding-bottom:36px;">
                     <a href="${magicLink}"
                        style="display:inline-block;background:#E85D24;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:16px 44px;border-radius:12px;letter-spacing:0.2px;line-height:1;">
-                      Acessar a Plataforma &rarr;
+                      ${ctaLabel}
                     </a>
                   </td>
                 </tr>
@@ -95,10 +104,9 @@ function generateWelcomeEmailHtml(opts: {
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="background:#fafafa;border-radius:10px;border-left:3px solid #E85D24;padding:16px 20px;">
-                    <p style="color:#374151;font-size:13px;font-weight:600;margin:0 0 6px;">O que você encontrará na plataforma</p>
+                    <p style="color:#374151;font-size:13px;font-weight:600;margin:0 0 6px;">${infoTitle}</p>
                     <p style="color:#6b7280;font-size:13px;margin:0;line-height:1.6;">
-                      Trilha de Aprendizado &middot; Cérebro Central &middot; IAs Comerciais &middot;
-                      Sessões Táticas e ferramentas para atrair, atender e fechar mais pacientes.
+                      ${infoBody}
                     </p>
                   </td>
                 </tr>
@@ -196,17 +204,19 @@ Deno.serve(async (req: Request) => {
     step = 'fetch-product';
     let productName: string | null = null;
     let productPlan: string = 'pca';
+    let hasPlataformaAccess = true; // default: assume plataforma completa
     if (product_id) {
       const { data: prod, error: prodErr } = await supabaseAdmin
         .from('platform_products')
-        .select('nome, plano')
+        .select('nome, plano, acesso_arsenal, acesso_os, acesso_sessoes_taticas, acesso_materiais')
         .eq('id', product_id)
         .maybeSingle();
       if (prodErr) console.error(`[step:fetch-product] ERROR: ${prodErr.message}`);
       productName = prod?.nome ?? null;
       productPlan = prod?.plano ?? 'pca';
+      hasPlataformaAccess = !!(prod?.acesso_arsenal || prod?.acesso_os || prod?.acesso_sessoes_taticas || prod?.acesso_materiais);
     }
-    console.log(`[step:fetch-product] productName=${productName} plan=${productPlan}`);
+    console.log(`[step:fetch-product] productName=${productName} plan=${productPlan} hasPlataformaAccess=${hasPlataformaAccess}`);
 
     // 5. Gerar senha temporária
     const senha_temporaria = generatePassword(12);
@@ -363,7 +373,8 @@ Deno.serve(async (req: Request) => {
         crm_user_id: userId,
         onboarding_complete: false,
         cerebro_complete: false,
-        platform_onboarding_enabled: true,
+        // Só habilita o onboarding da plataforma para produtos com features além do CRM
+        platform_onboarding_enabled: hasPlataformaAccess,
       }, { onConflict: 'id' });
     if (puError) {
       console.error(`[step:upsert-platform-user] ERROR: ${puError.message}`);
@@ -409,8 +420,10 @@ Deno.serve(async (req: Request) => {
     // 12. Gerar magic link
     step = 'generate-magic-link';
     let magicLink: string | null = null;
-    // Sempre usar o domínio de produção — nunca o site_url do request (pode ser localhost)
-    const appUrl = Deno.env.get('PLATFORM_URL') || 'https://plataforma.descompliqueiofc.com';
+    // Redireciona para o produto correto — plataforma completa ou CRM isolado
+    const platformUrl = Deno.env.get('PLATFORM_URL') || 'https://plataforma.descompliqueiofc.com';
+    const crmUrl = Deno.env.get('CRM_URL') || `${platformUrl}/crm`;
+    const appUrl = hasPlataformaAccess ? platformUrl : crmUrl;
 
     const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
@@ -450,6 +463,7 @@ Deno.serve(async (req: Request) => {
         magicLink,
         email,
         isExisting,
+        isCrmOnly: !hasPlataformaAccess,
       });
 
       const resendRes = await fetch('https://api.resend.com/emails', {

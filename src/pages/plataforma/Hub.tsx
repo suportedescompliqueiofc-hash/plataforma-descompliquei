@@ -59,7 +59,7 @@ export default function Hub() {
       id: 'os', icon: Layers,
       title: 'Athos GS',
       description: 'Seu sistema operacional de gestão da clínica',
-      action: () => navigate('/plataforma/os'),
+      action: () => navigate('/plataforma/athos-gs'),
       actionLabel: 'Acessar',
     },
     temSessoes && {

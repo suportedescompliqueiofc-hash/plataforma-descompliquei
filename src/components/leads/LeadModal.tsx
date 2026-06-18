@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useLeads } from "@/hooks/useLeads";
-import { useStages, Stage } from "@/hooks/useStages";
 import MaskedInput, { PhoneInput, CpfInput } from "@/components/MaskedInput";
 import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Pencil, MessageCircle, Briefcase, Globe, ImageOff, Megaphone, Calendar, Hash, UserCheck, ChevronRight, Plus, ArrowRight, Sparkles, Target, Activity, Zap, Copy, ExternalLink, CalendarDays, Shield, UserCog } from "lucide-react";
 import { parse, format, differenceInYears, isValid, startOfDay, parseISO, formatDistanceToNow } from "date-fns";
@@ -17,11 +16,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { CreatableSelect } from "@/components/ui/CreatableSelect";
 import { useLeadSources } from "@/hooks/useLeadSources";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { VendaModal } from "@/components/vendas/VendaModal";
+import AgendamentoLeadModal from "@/components/agendamentos/AgendamentoLeadModal";
 import { FormattedText } from "@/components/FormattedText";
 import { TagManager } from "@/components/tags/TagManager";
 import { CardCriativoOrigem } from "@/components/leads/CardCriativoOrigem";
@@ -76,7 +76,6 @@ const initialFormData = {
   nome: "", telefone: "", resumo: "",
   origem: "organico", // Default agora é organico
   fonte: "",          // Novo campo para o detalhe (antiga origem)
-  posicao_pipeline: 1,
   status: "Ativo", email: "", cpf: "", idade: "",
   genero: "", endereco: "",
   procedimento_interesse: "",
@@ -111,11 +110,11 @@ const InfoItem = ({ icon: Icon, label, value, className }: { icon: any, label: s
 );
 
 const ViewContent = ({
-  lead, stages, creativeName, creativeAd,
+  lead, creativeName, creativeAd,
   isEditing = false, formData, handleInputChange, handleSourceChange, allSources,
   teamMembers = [],
 }: {
-  lead: any; stages: Stage[]; creativeName?: string; creativeAd?: any;
+  lead: any; creativeName?: string; creativeAd?: any;
   isEditing?: boolean; formData?: any;
   handleInputChange?: (field: string, value: any) => void;
   handleSourceChange?: (value: string) => void;
@@ -125,9 +124,10 @@ const ViewContent = ({
   /* helpers */
   const { profile: viewProfile } = useProfile();
   const isAnnaClaraOrg = viewProfile?.organization_id === ANNA_CLARA_ORG_ID;
+  const queryClient = useQueryClient();
+  const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
+  const [showVendaModal, setShowVendaModal] = useState(false);
   const onEdit = (field: string, value: any) => { if (isEditing && handleInputChange) handleInputChange(field, value); };
-  const pipelinePos = isEditing && formData ? formData.posicao_pipeline : lead.posicao_pipeline;
-
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "Ativo": return { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", label: "Ativo" };
@@ -152,18 +152,61 @@ const ViewContent = ({
   const statusConfig = getStatusConfig(displayStatus);
   const scoreConfig = getScoreConfig(lead.lead_scoring);
 
+  const { data: agendamentos = [] } = useQuery({
+    queryKey: ['lead-modal-agendamentos', lead.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('agendamentos')
+        .select('id, titulo, tipo, descricao, data_hora_inicio, status')
+        .eq('lead_id', lead.id)
+        .order('data_hora_inicio', { ascending: false });
+      return data || [];
+    },
+    enabled: !!lead.id,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: vendasLead = [] } = useQuery({
+    queryKey: ['lead-modal-vendas', lead.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('vendas')
+        .select('id, produto_servico, valor_fechado, data_fechamento, forma_pagamento')
+        .eq('lead_id', lead.id)
+        .order('data_fechamento', { ascending: false });
+      return data || [];
+    },
+    enabled: !!lead.id,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: lastMessage } = useQuery({
+    queryKey: ['lead-modal-last-message', lead.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('mensagens')
+        .select('criado_em')
+        .eq('lead_id', lead.id)
+        .neq('remetente', 'ia')
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!lead.id,
+    staleTime: 2 * 60 * 1000,
+  });
+
   const displayName = isEditing && formData ? formData.nome : lead.nome;
   const initials = (displayName || "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
 
-  const lastContactTime = lead.ultimo_contato
-    ? formatDistanceToNow(new Date(lead.ultimo_contato), { addSuffix: true, locale: ptBR })
+  const lastContactRaw = lead.ultimo_contato || lastMessage?.criado_em || null;
+  const lastContactTime = lastContactRaw
+    ? formatDistanceToNow(new Date(lastContactRaw), { addSuffix: true, locale: ptBR })
     : null;
   const createdDate = lead.criado_em
     ? formatDistanceToNow(new Date(lead.criado_em), { addSuffix: true, locale: ptBR })
     : null;
-
-  const sortedStages = [...stages].sort((a, b) => a.posicao_ordem - b.posicao_ordem);
-  const activeStageIdx = sortedStages.findIndex(s => s.posicao_ordem === pipelinePos);
 
   const darkInput = "bg-white/10 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-1 focus-visible:ring-white/20 focus-visible:border-white/25 rounded-lg";
 
@@ -202,7 +245,7 @@ const ViewContent = ({
                     onCheckedChange={(checked) => onEdit('is_qualified', checked)}
                     className="data-[state=checked]:bg-emerald-500 scale-[0.8]"
                   />
-                  <span className="text-[11px] font-medium text-white/50">Lead Qualificado (MQL)</span>
+                  <span className="text-[11px] font-medium text-white/50">Lead Qualificado</span>
                 </div>
               </div>
             ) : (
@@ -213,7 +256,7 @@ const ViewContent = ({
                   {lead.is_qualified && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/20">
                       <UserCheck className="h-3 w-3" />
-                      MQL
+                      Qualificado
                     </span>
                   )}
                   {scoreConfig && (
@@ -246,64 +289,11 @@ const ViewContent = ({
           </div>
         </div>
 
-        {/* ═══════════════ PIPELINE PROGRESS TRACKER ═══════════════ */}
-        {sortedStages.length > 0 && (
-          <div className="mt-6">
-            <div className="flex items-center gap-1">
-              {sortedStages.map((stage, idx) => {
-                const isPast = idx < activeStageIdx;
-                const isCurrent = idx === activeStageIdx;
-                return (
-                  <div
-                    key={stage.id}
-                    className={cn(
-                      "flex-1 flex flex-col items-center gap-1.5 group relative",
-                      isEditing && "cursor-pointer"
-                    )}
-                    onClick={() => isEditing && onEdit('posicao_pipeline', stage.posicao_ordem)}
-                  >
-                    <div className={cn(
-                      "w-full h-1.5 rounded-full overflow-hidden bg-white/8 transition-all",
-                      isEditing && "hover:bg-white/15"
-                    )}>
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: isPast || isCurrent ? '100%' : '0%',
-                          backgroundColor: isCurrent ? (stage.cor || '#E85D24') : isPast ? `${stage.cor || '#E85D24'}99` : 'transparent',
-                        }}
-                      />
-                    </div>
-                    {isCurrent && (
-                      <span className="text-[9px] font-bold uppercase tracking-wider whitespace-nowrap" style={{ color: stage.cor || '#E85D24' }}>
-                        {stage.nome}
-                      </span>
-                    )}
-                    {/* Tooltip on hover in edit mode */}
-                    {isEditing && !isCurrent && (
-                      <span className="absolute -bottom-5 text-[8px] font-medium text-white/30 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                        {stage.nome}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ═══════════════ QUICK STATS ROW ═══════════════ */}
       <div className="px-6 -mt-4 relative z-10">
-        <div className="grid grid-cols-4 gap-3">
-          {/* Status */}
-          <div className={cn("rounded-xl border p-3.5 bg-white dark:bg-[#1f1f1f] shadow-[0_2px_8px_rgba(0,0,0,0.06)]", statusConfig.border)}>
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className={cn("h-2.5 w-2.5 rounded-full", statusConfig.dot)} />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Status</span>
-            </div>
-            <span className={cn("text-sm font-bold", statusConfig.text)}>{statusConfig.label}</span>
-          </div>
+        <div className="grid grid-cols-3 gap-3">
 
           {/* Origem */}
           <div className="rounded-xl border border-border/60 p-3.5 bg-white dark:bg-[#1f1f1f] shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
@@ -604,6 +594,184 @@ const ViewContent = ({
             )}
           </div>
         </div>
+
+        {/* ═══════════════ AGENDAMENTOS & FECHAMENTOS ═══════════════ */}
+        <div className="grid grid-cols-2 gap-4">
+
+            {/* Agendamentos */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-4 py-3.5 border-b border-border/40 bg-blue-50/50 dark:bg-blue-950/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40">
+                      <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Agendamentos</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                        {agendamentos.length > 0 ? `${agendamentos.length} registro${agendamentos.length !== 1 ? 's' : ''}` : 'Nenhum registro'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowAgendamentoModal(true)}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-900/60 px-2 py-1 rounded-lg transition-colors"
+                    title="Novo agendamento"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Novo
+                  </button>
+                </div>
+              </div>
+              {agendamentos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                    <Calendar className="h-6 w-6 text-muted-foreground/30" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Nenhum agendamento</p>
+                  <p className="text-[11px] text-muted-foreground/50 mt-0.5">Nada registrado ainda</p>
+                </div>
+              ) : (
+                <div className="p-3 space-y-2 max-h-64 overflow-y-auto">
+                  {(agendamentos as any[]).map((a) => {
+                    const sMap: Record<string, { bar: string; badge: string; text: string; label: string }> = {
+                      agendado:      { bar: 'bg-indigo-500',  badge: 'bg-indigo-50 dark:bg-indigo-900/30',  text: 'text-indigo-700 dark:text-indigo-300',  label: 'Agendado'       },
+                      confirmado:    { bar: 'bg-sky-500',     badge: 'bg-sky-50 dark:bg-sky-900/30',        text: 'text-sky-700 dark:text-sky-300',        label: 'Confirmado'     },
+                      realizado:     { bar: 'bg-emerald-500', badge: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300', label: 'Realizado'     },
+                      nao_compareceu:{ bar: 'bg-red-500',     badge: 'bg-red-50 dark:bg-red-900/30',        text: 'text-red-600 dark:text-red-400',        label: 'Não compareceu' },
+                      cancelado:     { bar: 'bg-red-400',     badge: 'bg-red-50/50 dark:bg-red-900/20',     text: 'text-red-500 dark:text-red-400',        label: 'Cancelado'      },
+                      remarcado:     { bar: 'bg-amber-500',   badge: 'bg-amber-50 dark:bg-amber-900/30',    text: 'text-amber-700 dark:text-amber-300',    label: 'Remarcado'      },
+                    };
+                    const s = sMap[a.status] ?? sMap.realizado;
+                    return (
+                      <div key={a.id} className="rounded-xl border border-border/50 bg-background hover:bg-muted/20 transition-colors overflow-hidden flex">
+                        <div className={cn("w-1 shrink-0", s.bar)} />
+                        <div className="flex-1 min-w-0 px-3 py-2.5">
+                          <div className="flex items-start justify-between gap-2 mb-1.5">
+                            <p className="text-[12px] font-semibold text-foreground leading-tight">{a.titulo || 'Agendamento'}</p>
+                            <span className={cn("text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-md shrink-0 border border-border/30", s.badge, s.text)}>{s.label}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                            <p className="text-[11px] text-muted-foreground/60 tabular-nums">
+                              {a.data_hora_inicio ? format(parseISO(a.data_hora_inicio), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '—'}
+                            </p>
+                          </div>
+                          {(a.tipo || a.descricao) && (
+                            <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                              {a.tipo && <span className="text-[9px] font-semibold bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded-md capitalize border border-border/40">{a.tipo}</span>}
+                              {a.descricao && <p className="text-[10px] text-muted-foreground/50 truncate">{a.descricao}</p>}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Fechamentos */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-4 py-3.5 border-b border-border/40 bg-emerald-50/50 dark:bg-emerald-950/10">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                      <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Fechamentos</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                        {vendasLead.length > 0 ? `${vendasLead.length} venda${vendasLead.length !== 1 ? 's' : ''} registrada${vendasLead.length !== 1 ? 's' : ''}` : 'Nenhuma venda'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowVendaModal(true)}
+                    className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 px-2 py-1 rounded-lg transition-colors"
+                    title="Novo fechamento"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Novo
+                  </button>
+                </div>
+              </div>
+              {vendasLead.length > 0 && (() => {
+                const total = (vendasLead as any[]).reduce((s, v) => s + (Number(v.valor_fechado) || 0), 0);
+                const media = total / vendasLead.length;
+                return (
+                  <div className="grid grid-cols-2 divide-x divide-border/40 border-b border-border/40">
+                    <div className="px-4 py-3">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">Receita total</p>
+                      <p className="text-[14px] font-bold text-foreground tabular-nums font-display">R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className="px-4 py-3">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">Ticket médio</p>
+                      <p className="text-[14px] font-bold text-foreground tabular-nums font-display">R$ {media.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+              {vendasLead.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                    <DollarSign className="h-6 w-6 text-muted-foreground/30" />
+                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Nenhuma venda registrada</p>
+                  <p className="text-[11px] text-muted-foreground/50 mt-0.5">Ainda não há fechamentos</p>
+                </div>
+              ) : (
+                <div className="p-3 space-y-2 max-h-64 overflow-y-auto">
+                  {(vendasLead as any[]).map((v) => (
+                    <div key={v.id} className="rounded-xl border border-border/50 bg-background hover:bg-muted/20 transition-colors overflow-hidden flex">
+                      <div className="w-1 shrink-0 bg-violet-500" />
+                      <div className="flex-1 min-w-0 px-3 py-2.5">
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <p className="text-[12px] font-semibold text-foreground leading-tight">{v.produto_servico || 'Venda'}</p>
+                          {v.valor_fechado != null && (
+                            <span className="text-[13px] font-bold text-emerald-600 shrink-0 tabular-nums font-display">
+                              R$ {Number(v.valor_fechado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <CalendarDays className="h-3 w-3 text-muted-foreground/40 shrink-0" />
+                          <p className="text-[11px] text-muted-foreground/60 tabular-nums">
+                            {v.data_fechamento ? format(parseISO(v.data_fechamento), "dd/MM/yyyy", { locale: ptBR }) : '—'}
+                          </p>
+                          {v.forma_pagamento && (
+                            <span className="text-[9px] font-semibold bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded-md capitalize border border-border/40">{v.forma_pagamento}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+          </div>
+
+        {/* Sub-modais de criação */}
+        <AgendamentoLeadModal
+          isOpen={showAgendamentoModal}
+          onClose={() => setShowAgendamentoModal(false)}
+          leadId={lead.id}
+          leadNome={lead.nome || ''}
+          onSaved={() => {
+            setShowAgendamentoModal(false);
+            queryClient.invalidateQueries({ queryKey: ['lead-modal-agendamentos', lead.id] });
+          }}
+        />
+        <VendaModal
+          open={showVendaModal}
+          onOpenChange={setShowVendaModal}
+          lead={lead}
+          onSaved={() => {
+            setShowVendaModal(false);
+            queryClient.invalidateQueries({ queryKey: ['lead-modal-vendas', lead.id] });
+          }}
+        />
       </div>
     </div>
   );
@@ -736,25 +904,6 @@ const FormContent = ({ formData, handleInputChange, handleSubmit, stages, handle
                 />
               </FormField>
             </div>
-            <div data-tutorial="lead-field-etapa">
-              <FormField label="Etapa do Funil">
-                <Select value={formData.posicao_pipeline.toString()} onValueChange={(value) => handleInputChange('posicao_pipeline', parseInt(value))}>
-                  <SelectTrigger className="h-9 text-sm rounded-lg border-border/60 bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl">
-                    {stages.map((stage: Stage) => (
-                      <SelectItem key={stage.id} value={stage.posicao_ordem.toString()}>
-                        <div className="flex items-center gap-2">
-                          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: stage.cor }} />
-                          {stage.nome}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            </div>
             <div data-tutorial="lead-field-data">
               <FormField label="Data de Cadastro">
                 <MaskedInput
@@ -864,7 +1013,6 @@ interface LeadModalProps {
 
 export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadModalProps) {
   const { createLead, updateLead } = useLeads();
-  const { stages } = useStages();
   const { allSources, createSource } = useLeadSources();
   const { profile: currentProfile } = useProfile();
   const { members: teamMembers } = useTeamMembersForSelect();
@@ -906,7 +1054,6 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
           origem: lead.origem || "organico",
           fonte: lead.fonte || "",
 
-          posicao_pipeline: lead.posicao_pipeline || 1,
           status: lead.status || "Ativo", email: lead.email || "", cpf: lead.cpf || "",
           idade: lead.idade?.toString() || "", genero: lead.genero || "", endereco: lead.endereco || "",
           procedimento_interesse: lead.procedimento_interesse || "",
@@ -999,9 +1146,6 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
     }
   };
 
-  const currentStage = stages.find(s => s.posicao_ordem === lead?.posicao_pipeline); 
-  const isContratoFechado = currentStage?.nome === 'Contrato Fechado' || currentStage?.nome === 'Procedimento Fechado';
-  
   const creativeAd = lead?.criativo_id
     ? metaAdsData.find((a: any) => a.id === lead.criativo_id)
     : null;
@@ -1047,7 +1191,6 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
             <div className="pb-0">
               <ViewContent
                 lead={lead}
-                stages={stages}
                 creativeName={creativeName}
                 creativeAd={creativeAd}
                 isEditing={isEdit}
@@ -1063,7 +1206,6 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
               formData={formData}
               handleInputChange={handleInputChange}
               handleSubmit={handleSubmit}
-              stages={stages}
               handleClose={handleClose}
               isEdit={false}
               handleSourceChange={handleSourceChange}
@@ -1085,17 +1227,15 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
             <div className="flex items-center gap-2 px-6 py-4 border-t border-border/40 bg-white dark:bg-[#1a1a1a] sticky bottom-0">
               <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={handleClose}>Fechar</Button>
               <div className="flex-1" />
-              {isContratoFechado && (
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => setIsVendaModalOpen(true)}
-                  className="h-8 rounded-lg text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-                >
-                  <DollarSign className="h-3.5 w-3.5" />
-                  Registrar Venda
-                </Button>
-              )}
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setIsVendaModalOpen(true)}
+                className="h-8 rounded-lg text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+              >
+                <DollarSign className="h-3.5 w-3.5" />
+                Registrar Venda
+              </Button>
               <Button
                 type="button"
                 size="sm"

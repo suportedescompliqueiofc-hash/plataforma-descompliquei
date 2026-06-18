@@ -183,7 +183,6 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
         origem: r.origem || 'organico',
         fonte: 'importado',
         status: 'ativo',
-        posicao_pipeline: 1,
         queixa_principal: '',
       }));
 

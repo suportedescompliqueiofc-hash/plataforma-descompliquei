@@ -1,95 +1,111 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, BookOpen, Bot, BrainCircuit, Activity } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Users, Route, Bot, Swords, Activity } from 'lucide-react';
+
+interface Metrics {
+  clientes: number;
+  jornadasAtivas: number;
+  conversasHoje: number;
+  agentesAtivos: number;
+}
 
 export default function TabVisaoGeral() {
+  const [metrics, setMetrics] = useState<Metrics>({
+    clientes: 0,
+    jornadasAtivas: 0,
+    conversasHoje: 0,
+    agentesAtivos: 0,
+  });
+
+  useEffect(() => {
+    async function fetchMetrics() {
+      const today = new Date().toISOString().slice(0, 10);
+
+      const [clientesRes, jornadasRes, conversasRes, agentesRes] = await Promise.all([
+        (supabase as any).from('platform_users').select('id', { count: 'exact', head: true }),
+        (supabase as any).from('jornadas').select('id', { count: 'exact', head: true }).eq('status', 'ativa'),
+        (supabase as any).from('os_conversations').select('id', { count: 'exact', head: true }).gte('created_at', today),
+        (supabase as any).from('athos_agentes').select('id', { count: 'exact', head: true }).eq('ativo', true),
+      ]);
+
+      setMetrics({
+        clientes: clientesRes.count ?? 0,
+        jornadasAtivas: jornadasRes.count ?? 0,
+        conversasHoje: conversasRes.count ?? 0,
+        agentesAtivos: agentesRes.count ?? 0,
+      });
+    }
+
+    fetchMetrics();
+  }, []);
+
+  const cards = [
+    {
+      icon: Users,
+      label: 'Clientes Plataforma',
+      value: metrics.clientes,
+      sub: 'usuários ativos',
+      color: 'text-white',
+    },
+    {
+      icon: Route,
+      label: 'Jornadas Ativas',
+      value: metrics.jornadasAtivas,
+      sub: 'em andamento',
+      color: 'text-violet-400',
+    },
+    {
+      icon: Bot,
+      label: 'Conversas com Athos',
+      value: metrics.conversasHoje,
+      sub: 'iniciadas hoje',
+      color: 'text-blue-400',
+    },
+    {
+      icon: Swords,
+      label: 'Agentes Ativos',
+      value: metrics.agentesAtivos,
+      sub: 'no Descompliquei OS',
+      color: 'text-emerald-400',
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Visão Geral</h2>
-      </div>
+      <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Visão Geral</h2>
 
-      {/* METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-[#141414] border-border/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
-              <Users className="w-4 h-4 mr-2" /> Clientes Plataforma
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-white">0</div>
-            <div className="flex gap-2 mt-2">
-              <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400">0 GCA</span>
-              <span className="text-xs px-2 py-0.5 rounded bg-blue-500/20 text-blue-400">0 PCA</span>
+        {cards.map(({ icon: Icon, label, value, sub, color }) => (
+          <div key={label} className="rounded-xl bg-[#141414] border border-border/10 p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Icon className="h-4 w-4 text-muted-foreground" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{label}</p>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-[#141414] border-border/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
-              <BookOpen className="w-4 h-4 mr-2" /> Progresso da Trilha
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-white">0%</div>
-            <p className="text-xs text-muted-foreground mt-2">Média geral dos clientes</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-[#141414] border-border/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
-              <Bot className="w-4 h-4 mr-2" /> Utilização IAs (Hoje)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-white">0</div>
-            <p className="text-xs text-muted-foreground mt-2">Consultas realizadas</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-[#141414] border-border/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center">
-              <BrainCircuit className="w-4 h-4 mr-2" /> Cérebro Central
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-400">0</div>
-            <p className="text-xs text-muted-foreground mt-2">Configurados (0 ausentes)</p>
-          </CardContent>
-        </Card>
+            <p className={`text-3xl font-bold tabular-nums ${color}`}>{value}</p>
+            <p className="text-xs text-muted-foreground">{sub}</p>
+          </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        {/* RECENT ACTIVITY */}
-        <Card className="bg-[#141414] border-border/10">
-          <CardHeader className="border-b border-border/10">
-            <CardTitle className="text-sm font-bold uppercase tracking-wider text-white flex items-center">
-              <Activity className="w-4 h-4 mr-2 text-[#E85D24]" /> Atividade Recente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border/10">
-              <div className="p-4 text-sm text-muted-foreground text-center">Nenhuma atividade registrada hoje.</div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-xl bg-[#141414] border border-border/10 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/10 flex items-center gap-2">
+            <Activity className="h-3.5 w-3.5 text-[#E85D24]" />
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Atividade Recente</p>
+          </div>
+          <div className="p-5 text-sm text-muted-foreground text-center">
+            Nenhuma atividade registrada hoje.
+          </div>
+        </div>
 
-        {/* ALERTS */}
-        <Card className="bg-[#141414] border-border/10">
-          <CardHeader className="border-b border-border/10">
-            <CardTitle className="text-sm font-bold uppercase tracking-wider text-red-400 flex items-center">
-              Alertas do Sistema
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-border/10">
-              <div className="p-4 text-sm text-muted-foreground text-center">Nenhum alerta crítico.</div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl bg-[#141414] border border-border/10 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/10">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-red-400">Alertas do Sistema</p>
+          </div>
+          <div className="p-5 text-sm text-muted-foreground text-center">
+            Nenhum alerta crítico.
+          </div>
+        </div>
       </div>
     </div>
   );

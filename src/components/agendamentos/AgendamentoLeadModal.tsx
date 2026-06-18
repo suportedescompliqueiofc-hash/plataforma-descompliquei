@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Edit2, Check, X, Loader2, CalendarDays, Clock, MapPin, Link2 } from "lucide-react";
+import { Edit2, Check, X, Loader2, CalendarDays, Clock, MapPin, Link2, DollarSign, ChevronDown, Bell, BellOff, Stethoscope, Scissors, RotateCcw } from "lucide-react";
+import { useAgendamentoFinanceiroConfig } from "@/hooks/useAgendamentoFinanceiroConfig";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
@@ -12,10 +13,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 import { supabase } from "@/integrations/supabase/client";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { useProfile } from "@/hooks/useProfile";
 import { useAgendamentos, Agendamento, AgendamentoInput } from "@/hooks/useAgendamentos";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { cn } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -30,6 +35,30 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }
 
 const CORES_PREDEFINIDAS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
 
+const DURACOES_RAPIDAS = [
+  { label: "30 min", value: 30 },
+  { label: "45 min", value: 45 },
+  { label: "1h", value: 60 },
+  { label: "1h30", value: 90 },
+  { label: "2h", value: 120 },
+];
+
+const TIPO_TITULOS: Record<string, string> = {
+  consulta:     "Consulta",
+  procedimento: "Procedimento",
+  retorno:      "Retorno",
+};
+
+const TIPO_ICONS_MODAL: Record<string, any> = {
+  consulta:     Stethoscope,
+  procedimento: Scissors,
+  retorno:      RotateCcw,
+};
+
+function defaultTitulo(tipo: string, nome: string) {
+  return `${TIPO_TITULOS[tipo] ?? tipo} — ${nome}`;
+}
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -42,22 +71,28 @@ interface Props {
 export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome, agendamentoExistente, onSaved }: Props) {
   const { profile } = useProfile();
   const { criarAgendamento, atualizarAgendamento } = useAgendamentos();
+  const { config: financeiroConfig } = useAgendamentoFinanceiroConfig();
+  const { procedimentos } = useProcedimentos();
   const queryClient = useQueryClient();
   const orgId = profile?.organization_id;
 
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"view" | "create" | "edit">("create");
+  const [dataInicio, setDataInicio] = useState<Date | undefined>(undefined);
+  const [horaInicio, setHoraInicio] = useState("08");
+  const [minutoInicio, setMinutoInicio] = useState("00");
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
 
   const [form, setForm] = useState<AgendamentoInput>({
     lead_id: leadId,
-    titulo: `Consulta - ${leadNome}`,
+    titulo: defaultTitulo("consulta", leadNome),
     data_hora_inicio: "",
     data_hora_fim: "",
     duracao_minutos: 60,
     tipo: "consulta",
     cor: "#3b82f6",
   });
-  const [enviarConfirmacao, setEnviarConfirmacao] = useState(false);
+  const [ativarFluxo, setAtivarFluxo] = useState(true);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -65,16 +100,21 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
       setMode("view");
     } else {
       setMode("create");
+      setDataInicio(undefined);
+      setHoraInicio("08");
+      setMinutoInicio("00");
       setForm({
         lead_id: leadId,
-        titulo: `Consulta - ${leadNome}`,
+        titulo: defaultTitulo("consulta", leadNome),
         data_hora_inicio: "",
         data_hora_fim: "",
         duracao_minutos: 60,
         tipo: "consulta",
         cor: "#3b82f6",
+        valor_orcado: financeiroConfig?.consulta_valor_padrao ?? null,
+        procedimento_interesse: null,
       });
-      setEnviarConfirmacao(false);
+      setAtivarFluxo(true);
     }
   }, [isOpen, agendamentoExistente, leadId, leadNome]);
 
@@ -90,18 +130,21 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
 
   function startEdit() {
     if (!agendamentoExistente) return;
+    const localInicio = toLocalDatetimeStr(agendamentoExistente.data_hora_inicio);
     setForm({
       lead_id: agendamentoExistente.lead_id,
       titulo: agendamentoExistente.titulo,
       descricao: agendamentoExistente.descricao,
-      data_hora_inicio: toLocalDatetimeStr(agendamentoExistente.data_hora_inicio),
+      data_hora_inicio: localInicio,
       data_hora_fim: toLocalDatetimeStr(agendamentoExistente.data_hora_fim),
       duracao_minutos: agendamentoExistente.duracao_minutos,
       tipo: agendamentoExistente.tipo,
       local: agendamentoExistente.local,
       link_reuniao: agendamentoExistente.link_reuniao,
       cor: agendamentoExistente.cor,
+      valor_orcado: agendamentoExistente.valor_orcado,
     });
+    parseDatetimeLocal(localInicio);
     setMode("edit");
   }
 
@@ -111,6 +154,47 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
     const pad = (n: number) => String(n).padStart(2, "0");
     const fim = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     setForm((f) => ({ ...f, data_hora_fim: fim, duracao_minutos: minutos }));
+  }
+
+  function buildDatetimeStr(date: Date, hora: string, minuto: string): string {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${hora}:${minuto}`;
+  }
+
+  function applyDatetime(date: Date | undefined, hora: string, minuto: string) {
+    if (!date) { setForm(f => ({ ...f, data_hora_inicio: "" })); return; }
+    const str = buildDatetimeStr(date, hora, minuto);
+    setForm(f => {
+      const d = new Date(new Date(str).getTime() + (f.duracao_minutos || 60) * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const fim = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return { ...f, data_hora_inicio: str, data_hora_fim: fim };
+    });
+  }
+
+  function handleDateChange(date: Date | undefined) {
+    setDataInicio(date);
+    setIsDatePickerOpen(false);
+    applyDatetime(date, horaInicio, minutoInicio);
+  }
+
+  function handleHoraChange(hora: string) {
+    setHoraInicio(hora);
+    applyDatetime(dataInicio, hora, minutoInicio);
+  }
+
+  function handleMinutoChange(minuto: string) {
+    setMinutoInicio(minuto);
+    applyDatetime(dataInicio, horaInicio, minuto);
+  }
+
+  function parseDatetimeLocal(str: string) {
+    if (!str) return;
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return;
+    setDataInicio(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+    setHoraInicio(String(d.getHours()).padStart(2, "0"));
+    setMinutoInicio(String(d.getMinutes()).padStart(2, "0"));
   }
 
   async function handleChangeStatus(newStatus: string) {
@@ -151,8 +235,32 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
         await atualizarAgendamento.mutateAsync({ id: agendamentoExistente.id, ...payload });
         toast.success("Agendamento atualizado!");
       } else {
-        await criarAgendamento.mutateAsync(payload);
-        await supabase.from("leads").update({ is_scheduled: true, posicao_pipeline: 5 }).eq("id", leadId);
+        const ag = await criarAgendamento.mutateAsync(payload);
+        await supabase.from("leads").update({ is_scheduled: true }).eq("id", leadId);
+        if (!ativarFluxo && ag?.id && orgId) {
+          // Pré-cancela todos os lembretes para este agendamento
+          const { data: cfg } = await supabase
+            .from("agendamento_config_notificacoes")
+            .select("notif_ativa, lembretes")
+            .eq("organization_id", orgId)
+            .single();
+          const lembretes: { ativo: boolean; minutos_antes: number }[] =
+            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? cfg.lembretes : [];
+          const ativos = lembretes.filter((l) => l.ativo && l.minutos_antes > 0);
+          if (ativos.length > 0) {
+            await supabase.from("agendamento_notificacoes").insert(
+              ativos.map((l) => ({
+                agendamento_id: ag.id,
+                organization_id: orgId,
+                tipo_destinatario: "lead",
+                canal: "whatsapp",
+                antecedencia_minutos: l.minutos_antes,
+                status: "cancelado",
+                data_hora_envio: new Date().toISOString(),
+              }))
+            );
+          }
+        }
         toast.success("Agendamento criado!");
       }
       onSaved?.();
@@ -224,6 +332,17 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                 </div>
               </div>
 
+              {ag.valor_orcado != null && ag.valor_orcado > 0 && (
+                <div className="rounded-xl bg-emerald-50/60 border border-emerald-100 p-3.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/60 mb-0.5">Valor Orçado</p>
+                    <p className="text-lg font-bold text-emerald-700 font-display tabular-nums">
+                      R$ {Number(ag.valor_orcado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  <DollarSign className="h-5 w-5 text-emerald-400" />
+                </div>
+              )}
               {ag.local && (
                 <div className="rounded-xl bg-muted/30 p-3.5 flex items-start gap-2">
                   <MapPin className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
@@ -323,9 +442,12 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
         {(mode === "create" || mode === "edit") && (
           <div className="flex flex-col">
             <div className="px-6 pt-6 pb-4 border-b border-border/40">
-              <h2 className="text-base font-bold font-display text-foreground">
+              <h2 className="text-lg font-bold tracking-tight font-display text-foreground">
                 {mode === "edit" ? "Editar Agendamento" : "Novo Agendamento"}
               </h2>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                {mode === "edit" ? "Atualize os dados do agendamento" : "Preencha os dados para criar um novo agendamento"}
+              </p>
             </div>
 
             <div className="px-6 py-4 space-y-4">
@@ -344,54 +466,176 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</Label>
-                  <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+                  <Select
+                    value={form.tipo}
+                    onValueChange={(v) => {
+                      setForm((f) => ({
+                        ...f,
+                        tipo: v,
+                        titulo: defaultTitulo(v, leadNome),
+                        procedimento_interesse: v === "procedimento" ? f.procedimento_interesse : null,
+                        valor_orcado: v === "consulta"
+                          ? (financeiroConfig?.consulta_valor_padrao ?? null)
+                          : v === "procedimento" ? f.valor_orcado : null,
+                        duracao_minutos: v === "procedimento" ? f.duracao_minutos : 60,
+                      }));
+                    }}
+                  >
                     <SelectTrigger className="h-10 text-sm rounded-lg border-border/60 mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="consulta">Consulta</SelectItem>
-                      <SelectItem value="avaliacao">Avaliação</SelectItem>
-                      <SelectItem value="procedimento">Procedimento</SelectItem>
-                      <SelectItem value="retorno">Retorno</SelectItem>
-                      <SelectItem value="online">Online</SelectItem>
+                    <SelectContent className="rounded-xl">
+                      {Object.entries(TIPO_TITULOS).map(([k, v]) => {
+                        const Icon = TIPO_ICONS_MODAL[k] || CalendarDays;
+                        return (
+                          <SelectItem key={k} value={k}>
+                            <div className="flex items-center gap-2"><Icon className="h-3.5 w-3.5 text-muted-foreground" />{v}</div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Duração (min)</Label>
-                  <Input
-                    type="number"
-                    value={form.duracao_minutos}
-                    className="h-10 text-sm rounded-lg border-border/60 mt-1"
-                    onChange={(e) => {
-                      const min = parseInt(e.target.value) || 60;
-                      setForm((f) => ({ ...f, duracao_minutos: min }));
-                      updateDuracao(form.data_hora_inicio, min);
-                    }}
-                  />
+                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Duração</Label>
+                  <div className="flex gap-1.5 mt-1">
+                    {DURACOES_RAPIDAS.map((d) => (
+                      <button
+                        key={d.value}
+                        type="button"
+                        onClick={() => {
+                          setForm((f) => ({ ...f, duracao_minutos: d.value }));
+                          updateDuracao(form.data_hora_inicio, d.value);
+                        }}
+                        className={cn(
+                          "flex-1 py-2 rounded-lg text-[10px] font-semibold border transition-all",
+                          form.duracao_minutos === d.value
+                            ? "bg-foreground text-background border-foreground"
+                            : "bg-background text-muted-foreground border-border/60 hover:border-border hover:bg-muted/30"
+                        )}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data e hora de início</Label>
-                <Input
-                  type="datetime-local"
-                  value={form.data_hora_inicio}
-                  className="h-10 text-sm rounded-lg border-border/60 mt-1"
-                  onChange={(e) => {
-                    setForm((f) => ({ ...f, data_hora_inicio: e.target.value }));
-                    updateDuracao(e.target.value, form.duracao_minutos || 60);
-                  }}
-                />
-              </div>
-              {form.tipo !== "online" && (
+              {form.tipo === "procedimento" && (
                 <div>
-                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Local / Clínica</Label>
-                  <Input
-                    value={form.local || ""}
+                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Procedimento</Label>
+                  <Select
+                    value={form.procedimento_interesse ?? ""}
+                    onValueChange={(v) => {
+                      const proc = procedimentos.find((p) => p.nome === v);
+                      setForm((f) => ({
+                        ...f,
+                        procedimento_interesse: v || null,
+                        titulo: v ? `Procedimento — ${v}` : defaultTitulo("procedimento", leadNome),
+                        valor_orcado: proc?.valor_base ?? f.valor_orcado,
+                        duracao_minutos: proc?.duracao_minutos ?? f.duracao_minutos,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger className="h-10 text-sm rounded-lg border-border/60 mt-1">
+                      <SelectValue placeholder="Selecionar procedimento..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {procedimentos.filter((p) => p.ativo).length === 0 ? (
+                        <div className="px-3 py-4 text-center">
+                          <p className="text-[11px] text-muted-foreground">Nenhum procedimento cadastrado.</p>
+                          <p className="text-[10px] text-muted-foreground/50 mt-0.5">Cadastre em Configurações → Procedimentos</p>
+                        </div>
+                      ) : (
+                        procedimentos.filter((p) => p.ativo).map((p) => (
+                          <SelectItem key={p.id} value={p.nome}>
+                            <div className="flex items-center justify-between gap-4 w-full">
+                              <span>{p.nome}</span>
+                              {p.valor_base && (
+                                <span className="text-[10px] text-muted-foreground tabular-nums ml-4">
+                                  R$ {Number(p.valor_base).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {(form.tipo === "consulta" || form.tipo === "procedimento") && (
+                <div>
+                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {form.tipo === "consulta" ? "Valor da Consulta (R$)" : "Valor Orçado (R$)"}
+                  </Label>
+                  <CurrencyInput
+                    value={form.valor_orcado}
+                    onValueChange={(v) => setForm((f) => ({ ...f, valor_orcado: v ?? null }))}
                     className="h-10 text-sm rounded-lg border-border/60 mt-1"
-                    onChange={(e) => setForm((f) => ({ ...f, local: e.target.value }))}
-                    placeholder="Nome ou endereço da clínica"
                   />
                 </div>
               )}
+              {/* ── Data e Hora ── */}
+              <div>
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                  <CalendarDays className="h-3 w-3" /> Data e Hora de Início
+                </Label>
+                <div className="flex gap-2 mt-1">
+                  {/* Calendar */}
+                  <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "flex-1 justify-start text-left font-normal h-10 rounded-lg text-sm border-border/60",
+                          !dataInicio && "text-muted-foreground/50"
+                        )}
+                      >
+                        <CalendarDays className="mr-2 h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        {dataInicio
+                          ? format(dataInicio, "EEE, dd 'de' MMM", { locale: ptBR })
+                          : "Selecionar data"
+                        }
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 rounded-xl border-border/60" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dataInicio}
+                        onSelect={handleDateChange}
+                        initialFocus
+                        locale={ptBR}
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  {/* Hour : Minute */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <Select value={horaInicio} onValueChange={handleHoraChange}>
+                      <SelectTrigger className="h-10 w-[62px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px] rounded-xl border-border/60">
+                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(h => (
+                          <SelectItem key={h} value={h} className="text-sm tabular-nums">{h}h</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <span className="text-muted-foreground font-semibold text-sm">:</span>
+                    <Select value={minutoInicio} onValueChange={handleMinutoChange}>
+                      <SelectTrigger className="h-10 w-[60px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-border/60">
+                        {["00","05","10","15","20","25","30","35","40","45","50","55"].map(m => (
+                          <SelectItem key={m} value={m} className="text-sm tabular-nums">{m}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
               {form.tipo === "online" && (
                 <div>
                   <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Link da videochamada</Label>
@@ -404,19 +648,6 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                 </div>
               )}
               <div>
-                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cor do evento</Label>
-                <div className="flex gap-2 mt-2">
-                  {CORES_PREDEFINIDAS.map((c) => (
-                    <button
-                      key={c}
-                      className={cn("w-7 h-7 rounded-full border-2 transition-all", form.cor === c ? "border-foreground scale-110" : "border-transparent")}
-                      style={{ backgroundColor: c }}
-                      onClick={() => setForm((f) => ({ ...f, cor: c }))}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
                 <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Observações</Label>
                 <Textarea
                   value={form.descricao || ""}
@@ -427,20 +658,56 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                 />
               </div>
               {mode === "create" && (
-                <div className="flex items-center gap-2">
-                  <Checkbox id="enviar-wpp" checked={enviarConfirmacao} onCheckedChange={(c) => setEnviarConfirmacao(!!c)} />
-                  <Label htmlFor="enviar-wpp" className="cursor-pointer text-sm">Enviar confirmação via WhatsApp agora</Label>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setAtivarFluxo((v) => !v)}
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-xl border px-4 py-3 transition-colors text-left",
+                    ativarFluxo
+                      ? "border-blue-200/80 bg-blue-50/60"
+                      : "border-border/40 bg-muted/20"
+                  )}
+                >
+                  <div className="flex items-center gap-2.5">
+                    {ativarFluxo
+                      ? <Bell className="h-4 w-4 text-blue-500 shrink-0" />
+                      : <BellOff className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                    }
+                    <div>
+                      <p className={cn("text-[13px] font-medium", ativarFluxo ? "text-foreground" : "text-muted-foreground")}>
+                        Ativar fluxo de notificações
+                      </p>
+                      <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                        {ativarFluxo
+                          ? "O lead receberá os lembretes automáticos configurados"
+                          : "Nenhuma notificação será enviada para este agendamento"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "h-5 w-9 rounded-full transition-colors relative shrink-0",
+                    ativarFluxo ? "bg-blue-500" : "bg-muted-foreground/20"
+                  )}>
+                    <span className={cn(
+                      "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                      ativarFluxo ? "translate-x-4" : "translate-x-0.5"
+                    )} />
+                  </div>
+                </button>
               )}
             </div>
 
-            <div className="flex items-center justify-between px-6 py-4 border-t border-border/40 bg-muted/20">
-              <Button variant="outline" size="sm" onClick={onClose} className="h-8 text-xs rounded-lg">
+            <div className="px-6 py-4 border-t border-border/40 flex items-center justify-end gap-2 bg-muted/10">
+              <Button variant="ghost" onClick={onClose} className="text-xs font-semibold rounded-lg">
                 Cancelar
               </Button>
-              <Button size="sm" onClick={handleSalvar} disabled={loading} className="h-9 text-xs rounded-lg px-5 font-semibold">
-                {loading && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                {mode === "edit" ? "Salvar alterações" : "Criar Agendamento"}
+              <Button
+                onClick={handleSalvar}
+                disabled={loading}
+                className="text-xs font-semibold rounded-lg gap-2 bg-foreground text-background hover:bg-foreground/90 px-5"
+              >
+                {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CalendarDays className="h-3.5 w-3.5" />}
+                {mode === "edit" ? "Salvar Alterações" : "Criar Agendamento"}
               </Button>
             </div>
           </div>

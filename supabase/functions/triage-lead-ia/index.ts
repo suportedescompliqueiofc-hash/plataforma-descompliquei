@@ -12,30 +12,31 @@ const openrouter = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
-const SYSTEM_PROMPT = `Você é um triador de mensagens de WhatsApp para clínicas estéticas e de saúde.
-Analise a PRIMEIRA mensagem de um novo contato e decida se o atendimento automático (IA de pré-atendimento) deve ser ativado.
+const SYSTEM_PROMPT = `Você é um classificador de primeira mensagem de WhatsApp para clínicas de saúde e estética.
 
-ATIVE a IA ({"ativar_ia": true}) quando a mensagem indica CLARAMENTE:
-- Pessoa nova buscando informações sobre procedimentos, tratamentos ou serviços estéticos/de saúde
-- Pergunta genérica sobre preços, agenda, disponibilidade ou como funciona
-- Cumprimento simples de primeiro contato ("oi", "olá", "bom dia", "boa tarde") sem outro contexto
-- Interesse inicial sem contexto prévio com a clínica
-- Lead que veio de indicação mas está fazendo contato inicial ("minha amiga indicou")
+Sua tarefa: analisar a PRIMEIRA mensagem de um novo contato e decidir se a IA de pré-atendimento deve responder automaticamente.
 
-NÃO ATIVE a IA ({"ativar_ia": false}) quando a mensagem indica:
-- Referência a atendimento, consulta ou conversa anterior ("aquela consulta", "como falamos", "conforme combinado", "voltei")
-- Contexto específico com médico ou equipe ("Dra.", "doutor", "a menina que me atendeu")
-- Dúvida pós-procedimento ou pós-consulta ("depois do botox", "meu resultado", "como está cicatrizando")
-- Situação muito específica que exige contexto humano (exame, resultado, reclamação)
-- Mensagem de fornecedor, parceiro ou contexto claramente não-paciente
-- Reagendamento ou cancelamento de consulta já marcada
-- Candidato a vaga de emprego, estágio ou processo seletivo ("processo seletivo", "vaga", "currículo", "candidatura", "disponibilidade para trabalhar", "sou técnica em", "formação", "experiência profissional")
-- Mensagem com tom de apresentação pessoal/profissional (dados pessoais, formação acadêmica, experiências de trabalho)
-- Pessoa que pergunta se "há vagas" ou menciona querer "trabalhar" no local
+ATIVE a IA quando a mensagem indica claramente um potencial novo paciente:
+- Cumprimento simples de primeiro contato ("oi", "olá", "bom dia", "boa tarde", "tudo bem?", "boa noite")
+- Pergunta sobre procedimentos, tratamentos, serviços, preços, horários, disponibilidade ou como funciona
+- Interesse inicial mesmo vindo de indicação ("minha amiga indicou", "vi no seu Instagram", "me falaram de vocês")
+- Mensagem curta e genérica sem contexto anterior algum
 
-Em caso de dúvida, prefira NÃO ativar ({"ativar_ia": false}) — é melhor um humano avaliar do que a IA entrar em contexto errado.
+NÃO ATIVE a IA quando a mensagem indica contexto já existente ou situação que exige humano:
+- Referência a atendimento ou conversa anterior ("como falamos", "voltei", "conforme combinado", "aquela consulta", "da última vez", "já fui aí", "já sou paciente")
+- Menciona profissional específico pelo nome ou papel ("Dra. Ana", "Dr. João", "a menina da recepção", "a que me atendeu")
+- Dúvida pós-procedimento ou pós-consulta ("depois do botox", "meu resultado", "como está cicatrizando", "recebi alta")
+- Contexto de emprego, currículo ou processo seletivo ("tenho interesse na vaga", "sou técnica em", "processo seletivo", "disponibilidade para trabalhar")
+- Claramente fornecedor ou parceiro comercial ("nossa empresa oferece", "representante de", "distribuidor")
+- Reagendamento ou cancelamento de consulta já marcada ("preciso remarcar", "quero cancelar minha consulta")
+- Urgência ou emergência ("estou com muita dor", "tive uma reação alérgica", "sangramento")
+- Mensagem automatizada ou empresarial
 
-Retorne APENAS JSON válido, sem markdown: {"ativar_ia": true} ou {"ativar_ia": false}`;
+EM DÚVIDA: prefira NAO — é melhor um humano avaliar do que a IA entrar em contexto errado.
+
+Responda EXATAMENTE neste formato (duas linhas, sem mais nada):
+DECISAO: SIM
+MOTIVO: razao objetiva em ate 12 palavras sem aspas`;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,6 +45,8 @@ const corsHeaders = {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const inicioTotal = Date.now();
 
   try {
     const { lead_id, organization_id, mensagem, tipo_mensagem, media_path } = await req.json();
@@ -63,51 +66,135 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Buscar dados do lead para enriquecer o contexto
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("nome, origem")
+      .eq("id", lead_id)
+      .single();
+
+    const leadNome = lead?.nome ?? null;
+    const origemLead = lead?.origem ?? null;
+
     const textoMensagem = mensagem?.trim() || "";
     let ativarIa = false;
+    let motivo = "";
+    let respostaRaw: string | null = null;
+    const modelo = "google/gemini-2.5-flash-lite";
 
     if (!textoMensagem) {
-      // Sem texto: diferenciar por tipo de mídia
-      // - áudio/voz: comportamento natural de lead → ativar IA
-      // - documento/pdf: candidato a emprego, currículo, fornecedor → NÃO ativar
-      // - imagem sem legenda: comportamento atípico de lead → NÃO ativar
-      // - demais tipos sem texto: não ativar por segurança
+      // Sem texto: classificar por tipo de mídia
       const tipoNorm = (tipo_mensagem || "").toLowerCase();
       if (tipoNorm === "audio" || tipoNorm === "voz" || tipoNorm === "ptt") {
-        console.log(`[triage-lead-ia] Lead ${lead_id} — áudio sem texto, ativando IA`);
         ativarIa = true;
-      } else {
-        console.log(`[triage-lead-ia] Lead ${lead_id} — mídia sem texto (${tipo_mensagem}), NÃO ativando IA (possível candidato, fornecedor ou comportamento atípico)`);
+        motivo = "Áudio de primeiro contato — comportamento natural de lead.";
+        console.log(`[triage-lead-ia] Lead ${lead_id} — áudio sem texto, ativando IA`);
+      } else if (tipoNorm === "document" || tipoNorm === "pdf") {
         ativarIa = false;
+        motivo = "Documento enviado — possível currículo, fornecedor ou candidato.";
+        console.log(`[triage-lead-ia] Lead ${lead_id} — documento, NÃO ativando IA`);
+      } else {
+        ativarIa = false;
+        motivo = `Mídia sem legenda (${tipo_mensagem}) — comportamento atípico de lead.`;
+        console.log(`[triage-lead-ia] Lead ${lead_id} — mídia sem texto (${tipo_mensagem}), NÃO ativando IA`);
       }
     } else {
-      // Chamar DeepSeek V4 Flash para classificar a mensagem
+      // Contexto adicional para enriquecer a decisão
+      const contextoOrigem = origemLead
+        ? `\nOrigem do lead: ${origemLead} (leads de marketing tendem a ser primeiro contato).`
+        : "";
+
+      const TRIAGE_TOOL = {
+        type: "function" as const,
+        function: {
+          name: "classificar_lead",
+          description: "Classifica se a IA de pré-atendimento deve ser ativada para este lead.",
+          parameters: {
+            type: "object",
+            properties: {
+              ativar_ia: {
+                type: "boolean",
+                description: "true = ativar IA, false = encaminhar para humano",
+              },
+              motivo: {
+                type: "string",
+                description: "Razão objetiva da decisão em até 12 palavras",
+              },
+            },
+            required: ["ativar_ia", "motivo"],
+          },
+        },
+      };
+
+      const inicioLlm = Date.now();
       const completion = await openrouter.chat.completions.create({
-        model: "deepseek/deepseek-v4-flash",
+        model: modelo,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: `Primeira mensagem do lead: "${textoMensagem}"` },
+          {
+            role: "user",
+            content: `Mensagem: ${textoMensagem}${contextoOrigem}`,
+          },
         ],
-        max_tokens: 20,
+        tools: [TRIAGE_TOOL],
+        tool_choice: { type: "function", function: { name: "classificar_lead" } },
+        max_tokens: 80,
         temperature: 0,
       });
+      const duracaoLlm = Date.now() - inicioLlm;
 
-      const resposta = completion.choices[0]?.message?.content?.trim() ?? "";
-      console.log(`[triage-lead-ia] Lead ${lead_id} | Mensagem: "${textoMensagem}" | Resposta: ${resposta}`);
+      const toolCall = completion.choices[0]?.message?.tool_calls?.[0];
+      respostaRaw = toolCall?.function?.arguments ?? completion.choices[0]?.message?.content ?? "";
+      console.log(`[triage-lead-ia] Lead ${lead_id} | "${textoMensagem}" | LLM: ${duracaoLlm}ms | Raw: ${respostaRaw}`);
 
-      try {
-        const parsed = JSON.parse(resposta);
-        ativarIa = parsed.ativar_ia === true;
-      } catch {
-        console.warn("[triage-lead-ia] Resposta inválida da IA, não ativando:", resposta);
-        ativarIa = false;
+      if (toolCall?.function?.arguments) {
+        try {
+          const args = JSON.parse(toolCall.function.arguments);
+          ativarIa = args.ativar_ia === true;
+          motivo = typeof args.motivo === "string" ? args.motivo.trim() : "";
+        } catch {
+          console.warn("[triage-lead-ia] Falha ao parsear tool arguments:", toolCall.function.arguments);
+          ativarIa = false;
+          motivo = "Erro ao parsear resposta da ferramenta.";
+        }
+      } else {
+        // Modelo não chamou a tool — fallback ultra-permissivo no texto livre
+        const txt = (completion.choices[0]?.message?.content ?? "").toUpperCase();
+        console.warn(`[triage-lead-ia] Modelo não usou tool calling. Conteúdo: ${txt}`);
+        ativarIa = (
+          txt.includes("TRUE") ||
+          txt.includes('"ATIVAR_IA": TRUE') ||
+          /\bSIM\b/.test(txt) ||
+          /\bATIV/.test(txt)
+        ) && !(/\bN[AÃ]O\b/.test(txt) && !/\bN[AÃ]O ENCAMINH/.test(txt));
+        motivo = ativarIa
+          ? "Decisão positiva extraída de resposta livre."
+          : "Modelo não usou tool calling — padrão conservador.";
       }
+
     }
+
+    const duracaoTotal = Date.now() - inicioTotal;
+
+    // Salvar log da decisão
+    await supabase.from("triage_ia_logs").insert({
+      organization_id,
+      lead_id,
+      lead_nome: leadNome,
+      mensagem: textoMensagem || null,
+      tipo_mensagem: tipo_mensagem || null,
+      decisao: ativarIa,
+      motivo: motivo || null,
+      modelo,
+      duracao_ms: duracaoTotal,
+      origem_lead: origemLead,
+      resposta_raw: respostaRaw,
+    });
 
     if (ativarIa) {
       // 1. Ativar IA no lead
       await supabase.from("leads").update({ ia_ativa: true, ia_ja_ativada: true }).eq("id", lead_id);
-      console.log(`[triage-lead-ia] Lead ${lead_id} — IA ativada`);
+      console.log(`[triage-lead-ia] Lead ${lead_id} — IA ativada | Motivo: ${motivo}`);
 
       // 2. Disparar whatsapp-ai-agent para responder à primeira mensagem
       await supabase.functions.invoke("whatsapp-ai-agent", {
@@ -121,11 +208,12 @@ Deno.serve(async (req) => {
       });
       console.log(`[triage-lead-ia] Lead ${lead_id} — whatsapp-ai-agent disparado`);
     } else {
-      console.log(`[triage-lead-ia] Lead ${lead_id} — IA não ativada, roteado para atendimento humano`);
+      await supabase.from("leads").update({ ia_ativa: false, ia_ja_ativada: true }).eq("id", lead_id);
+      console.log(`[triage-lead-ia] Lead ${lead_id} — IA não ativada | Motivo: ${motivo}`);
     }
 
     return new Response(
-      JSON.stringify({ ativar_ia: ativarIa }),
+      JSON.stringify({ ativar_ia: ativarIa, motivo }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

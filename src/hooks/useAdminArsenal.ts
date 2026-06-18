@@ -17,6 +17,7 @@ export interface AdminCategoria {
   nome: string;
   slug: string;
   ordem: number;
+  cor?: string | null;
 }
 
 export function useAdminCategorias() {
@@ -25,7 +26,7 @@ export function useAdminCategorias() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('arsenal_categorias' as any)
-        .select('id, nome, slug, ordem')
+        .select('id, nome, slug, ordem, cor')
         .order('ordem');
       if (error) throw error;
       return (data ?? []) as AdminCategoria[];
@@ -37,7 +38,7 @@ export function useAdminCategorias() {
 export function useCreateCategoria() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (p: { nome: string; slug: string; ordem?: number }) => {
+    mutationFn: async (p: { nome: string; slug: string; ordem?: number; cor?: string | null }) => {
       const { error } = await supabase.from('arsenal_categorias' as any).insert(p);
       if (error) throw error;
     },
@@ -315,6 +316,146 @@ export function useDeleteArsenalTemplate() {
       qc.invalidateQueries({ queryKey: ['admin-arsenal-templates-list'] });
       qc.invalidateQueries({ queryKey: ['arsenal-templates-all'] });
       qc.invalidateQueries({ queryKey: ['arsenal-templates'] });
+    },
+  });
+}
+
+// ─── Blocos de Aulas ──────────────────────────────────────────────────────────
+
+export interface AdminBloco {
+  id: string;
+  nome: string;
+  slug: string;
+  ordem: number;
+  tipo: string;
+}
+
+export function useAdminBlocos() {
+  return useQuery({
+    queryKey: ['admin-arsenal-blocos'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('arsenal_blocos' as any)
+        .select('id, nome, slug, ordem, tipo')
+        .eq('tipo', 'aulas')
+        .order('ordem');
+      if (error) throw error;
+      return (data ?? []) as AdminBloco[];
+    },
+    staleTime: 0,
+  });
+}
+
+export function useCreateBloco() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: { nome: string; slug: string; descricao?: string; ordem: number }) => {
+      const { error } = await supabase.from('arsenal_blocos' as any).insert({ ...p, tipo: 'aulas' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-arsenal-blocos'] });
+      qc.invalidateQueries({ queryKey: ['arsenal-blocos'] });
+    },
+  });
+}
+
+export function useUpdateBloco() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: any }) => {
+      const { error } = await supabase.from('arsenal_blocos' as any).update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-arsenal-blocos'] });
+      qc.invalidateQueries({ queryKey: ['arsenal-blocos'] });
+    },
+  });
+}
+
+export function useDeleteBloco() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('arsenal_blocos' as any).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-arsenal-blocos'] });
+      qc.invalidateQueries({ queryKey: ['arsenal-blocos'] });
+    },
+  });
+}
+
+// ─── Aulas ────────────────────────────────────────────────────────────────────
+
+export interface AdminAula {
+  id: string;
+  bloco_id: string;
+  nome: string;
+  descricao: string | null;
+  slug: string;
+  ordem: number;
+  video_url: string | null;
+  texto_aprenda: string | null;
+  ativo: boolean;
+}
+
+export function useAdminAulas() {
+  return useQuery({
+    queryKey: ['admin-arsenal-aulas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('arsenal_aulas' as any)
+        .select('id, bloco_id, nome, descricao, slug, ordem, video_url, texto_aprenda, ativo')
+        .order('ordem');
+      if (error) throw error;
+      return (data ?? []) as AdminAula[];
+    },
+    staleTime: 0,
+  });
+}
+
+export function useCreateAula() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (p: Omit<AdminAula, 'id'>) => {
+      const { error } = await supabase.from('arsenal_aulas' as any).insert(p);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-arsenal-aulas'] });
+      qc.invalidateQueries({ queryKey: ['arsenal-aulas'] });
+    },
+  });
+}
+
+export function useUpdateAula() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: { id: string; [key: string]: any }) => {
+      const { error } = await supabase.from('arsenal_aulas' as any).update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-arsenal-aulas'] });
+      qc.invalidateQueries({ queryKey: ['arsenal-aulas'] });
+      qc.invalidateQueries({ queryKey: ['arsenal-aula'] });
+    },
+  });
+}
+
+export function useDeleteAula() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('arsenal_aulas' as any).delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-arsenal-aulas'] });
+      qc.invalidateQueries({ queryKey: ['arsenal-aulas'] });
     },
   });
 }

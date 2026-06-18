@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import {
   Calendar as CalendarIcon, Clock, Link as LinkIcon, Video, Plus, Edit3,
-  Loader2, Trash2, ChevronLeft, ChevronRight
+  Loader2, Trash2, ChevronLeft, ChevronRight, Youtube, PlayCircle, FileVideo
 } from 'lucide-react';
 import {
   format, isAfter, isBefore, startOfToday, addDays,
@@ -47,16 +47,15 @@ interface CalEvent {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function AdminSessoes() {
 
-  const [activeTab, setActiveTab] = useState<'sessoes' | 'calendario'>('sessoes');
+  const [activeTab, setActiveTab] = useState<'sessoes' | 'calendario' | 'gravacoes'>('sessoes');
 
   // ── Sessões state ──────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
   const [sessoes, setSessoes] = useState<Sessao[]>([]);
-  const [filterType, setFilterType] = useState('todas');
   const [filterTime, setFilterTime] = useState('todas');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<Partial<Sessao>>({
-    title: '', type: 'comercial', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true
+    title: '', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true
   });
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Sessao | null>(null);
@@ -72,6 +71,11 @@ export default function AdminSessoes() {
     title: '', type: 'reuniao', start_at: '', end_at: '', meet_link: '', description: '', client_id: 'none'
   });
   const [calSaving, setCalSaving] = useState(false);
+
+  // ── Gravações state ────────────────────────────────────────────────────────
+  const [showRecModal, setShowRecModal] = useState(false);
+  const [recForm, setRecForm] = useState<{ id: string; title: string; recording_url: string }>({ id: '', title: '', recording_url: '' });
+  const [recSaving, setRecSaving] = useState(false);
 
   useEffect(() => {
     document.title = 'Sessões Táticas · Admin OS | Descompliquei';
@@ -150,7 +154,7 @@ export default function AdminSessoes() {
   }
 
   function openNew() {
-    setFormData({ title: '', type: 'comercial', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true });
+    setFormData({ title: '', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true });
     setShowModal(true);
   }
 
@@ -159,7 +163,6 @@ export default function AdminSessoes() {
   const proximaSessao = proximas.length > 0 ? proximas[0] : null;
 
   const filtered = sessoes.filter(s => {
-    if (filterType !== 'todas' && s.type !== filterType) return false;
     if (filterTime === 'futuras' && !isAfter(new Date(s.scheduled_at), hoje)) return false;
     if (filterTime === 'passadas' && !isBefore(new Date(s.scheduled_at), hoje)) return false;
     return true;
@@ -243,6 +246,41 @@ export default function AdminSessoes() {
     }
   }
 
+  // ── Gravações helpers ──────────────────────────────────────────────────────
+  function getYoutubeId(url: string): string | null {
+    const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  }
+
+  async function saveRecordingUrl() {
+    if (!recForm.recording_url.trim()) { toast.error('Cole o link do YouTube'); return; }
+    setRecSaving(true);
+    try {
+      const { error } = await supabase
+        .from('platform_sessoes_taticas')
+        .update({ recording_url: recForm.recording_url.trim() })
+        .eq('id', recForm.id);
+      if (error) throw error;
+      toast.success('Gravação vinculada com sucesso');
+      setShowRecModal(false);
+      loadSessoes();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setRecSaving(false);
+    }
+  }
+
+  async function removeRecordingUrl(id: string) {
+    const { error } = await supabase
+      .from('platform_sessoes_taticas')
+      .update({ recording_url: '' })
+      .eq('id', id);
+    if (error) { toast.error('Erro ao remover gravação'); return; }
+    toast.success('Gravação removida');
+    loadSessoes();
+  }
+
   const renderCalHeader = () => {
     let startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
     return (
@@ -317,8 +355,16 @@ export default function AdminSessoes() {
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
+  const statsData = [
+    { label: 'Total', value: sessoes.length, sub: 'sessões cadastradas' },
+    { label: 'Próximas', value: sessoes.filter(s => s.active && isAfter(new Date(s.scheduled_at), hoje)).length, sub: 'agendadas' },
+    { label: 'Realizadas', value: sessoes.filter(s => isBefore(new Date(s.scheduled_at), hoje)).length, sub: 'sessões passadas' },
+    { label: 'Gravações', value: sessoes.filter(s => s.recording_url && s.recording_url.trim() !== '').length, sub: 'disponíveis' },
+  ];
+
   return (
     <div className="space-y-6 pb-10">
+
       {/* HEADER */}
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -330,155 +376,227 @@ export default function AdminSessoes() {
           </div>
           <p className="text-[13px] text-muted-foreground ml-10">Gerencie os encontros ao vivo com seus clientes</p>
         </div>
-        <Button onClick={openNew} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 shrink-0">
-          <Plus className="h-3.5 w-3.5" /> Nova Sessão
-        </Button>
+        {activeTab !== 'calendario' && (
+          <Button onClick={openNew} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 shrink-0">
+            <Plus className="h-3.5 w-3.5" /> Nova Sessão
+          </Button>
+        )}
+      </div>
+
+      {/* STATS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {statsData.map(({ label, value, sub }) => (
+          <div key={label} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] px-5 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1">{label}</p>
+            <p className="text-3xl font-bold tabular-nums text-foreground font-display">{value}</p>
+            <p className="text-[11px] text-muted-foreground/50 mt-0.5">{sub}</p>
+          </div>
+        ))}
       </div>
 
       {/* TABS PILL */}
-      <div className="flex items-center bg-muted/40 rounded-xl p-1 w-fit gap-0.5">
-        {(['sessoes', 'calendario'] as const).map(t => (
-          <button key={t} onClick={() => setActiveTab(t)}
+      <div className="inline-flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
+        {([
+          { id: 'sessoes', label: 'Sessões' },
+          { id: 'gravacoes', label: 'Gravações' },
+          { id: 'calendario', label: 'Calendário' },
+        ] as const).map(t => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
             className={cn('px-4 py-1.5 text-xs font-semibold rounded-lg transition-all',
-              activeTab === t ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              activeTab === t.id ? 'bg-foreground text-background shadow-sm' : 'text-muted-foreground hover:text-foreground'
             )}>
-            {t === 'sessoes' ? 'Sessões' : 'Calendário'}
+            {t.label}
           </button>
         ))}
       </div>
 
-        {/* ── ABA SESSÕES ──────────────────────────────────────────────────── */}
-        {activeTab === 'sessoes' && (
-          <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Próxima sessão */}
+      {/* ── ABA SESSÕES ────────────────────────────────────────────────────── */}
+      {activeTab === 'sessoes' && (
+        <div className="space-y-5">
+
+          {/* Próxima sessão — destaque */}
+          {proximaSessao ? (
             <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Próxima Sessão</p>
+              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03] flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-muted">
+                  <CalendarIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                </span>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Próxima Sessão</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Encontro ao vivo mais próximo</p>
+                </div>
               </div>
-              <div className="p-5">
-                {proximaSessao ? (
-                  <div className="space-y-3">
-                    <h3 className="text-lg font-bold text-foreground font-display">{proximaSessao.title}</h3>
-                    <div className="flex items-center text-sm text-muted-foreground gap-1.5">
-                      <CalendarIcon className="h-3.5 w-3.5 shrink-0" />
-                      {format(new Date(proximaSessao.scheduled_at), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
-                    </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border/40 uppercase">
-                      {proximaSessao.type}
+              <div className="p-5 flex items-center gap-6">
+                {/* Date badge */}
+                <div className="shrink-0 flex flex-col items-center justify-center w-16 h-16 rounded-2xl border border-border/60 bg-muted/30">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    {format(new Date(proximaSessao.scheduled_at), 'MMM', { locale: ptBR })}
+                  </span>
+                  <span className="text-2xl font-bold tabular-nums text-foreground leading-none mt-0.5">
+                    {format(new Date(proximaSessao.scheduled_at), 'dd')}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-base font-bold text-foreground font-display truncate">{proximaSessao.title}</h3>
+                  <div className="flex items-center gap-4 mt-1.5 flex-wrap">
+                    <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      {format(new Date(proximaSessao.scheduled_at), "HH:mm '·' EEEE", { locale: ptBR })}
                     </span>
+                    {proximaSessao.description && (
+                      <span className="text-[12px] text-muted-foreground/60 truncate max-w-xs">{proximaSessao.description}</span>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhuma sessão futura agendada.</p>
+                </div>
+                {proximaSessao.meet_link && (
+                  <a href={proximaSessao.meet_link} target="_blank" rel="noreferrer">
+                    <Button variant="outline" size="sm" className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 shrink-0">
+                      <LinkIcon className="h-3 w-3" /> Acessar
+                    </Button>
+                  </a>
                 )}
               </div>
             </div>
-
-            {/* Mini calendário 30 dias */}
-            <div className="md:col-span-2 rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Próximos 30 dias</p>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-border/50 bg-muted/[0.02] flex flex-col items-center justify-center py-10 text-center">
+              <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                <CalendarIcon className="h-5 w-5 text-muted-foreground/30" />
               </div>
-              <div className="p-4">
-                <div className="flex gap-2 overflow-x-auto pb-1">
-                  {Array.from({ length: 30 }).map((_, i) => {
-                    const d = addDays(hoje, i);
-                    const hasSessao = sessoes.some(s => new Date(s.scheduled_at).toDateString() === d.toDateString());
-                    if (!hasSessao && i > 14) return null;
-                    return (
-                      <div key={i} className={cn(
-                        'shrink-0 flex flex-col items-center justify-center p-2 rounded-xl border w-14 h-16',
-                        hasSessao ? 'border-foreground/20 bg-foreground/[0.06]' : 'border-border/40 bg-muted/20'
-                      )}>
-                        <span className="text-[9px] text-muted-foreground uppercase font-semibold">{format(d, 'EEE', { locale: ptBR })}</span>
-                        <span className={cn('text-base font-bold', hasSessao ? 'text-foreground' : 'text-muted-foreground')}>{format(d, 'dd')}</span>
-                        {hasSessao && <div className="w-1 h-1 rounded-full bg-foreground mt-0.5" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <p className="text-sm font-medium text-muted-foreground">Nenhuma sessão futura agendada</p>
+              <p className="text-[11px] text-muted-foreground/40 mt-0.5">Crie a próxima sessão usando o botão acima</p>
             </div>
-          </div>
+          )}
 
-          {/* Tabela de sessões */}
+          {/* Lista de sessões */}
           <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-            <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03] flex items-center gap-3 flex-wrap">
-              <Select value={filterType} onValueChange={setFilterType}>
-                <SelectTrigger className="w-[160px] h-8 rounded-lg border-border/60 text-xs bg-background"><SelectValue placeholder="Tipo" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todos os Tipos</SelectItem>
-                  <SelectItem value="comercial">Comercial</SelectItem>
-                  <SelectItem value="demanda">Demanda</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-muted">
+                  <Video className="h-3.5 w-3.5 text-muted-foreground" />
+                </span>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Todas as Sessões</p>
+              </div>
               <Select value={filterTime} onValueChange={setFilterTime}>
-                <SelectTrigger className="w-[160px] h-8 rounded-lg border-border/60 text-xs bg-background"><SelectValue placeholder="Período" /></SelectTrigger>
+                <SelectTrigger className="w-[150px] h-7 rounded-lg border-border/60 text-[11px] bg-background">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todas">Todos os Períodos</SelectItem>
-                  <SelectItem value="futuras">Futuras</SelectItem>
-                  <SelectItem value="passadas">Passadas</SelectItem>
+                  <SelectItem value="todas">Todos os períodos</SelectItem>
+                  <SelectItem value="futuras">Somente futuras</SelectItem>
+                  <SelectItem value="passadas">Somente passadas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border/40 bg-muted/20">
-                    {['Data/Hora', 'Título', 'Tipo', 'Links', 'Ativa', 'Ações'].map(h => (
-                      <th key={h} className="px-5 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {loading
-                    ? <tr><td colSpan={6} className="text-center py-10"><Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" /></td></tr>
-                    : filtered.length === 0
-                      ? <tr><td colSpan={6} className="text-center py-10 text-sm text-muted-foreground">Nenhuma sessão encontrada.</td></tr>
-                      : filtered.map(s => (
-                        <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-5 py-3.5 font-mono text-xs text-muted-foreground tabular-nums">{format(new Date(s.scheduled_at), 'dd/MM/yyyy HH:mm')}</td>
-                          <td className="px-5 py-3.5 font-semibold text-[13px] text-foreground">{s.title}</td>
-                          <td className="px-5 py-3.5">
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border/40 uppercase">{s.type}</span>
-                          </td>
-                          <td className="px-5 py-3.5 space-y-1">
-                            {s.meet_link && <a href={s.meet_link} target="_blank" rel="noreferrer" className="flex items-center text-xs text-blue-500 hover:underline gap-1"><LinkIcon className="h-3 w-3" /> Reunião</a>}
-                            {s.recording_url && <a href={s.recording_url} target="_blank" rel="noreferrer" className="flex items-center text-xs text-emerald-500 hover:underline gap-1"><Video className="h-3 w-3" /> Gravação</a>}
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <Switch checked={s.active} onCheckedChange={() => toggleActive(s.id, s.active)} />
-                          </td>
-                          <td className="px-5 py-3.5">
-                            <div className="flex items-center gap-1">
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground" onClick={() => { setFormData(s); setShowModal(true); }}>
-                                <Edit3 className="h-3.5 w-3.5" />
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10" onClick={() => setDeleteTarget(s)}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                  }
-                </tbody>
-              </table>
-            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Carregando...</span>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                  <CalendarIcon className="h-5 w-5 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">Nenhuma sessão encontrada</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {filtered.map(s => {
+                  const isFutura = isAfter(new Date(s.scheduled_at), hoje);
+                  return (
+                    <div key={s.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/20 transition-colors group">
+                      {/* Date badge */}
+                      <div className={cn(
+                        'shrink-0 flex flex-col items-center justify-center w-11 h-11 rounded-xl border text-center',
+                        isFutura ? 'border-foreground/15 bg-foreground/[0.05]' : 'border-border/40 bg-muted/20'
+                      )}>
+                        <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">
+                          {format(new Date(s.scheduled_at), 'MMM', { locale: ptBR })}
+                        </span>
+                        <span className={cn('text-sm font-bold tabular-nums leading-tight', isFutura ? 'text-foreground' : 'text-muted-foreground')}>
+                          {format(new Date(s.scheduled_at), 'dd')}
+                        </span>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={cn('text-[13px] font-semibold truncate', !s.active && 'text-muted-foreground line-through')}>{s.title}</p>
+                          {!s.active && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground/60 border border-border/40">
+                              Inativa
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                          <span className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                            <Clock className="h-3 w-3" />
+                            {format(new Date(s.scheduled_at), "HH:mm '·' EEE", { locale: ptBR })}
+                          </span>
+                          {s.meet_link && (
+                            <a href={s.meet_link} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-600 hover:underline">
+                              <LinkIcon className="h-3 w-3" /> Meet
+                            </a>
+                          )}
+                          {s.recording_url && (
+                            <a href={s.recording_url} target="_blank" rel="noreferrer"
+                              className="flex items-center gap-1 text-[11px] text-emerald-500 hover:text-emerald-600 hover:underline">
+                              <Video className="h-3 w-3" /> Gravação
+                            </a>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Status pill */}
+                      <span className={cn(
+                        'shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full border hidden sm:inline-flex items-center gap-1',
+                        isFutura
+                          ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                          : 'bg-muted text-muted-foreground/60 border-border/40'
+                      )}>
+                        <span className={cn('h-1.5 w-1.5 rounded-full', isFutura ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+                        {isFutura ? 'Agendada' : 'Realizada'}
+                      </span>
+
+                      {/* Actions */}
+                      <div className="shrink-0 flex items-center gap-2">
+                        <Switch checked={s.active} onCheckedChange={() => toggleActive(s.id, s.active)} />
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                            onClick={() => { setFormData(s); setShowModal(true); }}>
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10"
+                            onClick={() => setDeleteTarget(s)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
-        )}
+      )}
 
-        {/* ── ABA CALENDÁRIO ───────────────────────────────────────────────── */}
-        {activeTab === 'calendario' && (
-          <div className="space-y-5">
+      {/* ── ABA CALENDÁRIO ─────────────────────────────────────────────────── */}
+      {activeTab === 'calendario' && (
+        <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
               <h2 className="text-base font-bold capitalize text-foreground font-display w-44 text-center">
                 {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
               </h2>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
               <Button variant="outline" className="h-8 rounded-lg text-xs border-border/60 ml-1" onClick={() => setCurrentDate(new Date())}>Hoje</Button>
               {calLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
             </div>
@@ -493,14 +611,126 @@ export default function AdminSessoes() {
             {renderCalCells()}
           </div>
 
-          <div className="flex gap-4 items-center text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-blue-500/70" /> Reunião</div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-foreground/40" /> Sessão Tática</div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-emerald-500/70" /> Compromisso</div>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-amber-500/70" /> Lembrete</div>
+          <div className="flex gap-5 items-center text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-blue-500/70" /> Reunião</div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-foreground/40" /> Sessão Tática</div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-emerald-500/70" /> Compromisso</div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-sm bg-amber-500/70" /> Lembrete</div>
           </div>
         </div>
-        )}
+      )}
+
+      {/* ── ABA GRAVAÇÕES ───────────────────────────────────────────────────── */}
+      {activeTab === 'gravacoes' && (() => {
+        const comGravacao = sessoes.filter(s => s.recording_url && s.recording_url.trim() !== '');
+        const semGravacao = sessoes.filter(s => isBefore(new Date(s.scheduled_at), hoje) && (!s.recording_url || s.recording_url.trim() === ''));
+
+        return (
+          <div className="space-y-8">
+            {/* Grid de gravações */}
+            {comGravacao.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                  <Youtube className="h-6 w-6 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">Nenhuma gravação vinculada ainda</p>
+                <p className="text-[11px] text-muted-foreground/50 mt-0.5">Adicione links do YouTube nas sessões passadas abaixo</p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">
+                  {comGravacao.length} gravação{comGravacao.length !== 1 ? 'ões' : ''} disponível{comGravacao.length !== 1 ? 'is' : ''}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                  {comGravacao.map(s => {
+                    const ytId = getYoutubeId(s.recording_url);
+                    const thumb = ytId ? `https://img.youtube.com/vi/${ytId}/mqdefault.jpg` : null;
+                    return (
+                      <div key={s.id} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden group">
+                        {/* Thumbnail */}
+                        <a href={s.recording_url} target="_blank" rel="noreferrer" className="block relative aspect-video bg-muted overflow-hidden">
+                          {thumb ? (
+                            <img src={thumb} alt={s.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Video className="h-8 w-8 text-muted-foreground/30" />
+                            </div>
+                          )}
+                          <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PlayCircle className="h-12 w-12 text-white drop-shadow-lg" />
+                          </div>
+                        </a>
+                        {/* Info */}
+                        <div className="px-4 py-3">
+                          <p className="text-[13px] font-semibold text-foreground leading-tight line-clamp-1">{s.title}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            {format(new Date(s.scheduled_at), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                          </p>
+                        </div>
+                        {/* Footer */}
+                        <div className="flex items-center justify-end px-4 py-2.5 border-t border-border/40 bg-muted/[0.03]">
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                              title="Editar link"
+                              onClick={() => { setRecForm({ id: s.id, title: s.title, recording_url: s.recording_url }); setShowRecModal(true); }}
+                            >
+                              <Edit3 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              size="sm" variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10"
+                              title="Remover gravação"
+                              onClick={() => removeRecordingUrl(s.id)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Sessões sem gravação */}
+            {semGravacao.length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">
+                  Sessões passadas sem gravação
+                </p>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden divide-y divide-border/30">
+                  {semGravacao.map(s => (
+                    <div key={s.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/20 transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-1.5 rounded-lg bg-muted shrink-0">
+                          <FileVideo className="h-3.5 w-3.5 text-muted-foreground/50" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-foreground truncate">{s.title}</p>
+                          <p className="text-[11px] text-muted-foreground/60">
+                            {format(new Date(s.scheduled_at), "dd/MM/yyyy 'às' HH:mm")}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm" variant="outline"
+                        className="h-7 text-[11px] font-medium border-border/60 gap-1.5 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-4"
+                        onClick={() => { setRecForm({ id: s.id, title: s.title, recording_url: '' }); setShowRecModal(true); }}
+                      >
+                        <Youtube className="h-3 w-3" />
+                        Adicionar gravação
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── MODAL SESSÃO ─────────────────────────────────────────────────────── */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
@@ -511,18 +741,9 @@ export default function AdminSessoes() {
               <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título</label>
               <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Sessão Tática #12 - Fechamento" />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</label>
-                <Select value={formData.type} onValueChange={v => setFormData({ ...formData, type: v })}>
-                  <SelectTrigger className="h-10 rounded-lg border-border/60 focus:ring-1 focus:ring-border/60"><SelectValue /></SelectTrigger>
-                  <SelectContent><SelectItem value="comercial">Comercial</SelectItem><SelectItem value="demanda">Demanda</SelectItem></SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data e Hora</label>
-                <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="datetime-local" value={formData.scheduled_at ? new Date(new Date(formData.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setFormData({ ...formData, scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data e Hora</label>
+              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="datetime-local" value={formData.scheduled_at ? new Date(new Date(formData.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setFormData({ ...formData, scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
             </div>
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Link da Reunião (Meet/Zoom)</label>
@@ -626,6 +847,57 @@ export default function AdminSessoes() {
                 </Button>
               )}
             </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── MODAL GRAVAÇÃO ───────────────────────────────────────────────────── */}
+      <Dialog open={showRecModal} onOpenChange={setShowRecModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Youtube className="h-5 w-5 text-red-500" />
+              {recForm.recording_url ? 'Editar gravação' : 'Adicionar gravação'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <p className="text-[13px] text-muted-foreground">
+              <span className="font-semibold text-foreground">{recForm.title}</span>
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Link do YouTube
+              </label>
+              <Input
+                className="h-10 rounded-lg border-border/60 text-sm"
+                placeholder="https://www.youtube.com/watch?v=..."
+                value={recForm.recording_url}
+                onChange={e => setRecForm(f => ({ ...f, recording_url: e.target.value }))}
+                autoFocus
+              />
+              {recForm.recording_url && getYoutubeId(recForm.recording_url) && (
+                <div className="mt-2 rounded-lg overflow-hidden aspect-video bg-muted">
+                  <img
+                    src={`https://img.youtube.com/vi/${getYoutubeId(recForm.recording_url)}/mqdefault.jpg`}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" className="h-9 rounded-lg text-xs" onClick={() => setShowRecModal(false)} disabled={recSaving}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={saveRecordingUrl}
+              disabled={recSaving}
+              className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5"
+            >
+              {recSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Salvar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

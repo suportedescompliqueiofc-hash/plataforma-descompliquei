@@ -3,7 +3,7 @@ import {
   Megaphone, Users, CalendarCheck, BadgeCheck, ArrowRight,
   Target, Activity, ChevronRight, ArrowUpRight, ArrowDownRight,
   Wallet, Zap, Bot, Clock, UserCheck, BarChart3, Stethoscope, Layers, Timer, Gauge,
-  Trophy, CheckCircle2, Bell, ListChecks
+  Trophy, CheckCircle2, Bell, ListChecks, Info
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
@@ -25,6 +25,7 @@ import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { useDashboardLeadsModal } from "@/contexts/DashboardLeadsModalContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 /* ─── Custom Active Dot ─── */
 const PremiumDot = ({ cx, cy, stroke }: any) => (
@@ -142,6 +143,7 @@ export default function Dashboard() {
   const { openModal: openLeadsModal } = useDashboardLeadsModal();
   const [showTempoRespostaDetail, setShowTempoRespostaDetail] = useState(false);
   const [showSemRespostaDetail, setShowSemRespostaDetail] = useState(false);
+  const [handoffDetalhesAberto, setHandoffDetalhesAberto] = useState(false);
 
   const { profile } = useProfile();
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
@@ -243,9 +245,6 @@ export default function Dashboard() {
 
   /* ── Data ── */
   const faturamento = metrics.faturamentoTotal ?? 0;
-  const funnelConversion: any[] = metrics.funnelConversion ?? [];
-  const pipelineDistribution: { name: string; value: number; color: string }[] = metrics.pipelineDistribution ?? [];
-  const allStages = metrics.allStages ?? [];
   const totalLeads = metrics.totalLeadsAtivos ?? metrics.totalContatos ?? 0;
   const mqlCount = metrics.mqlCount ?? 0;
   const scheduledCount = metrics.scheduledCount ?? 0;
@@ -277,19 +276,6 @@ export default function Dashboard() {
     if (s < 60) return `${s}s`;
     return `${Math.round(s / 60)}min`;
   };
-
-  /* ── Funil: derivar nós de stage a partir das transições ── */
-  const funnelStageNodes = funnelConversion.length > 0
-    ? [
-        { name: funnelConversion[0].from, count: funnelConversion[0].fromCount },
-        ...funnelConversion.map((s: any) => ({ name: s.to, count: s.toCount })),
-      ]
-    : [];
-  const funnelTotalEntry = metrics.totalLeadsAtivos || funnelStageNodes[0]?.count || 1;
-  const FUNNEL_COLORS = ['#6366f1', '#8b5cf6', '#3b82f6', '#0ea5e9', '#10b981', '#22c55e'];
-
-  /* ── Pipeline max para escala de barras ── */
-  const pipelineMax = Math.max(...pipelineDistribution.map(d => d.value), 1);
 
   return (
     <div className="space-y-5 mx-auto max-w-[1400px]">
@@ -605,7 +591,7 @@ export default function Dashboard() {
                         "flex flex-col gap-2 px-5 py-5 bg-card transition-colors duration-150",
                         item.listKey && "cursor-pointer hover:bg-muted/20"
                       )}
-                      onClick={() => item.listKey && openLeadsModal(item.label, (metrics as any)[item.listKey] ?? [], allStages)}
+                      onClick={() => item.listKey && openLeadsModal(item.label, (metrics as any)[item.listKey] ?? [])}
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="flex h-6 w-6 items-center justify-center rounded-md" style={{ backgroundColor: item.color + '15' }}>
@@ -658,7 +644,7 @@ export default function Dashboard() {
               {origens.map(o => (
                 <div
                   key={o.key}
-                  onClick={() => o.count > 0 && openLeadsModal(`Leads · ${o.label}`, o.leads, allStages)}
+                  onClick={() => o.count > 0 && openLeadsModal(`Leads · ${o.label}`, o.leads)}
                   className={cn("flex flex-col items-center gap-2 p-5 bg-card transition-colors text-center flex-1 min-w-[160px]", o.count > 0 ? "cursor-pointer hover:bg-muted/20" : "opacity-40")}
                 >
                   <div className="flex items-center gap-1.5">
@@ -806,7 +792,7 @@ export default function Dashboard() {
             <div className="lg:col-span-3 rounded-xl border border-border bg-card overflow-hidden">
               <div className="px-5 pt-5 pb-4">
                 <h3 className="text-[15px] font-semibold font-display text-foreground">Qualidade dos Leads</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{totalQualified} MQLs qualificados no período</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{totalQualified} leads qualificados no período</p>
               </div>
               <div className="px-5 pb-5 grid grid-cols-2 gap-3">
                 {scoring.map((s: any) => {
@@ -845,7 +831,7 @@ export default function Dashboard() {
               <div className="px-5 pb-5 space-y-3">
                 {[
                   { label: 'CPL', desc: 'Custo por Lead', value: fmt(aq.cpl), color: '#6366f1' },
-                  { label: 'CPMQL', desc: 'Custo por MQL', value: fmt(aq.cpm), color: '#8b5cf6' },
+                  { label: 'CPMQL', desc: 'Custo por Qualificado', value: fmt(aq.cpm), color: '#8b5cf6' },
                   { label: 'CPR', desc: 'Custo por Reunião', value: fmt(aq.cpa), color: '#3b82f6' },
                   { label: 'CPA', desc: 'Custo de Aquisição', value: fmt(aq.cpf), color: '#10b981' },
                   { label: 'ROAS', desc: 'Retorno sobre Ads', value: roas, color: '#f59e0b' },
@@ -880,7 +866,7 @@ export default function Dashboard() {
             const CF_COLORS = ['#6366f1', '#8b5cf6', '#3b82f6', '#10b981'];
             const stages = [
               { key: 'leads',        label: 'Leads',        count: cf.leads.count,        pct: cf.leads.pct,        rate: null,                  listKey: 'totalLeadsList',     listTitle: 'Leads no período' },
-              { key: 'mql',          label: 'MQLs',         count: cf.mql.count,          pct: cf.mql.pct,          rate: cf.mql.rate,           listKey: 'mqlLeadsList',       listTitle: 'Leads Qualificados (MQL)' },
+              { key: 'mql',          label: 'Qualificados',  count: cf.mql.count,          pct: cf.mql.pct,          rate: cf.mql.rate,           listKey: 'mqlLeadsList',       listTitle: 'Leads Qualificados' },
               { key: 'agendamentos', label: 'Agendamentos', count: cf.agendamentos.count, pct: cf.agendamentos.pct, rate: cf.agendamentos.rate,  listKey: 'scheduledLeadsList', listTitle: 'Leads Agendados' },
               { key: 'fechamentos',  label: 'Fechamentos',  count: cf.fechamentos.count,  pct: cf.fechamentos.pct,  rate: cf.fechamentos.rate,   listKey: 'closedLeadsList',    listTitle: 'Leads Fechados' },
             ];
@@ -900,12 +886,12 @@ export default function Dashboard() {
               {
                 count: Math.max(0, cf.leads.count - cf.mql.count),
                 lost:  allCfLists.totalLeadsList.filter((l: any) => !mqlIds.has(l.id)),
-                title: 'Leads sem qualificação (MQL)',
+                title: 'Leads sem qualificação',
               },
               {
                 count: Math.max(0, cf.mql.count - cf.agendamentos.count),
                 lost:  allCfLists.mqlLeadsList.filter((l: any) => !schedIds.has(l.id)),
-                title: 'MQLs sem agendamento',
+                title: 'Qualificados sem agendamento',
               },
               {
                 count: Math.max(0, cf.agendamentos.count - cf.fechamentos.count),
@@ -949,7 +935,7 @@ export default function Dashboard() {
                                   <button
                                     className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold tabular-nums transition-colors bg-destructive/8 text-destructive/60 border border-destructive/15 hover:bg-destructive/15 hover:text-destructive/80 cursor-pointer"
                                     title={t.title}
-                                    onClick={() => openLeadsModal(t.title, t.lost.slice(0, t.count), allStages)}
+                                    onClick={() => openLeadsModal(t.title, t.lost.slice(0, t.count))}
                                   >
                                     -{t.count}
                                   </button>
@@ -960,7 +946,7 @@ export default function Dashboard() {
                           <div
                             className="relative flex flex-col justify-between p-3 rounded-xl w-full border transition-colors duration-150 cursor-pointer hover:shadow-md"
                             style={{ backgroundColor: color + '07', borderColor: color + '30' }}
-                            onClick={() => openLeadsModal(stage.listTitle, (metrics as any)[stage.listKey] ?? [], allStages)}
+                            onClick={() => openLeadsModal(stage.listTitle, (metrics as any)[stage.listKey] ?? [])}
                           >
                             <div className="flex items-center justify-between mb-2">
                               <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded" style={{ color, backgroundColor: color + '15' }}>
@@ -1000,34 +986,29 @@ export default function Dashboard() {
                 </div>
               </div>
             </div>
+            <TooltipProvider delayDuration={200}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-px bg-border/40">
               {[
                 {
-                  label: 'Taxa de MQL',
+                  label: 'Taxa de Qualificação',
                   value: `${metrics.taxaMQL ?? 0}%`,
-                  sub: `${mqlCount} de ${totalLeads} lead${totalLeads !== 1 ? 's' : ''}`,
-                  icon: Tag,
-                  color: '#8b5cf6',
-                  listKey: 'mqlLeadsList',
-                  listTitle: 'Leads Qualificados (MQL)',
+                  count: mqlCount, total: totalLeads, unitLabel: `lead${totalLeads !== 1 ? 's' : ''}`,
+                  icon: Tag, color: '#8b5cf6',
+                  listKey: 'mqlLeadsList', listTitle: 'Leads Qualificados',
                 },
                 {
                   label: 'Taxa Agendamento',
                   value: `${metrics.taxaAgendamento ?? 0}%`,
-                  sub: `${scheduledCount} de ${mqlCount} qualificado${mqlCount !== 1 ? 's' : ''}`,
-                  icon: CalendarCheck,
-                  color: '#3b82f6',
-                  listKey: 'scheduledLeadsList',
-                  listTitle: 'Leads Agendados',
+                  count: scheduledCount, total: mqlCount, unitLabel: `qualificado${mqlCount !== 1 ? 's' : ''}`,
+                  icon: CalendarCheck, color: '#3b82f6',
+                  listKey: 'scheduledLeadsList', listTitle: 'Leads Agendados',
                 },
                 {
                   label: 'Taxa Fechamento',
                   value: `${metrics.taxaFechamento ?? 0}%`,
-                  sub: `${closedCount} de ${scheduledCount} agendado${scheduledCount !== 1 ? 's' : ''}`,
-                  icon: BadgeCheck,
-                  color: '#10b981',
-                  listKey: 'closedLeadsList',
-                  listTitle: 'Leads Fechados',
+                  count: closedCount, total: scheduledCount, unitLabel: `agendado${scheduledCount !== 1 ? 's' : ''}`,
+                  icon: BadgeCheck, color: '#10b981',
+                  listKey: 'closedLeadsList', listTitle: 'Leads Fechados',
                 },
               ].map((item) => {
                 const Icon = item.icon;
@@ -1038,7 +1019,7 @@ export default function Dashboard() {
                       "flex flex-col gap-3 p-5 bg-card transition-colors duration-150",
                       item.listKey && "cursor-pointer hover:bg-muted/20"
                     )}
-                    onClick={() => item.listKey && openLeadsModal(item.listTitle!, (metrics as any)[item.listKey] ?? [], allStages)}
+                    onClick={() => item.listKey && openLeadsModal(item.listTitle!, (metrics as any)[item.listKey] ?? [])}
                   >
                     <div className="flex items-center justify-between">
                       <span
@@ -1056,11 +1037,21 @@ export default function Dashboard() {
                         {item.value}
                       </div>
                       <div className="text-[12px] font-medium text-foreground/70 mt-1.5">{item.label}</div>
-                      <div className="text-[10px] text-muted-foreground/50 mt-0.5">{item.sub}</div>
+                      <div className="flex items-baseline gap-1 mt-1">
+                        <span className="text-[15px] font-bold tabular-nums" style={{ color: item.color }}>{item.count}</span>
+                        <span className="text-[11px] text-muted-foreground/50">de {item.total} {item.unitLabel}</span>
+                      </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+            </TooltipProvider>
+            <div className="flex items-center gap-2 px-5 py-3 border-t border-border/40 bg-muted/[0.03]">
+              <Info className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
+              <p className="text-[11px] text-muted-foreground/60">
+                <span className="font-semibold text-muted-foreground">Agendamentos</span> e <span className="font-semibold text-muted-foreground">Fechamentos</span> contam <span className="font-semibold text-muted-foreground">leads únicos</span> com pelo menos 1 evento realizado no período.
+              </p>
             </div>
           </div>
 
@@ -1170,7 +1161,7 @@ export default function Dashboard() {
                         <div
                           key={item.label}
                           className={cn("flex flex-col gap-3 p-5 bg-card", clickable && "cursor-pointer hover:bg-muted/20 transition-colors")}
-                          onClick={() => clickable && openLeadsModal(`Comparecimentos — ${item.label}`, item.list!, allStages)}
+                          onClick={() => clickable && openLeadsModal(`Comparecimentos — ${item.label}`, item.list!)}
                         >
                           <span
                             className="flex h-8 w-8 items-center justify-center rounded-lg"
@@ -1201,6 +1192,261 @@ export default function Dashboard() {
                     })}
                   </div>
                 )}
+              </div>
+            );
+          })()}
+
+          {/* ⑥ EFETIVIDADE DA IA */}
+          {(() => {
+            const iaTotal          = metrics.iaConversasTotal ?? 0;
+            const iaConversasLista = (metrics as any).iaConversasLeadsList ?? [];
+            const iaHandoff        = metrics.iaHandoffConversas ?? 0;
+            const iaHandoffLista   = (metrics as any).iaHandoffLeadsList ?? [];
+            const iaPerdidos       = (metrics as any).iaPerdidosConversas ?? 0;
+            const iaPerdidosLista  = (metrics as any).iaPerdidosLeadsList ?? [];
+            const iaTaxa           = metrics.iaTaxaEfetividade ?? 0;
+            const iaSemDados       = iaTotal === 0;
+
+            const taxaColor = iaTaxa >= 60
+              ? '#10b981'
+              : iaTaxa >= 30
+              ? '#f59e0b'
+              : '#ef4444';
+
+            return (
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <Bot className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">EFETIVIDADE DA IA</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Conversas atendidas pela IA e passagens para atendimento humano</p>
+                    </div>
+                  </div>
+                </div>
+
+                {iaSemDados ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                      <Bot className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground">Nenhuma conversa da IA no período</p>
+                    <p className="text-[11px] text-muted-foreground/50 mt-0.5">Dados aparecem quando a IA envia mensagens para leads</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/40">
+                    {/* Conversas com IA */}
+                    <div
+                      className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                      onClick={() => iaConversasLista.length > 0 && openLeadsModal('Conversas com IA', iaConversasLista)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#6366f115' }}>
+                          <Bot className="h-4 w-4" style={{ color: '#6366f1' }} />
+                        </span>
+                        {iaConversasLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                      </div>
+                      <div>
+                        <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaTotal}</div>
+                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Conversas com IA</div>
+                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">leads únicos atendidos no período</div>
+                      </div>
+                    </div>
+
+                    {/* Passaram para Handoff */}
+                    <div
+                      className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                      onClick={() => iaHandoffLista.length > 0 && openLeadsModal('Passaram para Humano', iaHandoffLista)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#10b98115' }}>
+                          <UserCheck className="h-4 w-4" style={{ color: '#10b981' }} />
+                        </span>
+                        {iaHandoffLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                      </div>
+                      <div>
+                        <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaHandoff}</div>
+                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Passaram para Humano</div>
+                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">IA transferiu para atendente</div>
+                      </div>
+                    </div>
+
+                    {/* Perdidos no caminho */}
+                    <div
+                      className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                      onClick={() => iaPerdidosLista.length > 0 && openLeadsModal('Perdidos no Caminho — Só IA', iaPerdidosLista)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#ef444415' }}>
+                          <AlertTriangle className="h-4 w-4" style={{ color: '#ef4444' }} />
+                        </span>
+                        {iaPerdidosLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                      </div>
+                      <div>
+                        <div className="text-[28px] font-bold font-display leading-none" style={{ color: iaPerdidos > 0 ? '#ef4444' : 'hsl(var(--foreground))' }}>{iaPerdidos}</div>
+                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Perdidos no Caminho</div>
+                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">só IA, sem atendimento humano</div>
+                      </div>
+                    </div>
+
+                    {/* Taxa de Handoff */}
+                    <div className="flex flex-col gap-3 p-5 bg-card">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: taxaColor + '15' }}>
+                        <Gauge className="h-4 w-4" style={{ color: taxaColor }} />
+                      </span>
+                      <div>
+                        <div className="text-[28px] font-bold font-display leading-none" style={{ color: taxaColor }}>
+                          {iaTaxa}%
+                        </div>
+                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Taxa de Handoff</div>
+                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">conversas que chegaram ao humano</div>
+                        <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
+                          <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${Math.min(iaTaxa, 100)}%`, backgroundColor: taxaColor }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ⑥.5 TEMPO DE HANDOFF — IA → HUMANO */}
+          {(() => {
+            const ht = (metrics as any).iaTempoHandoff;
+            if (!ht || ht.total === 0) return null;
+
+            const corTempo = (min: number) =>
+              min <= 5 ? '#10b981' : min <= 30 ? '#f59e0b' : min <= 120 ? '#f97316' : '#ef4444';
+
+            return (
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-muted">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TEMPO DE HANDOFF</p>
+                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">Tempo entre a última mensagem da IA e a primeira resposta humana</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 rounded-lg text-[10px] font-medium border-border/60 gap-1 px-2.5"
+                      onClick={() => setHandoffDetalhesAberto(prev => !prev)}
+                    >
+                      <BarChart3 className="h-3 w-3" />
+                      {handoffDetalhesAberto ? 'Fechar' : 'Ver detalhes'}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-px bg-border/40">
+                  <div className="flex flex-col gap-2 p-5 bg-card">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Média</p>
+                    <div className="text-[24px] font-bold font-display leading-none" style={{ color: corTempo(ht.media) }}>
+                      {fmtMinutes(ht.media)}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/50">{ht.total} handoffs</p>
+                  </div>
+                  <div className="flex flex-col gap-2 p-5 bg-card">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais rápido</p>
+                    <div className="text-[24px] font-bold font-display leading-none" style={{ color: '#10b981' }}>
+                      {fmtMinutes(ht.minimo)}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/50">menor tempo</p>
+                  </div>
+                  <div className="flex flex-col gap-2 p-5 bg-card">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais lento</p>
+                    <div className="text-[24px] font-bold font-display leading-none" style={{ color: corTempo(ht.maximo) }}>
+                      {fmtMinutes(ht.maximo)}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/50">maior tempo</p>
+                  </div>
+                </div>
+
+                {handoffDetalhesAberto && (() => {
+                  const dist = ht.distribuicao || [];
+                  const detalhes = ht.detalhes || [];
+                  const maxCount = Math.max(...dist.map((d: any) => d.count), 1);
+
+                  return (
+                    <>
+                      <div className="px-5 py-4 border-t border-border/40">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Distribuição por faixa de tempo</p>
+                        <div className="space-y-2">
+                          {dist.map((d: any, i: number) => (
+                            <div
+                              key={i}
+                              className={`flex items-center gap-3 group ${d.leads?.length > 0 ? 'cursor-pointer hover:bg-muted/20 -mx-2 px-2 py-1 rounded-lg transition-colors' : 'py-1'}`}
+                              onClick={() => d.leads?.length > 0 && openLeadsModal(`Handoff ${d.label}`, d.leads)}
+                            >
+                              <div className="w-[90px] text-[11px] text-muted-foreground font-medium shrink-0">{d.label}</div>
+                              <div className="flex-1 h-5 bg-muted/30 rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full transition-all duration-500"
+                                  style={{
+                                    width: `${Math.max((d.count / maxCount) * 100, d.count > 0 ? 4 : 0)}%`,
+                                    backgroundColor: corTempo(
+                                      i === 0 ? 0.5 : i === 1 ? 3 : i === 2 ? 10 : i === 3 ? 22 : i === 4 ? 45 : i === 5 ? 120 : i === 6 ? 360 : 720
+                                    ),
+                                  }}
+                                />
+                              </div>
+                              <div className="w-[32px] text-right text-[12px] font-bold font-mono tabular-nums text-foreground">{d.count}</div>
+                              <div className="w-[36px] text-right text-[10px] text-muted-foreground/50 font-mono tabular-nums">{d.pct}%</div>
+                              {d.leads?.length > 0 && (
+                                <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors shrink-0" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {detalhes.length > 0 && (
+                        <div className="px-5 py-4 border-t border-border/40">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Detalhamento por lead ({detalhes.length})</p>
+                          <div className="space-y-1 max-h-[280px] overflow-y-auto">
+                            {detalhes.map((d: any, i: number) => (
+                              <div
+                                key={i}
+                                className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-muted/20 transition-colors cursor-pointer group"
+                                onClick={() => d.lead && openLeadsModal(d.lead.nome || 'Lead', [d.lead])}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className="h-7 w-7 rounded-full bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
+                                    {i + 1}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="text-[12px] font-medium text-foreground truncate">{d.lead?.nome || 'Lead sem nome'}</p>
+                                    <p className="text-[10px] text-muted-foreground/50">{d.lead?.telefone || ''}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <div
+                                    className="text-[13px] font-bold font-mono tabular-nums px-2 py-0.5 rounded-md"
+                                    style={{ color: corTempo(d.minutos), backgroundColor: corTempo(d.minutos) + '10' }}
+                                  >
+                                    {fmtMinutes(d.minutos)}
+                                  </div>
+                                  <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors" />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -1362,11 +1608,11 @@ export default function Dashboard() {
                         <div key={bucket.label} className="flex items-center gap-3 group">
                           <span
                             className={cn("text-[11px] text-muted-foreground w-28 shrink-0 transition-colors", bucket.count > 0 && "cursor-pointer group-hover:text-foreground")}
-                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads, allStages)}
+                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads)}
                           >{bucket.label}</span>
                           <div
                             className={cn("flex-1 bg-muted/40 rounded-full h-1.5 overflow-hidden", bucket.count > 0 && "cursor-pointer")}
-                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads, allStages)}
+                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads)}
                           >
                             <div
                               className="h-full rounded-full transition-all duration-500"
@@ -1402,7 +1648,7 @@ export default function Dashboard() {
                           <div
                             key={o.origem}
                             className={cn("flex items-center gap-3", o.leads?.length && "cursor-pointer group")}
-                            onClick={() => o.leads?.length && openLeadsModal(`Conversão · ${origemLabel[o.origem] ?? o.origem}`, o.leads, allStages)}
+                            onClick={() => o.leads?.length && openLeadsModal(`Conversão · ${origemLabel[o.origem] ?? o.origem}`, o.leads)}
                           >
                             <span className="text-[11px] text-muted-foreground w-24 shrink-0 group-hover:text-foreground transition-colors">
                               {origemLabel[o.origem] ?? o.origem}
@@ -1469,11 +1715,10 @@ export default function Dashboard() {
                               <div
                                 key={lead.id}
                                 className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
-                                onClick={() => { setDetalharBucket(null); openLeadsModal(`Conversão: ${detalharBucket.label}`, detalharBucket.leads, allStages); }}
+                                onClick={() => { setDetalharBucket(null); openLeadsModal(`Conversão: ${detalharBucket.label}`, detalharBucket.leads); }}
                               >
                                 <div
-                                  className="h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                  style={{ backgroundColor: allStages?.find((s: any) => s.posicao_ordem === lead.posicao_pipeline)?.cor ?? '#94a3b8' }}
+                                  className="h-6 w-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white bg-muted-foreground/30 shrink-0"
                                 >
                                   {(lead.nome || '?').trim().split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase()}
                                 </div>
@@ -1496,11 +1741,11 @@ export default function Dashboard() {
             );
           })()}
 
-          {/* ⑧ TOP PROCEDIMENTOS + DISTRIBUIÇÃO DO PIPELINE */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+          {/* ⑧ TOP PROCEDIMENTOS */}
+          <div className="grid grid-cols-1 gap-5">
 
-            {/* Top Procedimentos — 3 colunas */}
-            <div className="lg:col-span-3 rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-top-procedimentos">
+            {/* Top Procedimentos */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-top-procedimentos">
               <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 rounded-lg bg-muted">
@@ -1532,7 +1777,7 @@ export default function Dashboard() {
                         <div
                           key={proc.name}
                           className="group flex items-center gap-3 rounded-xl px-2 py-1.5 -mx-2 cursor-pointer hover:bg-muted/40 transition-colors"
-                          onClick={() => openLeadsModal(proc.name, proc.leads ?? [], allStages)}
+                          onClick={() => openLeadsModal(proc.name, proc.leads ?? [])}
                         >
                           <span
                             className="flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold text-white shrink-0"
@@ -1560,67 +1805,6 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Distribuição do Pipeline — 2 colunas */}
-            <div className="lg:col-span-2 rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-funnel">
-              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-muted">
-                    <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">PIPELINE ATUAL</p>
-                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Leads por etapa — clique para ver detalhes</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-5">
-                {pipelineDistribution.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <div className="p-3 rounded-xl bg-muted/40 mb-3">
-                      <BarChart3 className="h-6 w-6 text-muted-foreground/40" />
-                    </div>
-                    <p className="text-sm font-medium text-muted-foreground">Nenhum lead no pipeline</p>
-                    <p className="text-[11px] text-muted-foreground/50 mt-0.5">Adicione leads para visualizar a distribuição</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2.5">
-                    {pipelineDistribution.map((entry) => {
-                      const pct = (entry.value / pipelineMax) * 100;
-                      const stage = allStages.find((s: any) => s.nome === entry.name);
-                      return (
-                        <div
-                          key={entry.name}
-                          className="group cursor-pointer"
-                          onClick={() => {
-                            if (!stage) return;
-                            const stageLeads = (metrics.filteredAllLeadsList ?? []).filter(
-                              (l: any) => l.posicao_pipeline === stage.posicao_ordem
-                            );
-                            openLeadsModal(`Etapa: ${entry.name}`, stageLeads, allStages);
-                          }}
-                        >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
-                              <span className="text-[12px] font-medium text-foreground group-hover:text-foreground/80 transition-colors truncate max-w-[120px]">
-                                {entry.name}
-                              </span>
-                            </div>
-                            <span className="text-[14px] font-bold font-display text-foreground tabular-nums">{entry.value}</span>
-                          </div>
-                          <div className="h-2 bg-muted/40 rounded-full overflow-hidden group-hover:bg-muted/60 transition-colors">
-                            <div
-                              className="h-full rounded-full transition-all duration-700 ease-out"
-                              style={{ width: `${Math.max(pct, 2)}%`, backgroundColor: entry.color, opacity: 0.8 }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
 
           {/* ⑦ EVOLUÇÃO NO TEMPO — gráfico de barras */}
@@ -1640,10 +1824,6 @@ export default function Dashboard() {
                   <div className="flex items-center gap-1.5">
                     <span className="h-2.5 w-2.5 rounded-sm bg-[#E85D24]" />
                     <span className="text-[11px] text-muted-foreground font-medium">Captados</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
-                    <span className="text-[11px] text-muted-foreground font-medium">Convertidos</span>
                   </div>
                 </div>
               </div>
@@ -1670,10 +1850,7 @@ export default function Dashboard() {
                     <YAxis hide />
                     <Tooltip content={<BarChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3, radius: 4 }} />
                     <Bar dataKey="captados" name="Captados" fill="#E85D24" shape={<RoundedBar />} label={<BarLabel />} cursor="pointer"
-                      onClick={(data: any) => data?.captadosList?.length && openLeadsModal(`Captados em ${data.day}`, data.captadosList, allStages)}
-                    />
-                    <Bar dataKey="convertidos" name="Convertidos" fill="#10b981" shape={<RoundedBar />} label={<BarLabel />} cursor="pointer"
-                      onClick={(data: any) => data?.convertidosList?.length && openLeadsModal(`Convertidos em ${data.day}`, data.convertidosList, allStages)}
+                      onClick={(data: any) => data?.captadosList?.length && openLeadsModal(`Captados em ${data.day}`, data.captadosList)}
                     />
                   </BarChart>
                 </ResponsiveContainer>
@@ -1696,29 +1873,41 @@ export default function Dashboard() {
               <p className="text-xs text-muted-foreground mt-0.5">Taxas de conversão</p>
             </div>
             <div className="px-5 pb-5 space-y-1">
+              <TooltipProvider delayDuration={200}>
               {[
-                { label: 'Taxa de MQL', value: `${pctOf(mqlCount, totalLeads)}%`, sub: `${mqlCount} qualificados`, color: '#8b5cf6', icon: Tag, listKey: 'mqlLeadsList', listTitle: 'Leads Qualificados (MQL)' },
-                { label: 'Taxa Agendamento', value: `${pctOf(scheduledCount, totalLeads)}%`, sub: `${scheduledCount} agendados`, color: '#3b82f6', icon: CalendarCheck, listKey: 'scheduledLeadsList', listTitle: 'Leads Agendados' },
-                { label: 'Taxa Fechamento', value: `${pctOf(closedCount, totalLeads)}%`, sub: `${closedCount} fechados`, color: '#10b981', icon: BadgeCheck, listKey: 'closedLeadsList', listTitle: 'Leads Fechados' },
+                { label: 'Taxa de Qualificação', value: `${pctOf(mqlCount, totalLeads)}%`, sub: `${mqlCount} qualificados`, color: '#8b5cf6', icon: Tag, listKey: 'mqlLeadsList', listTitle: 'Leads Qualificados', tooltip: 'Proporção de leads qualificados sobre o total de leads cadastrados no período' },
+                { label: 'Taxa Agendamento', value: `${pctOf(scheduledCount, totalLeads)}%`, sub: `${scheduledCount} únicos agendados`, color: '#3b82f6', icon: CalendarCheck, listKey: 'scheduledLeadsList', listTitle: 'Leads Agendados', tooltip: 'Leads únicos com pelo menos 1 agendamento realizado no período' },
+                { label: 'Taxa Fechamento', value: `${pctOf(closedCount, totalLeads)}%`, sub: `${closedCount} únicos fechados`, color: '#10b981', icon: BadgeCheck, listKey: 'closedLeadsList', listTitle: 'Leads Fechados', tooltip: 'Leads únicos com pelo menos 1 venda fechada no período' },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
                   <div
                     key={item.label}
                     className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
-                    onClick={() => openLeadsModal(item.listTitle, (metrics as any)[item.listKey] ?? [], allStages)}
+                    onClick={() => openLeadsModal(item.listTitle, (metrics as any)[item.listKey] ?? [])}
                   >
                     <span className="flex h-9 w-9 items-center justify-center rounded-lg shrink-0" style={{ backgroundColor: item.color + '12' }}>
                       <Icon className="h-4 w-4" style={{ color: item.color }} />
                     </span>
                     <div className="flex-1 min-w-0">
-                      <span className="text-[13px] font-medium text-foreground">{item.label}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[13px] font-medium text-foreground">{item.label}</span>
+                        <UITooltip>
+                          <TooltipTrigger asChild>
+                            <Info className="h-3 w-3 text-muted-foreground/30 cursor-help shrink-0" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[220px] text-xs">
+                            {item.tooltip}
+                          </TooltipContent>
+                        </UITooltip>
+                      </div>
                       <p className="text-[11px] text-muted-foreground">{item.sub}</p>
                     </div>
                     <span className="text-lg font-bold font-display text-foreground shrink-0">{item.value}</span>
                   </div>
                 );
               })}
+              </TooltipProvider>
             </div>
           </div>
 
@@ -1738,7 +1927,7 @@ export default function Dashboard() {
                     <Tooltip content={<ChartTooltip />} cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1, strokeDasharray: '4 4' }} />
                     <Legend content={<PremiumLegend />} />
                     <Area type="natural" dataKey="leads" name="Leads" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#gCaptados)" activeDot={<PremiumDot />} dot={false} />
-                    <Area type="natural" dataKey="mqls" name="MQLs" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#gMqls)" activeDot={<PremiumDot />} dot={false} />
+                    <Area type="natural" dataKey="mqls" name="Qualificados" stroke="#8b5cf6" strokeWidth={2.5} fill="url(#gMqls)" activeDot={<PremiumDot />} dot={false} />
                     <Area type="natural" dataKey="agendamentos" name="Agendamentos" stroke="#3b82f6" strokeWidth={2} fill="url(#gAgendamentos)" activeDot={<PremiumDot />} dot={false} />
                     <Area type="natural" dataKey="fechamentos" name="Fechamentos" stroke="#10b981" strokeWidth={2} fill="url(#gFechamentos)" activeDot={<PremiumDot />} dot={false} />
                   </AreaChart>
@@ -1830,7 +2019,7 @@ export default function Dashboard() {
                       <button
                         onClick={() => {
                           setShowSemRespostaDetail(false);
-                          openLeadsModal('Leads sem resposta em 24h', semRespostaLeads, allStages);
+                          openLeadsModal('Leads sem resposta em 24h', semRespostaLeads);
                         }}
                         className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                       >
@@ -1859,7 +2048,7 @@ export default function Dashboard() {
                           className="px-4 py-3 text-center text-[11px] text-muted-foreground hover:bg-muted/20 cursor-pointer transition-colors"
                           onClick={() => {
                             setShowSemRespostaDetail(false);
-                            openLeadsModal('Leads sem resposta em 24h', semRespostaLeads, allStages);
+                            openLeadsModal('Leads sem resposta em 24h', semRespostaLeads);
                           }}
                         >
                           + {semRespostaLeads.length - 8} leads a mais · clique para ver todos
@@ -1937,7 +2126,7 @@ export default function Dashboard() {
                     {periodos.map((p: any) => (
                       <div
                         key={p.id}
-                        onClick={() => p.count > 0 && openLeadsModal(`Leads · ${p.label} (${periodoLabel(p.id)})`, p.leads, allStages)}
+                        onClick={() => p.count > 0 && openLeadsModal(`Leads · ${p.label} (${periodoLabel(p.id)})`, p.leads)}
                         className={`rounded-xl border border-border/60 bg-card p-4 transition-colors ${p.count > 0 ? 'cursor-pointer hover:bg-muted/30 hover:border-border' : ''}`}
                       >
                         <div className="text-[13px] font-semibold text-foreground mb-0.5">{p.label}</div>
@@ -1999,7 +2188,7 @@ export default function Dashboard() {
                             style={{ cursor: 'pointer' }}
                             onClick={(data: any) => {
                               if (data?.count > 0) {
-                                openLeadsModal(`Leads · ${data.label}`, data.leads, allStages);
+                                openLeadsModal(`Leads · ${data.label}`, data.leads);
                               }
                             }}
                           >
@@ -2039,7 +2228,7 @@ export default function Dashboard() {
                         {melhoresHoras.map((d: any, i: number) => (
                           <div
                             key={d.hora}
-                            onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads, allStages)}
+                            onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads)}
                             className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 hover:border-border transition-colors"
                           >
                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: '#22c55e20', color: '#22c55e' }}>
@@ -2060,7 +2249,7 @@ export default function Dashboard() {
                         {pioresHoras.map((d: any, i: number) => (
                           <div
                             key={d.hora}
-                            onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads, allStages)}
+                            onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads)}
                             className="flex items-center gap-3 rounded-lg border border-border/60 bg-card px-4 py-3 cursor-pointer hover:bg-muted/30 hover:border-border transition-colors"
                           >
                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold" style={{ backgroundColor: '#ef444420', color: '#ef4444' }}>
@@ -2094,7 +2283,7 @@ export default function Dashboard() {
                           .map((d: any) => (
                             <div
                               key={d.hora}
-                              onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads, allStages)}
+                              onClick={() => openLeadsModal(`Leads · ${d.label}`, d.leads)}
                               className="grid grid-cols-3 px-4 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
                             >
                               <span className="text-[12px] font-medium text-foreground">{d.label}</span>

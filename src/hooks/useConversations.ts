@@ -50,25 +50,74 @@ export function useConversationsList() {
     if (!orgId) return;
     
     const channel = supabase.channel('conversations-list-sync')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensagens' }, (payload) => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensagens' }, async (payload) => {
         const newMessage = payload.new as Message;
-        
-        queryClient.setQueryData<Conversation[]>(['conversations', orgId], (old) => {
-          if (!old) return old;
-          
-          return old.map(conv => {
-            if (conv.id === newMessage.lead_id) {
-              return {
-                ...conv,
-                last_message_content: newMessage.conteudo || 'Mídia recebida',
-                last_message_timestamp: newMessage.criado_em,
-                last_message_type: newMessage.tipo_conteudo,
-                last_message_sender: newMessage.remetente,
-              };
-            }
-            return conv;
-          }).sort((a, b) => new Date(b.last_message_timestamp!).getTime() - new Date(a.last_message_timestamp!).getTime());
+
+        const current = queryClient.getQueryData<Conversation[]>(['conversations', orgId]) || [];
+        const exists = current.some(conv => conv.id === newMessage.lead_id);
+
+        // Sempre empurra para o cache de mensagens se a conversa estiver aberta,
+        // como backup para o canal filtrado de useMessages que às vezes perde eventos.
+        queryClient.setQueryData<Message[]>(['messages', newMessage.lead_id], (old) => {
+          if (!old) return old; // só atualiza se a conversa estiver aberta
+          if (old.some(m => m.id === newMessage.id)) return old;
+          return [...old, newMessage];
         });
+
+        if (exists) {
+          queryClient.setQueryData<Conversation[]>(['conversations', orgId], (old) => {
+            if (!old) return old;
+            return old.map(conv => {
+              if (conv.id === newMessage.lead_id) {
+                return {
+                  ...conv,
+                  last_message_content: newMessage.conteudo || 'Mídia recebida',
+                  last_message_timestamp: newMessage.criado_em,
+                  last_message_type: newMessage.tipo_conteudo,
+                  last_message_sender: newMessage.remetente,
+                };
+              }
+              return conv;
+            }).sort((a, b) => new Date(b.last_message_timestamp!).getTime() - new Date(a.last_message_timestamp!).getTime());
+          });
+        } else {
+          // Primeiro contato — lead ainda não está na lista; busca e adiciona
+          const { data: lead } = await supabase
+            .from('leads')
+            .select(`*, leads_tags(tags(*)), lead_cadencias(status)`)
+            .eq('id', newMessage.lead_id)
+            .eq('organization_id', orgId!)
+            .single();
+
+          if (lead) {
+            const tags = (lead as any).leads_tags?.map((lt: any) => lt.tags).filter(Boolean) || [];
+            const em_cadencia = (lead as any).lead_cadencias?.some((lc: any) => lc.status === 'ativo') || false;
+            delete (lead as any).leads_tags;
+            delete (lead as any).lead_cadencias;
+
+            const newConv: Conversation = {
+              ...(lead as any),
+              last_message_content: newMessage.conteudo || 'Mídia recebida',
+              last_message_timestamp: newMessage.criado_em,
+              last_message_type: newMessage.tipo_conteudo,
+              last_message_sender: newMessage.remetente,
+              tags,
+              em_cadencia,
+            };
+
+            queryClient.setQueryData<Conversation[]>(['conversations', orgId], (old) => {
+              if (!old) return [newConv];
+              if (old.some(c => c.id === newConv.id)) return old;
+              return [newConv, ...old].sort((a, b) =>
+                new Date(b.last_message_timestamp!).getTime() - new Date(a.last_message_timestamp!).getTime()
+              );
+            });
+
+            // Garante que o lead apareça na página de Leads e Pipeline também
+            queryClient.invalidateQueries({ queryKey: ['leads', orgId] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
+          }
+        }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads', filter: `organization_id=eq.${orgId}` }, (payload) => {
         const updatedLead = payload.new as any;
@@ -76,8 +125,8 @@ export function useConversationsList() {
           if (!old) return old;
           return old.map(conv => {
             if (conv.id === updatedLead.id) {
-              return { 
-                ...conv, 
+              return {
+                ...conv,
                 ...updatedLead,
                 last_message_content: conv.last_message_content,
                 last_message_timestamp: conv.last_message_timestamp,
@@ -88,6 +137,16 @@ export function useConversationsList() {
             return conv;
           });
         });
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads', filter: `organization_id=eq.${orgId}` }, (payload) => {
+        const deletedId = (payload.old as any).id;
+        queryClient.setQueryData<Conversation[]>(['conversations', orgId], (old) => {
+          if (!old) return old;
+          return old.filter(conv => conv.id !== deletedId);
+        });
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads_tags' }, () => {
+        queryClient.invalidateQueries({ queryKey: ['conversations', orgId] });
       })
       .subscribe();
 
@@ -166,28 +225,33 @@ export function useConversationsList() {
 
 export function useMessages(leadId: string | null) {
   const { user } = useAuth();
+  const { profile } = useProfile();
+  const orgId = profile?.organization_id;
   const queryClient = useQueryClient();
-  
+
   useEffect(() => {
     if (!leadId) return;
 
     const channel = supabase.channel(`messages-sync-${leadId}`)
       .on(
-        'postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'mensagens', filter: `lead_id=eq.${leadId}` }, 
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'mensagens', filter: `lead_id=eq.${leadId}` },
         (payload) => {
           const newMessage = payload.new as Message;
-          
+
+          // Mensagens de bot/ia nunca substituem temps de humano — sempre appended diretamente
+          const isBotMessage = newMessage.remetente === 'bot' || newMessage.remetente === 'ia' as any;
+          const isHumanOutgoing = !isBotMessage && newMessage.remetente !== 'lead';
+
           queryClient.setQueryData<Message[]>(['messages', leadId], (old) => {
             const current = old || [];
-            const isOutgoing = newMessage.remetente !== 'lead';
-            
-            if (isOutgoing) {
+
+            if (isHumanOutgoing) {
               const tempIndex = current.findIndex(m => {
                 const isTemp = m.id.startsWith('temp');
                 const isTempOutgoing = m.remetente !== 'lead' || m.direcao === 'saida';
                 const isSameType = m.tipo_conteudo === newMessage.tipo_conteudo;
-                
+
                 if (newMessage.tipo_conteudo === 'texto') {
                   return isTemp && isTempOutgoing && m.conteudo === newMessage.conteudo;
                 }
@@ -196,9 +260,9 @@ export function useMessages(leadId: string | null) {
 
               if (tempIndex !== -1) {
                 const updated = [...current];
-                updated[tempIndex] = { 
-                  ...newMessage, 
-                  message_attachments: updated[tempIndex].message_attachments 
+                updated[tempIndex] = {
+                  ...newMessage,
+                  message_attachments: updated[tempIndex].message_attachments
                 };
                 return updated;
               }
@@ -207,6 +271,26 @@ export function useMessages(leadId: string | null) {
             if (current.some(m => m.id === newMessage.id)) return current;
             return [...current, newMessage];
           });
+
+          // Atualiza preview da conversa na lista (backup para o handler global)
+          if (orgId) {
+            queryClient.setQueryData<Conversation[]>(['conversations', orgId], (old) => {
+              if (!old) return old;
+              const updated = old.map(conv => {
+                if (conv.id !== leadId) return conv;
+                return {
+                  ...conv,
+                  last_message_content: newMessage.conteudo || 'Mídia recebida',
+                  last_message_timestamp: newMessage.criado_em,
+                  last_message_type: newMessage.tipo_conteudo,
+                  last_message_sender: newMessage.remetente,
+                };
+              });
+              return updated.sort((a, b) =>
+                new Date(b.last_message_timestamp!).getTime() - new Date(a.last_message_timestamp!).getTime()
+              );
+            });
+          }
         }
       )
       .on(
@@ -401,7 +485,9 @@ export function useDeleteChat() {
     onSuccess: (leadId) => {
       queryClient.invalidateQueries({ queryKey: ['conversations', orgId] });
       queryClient.invalidateQueries({ queryKey: ['messages', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['leads', orgId] });
       queryClient.invalidateQueries({ queryKey: ['outbound_prospectos', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       toast.success('Conversa excluída com sucesso.');
     },
     onError: (err: any) => {

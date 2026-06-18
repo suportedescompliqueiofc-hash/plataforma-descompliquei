@@ -149,6 +149,14 @@ All colors MUST be HSL.
 }
 
 /* FullCalendar — Google Calendar-inspired styling */
+
+/* Hide native more-popover — replaced by custom modal (visibility keeps getBoundingClientRect working) */
+.fc-more-popover {
+  visibility: hidden !important;
+  pointer-events: none !important;
+  position: fixed !important;
+  z-index: -1 !important;
+}
 .fc {
   --fc-border-color: hsl(var(--border));
   --fc-page-bg-color: transparent;

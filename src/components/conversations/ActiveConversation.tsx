@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
-import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply, StickyNote, ShieldBan } from "lucide-react";
+import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply, StickyNote, ShieldBan, Megaphone, Leaf, HeartPulse, Building2, RotateCcw, Users, Clock, Plus } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import EmojiPicker from 'emoji-picker-react';
@@ -30,7 +30,6 @@ import { useLead, useLeads } from "@/hooks/useLeads";
 import { useLeadCadence } from "@/hooks/useCadences";
 import { useMessages, useSendMessage, Message, Attachment, useDeleteMessage, useEditMessage, useSendAudioMessage, useSendMediaMessage } from "@/hooks/useConversations";
 import { useNotifications, useUpdateNotificationStatus } from "@/hooks/useNotifications";
-import { useStages } from "@/hooks/useStages";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
@@ -47,7 +46,9 @@ import { AiLockControl } from "./AiLockControl";
 import { CadenceLeadSelector } from "./CadenceLeadSelector";
 import { TagManager } from "@/components/tags/TagManager";
 import { useLeadAgendamento } from "@/hooks/useLeadAgendamento";
+import { useLeadTriageLog, TriageLog } from "@/hooks/useTriageLogs";
 import AgendamentoLeadModal from "@/components/agendamentos/AgendamentoLeadModal";
+import { AiStatusBar } from "./AiStatusBar";
 import { AudioRecorder } from "./AudioRecorder";
 import { MediaPreviewModal } from "./MediaPreviewModal";
 import { FullscreenMediaViewer } from "./FullscreenMediaViewer";
@@ -173,10 +174,42 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const { agendamentoAtivo, invalidate: invalidateAgendamento } = useLeadAgendamento(leadId);
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   const [showVendaModal, setShowVendaModal] = useState(false);
+  const [agendadoPopoverOpen, setAgendadoPopoverOpen] = useState(false);
+  const [fechadoPopoverOpen, setFechadoPopoverOpen] = useState(false);
+
+  const { data: allAgendamentos = [] } = useQuery({
+    queryKey: ['lead-all-agendamentos', leadId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('agendamentos')
+        .select('id, titulo, tipo, descricao, data_hora_inicio, data_hora_fim, status')
+        .eq('lead_id', leadId!)
+        .order('data_hora_inicio', { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!leadId,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  const { data: allVendas = [] } = useQuery({
+    queryKey: ['lead-all-vendas', leadId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('vendas')
+        .select('id, produto_servico, valor_fechado, data_fechamento, forma_pagamento')
+        .eq('lead_id', leadId!)
+        .order('data_fechamento', { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!leadId,
+    staleTime: 2 * 60 * 1000,
+  });
   const { activeCadence } = useLeadCadence(leadId);
   const { data: messages = [], isLoading: messagesLoading } = useMessages(leadId);
+  const { data: triageLog } = useLeadTriageLog(leadId);
   const { data: notifications } = useNotifications(leadId);
-  const { stages, isLoading: stagesLoading } = useStages();
   // Query meta_ads for the lead's criativo (FK leads.criativo_id -> meta_ads.id)
   const { data: leadAdInfo } = useQuery({
     queryKey: ['lead_ad_header', lead?.criativo_id],
@@ -501,8 +534,6 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   };
 
   const getInitials = (name?: string) => name ? name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'L';
-  const currentStage = stages.find(s => s.posicao_ordem === lead?.posicao_pipeline);
-
   // Apenas bloqueia na primeira carga absoluta (sem nenhum dado já carregado)
   const isFirstLoad = !lead && leadLoading && !messages.length;
 
@@ -517,21 +548,18 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 </Avatar>
                 <div data-tutorial="conversation-lead-info" className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
-                        <p className="font-semibold truncate text-[13px] leading-tight tracking-tight">{lead?.nome || 'Lead'}</p>
+                        <button
+                            className="font-semibold truncate text-[13px] leading-tight tracking-tight hover:underline hover:text-primary transition-colors cursor-pointer"
+                            onClick={() => setIsEditModalOpen(true)}
+                            title="Abrir ficha do lead"
+                        >
+                            {lead?.nome || 'Lead'}
+                        </button>
                         {activeCadence && (
                             <Badge variant="secondary" className="bg-orange-100 text-orange-700 text-[10px] px-1.5 py-0 h-4 border border-orange-200">
                                 <Zap className="h-2.5 w-2.5 mr-0.5" /> Em cadência
                             </Badge>
                         )}
-                        <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-6 w-6 text-muted-foreground hover:text-primary rounded-full transition-colors"
-                            onClick={() => setIsEditModalOpen(true)}
-                            title="Editar Lead"
-                        >
-                            <Pencil className="h-3 w-3" />
-                        </Button>
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5 overflow-hidden">
                         <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 shrink-0">
@@ -540,12 +568,24 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                         </span>
 
                         {/* Badge de Origem */}
-                        <div className="flex items-center gap-0.5 bg-muted/50 px-1 py-0.5 rounded-md border border-border/40 shrink-0">
-                            <Globe className="h-2.5 w-2.5 text-muted-foreground" />
-                            <span className="text-[9px] font-bold uppercase text-muted-foreground">
-                                {{ marketing: 'Mkt', organico: 'Org', indicacao: 'Org', reativacao: 'Reat', paciente: 'Pac', convenio: 'Conv' }[lead?.origem as string] ?? 'Org'}
-                            </span>
-                        </div>
+                        {(() => {
+                            const origemMap: Record<string, { icon: React.ElementType; label: string }> = {
+                                marketing:  { icon: Megaphone, label: 'MKT'  },
+                                organico:   { icon: Globe,      label: 'ORG'  },
+                                indicacao:  { icon: Users,      label: 'IND'  },
+                                reativacao: { icon: RotateCcw,  label: 'REAT' },
+                                paciente:   { icon: HeartPulse, label: 'PAC'  },
+                                convenio:   { icon: Building2,  label: 'CONV' },
+                            };
+                            const cfg = origemMap[lead?.origem as string] ?? { icon: Globe, label: 'ORG' };
+                            const Icon = cfg.icon;
+                            return (
+                                <div className="flex items-center gap-0.5 bg-muted/50 px-1 py-0.5 rounded-md border border-border/40 shrink-0">
+                                    <Icon className="h-2.5 w-2.5 text-muted-foreground" />
+                                    <span className="text-[9px] font-bold uppercase text-muted-foreground">{cfg.label}</span>
+                                </div>
+                            );
+                        })()}
 
                         {/* Badge de Criativo com thumbnail */}
                         {lead?.criativo_id && leadAdInfo && (
@@ -623,31 +663,21 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
         {/* ═══ Toolbar — scrollable row with all lead actions ═══ */}
         <div className="flex items-center px-3 pb-2 gap-3 overflow-x-auto scrollbar-none">
-            {/* Status group: Pipeline + MQL + Agendado + Fechado */}
+            {/* Status group: MQL + Agendado + Fechado */}
             <div className="flex items-center gap-1 shrink-0">
-                {lead && stages.length > 0 && (
-                    <Select value={lead.posicao_pipeline?.toString() || "1"} onValueChange={(v) => updateLead({ id: lead.id, posicao_pipeline: parseInt(v) })}>
-                    <SelectTrigger data-tutorial="conversation-pipeline" className="w-[120px] h-6 text-[10px] bg-background/50 border-none shadow-none hover:bg-muted/40 transition-colors rounded-full">
-                        <SelectValue>
-                        {currentStage ? <div className="flex items-center gap-1 truncate"><span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: currentStage.cor }} />{currentStage.nome}</div> : "Etapa"}
-                        </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>{stages.map(stage => (<SelectItem key={stage.id} value={stage.posicao_ordem.toString()}><div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: stage.cor || '#94a3b8' }} />{stage.nome}</div></SelectItem>))}</SelectContent>
-                    </Select>
-                )}
                 {lead && (
                   <>
                     <Button
                       data-tutorial="conversation-mql"
-                      variant={lead.is_qualified ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
                       className={cn(
-                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider shrink-0",
+                        "h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
                         lead.is_qualified
                           ? isDescompliqueiOrg && lead.lead_scoring
                             ? "border-none shadow-sm active:scale-95"
                             : "bg-emerald-500 text-white hover:bg-emerald-600 border-none shadow-sm active:scale-95"
-                          : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
+                          : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
                       )}
                       style={lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? {
                         backgroundColor: SCORING_OPTIONS.find(s => s.value === lead.lead_scoring)?.bg || '#E1F5EE',
@@ -662,60 +692,267 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       }}
                     >
                       <UserCheck className={cn("h-3 w-3", lead.is_qualified ? "fill-current" : "")} />
-                      {lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? `MQL ${lead.lead_scoring}` : 'MQL'}
+                      {lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? `Qualificado ${lead.lead_scoring}` : 'Qualificado'}
                     </Button>
-                    <div className="flex flex-col items-center shrink-0" data-tutorial="conversation-schedule">
-                      <Button
-                        variant={lead.is_scheduled ? "default" : "outline"}
-                        size="sm"
-                        className={cn(
-                          "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider",
-                          lead.is_scheduled
-                            ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-sm active:scale-95"
-                            : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
-                        )}
-                        onClick={() => {
-                          if (lead.is_scheduled) {
-                            updateLead({ id: lead.id, is_scheduled: false });
-                          } else {
-                            setShowAgendamentoModal(true);
-                          }
-                        }}
-                      >
-                        <CalendarCheck className={cn("h-3 w-3", lead.is_scheduled ? "fill-current" : "")} />
-                        Agendado
-                      </Button>
-                      {agendamentoAtivo && (
-                        <button
-                          className="text-[9px] text-blue-500 hover:text-blue-700 mt-0.5 cursor-pointer flex items-center gap-0.5"
-                          onClick={() => setShowAgendamentoModal(true)}
+                    {/* ── Agendado Dialog ── */}
+                    <Dialog open={agendadoPopoverOpen} onOpenChange={setAgendadoPopoverOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          data-tutorial="conversation-schedule"
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
+                            lead.is_scheduled
+                              ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-sm"
+                              : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
+                          )}
                         >
-                          <CalendarCheck className="h-2.5 w-2.5" />
-                          {format(parseISO(agendamentoAtivo.data_hora_inicio), "dd/MM 'às' HH:mm")}
-                        </button>
-                      )}
-                    </div>
-                    <Button
-                      data-tutorial="conversation-closed"
-                      variant={lead.is_closed ? "default" : "outline"}
-                      size="sm"
-                      className={cn(
-                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-300 rounded-full uppercase tracking-wider shrink-0",
-                        lead.is_closed
-                          ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-sm active:scale-95"
-                          : "text-muted-foreground hover:bg-muted/40 border-transparent bg-transparent hover:text-foreground"
-                      )}
-                      onClick={() => {
-                          if (lead.is_closed) {
-                            updateLead({ id: lead.id, is_closed: false });
-                          } else {
-                            setShowVendaModal(true);
-                          }
-                        }}
-                    >
-                      <BadgeCheck className={cn("h-3 w-3", lead.is_closed ? "fill-current" : "")} />
-                      Fechado
-                    </Button>
+                          <CalendarCheck className={cn("h-3 w-3", lead.is_scheduled ? "fill-current" : "")} />
+                          {lead.is_scheduled && agendamentoAtivo
+                            ? `Agendado · ${format(parseISO(agendamentoAtivo.data_hora_inicio), "dd/MM")}`
+                            : 'Agendado'}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl border border-border/60 gap-0 [&>button]:hidden">
+                        {/* Header */}
+                        <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <span className="p-2 rounded-xl bg-blue-500/10">
+                                <CalendarCheck className="h-4 w-4 text-blue-500" />
+                              </span>
+                              <div>
+                                <p className="text-sm font-bold text-foreground">Agendamentos</p>
+                                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                                  {lead.nome} · {allAgendamentos.length} registrado{allAgendamentos.length !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setAgendadoPopoverOpen(false)}
+                              className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          {allAgendamentos.length > 0 && (() => {
+                            const realizados = (allAgendamentos as any[]).filter(a => a.status === 'realizado').length;
+                            const cancelados = (allAgendamentos as any[]).filter(a => a.status === 'cancelado').length;
+                            const pendentes  = (allAgendamentos as any[]).filter(a => ['agendado','confirmado'].includes(a.status)).length;
+                            return (
+                              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/30">
+                                {pendentes > 0 && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-blue-500" /><span className="text-[11px] text-muted-foreground">{pendentes} pendente{pendentes !== 1 ? 's' : ''}</span></div>}
+                                {realizados > 0 && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" /><span className="text-[11px] text-muted-foreground">{realizados} realizado{realizados !== 1 ? 's' : ''}</span></div>}
+                                {cancelados > 0 && <div className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-red-400" /><span className="text-[11px] text-muted-foreground">{cancelados} cancelado{cancelados !== 1 ? 's' : ''}</span></div>}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        {/* Próximo destaque */}
+                        {agendamentoAtivo && (
+                          <div className="mx-4 mt-4 rounded-xl border border-blue-500/20 bg-blue-500/[0.04] p-4">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-blue-500/70 mb-1.5">Próximo agendamento</p>
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[13px] font-semibold text-foreground leading-tight">
+                                  {(agendamentoAtivo as any).titulo || 'Agendamento'}
+                                </p>
+                                {(agendamentoAtivo as any).tipo && (
+                                  <p className="text-[11px] text-muted-foreground/60 mt-0.5 capitalize">{(agendamentoAtivo as any).tipo}</p>
+                                )}
+                                <div className="flex items-center gap-1.5 mt-2">
+                                  <Clock className="h-3 w-3 text-blue-500/70 shrink-0" />
+                                  <span className="text-[12px] font-medium text-blue-600">
+                                    {format(parseISO(agendamentoAtivo.data_hora_inicio), "dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
+                                  </span>
+                                </div>
+                              </div>
+                              <span className="text-[9px] font-bold uppercase px-2 py-1 rounded-full bg-blue-500/15 text-blue-600 shrink-0">
+                                {(agendamentoAtivo as any).status}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {/* Lista */}
+                        <div className="px-5 mt-4 mb-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Todos os agendamentos</p>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto px-4 pb-2">
+                          {allAgendamentos.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-center">
+                              <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                                <CalendarCheck className="h-6 w-6 text-muted-foreground/30" />
+                              </div>
+                              <p className="text-sm font-medium text-muted-foreground">Sem agendamentos ainda</p>
+                              <p className="text-[11px] text-muted-foreground/50 mt-0.5">Clique em novo para agendar</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {(allAgendamentos as any[]).map((ag) => {
+                                const sc = {
+                                  agendado:      { dot: 'bg-indigo-500',  badge: 'bg-indigo-500/10 text-indigo-600' },
+                                  confirmado:    { dot: 'bg-sky-500',     badge: 'bg-sky-500/10 text-sky-600' },
+                                  realizado:     { dot: 'bg-emerald-500', badge: 'bg-emerald-500/10 text-emerald-600' },
+                                  nao_compareceu:{ dot: 'bg-red-500',     badge: 'bg-red-500/10 text-red-600' },
+                                  cancelado:     { dot: 'bg-red-400',     badge: 'bg-red-500/10 text-red-500' },
+                                  remarcado:     { dot: 'bg-amber-400',   badge: 'bg-amber-500/10 text-amber-600' },
+                                }[ag.status as string] ?? { dot: 'bg-muted-foreground/30', badge: 'bg-muted text-muted-foreground' };
+                                return (
+                                  <div key={ag.id} className="flex items-start gap-3 px-3 py-3 rounded-xl border border-border/40 hover:bg-muted/20 hover:border-border/60 transition-all">
+                                    <div className={cn("w-2 h-2 rounded-full shrink-0 mt-1.5", sc.dot)} />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <p className="text-[12px] font-semibold text-foreground leading-tight">{ag.titulo || 'Agendamento'}</p>
+                                        <span className={cn("text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full shrink-0", sc.badge)}>{ag.status}</span>
+                                      </div>
+                                      {ag.tipo && <p className="text-[10px] text-muted-foreground/60 mt-0.5 capitalize">{ag.tipo}</p>}
+                                      <p className="text-[11px] text-muted-foreground/70 mt-1 flex items-center gap-1">
+                                        <Clock className="h-3 w-3 shrink-0" />
+                                        {format(parseISO(ag.data_hora_inicio), "dd/MM/yyyy 'às' HH:mm")}
+                                      </p>
+                                      {ag.descricao && <p className="text-[10px] text-muted-foreground/50 mt-1 line-clamp-1">{ag.descricao}</p>}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                        {/* Footer */}
+                        <div className="flex items-center justify-end px-5 py-3.5 border-t border-border/40 bg-muted/20 mt-3">
+                          <Button
+                            size="sm"
+                            className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5"
+                            onClick={() => { setShowAgendamentoModal(true); setAgendadoPopoverOpen(false); }}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Novo agendamento
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+
+                    {/* ── Fechado Dialog ── */}
+                    <Dialog open={fechadoPopoverOpen} onOpenChange={setFechadoPopoverOpen}>
+                      <DialogTrigger asChild>
+                        <Button
+                          data-tutorial="conversation-closed"
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
+                            lead.is_closed
+                              ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-sm"
+                              : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
+                          )}
+                        >
+                          <BadgeCheck className={cn("h-3 w-3", lead.is_closed ? "fill-current" : "")} />
+                          {lead.is_closed && allVendas.length > 0 ? `Fechado · ${allVendas.length}x` : 'Fechado'}
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-2xl border border-border/60 gap-0 [&>button]:hidden">
+                        {/* Header */}
+                        <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <span className="p-2 rounded-xl bg-violet-500/10">
+                                <BadgeCheck className="h-4 w-4 text-violet-500" />
+                              </span>
+                              <div>
+                                <p className="text-sm font-bold text-foreground">Fechamentos</p>
+                                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                                  {lead.nome} · {allVendas.length} venda{allVendas.length !== 1 ? 's' : ''} registrada{allVendas.length !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => setFechadoPopoverOpen(false)}
+                              className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-colors"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          {/* Métricas de receita */}
+                          {allVendas.length > 0 && (() => {
+                            const total = (allVendas as any[]).reduce((s, v) => s + (Number(v.valor_fechado) || 0), 0);
+                            const media = total / allVendas.length;
+                            return (
+                              <div className="flex items-center gap-6 mt-3 pt-3 border-t border-border/30">
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Receita total</p>
+                                  <p className="text-[15px] font-bold text-foreground tabular-nums mt-0.5">
+                                    R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                </div>
+                                <div className="h-8 w-px bg-border/40" />
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Ticket médio</p>
+                                  <p className="text-[15px] font-bold text-foreground tabular-nums mt-0.5">
+                                    R$ {media.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        {/* Lista */}
+                        <div className="px-5 mt-4 mb-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/40">Todas as vendas</p>
+                        </div>
+                        <div className="max-h-64 overflow-y-auto px-4 pb-2">
+                          {allVendas.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-center">
+                              <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                                <BadgeCheck className="h-6 w-6 text-muted-foreground/30" />
+                              </div>
+                              <p className="text-sm font-medium text-muted-foreground">Nenhum fechamento ainda</p>
+                              <p className="text-[11px] text-muted-foreground/50 mt-0.5">Clique em nova venda para registrar</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-1.5">
+                              {(allVendas as any[]).map((v) => (
+                                <div key={v.id} className="flex items-start gap-3 px-3 py-3 rounded-xl border border-border/40 hover:bg-muted/20 hover:border-border/60 transition-all">
+                                  <div className="w-2 h-2 rounded-full bg-violet-400 shrink-0 mt-1.5" />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <p className="text-[12px] font-semibold text-foreground leading-tight">{v.produto_servico || 'Venda'}</p>
+                                      {v.valor_fechado != null && (
+                                        <span className="text-[13px] font-bold text-emerald-600 shrink-0 tabular-nums">
+                                          R$ {Number(v.valor_fechado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <p className="text-[10px] text-muted-foreground/60">
+                                        {format(parseISO(v.data_fechamento), "dd/MM/yyyy")}
+                                      </p>
+                                      {v.forma_pagamento && (
+                                        <>
+                                          <div className="w-0.5 h-0.5 rounded-full bg-muted-foreground/40" />
+                                          <p className="text-[10px] text-muted-foreground/60 capitalize">{v.forma_pagamento}</p>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {/* Footer */}
+                        <div className="flex items-center justify-end px-5 py-3.5 border-t border-border/40 bg-muted/20 mt-3">
+                          <Button
+                            size="sm"
+                            className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5"
+                            onClick={() => { setShowVendaModal(true); setFechadoPopoverOpen(false); }}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Nova venda
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </>
                 )}
             </div>
@@ -868,6 +1105,8 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         </div>
       )}
 
+      <AiStatusBar leadId={leadId} />
+
       <ScrollArea className="flex-1 bg-[hsl(var(--background))]">
         <div className="p-3 sm:p-4 space-y-1 max-w-4xl 2xl:max-w-5xl mx-auto min-h-full">
           {(isFirstLoad || messagesLoading) ? (
@@ -1002,11 +1241,16 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                         {isAudio ? (
                           <AudioMessage filePath={msg.media_path || msg.conteudo || ''} variant={isOutgoing ? 'outgoing' : 'incoming'} />
                         ) : isVisualMedia ? (
-                          <MediaMessage 
-                            path={msg.media_path || msg.conteudo} 
-                            type={typeLower.includes('video') || pathLower.includes('.mp4') ? 'video' : 'imagem'} 
-                            onView={openMediaViewer as any}
-                          />
+                          <>
+                            <MediaMessage
+                              path={msg.media_path || msg.conteudo}
+                              type={typeLower.includes('video') || pathLower.includes('.mp4') ? 'video' : 'imagem'}
+                              onView={openMediaViewer as any}
+                            />
+                            {msg.conteudo && msg.media_path && (
+                              <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed break-words mt-1">{msg.conteudo}</p>
+                            )}
+                          </>
                         ) : isPdf ? (
                           <FileMessage 
                             path={msg.media_path || msg.conteudo || ''} 
@@ -1242,7 +1486,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         lead={lead}
-        mode="edit"
+        mode="view"
       />
 
       {lead && (
@@ -1251,10 +1495,11 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
           onClose={() => setShowAgendamentoModal(false)}
           leadId={lead.id}
           leadNome={lead.nome || "Lead"}
-          agendamentoExistente={agendamentoAtivo}
+          agendamentoExistente={undefined}
           onSaved={() => {
             invalidateAgendamento();
             updateLead({ id: lead.id, is_scheduled: true });
+            queryClient.invalidateQueries({ queryKey: ['lead-all-agendamentos', leadId] });
           }}
         />
       )}
@@ -1264,7 +1509,10 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
           open={showVendaModal}
           onOpenChange={setShowVendaModal}
           lead={lead}
-          onSaved={() => updateLead({ id: lead.id, is_closed: true })}
+          onSaved={() => {
+            updateLead({ id: lead.id, is_closed: true });
+            queryClient.invalidateQueries({ queryKey: ['lead-all-vendas', leadId] });
+          }}
         />
       )}
 

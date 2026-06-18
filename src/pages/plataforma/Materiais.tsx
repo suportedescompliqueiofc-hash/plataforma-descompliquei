@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookMarked, Plus, Loader2, Pencil, Trash2, Swords, FolderOpen,
-  Clock, ArrowRight, LayoutTemplate, FileText, ScanText,
+  Clock, ArrowRight, LayoutTemplate, FileText, ClipboardList, CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,6 +13,9 @@ import {
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { useMeusMateriais, useDeleteDocumento, useCreateDocumento } from '@/hooks/useMeusMateriais';
 import { useAllArsenalTemplates, ArsenalTemplateComJoins } from '@/hooks/useArsenal';
 import NovoMaterialModal from '@/components/plataforma/NovoMaterialModal';
@@ -48,16 +51,147 @@ function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-type MainTab = 'documentos' | 'templates';
+// ─── Diagnóstico — estrutura dos blocos ───────────────────────────────────────
+
+interface PerguntaDiag { key: string; label: string; }
+interface BlocoDiag { id: number; titulo: string; descricao: string; perguntas: PerguntaDiag[]; }
+
+const BLOCOS_DIAGNOSTICO: BlocoDiag[] = [
+  {
+    id: 1, titulo: 'Sobre a sua clínica', descricao: 'Informações gerais e modelo de atendimento',
+    perguntas: [
+      { key: 'p1',  label: 'Nome da clínica' },
+      { key: 'p2',  label: 'Especialidade principal' },
+      { key: 'p3',  label: 'Modelo de atendimento' },
+      { key: 'p3a', label: '% do faturamento via convênio' },
+      { key: 'p3b', label: 'Interesse em reduzir dependência do convênio' },
+      { key: 'p3c', label: 'Serviços particulares fora do convênio' },
+      { key: 'p3d', label: 'Pacientes do convênio conhecem serviços particulares?' },
+      { key: 'p3e', label: 'Ticket médio nos procedimentos particulares' },
+      { key: 'p4',  label: 'Tempo no mercado' },
+      { key: 'p5',  label: 'Cidade e estado' },
+      { key: 'p6',  label: 'Tipo de clínica' },
+      { key: 'p7',  label: 'Dias de atendimento por semana' },
+      { key: 'p8',  label: 'Volume médio de atendimentos/mês' },
+    ],
+  },
+  {
+    id: 2, titulo: 'Geração de demanda', descricao: 'Canais, tráfego pago e perfil dos pacientes',
+    perguntas: [
+      { key: 'p9',        label: 'Avaliação do volume de demanda atual' },
+      { key: 'p10',       label: 'Base de pacientes anteriores' },
+      { key: 'p10a',      label: 'Comunicação ativa com a base' },
+      { key: 'p10b',      label: 'Acompanha quem não voltou em 6 meses?' },
+      { key: 'p11',       label: 'Canais que geram leads hoje' },
+      { key: 'p12',       label: 'Canal principal' },
+      { key: 'p13',       label: 'Resiliência se canal principal parasse' },
+      { key: 'p14',       label: 'Investe em tráfego pago' },
+      { key: 'p14a_ativo', label: 'Investimento mensal em tráfego' },
+      { key: 'p14b_ativo', label: 'Quem gerencia o tráfego' },
+      { key: 'p14c_ativo', label: 'Rastreia leads dos anúncios?' },
+      { key: 'p14d_ativo', label: 'Satisfação com o retorno do tráfego' },
+      { key: 'p14e_ativo', label: 'Gargalo principal (gerar vs. converter)' },
+      { key: 'p14a_parou', label: 'Por que parou o tráfego' },
+      { key: 'p14b_parou', label: 'Pretende retomar o tráfego?' },
+      { key: 'p14a_nunca', label: 'Por que nunca investiu em tráfego' },
+      { key: 'p14b_nunca', label: 'Interesse em começar com tráfego pago' },
+      { key: 'p15',       label: 'Perfil predominante dos pacientes' },
+      { key: 'p16',       label: 'Pacientes chegam decididos?' },
+      { key: 'p17',       label: 'Preço é a principal objeção?' },
+      { key: 'p18',       label: '% da receita de pacientes recorrentes/indicações' },
+      { key: 'p19',       label: 'Maior desafio na geração de demanda' },
+    ],
+  },
+  {
+    id: 3, titulo: 'Faturamento e oferta', descricao: 'Receita, ticket médio e estrutura de produtos',
+    perguntas: [
+      { key: 'p20', label: 'Faturamento médio mensal' },
+      { key: 'p21', label: 'Ticket médio por procedimento' },
+      { key: 'p22', label: 'Procedimento que mais gera receita' },
+      { key: 'p23', label: 'Vende avulsos ou protocolos/pacotes?' },
+      { key: 'p24', label: 'Tem protocolos com nome e narrativa próprios?' },
+      { key: 'p25', label: 'Oferece recorrência?' },
+      { key: 'p26', label: 'Clareza sobre margem de lucro?' },
+      { key: 'p27', label: 'Maior custo operacional' },
+    ],
+  },
+  {
+    id: 4, titulo: 'Conversão e atendimento', descricao: 'Como os leads se tornam pacientes',
+    perguntas: [
+      { key: 'p28', label: 'Leads novos por mês' },
+      { key: 'p29', label: 'Tempo para responder um lead novo' },
+      { key: 'p30', label: 'Quem faz o primeiro atendimento?' },
+      { key: 'p31', label: 'Tem processo definido de atendimento?' },
+      { key: 'p32', label: 'Taxa de conversão estimada (lead → fechamento)' },
+      { key: 'p33', label: 'Tempo entre primeiro contato e fechamento' },
+      { key: 'p34', label: 'Faz follow-up com leads que não fecharam?' },
+      { key: 'p35', label: 'Reativa pacientes inativos?' },
+      { key: 'p36', label: 'Já tentou estruturar processo de atendimento?' },
+      { key: 'p37', label: 'Maior dificuldade no atendimento hoje' },
+    ],
+  },
+  {
+    id: 5, titulo: 'Estrutura operacional', descricao: 'Equipe, tempo e dependência da sua presença',
+    perguntas: [
+      { key: 'p38',        label: 'Tem equipe de atendimento ou recepção?' },
+      { key: 'p38a_equipe', label: 'Equipe treinada para converter leads?' },
+      { key: 'p38b_equipe', label: 'Consegue acompanhar o que a equipe faz?' },
+      { key: 'p38c_equipe', label: 'Já teve lead mal atendido pela equipe?' },
+      { key: 'p38a_solo',   label: 'Trabalhar sozinho limita o crescimento?' },
+      { key: 'p38b_solo',   label: 'Pretende contratar nos próximos 3 meses?' },
+      { key: 'p39', label: 'Horas/semana em atividades comerciais' },
+      { key: 'p40', label: 'O comercial depende da sua presença direta?' },
+      { key: 'p41', label: 'Já teve equipe comercial treinada para vender?' },
+      { key: 'p42', label: 'Objetivo: sair da operação ou continuar como fechador?' },
+    ],
+  },
+  {
+    id: 6, titulo: 'Gestão do negócio', descricao: 'CRM, métricas e processos documentados',
+    perguntas: [
+      { key: 'p43', label: 'Usa CRM ou sistema para gerenciar leads?' },
+      { key: 'p44', label: 'Acompanha métricas comerciais regularmente?' },
+      { key: 'p45', label: 'Tem processos e rotinas documentados?' },
+    ],
+  },
+  {
+    id: 7, titulo: 'Objetivos e ambições', descricao: 'Para onde você quer levar a clínica',
+    perguntas: [
+      { key: 'p46', label: 'Objetivo de faturamento nos próximos 3 meses' },
+      { key: 'p47', label: 'Área em que está mais travado hoje' },
+      { key: 'p48', label: 'Situação atual da agenda' },
+      { key: 'p49', label: 'O que já tentou que não funcionou' },
+      { key: 'p50', label: 'Maior obstáculo para crescer hoje' },
+      { key: 'p51', label: 'Maior ambição nos próximos 12 meses' },
+    ],
+  },
+];
+
+type MainTab = 'documentos' | 'templates' | 'diagnostico';
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Materiais() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: materiais = [], isLoading } = useMeusMateriais();
   const { data: templates = [], isLoading: templatesLoading } = useAllArsenalTemplates();
   const createDoc = useCreateDocumento();
   const deleteDoc = useDeleteDocumento();
+
+  const { data: diagnostico, isLoading: diagLoading } = useQuery({
+    queryKey: ['diagnostico-respostas', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('onboarding_diagnosticos' as any)
+        .select('respostas, concluido, concluido_em')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return data as { respostas: Record<string, any>; concluido: boolean; concluido_em: string | null } | null;
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
 
   const [mainTab, setMainTab] = useState<MainTab>('documentos');
   const [modalOpen, setModalOpen] = useState(false);
@@ -183,18 +317,22 @@ export default function Materiais() {
 
       {/* ─── Tab switcher ─── */}
       <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 w-fit">
-        {(['documentos', 'templates'] as const).map(tab => (
+        {([
+          { id: 'documentos', label: `Documentos${materiais.length > 0 ? ` (${materiais.length})` : ''}`, icon: <FileText className="h-3.5 w-3.5" /> },
+          { id: 'templates',  label: `Templates${templates.length > 0 ? ` (${templates.length})` : ''}`,   icon: <LayoutTemplate className="h-3.5 w-3.5" /> },
+          { id: 'diagnostico', label: 'Diagnóstico', icon: <ClipboardList className="h-3.5 w-3.5" /> },
+        ] as const).map(tab => (
           <button
-            key={tab}
-            onClick={() => setMainTab(tab)}
+            key={tab.id}
+            onClick={() => setMainTab(tab.id)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold transition-all duration-150 ${
-              mainTab === tab
+              mainTab === tab.id
                 ? 'bg-foreground text-background shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {tab === 'documentos' ? <FileText className="h-3.5 w-3.5" /> : <LayoutTemplate className="h-3.5 w-3.5" />}
-            {tab === 'documentos' ? `Documentos${materiais.length > 0 ? ` (${materiais.length})` : ''}` : `Templates${templates.length > 0 ? ` (${templates.length})` : ''}`}
+            {tab.icon}
+            {tab.label}
           </button>
         ))}
       </div>
@@ -224,55 +362,12 @@ export default function Materiais() {
             </div>
           )}
 
-          {/* ── Card fixo: Diagnóstico Estratégico ── */}
-          {diagnosticoDoc && (
-            <div className="space-y-1.5">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 px-0.5">
-                Base da Jornada
-              </p>
-              <button
-                onClick={() => navigate(`/plataforma/materiais/${diagnosticoDoc.id}?view=1`)}
-                className="group w-full text-left overflow-hidden rounded-2xl border border-amber-200/60 bg-amber-50/40 hover:border-amber-300/80 hover:bg-amber-50/70 hover:shadow-sm transition-all duration-200"
-              >
-                <div className="p-5 flex items-start gap-4">
-                  <div className="shrink-0 p-2.5 rounded-xl bg-amber-100/80 border border-amber-200/60 mt-0.5">
-                    <ScanText className="h-4 w-4 text-amber-600" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-[14px] font-semibold text-foreground leading-snug font-display truncate">
-                        {diagnosticoDoc.titulo}
-                      </h3>
-                      <span className="shrink-0 px-2 py-0.5 rounded-full bg-amber-100 border border-amber-200/80 text-[10px] font-bold uppercase tracking-wider text-amber-700">
-                        Base
-                      </span>
-                    </div>
-                    <p className="text-[12px] text-muted-foreground leading-relaxed line-clamp-1">
-                      Diagnóstico estratégico da sua clínica — atualizado durante o onboarding.
-                    </p>
-                    <div className="flex items-center gap-1 mt-2.5 text-[11px] text-muted-foreground/50">
-                      <Clock className="h-3 w-3" />
-                      Atualizado em {format(new Date(diagnosticoDoc.updated_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
-                    </div>
-                  </div>
-                  <div className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="flex items-center gap-1">
-                      <span className="p-1.5 rounded-lg hover:bg-amber-100 transition-colors" title="Editar">
-                        <Pencil className="h-3.5 w-3.5 text-amber-600/70" />
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            </div>
-          )}
-
           {/* Lista */}
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : materiaisRegulares.length === 0 && !diagnosticoDoc ? (
+          ) : materiaisRegulares.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-dashed border-border/60">
               <div className="p-3 rounded-xl bg-muted/40 mb-3">
                 <FolderOpen className="h-7 w-7 text-muted-foreground/40" />
@@ -482,6 +577,99 @@ export default function Materiais() {
                           {hasDoc ? 'Ver Documento' : 'Usar Template'}
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ─── Diagnóstico ─── */}
+      {mainTab === 'diagnostico' && (
+        <>
+          {diagLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : !diagnostico?.respostas || Object.keys(diagnostico.respostas).length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center rounded-2xl border border-dashed border-border/60">
+              <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                <ClipboardList className="h-7 w-7 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground">Diagnóstico ainda não preenchido.</p>
+              <p className="text-[12px] text-muted-foreground/50 mt-1 max-w-xs">
+                Complete o onboarding para ver suas respostas aqui.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Badge de status */}
+              {diagnostico.concluido && (
+                <div className="flex items-center gap-2 text-[12px] text-emerald-600 font-medium">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Diagnóstico concluído
+                  {diagnostico.concluido_em && (
+                    <span className="text-muted-foreground/50 font-normal">
+                      — {format(new Date(diagnostico.concluido_em), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {BLOCOS_DIAGNOSTICO.map(bloco => {
+                const respostas = diagnostico.respostas ?? {};
+                const perguntasRespondidas = bloco.perguntas.filter(p => {
+                  const v = respostas[p.key];
+                  return v !== undefined && v !== null && v !== '' && !(Array.isArray(v) && v.length === 0);
+                });
+                if (perguntasRespondidas.length === 0) return null;
+
+                return (
+                  <div key={bloco.id} className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                    {/* Header do bloco */}
+                    <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center h-7 w-7 rounded-lg bg-muted text-[12px] font-bold text-muted-foreground font-mono">
+                          {bloco.id}
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-bold text-foreground">{bloco.titulo}</p>
+                          <p className="text-[11px] text-muted-foreground/50 mt-0.5">{bloco.descricao}</p>
+                        </div>
+                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/40">
+                          {perguntasRespondidas.length}/{bloco.perguntas.length} respondidas
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Campos */}
+                    <div className="divide-y divide-border/30">
+                      {perguntasRespondidas.map(p => {
+                        const valor = respostas[p.key];
+                        const isArray = Array.isArray(valor);
+                        return (
+                          <div key={p.key} className="px-5 py-3.5 flex items-start gap-4">
+                            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/50 w-52 shrink-0 pt-0.5 leading-relaxed">
+                              {p.label}
+                            </p>
+                            <div className="flex-1 min-w-0">
+                              {isArray ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {(valor as string[]).map((v, i) => (
+                                    <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-muted text-[12px] font-medium text-foreground border border-border/60">
+                                      {v}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-[13px] text-foreground leading-relaxed">{String(valor)}</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );

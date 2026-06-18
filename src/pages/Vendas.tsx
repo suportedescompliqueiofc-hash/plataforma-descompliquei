@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useVendas, Venda } from "@/hooks/useVendas";
 import { VendaModal } from "@/components/vendas/VendaModal";
+import { VendasRelatorios } from "@/components/vendas/VendasRelatorios";
+import { ExportVendasButton } from "@/components/vendas/ExportVendasButton";
 import { format, parseISO, startOfMonth, endOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,12 +25,6 @@ import { useProfile } from "@/hooks/useProfile";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function formatCurrencyShort(value: number) {
-  if (value >= 1000000) return `R$ ${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `R$ ${(value / 1000).toFixed(1)}K`;
-  return formatCurrency(value);
 }
 
 // ── Component ────────────────────────────────────────────────
@@ -47,24 +43,39 @@ export default function Vendas() {
   const [editingVenda, setEditingVenda] = useState<Venda | null>(null);
   const [isDeleting, setIsDeleting] = useState<Venda | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<"registros" | "relatorios">("registros");
 
   // ── Metrics ────────────────────────────────────────────────
 
   const metrics = useMemo(() => {
     if (isLoading || vendas.length === 0) {
-      return { totalFaturado: 0, ticketMedio: 0, vendasNoPeriodo: 0, taxaConversao: 0, maiorVenda: 0 };
+      return {
+        totalFaturado: 0, ticketMedio: 0, vendasNoPeriodo: 0, taxaConversao: 0, maiorVenda: 0,
+        faturamentoConsultas: 0, faturamentoProcedimentos: 0, faturamentoOutros: 0,
+        qtdConsultas: 0, qtdProcedimentos: 0,
+      };
     }
     const totalFaturado = vendas.reduce((acc, v) => acc + v.valor_fechado, 0);
     const ticketMedio = totalFaturado / vendas.length;
     const vendasNoPeriodo = vendas.length;
     const maiorVenda = Math.max(...vendas.map(v => v.valor_fechado));
-
     const vendasComOrcamento = vendas.filter(v => v.valor_orcado && v.valor_orcado > 0);
     const totalOrcado = vendasComOrcamento.reduce((acc, v) => acc + (v.valor_orcado || 0), 0);
     const totalFechadoDeOrcados = vendasComOrcamento.reduce((acc, v) => acc + v.valor_fechado, 0);
     const taxaConversao = totalOrcado > 0 ? (totalFechadoDeOrcados / totalOrcado) * 100 : 0;
 
-    return { totalFaturado, ticketMedio, vendasNoPeriodo, taxaConversao, maiorVenda };
+    const consultas = vendas.filter(v => v.tipo_venda === "consulta");
+    const procedimentos = vendas.filter(v => !v.tipo_venda || v.tipo_venda === "procedimento");
+    const outros = vendas.filter(v => v.tipo_venda === "outro");
+    const faturamentoConsultas = consultas.reduce((acc, v) => acc + v.valor_fechado, 0);
+    const faturamentoProcedimentos = procedimentos.reduce((acc, v) => acc + v.valor_fechado, 0);
+    const faturamentoOutros = outros.reduce((acc, v) => acc + v.valor_fechado, 0);
+
+    return {
+      totalFaturado, ticketMedio, vendasNoPeriodo, taxaConversao, maiorVenda,
+      faturamentoConsultas, faturamentoProcedimentos, faturamentoOutros,
+      qtdConsultas: consultas.length, qtdProcedimentos: procedimentos.length,
+    };
   }, [vendas, isLoading]);
 
   // ── Filtered vendas ────────────────────────────────────────
@@ -124,6 +135,7 @@ export default function Vendas() {
               setDate={setDateRange}
               className="[&>button]:h-9 [&>button]:text-xs [&>button]:rounded-lg"
             />
+            <ExportVendasButton vendas={vendas} dateRange={dateRange} />
             <Button
               onClick={() => handleCloseModal(true)}
               className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 shadow-none w-full sm:w-auto"
@@ -140,7 +152,7 @@ export default function Vendas() {
           {[
             {
               label: "Faturamento",
-              value: formatCurrencyShort(metrics.totalFaturado),
+              value: formatCurrency(metrics.totalFaturado),
               icon: DollarSign,
               accent: true,
             },
@@ -156,7 +168,7 @@ export default function Vendas() {
             },
             {
               label: "Maior Venda",
-              value: formatCurrencyShort(metrics.maiorVenda),
+              value: formatCurrency(metrics.maiorVenda),
               icon: TrendingUp,
             },
           ].map((stat) => (
@@ -186,8 +198,107 @@ export default function Vendas() {
         </div>
       </div>
 
+      {/* ═══ COMPOSIÇÃO DO FATURAMENTO ═══ */}
+      {!isLoading && vendas.length > 0 && (metrics.faturamentoConsultas > 0 || metrics.faturamentoProcedimentos > 0) && (
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">COMPOSIÇÃO DO FATURAMENTO</p>
+                <p className="text-[10px] text-muted-foreground/50 mt-0.5">Distribuição entre consultas e procedimentos</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-5 py-4 space-y-4">
+            {/* Barra de proporção */}
+            {metrics.totalFaturado > 0 && (
+              <div className="space-y-1.5">
+                <div className="h-2.5 rounded-full overflow-hidden flex bg-muted/40">
+                  {metrics.faturamentoProcedimentos > 0 && (
+                    <div
+                      className="h-full bg-emerald-500 transition-all"
+                      style={{ width: `${(metrics.faturamentoProcedimentos / metrics.totalFaturado) * 100}%` }}
+                    />
+                  )}
+                  {metrics.faturamentoConsultas > 0 && (
+                    <div
+                      className="h-full bg-blue-400 transition-all"
+                      style={{ width: `${(metrics.faturamentoConsultas / metrics.totalFaturado) * 100}%` }}
+                    />
+                  )}
+                  {metrics.faturamentoOutros > 0 && (
+                    <div
+                      className="h-full bg-muted-foreground/30 transition-all"
+                      style={{ width: `${(metrics.faturamentoOutros / metrics.totalFaturado) * 100}%` }}
+                    />
+                  )}
+                </div>
+              </div>
+            )}
+            {/* Cards de breakdown */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl bg-emerald-50/60 border border-emerald-100/80 px-4 py-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/60">Procedimentos</span>
+                </div>
+                <p className="text-lg font-extrabold text-emerald-800 font-display tabular-nums leading-tight">
+                  {formatCurrency(metrics.faturamentoProcedimentos)}
+                </p>
+                <p className="text-[10px] text-emerald-700/50 mt-0.5">
+                  {metrics.qtdProcedimentos} venda{metrics.qtdProcedimentos !== 1 ? "s" : ""} ·{" "}
+                  {metrics.totalFaturado > 0
+                    ? Math.round((metrics.faturamentoProcedimentos / metrics.totalFaturado) * 100)
+                    : 0}%
+                </p>
+              </div>
+              <div className="rounded-xl bg-blue-50/60 border border-blue-100/80 px-4 py-3">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <div className="h-2 w-2 rounded-full bg-blue-400 shrink-0" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-700/60">Consultas</span>
+                </div>
+                <p className="text-lg font-extrabold text-blue-800 font-display tabular-nums leading-tight">
+                  {formatCurrency(metrics.faturamentoConsultas)}
+                </p>
+                <p className="text-[10px] text-blue-700/50 mt-0.5">
+                  {metrics.qtdConsultas} consulta{metrics.qtdConsultas !== 1 ? "s" : ""} ·{" "}
+                  {metrics.totalFaturado > 0
+                    ? Math.round((metrics.faturamentoConsultas / metrics.totalFaturado) * 100)
+                    : 0}%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ TABS ═══ */}
+      <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit">
+        {[
+          { id: "registros" as const, label: "Registros", icon: Receipt },
+          { id: "relatorios" as const, label: "Relatórios", icon: BarChart3 },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-1.5 text-[11px] font-semibold rounded-lg transition-all",
+              activeTab === tab.id
+                ? "bg-foreground text-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <tab.icon className="h-3 w-3" />
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* ═══ TABLE SECTION ═══ */}
-      <div data-tutorial="vendas-list">
+      {activeTab === "registros" && <div data-tutorial="vendas-list">
         {/* Section Header + Search */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -252,9 +363,23 @@ export default function Vendas() {
                         <h4 className="text-[13px] font-semibold text-foreground truncate">
                           {venda.leads?.nome || "Cliente não encontrado"}
                         </h4>
-                        <p className="text-[11px] text-muted-foreground/60 truncate">
-                          {venda.produto_servico || "Sem serviço"}
-                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                          <p className="text-[11px] text-muted-foreground/60 truncate">
+                            {venda.produto_servico || "Sem serviço"}
+                          </p>
+                          {venda.tipo_venda && (
+                            <span className={cn(
+                              "inline-flex items-center text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border shrink-0",
+                              venda.tipo_venda === "consulta"
+                                ? "bg-blue-50 text-blue-700 border-blue-200/60"
+                                : venda.tipo_venda === "procedimento"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                                : "bg-muted/50 text-muted-foreground border-border/40"
+                            )}>
+                              {venda.tipo_venda === "consulta" ? "Consulta" : venda.tipo_venda === "procedimento" ? "Procedimento" : "Outro"}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -383,9 +508,23 @@ export default function Vendas() {
 
                     {/* Servico */}
                     <TableCell className="py-3.5">
-                      <span className="text-xs text-muted-foreground truncate block max-w-[160px]">
-                        {venda.produto_servico || "—"}
-                      </span>
+                      <div className="flex flex-col gap-1 max-w-[160px]">
+                        <span className="text-xs text-muted-foreground truncate block">
+                          {venda.produto_servico || "—"}
+                        </span>
+                        {venda.tipo_venda && (
+                          <span className={cn(
+                            "inline-flex w-fit items-center text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border",
+                            venda.tipo_venda === "consulta"
+                              ? "bg-blue-50 text-blue-700 border-blue-200/60"
+                              : venda.tipo_venda === "procedimento"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200/60"
+                              : "bg-muted/50 text-muted-foreground border-border/40"
+                          )}>
+                            {venda.tipo_venda === "consulta" ? "Consulta" : venda.tipo_venda === "procedimento" ? "Procedimento" : "Outro"}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
 
                     {/* Valor Fechado */}
@@ -433,7 +572,12 @@ export default function Vendas() {
             </TableBody>
           </Table>
         </div>
-      </div>
+      </div>}
+
+      {/* ═══ RELATÓRIOS ═══ */}
+      {activeTab === "relatorios" && (
+        <VendasRelatorios vendas={vendas} isLoading={isLoading} dateRange={dateRange} />
+      )}
 
       {/* ═══ MODAL ═══ */}
       <VendaModal

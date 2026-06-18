@@ -150,7 +150,13 @@ export function DateRangePicker({ className, date, setDate, hideQuickSelect = fa
             defaultMonth={date?.from}
             selected={date}
             onSelect={(newDate) => {
-              setDate(newDate);
+              // react-day-picker retorna { from: date, to: undefined } quando o usuário
+              // clica duas vezes na mesma data — normaliza para range de 1 dia
+              if (newDate?.from && !newDate?.to) {
+                setDate({ from: newDate.from, to: newDate.from });
+              } else {
+                setDate(newDate);
+              }
               setActivePeriod('custom');
             }}
             numberOfMonths={2}

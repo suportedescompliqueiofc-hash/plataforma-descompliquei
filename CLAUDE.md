@@ -351,6 +351,16 @@ When `externalAdReply` with `sourceType = 'ad'` is found, it looks up the `criat
 - `debug_payloads` — temporary debug logging for API payloads
 - `platform_complementary_folders` — pastas/subpastas dos Materiais Complementares da Trilha. Columns: `id`, `nome`, `parent_id` (FK self — NULL = pasta raiz, preenchido = subpasta), `ordem_index`, `ativo`, `created_at`. Máx. 2 níveis de hierarquia (pasta → subpasta).
 - `platform_complementary_materials` — materiais (PDF ou HTML) vinculados a uma pasta. Columns: `id`, `folder_id` (FK → `platform_complementary_folders`), `titulo`, `tipo` (`'pdf'` | `'html'`), `pdf_url` (URL pública do Storage), `conteudo_html` (HTML inline), `ordem_index`, `ativo`, `created_at`. **`conteudo_html` NÃO é carregado na query inicial — é buscado sob demanda ao abrir o material.**
+- `arsenal_categorias` — categorias de ferramentas do Arsenal. Columns: `id`, `nome`, `slug`, `descricao`, `icone`, `cor`, `ordem_index`, `ativo`.
+- `arsenal_ferramentas` — ferramentas do Arsenal (construções práticas). Columns: `id`, `categoria_id` (FK → `arsenal_categorias`), `nome`, `slug`, `descricao`, `conteudo_json` (JSONB — campos do formulário), `ativo`, `ordem_index`. **`arsenal_categorias` não tem coluna `ativo` — nunca filtrar por ela.**
+- `arsenal_blocos` — blocos (seções) do Arsenal de Aulas. Columns: `id`, `nome`, `slug`, `descricao`, `ordem_index`, `ativo`.
+- `arsenal_aulas` — aulas dentro dos blocos. Columns: `id`, `bloco_id` (FK → `arsenal_blocos`), `nome`, `slug`, `descricao`, `video_url`, `duracao_minutos`, `ordem_index`, `ativo`.
+- `arsenal_aulas_progresso` — progresso por usuário nas aulas. Columns: `id`, `user_id` (= `auth.uid()`), `aula_id` (FK → `arsenal_aulas`), `concluido`, `concluido_em`.
+- `jornadas` — jornadas personalizadas geradas pelo Athos GS. Columns: `id`, `user_id` (= `auth.uid()`), `titulo`, `status` (`'rascunho'` | `'ativa'` | `'concluida'`), `gerada_por` (`'ia'` | `'admin'`), `created_at`, `updated_at`.
+- `jornada_estagios` — etapas de uma jornada. Columns: `id`, `jornada_id` (FK → `jornadas`), `titulo`, `descricao`, `ordem`, `prazo_dias`, `data_inicio`.
+- `jornada_passos` — passos dentro de uma etapa. Columns: `id`, `estagio_id` (FK → `jornada_estagios`), `titulo`, `descricao`, `ordem`, `tipo` (`'acao_livre'` | `'ferramenta_arsenal'` | `'categoria_arsenal'`), `ferramenta_id` (FK → `arsenal_ferramentas`), `categoria_id` (FK → `arsenal_categorias`), `aula_id` (FK → `arsenal_aulas` — `ON DELETE SET NULL`), `prazo_dias`, `obrigatorio`, `concluido`, `concluido_em`, `concluido_por`.
+- `athos_agentes` — configurações de agentes da DescompliqueiOS. Columns: `id`, `slug`, `nome`, `descricao`, `system_prompt`, `ativo`. O `system_prompt` pode conter `[INSERIDO AUTOMATICAMENTE PELO SISTEMA]` como placeholder — a edge function `descompliquei-os` substitui por dados do diagnóstico do usuário antes de enviar à IA.
+- `os_conversations` — histórico de conversas com agentes OS. Columns: `id`, `user_id` (= `auth.uid()`), `titulo`, `agente_slug` (TEXT), `created_at`, `updated_at`.
 
 **Colunas relevantes em `organizations`:**
 - `onboarding_completed_steps text[]` — passos do onboarding CRM já concluídos (DEFAULT `'{}'`)
@@ -378,6 +388,112 @@ When `externalAdReply` with `sourceType = 'ad'` is found, it looks up the `criat
 - `process-scheduled-messages` — cron for timed messages
 - `manage-whatsapp` — WhatsApp connection management
 - `seed-stages` — seeds default pipeline stages for orgs
+- `descompliquei-os` — chat handler para DescompliqueiOS. Substitui placeholder `[INSERIDO AUTOMATICAMENTE PELO SISTEMA]` no system_prompt com dados do diagnóstico. Expõe a tool `criar_jornada` que salva `jornadas` + `jornada_estagios` + `jornada_passos` no Supabase.
+- `send-appointment-confirmation` — envia WhatsApp de confirmação imediata ao criar agendamento (se `notif_confirmacao_ativa = true` na config da org)
+- `process-appointment-notifications` — cron de lembretes de agendamento. Janela de 5 min. Usa `agendamento_notificacoes` para dedup (status `'cancelado'` = não enviar).
+
+---
+
+## Arsenal da Plataforma
+
+O Arsenal é a caixa de ferramentas comerciais da plataforma, com duas seções: **Aulas** (vídeo com blocos/módulos) e **Ferramentas** (construções por categoria).
+
+### Arquitetura de arquivos
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `src/pages/plataforma/Arsenal.tsx` | Listagem — hero + abas "Aulas" / Ferramentas por categoria |
+| `src/pages/plataforma/ArsenalAula.tsx` | Página de aula individual — vídeo, descrição, botão concluir. Rota: `/plataforma/arsenal/aulas/:slug` |
+| `src/pages/plataforma/ArsenalFerramenta.tsx` (ou caminho similar) | Página de ferramenta individual. Rota: `/plataforma/arsenal/:categoriaSlug/:ferramentaSlug` |
+| `src/hooks/useArsenalAulas.ts` | Hook para aulas e progresso por usuário |
+| `src/hooks/useAdminArsenal.ts` | Hooks admin — `useAdminFerramentas()`, `useAdminCategorias()`, etc. |
+| `src/pages/admin-os/pages/AdminArsenal.tsx` | Gestão admin de ferramentas |
+| `src/pages/admin-os/pages/AdminArsenalAulas.tsx` | Gestão admin de aulas |
+
+### Rotas do Arsenal
+
+```
+/plataforma/arsenal                          → Arsenal.tsx (listagem)
+/plataforma/arsenal/aulas/:slug              → ArsenalAula.tsx (aula individual)
+/plataforma/arsenal/:categoriaSlug/:slug     → ArsenalFerramenta.tsx (ferramenta individual)
+/plataforma/arsenal/:categoriaSlug           → categoria filtrada na listagem
+```
+
+### Regras críticas
+
+- **`arsenal_categorias` NÃO tem coluna `ativo`** — nunca fazer `.eq('ativo', true)` nessa tabela. Apenas `arsenal_ferramentas` e `arsenal_aulas` têm `ativo`.
+- **Progresso de aulas** salvo em `arsenal_aulas_progresso` com `user_id = auth.uid()`. Usar `useArsenalAulas.ts` — nunca query direta de componente.
+- **Admin hooks**: sempre usar `useAdminFerramentas()` e `useAdminCategorias()` de `useAdminArsenal.ts` nos painéis admin — têm cache keys corretas e queries sem `ativo` em categorias.
+
+---
+
+## Jornada Personalizada (Plataforma)
+
+Jornada de implementação personalizada criada pelo Athos GS para cada cliente. Distinta da **Jornada do Paciente** (CRM/timeline de lead).
+
+### Arquitetura de arquivos
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `src/pages/plataforma/Jornada.tsx` | Visualização do cliente — lista etapas com locking sequencial, passos com botão "Abrir" |
+| `src/hooks/useJornada.ts` | Hook principal — `useJornada()`, `useMarcarPassoConcluido()`, helpers `getEstagioStatus()`, `getJornadaProgress()` |
+| `src/hooks/useAdminJornadas.ts` | Hooks admin — CRUD de jornadas, `useSaveJornadaEstrutura()`, `jornadaToDraft()` |
+| `src/pages/admin-os/pages/AdminJornadaEditor.tsx` | Editor admin de estrutura da jornada — etapas + passos |
+| `src/lib/jornadaUtils.ts` | Utilitários de jornada |
+
+### Tipos de passo (`DraftPasso.tipo`)
+
+| tipo | Descrição | FK preenchida |
+|------|-----------|---------------|
+| `'acao_livre'` | Passo sem vínculo de ferramenta | nenhuma |
+| `'ferramenta_arsenal'` | Ferramenta do Arsenal | `ferramenta_id` |
+| `'categoria_arsenal'` | Categoria do Arsenal | `categoria_id` |
+| `'aula_arsenal'` | Aula do Arsenal (editor admin) | `aula_id` |
+
+> **Atenção:** Na DB e na tool do Athos, aulas são salvas com `tipo = 'ferramenta_arsenal'` e `aula_id` preenchido. O tipo `'aula_arsenal'` só existe no estado de rascunho do editor admin (`DraftPasso`). O `useSaveJornadaEstrutura` converte `'aula_arsenal'` → `'ferramenta_arsenal'` + `aula_id` ao salvar.
+
+### Locking sequencial de etapas
+
+Etapas são bloqueadas até a anterior ser concluída:
+
+```tsx
+// Em Jornada.tsx
+isLocked={i > 0 && getEstagioStatus(estagios[i - 1]) !== 'concluido'}
+```
+
+`getEstagioStatus()` retorna `'nao_iniciado' | 'em_andamento' | 'concluido'`. Uma etapa é `'concluido'` quando todos os passos obrigatórios estão concluídos (ou todos os passos se não houver obrigatórios).
+
+### Botão "Abrir" nos passos
+
+```tsx
+// handleOpen() em PassoRow (Jornada.tsx)
+if (passo.tipo === 'ferramenta_arsenal' && passo.arsenal_ferramentas) {
+  navigate(`/plataforma/arsenal/${categoria.slug}/${ferramenta.slug}`);
+} else if (passo.aula_id && passo.arsenal_aulas) {
+  navigate(`/plataforma/arsenal/aulas/${passo.arsenal_aulas.slug}`);
+} else if (passo.tipo === 'categoria_arsenal' && passo.arsenal_categorias) {
+  navigate(`/plataforma/arsenal/${categoria.slug}`);
+}
+```
+
+O `useJornada()` faz join em `arsenal_aulas (id, slug)` além de `arsenal_ferramentas` e `arsenal_categorias`.
+
+### Tool `criar_jornada` no Athos (edge function `descompliquei-os`)
+
+Ao montar a jornada, o Athos usa `ferramenta_slug` para vincular passos. A edge function resolve slugs contra **dois mapas**:
+1. `slugMap` — slugs de `arsenal_ferramentas` → `ferramenta_id`
+2. `aulaSlugMap` — slugs de `arsenal_aulas` → `aula_id`
+
+Regras:
+- `tipo: 'aula'` do Athos é normalizado para `tipo: 'ferramenta_arsenal'` automaticamente
+- O Athos **DEVE** usar sempre `tipo: 'ferramenta_arsenal'` para aulas e ferramentas — nunca `tipo: 'aula'`
+- Se o slug resolve em `aulaSlugMap`, o passo recebe `aula_id` (e `ferramenta_id = null`)
+- Se resolve em `slugMap`, recebe `ferramenta_id` (e `aula_id = null`)
+
+### data-tutorial na Jornada
+
+- `data-tutorial="jornada-header"` — hero principal da página Jornada (usado pelo platform-tour step 4)
+- `tutorialTargetMap` em `SidebarContent.tsx`: `/plataforma/jornada` → `sidebar-jornada`, `/plataforma/os` → `sidebar-os`
 
 ---
 
@@ -541,7 +657,7 @@ steps: [
 | `comercial` | Comercial | leads, pipeline, agendamentos, vendas, metas |
 | `automacao` | Automação | ia, quick-messages, cadences |
 | `sistema` | Sistema | settings |
-| `onboarding` | (oculto) | onboarding-perfil, onboarding-etiquetas, onboarding-procedimentos, onboarding-equipe |
+| `onboarding` | (oculto) | onboarding-perfil, onboarding-etiquetas, onboarding-procedimentos, onboarding-equipe, **platform-tour**, **platform-cerebro** |
 
 > **IMPORTANTE:** Tutoriais com `category: 'onboarding'` são **excluídos** da Central de Ajuda (`TutorialHelpCenter.tsx`) e do contador de progresso. Devem estar **dentro** do array `tutorials` em `tutorialData.ts` — caso contrário o `TutorialSpotlight` não os encontra e nada é exibido.
 
@@ -554,7 +670,7 @@ steps: [
 | `Notifications.tsx` | `notificacoes` | `notificacoes-tabs`, `notificacoes-filters`, `notificacoes-list`, `notificacoes-card`, `notificacoes-resolver`, `notificacoes-limpar` |
 | `Leads.tsx` | `leads` | `leads-add`, `leads-filters-advanced`, `leads-pagination`, `leads-row-actions`, `leads-bulk-bar`, `leads-origin-filter`, `leads-tags-filter` |
 | `LeadModal.tsx` | (modal do leads) | `lead-modal`, `lead-field-nome`, `lead-field-telefone`, `lead-field-origem`, `lead-field-fonte`, `lead-field-etapa`, `lead-field-data`, `lead-submit` |
-| `Pipeline.tsx` | `pipeline` | `pipeline-tabs`, `pipeline-column`, `pipeline-drag`, `pipeline-metrics-tab`, `pipeline-header` |
+| ~~`Pipeline.tsx`~~ | ~~`pipeline`~~ | **REMOVIDO** — pipeline foi eliminado do CRM |
 | `Agendamentos.tsx` | `agendamentos` | `agendamentos-header`, `agendamentos-config`, `agendamentos-tabs`, `agendamentos-filters`, `agendamentos-upcoming`, `agendamentos-metrics` |
 | `AgendamentoLeadModal` | (modal de agendamentos) | `agendamento-modal`, `agendamento-field-lead`, `-titulo`, `-tipo`, `-duracao`, `-data`, `-cor`, `-obs`, `agendamento-submit` |
 | `Vendas.tsx` | `vendas` | `vendas-header`, `vendas-filters`, `vendas-metrics`, `vendas-row` |
@@ -567,6 +683,12 @@ steps: [
 | `Cadences.tsx` | `cadences` | `cadences-tabs`, `cadences-list`, `cadences-create`, `cadences-card`, `cadences-dispatch`, `cadences-monitoring`, `cadences-report` |
 | `CadenceModal.tsx` | (modal de cadências) | `cadence-modal-identity`, `cadence-field-nome`, `cadence-field-descricao`, `cadence-steps`, `cadence-add-step`, `cadence-submit` |
 | `Settings.tsx` | `settings` | `settings-nav`, `settings-nav-{id}`, `settings-profile`, `settings-pipeline`, `settings-sources`, `settings-tags`, `settings-marca`, `settings-whatsapp`, `settings-appearance`, `settings-security` |
+| `Hub.tsx` (plataforma) | (platform-tour step 2, 8) | `hub-tools`, `hub-tool-{id}` |
+| `Arsenal.tsx` (plataforma) | (platform-tour step 3) | `arsenal-header` |
+| `Jornada.tsx` (plataforma) | (platform-tour step 4) | `jornada-header` |
+| `Materiais.tsx` (plataforma) | (platform-tour step 5) | `materiais-header` |
+| `SidebarContent.tsx` | (platform-tour) | `sidebar-hub`, `sidebar-jornada`, `sidebar-arsenal`, `sidebar-materiais`, `sidebar-os`, `sidebar-sessoes` |
+| `Cerebro.tsx` (plataforma) | `platform-cerebro` | `cerebro-header`, `cerebro-nav`, `cerebro-identidade`, `cerebro-procedimentos`, `cerebro-operacao`, `cerebro-faq`, `cerebro-trilha` |
 
 ### Regra obrigatória ao modificar páginas
 
@@ -646,9 +768,7 @@ O `Settings.tsx` usa `?section=` query param para abrir a seção correta direta
 
 ## Pipeline — Kanban
 
-- **Sem paginação:** todas as etapas renderizam de uma vez. A paginação de 4 colunas foi removida.
-- **Scroll horizontal:** barra de rolagem aparece **no topo** do board (usando div espelho sincronizado via eventos `scroll`). O container principal tem `scrollbarWidth: none`.
-- **Drag & drop:** `@dnd-kit` com `closestCenter`. Todas as etapas são acessíveis para drop sem limitação.
+> **⚠️ REMOVIDO:** O Pipeline (Kanban, etapas, métricas de funil) foi **completamente removido** do CRM. Não existem mais as páginas `Pipeline.tsx`, `FunnelMetricsTab.tsx`, `PipelineSettings.tsx` nem os hooks `useFunnelMetrics.ts`, `useStages.ts`, `useStagesManager.ts`. A tabela `etapas` ainda existe no banco mas não é mais usada pela interface. Não recriar essas telas sem instrução explícita.
 
 ---
 
@@ -674,3 +794,300 @@ O widget "Rotina do Dia" no Dashboard (`src/pages/Dashboard.tsx`) escala visualm
 O ranking **Top Procedimentos** usa `vendas.produto_servico` (campo da tabela `vendas`, preenchido a partir do catálogo cadastrado), **não** `leads.procedimento_interesse` (texto livre).
 
 Fonte: `useDashboard.ts` — conta ocorrências de `produto_servico` nas vendas do período filtrado.
+
+---
+
+## Agendamentos
+
+Sistema completo de agendamentos com notificações automáticas via WhatsApp.
+
+### Arquitetura de arquivos
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `src/pages/Agendamentos.tsx` | Página principal — lista, filtros, modal de criação/edição inline |
+| `src/components/agendamentos/AgendamentoLeadModal.tsx` | Modal de agendamento acessível a partir da conversa (chat view) |
+| `src/components/agendamentos/ConfigNotificacoes.tsx` | Config de lembretes automáticos por org |
+| `src/hooks/useAgendamentos.ts` | CRUD de agendamentos |
+| `src/hooks/useAgendamentoFinanceiroConfig.ts` | Config financeira — valor padrão de consulta, abatimento |
+
+### Tabelas
+
+- `agendamentos` — campos: `id`, `organization_id`, `lead_id`, `titulo`, `tipo` (`'consulta'` | `'procedimento'`), `data_hora_inicio`, `data_hora_fim`, `duracao_minutos`, `cor`, `valor_orcado`, `procedimento_interesse`, `observacoes`, `status` (`'agendado'` | `'confirmado'` | `'realizado'` | `'cancelado'` | `'faltou'`)
+- `agendamento_config_notificacoes` — config por org: `notif_ativa` (bool), `lembretes` (jsonb `[{ativo, minutos_antes}]`), `mensagem_lembrete` (template), `notif_confirmacao_ativa`, `mensagem_confirmacao`
+- `agendamento_notificacoes` — tabela de dedup para o cron de lembretes. Campos: `agendamento_id`, `organization_id`, `antecedencia_minutos`, `status` (`'enviado'` | `'pendente'` | `'cancelado'`). Status `'cancelado'` é inserido pelo frontend quando `ativarFluxo = false` — o cron verifica esta tabela antes de enviar e pula registros existentes.
+- `agendamento_notif_log` — log de execução de cada disparo (exibido no histórico do frontend)
+
+### Edge Functions de agendamentos
+
+- `send-appointment-confirmation` — envia mensagem de confirmação imediata ao criar agendamento (se `notif_confirmacao_ativa = true` na config da org)
+- `process-appointment-notifications` — cron que verifica agendamentos futuros e envia lembretes dentro da janela de 5 minutos antes do horário configurado. Usa `agendamento_notificacoes` para dedup.
+
+### Tipos de agendamento
+
+Apenas dois tipos: `consulta` e `procedimento`. O tipo `online` foi removido (mantinha campo de link de videochamada que não era usado).
+
+### Design dos modais (padrão unificado)
+
+Os dois modais (`AgendamentoLeadModal` e o modal inline em `Agendamentos.tsx`) seguem o **mesmo design**. Ao editar um, atualizar o outro também.
+
+**Campos em ordem:**
+1. Lead (seleção por busca)
+2. Título (auto-preenchido ao mudar tipo/lead)
+3. Tipo + Duração (lado a lado) — duração com botões preset: 30min / 45min / 1h / 1h30 / 2h
+4. Procedimento (apenas quando `tipo === 'procedimento'`)
+5. Valor (CurrencyInput — ver padrão abaixo)
+6. Data e Hora de Início — calendar popover + selects de hora e minuto
+7. Cor do evento
+8. Observações
+9. Toggle "Ativar fluxo de notificações"
+
+**Data/hora — padrão obrigatório:**
+```tsx
+// NUNCA usar <input type="datetime-local"> — usar calendar popover + selects
+<Popover> {/* calendar shadcn/ui para a data */}
+  <Calendar selected={data} onSelect={handleDateChange} locale={ptBR} />
+</Popover>
+// Hora e minuto: ícone Clock FORA do SelectTrigger, não dentro
+<div className="flex items-center gap-1.5 shrink-0">
+  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+  <Select value={hora}> <SelectTrigger className="w-[62px] tabular-nums"> ... </SelectTrigger> </Select>
+  <span>:</span>
+  <Select value={minuto}> <SelectTrigger className="w-[60px] tabular-nums"> ... </SelectTrigger> </Select>
+</div>
+```
+> **Anti-pattern:** colocar o ícone `Clock` dentro do `SelectTrigger` espreme o valor e corta a exibição (ex: "08l" em vez de "08").
+
+**Toggle de notificações:**
+```tsx
+// Card toggle — NÃO usar checkbox simples
+<div className="rounded-xl border border-border/60 px-4 py-3 flex items-center justify-between bg-muted/20">
+  <div className="flex items-center gap-2.5">
+    {ativarFluxo ? <Bell ... /> : <BellOff ... />}
+    <div>
+      <p className="text-sm font-medium">Ativar fluxo de notificações</p>
+      <p className="text-[11px] text-muted-foreground/60">...</p>
+    </div>
+  </div>
+  <Switch checked={ativarFluxo} onCheckedChange={setAtivarFluxo} />
+</div>
+```
+
+**Pré-cancelamento de notificações (`ativarFluxo = false`):**
+Quando o agendamento é salvo com `ativarFluxo = false`, inserir linhas com `status = 'cancelado'` em `agendamento_notificacoes` para todos os lembretes ativos da config da org. Isso garante que o cron `process-appointment-notifications` pule esse agendamento.
+
+### Abatimento da consulta — regra crítica
+
+`financeiroConfig.consulta_abatimento_ativo` controla se existe desconto do valor da consulta no procedimento. **Este abatimento é aplicado APENAS no `VendaModal` (fechamento), NUNCA no modal de agendamento.** Não exibir nenhum banner ou preview de abatimento nos modais de agendamento — é informação prematura que confunde a equipe.
+
+---
+
+## CurrencyInput
+
+Componente em `src/components/CurrencyInput.tsx` para campos monetários em BRL.
+
+```tsx
+import { CurrencyInput } from "@/components/CurrencyInput";
+
+<CurrencyInput
+  value={form.valor}                          // number | null | undefined
+  onValueChange={(v) => setForm(f => ({ ...f, valor: v ?? null }))}
+  className="h-10 text-sm rounded-lg border-border/60"
+/>
+```
+
+- Formata automaticamente como `R$ X,XX` usando `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })`
+- Placeholder padrão: `R$ 0,00`
+- Usado em: `VendaModal.tsx`, `AgendamentoLeadModal.tsx`, `Agendamentos.tsx` (modal inline), `MarketingSpendModal.tsx`
+- **NUNCA usar `<Input type="number">` com prefixo `R$` manual para valores monetários** — usar este componente.
+
+---
+
+## Onboarding da Plataforma (Athos GS)
+
+Sistema de onboarding específico da **plataforma** (distinto do onboarding do CRM). Guia o cliente pelo diagnóstico inicial e conversa com o Athos GS para montar a Jornada.
+
+### Tabelas-chave
+
+| Tabela | user_id | Descrição |
+|--------|---------|-----------|
+| `platform_users` | `id = auth.uid()` | Flags de controle do onboarding da plataforma |
+| `onboarding_diagnosticos` | `user_id = auth.uid()` | Respostas do formulário diagnóstico |
+| `onboarding_progresso` | `user_id = auth.uid()` | Etapa atual (`diagnostico` → `athos` → `concluido`) e bloco atual |
+| `jornadas` | `user_id = auth.uid()` | Jornada gerada pelo Athos GS |
+| `os_conversations` | `user_id = auth.uid()` | Conversas com agentes OS (tem coluna `agente_slug TEXT`) |
+
+### Colunas críticas em `platform_users`
+
+| Coluna | Tipo | Significado |
+|--------|------|-------------|
+| `id` | uuid | **Igual ao `auth.uid()`** — usar `.eq("id", user.id)` para queries |
+| `crm_user_id` | uuid | Também igual ao `auth.uid()` — usado quando a tabela tem coluna `crm_user_id` |
+| `platform_onboarding_enabled` | bool | `true` = este cliente tem o onboarding da plataforma ativo |
+| `onboarding_concluido` | bool | `true` = passou pelo Athos e a jornada foi salva |
+| `onboarding_complete` | bool | `true` = concluiu o checklist "Configure sua plataforma" pós-Athos |
+
+**ATENÇÃO:** `platform_users.id` e `platform_users.crm_user_id` são ambos `= auth.uid()`. Para tabelas como `jornadas` e `onboarding_diagnosticos` que usam `user_id`, sempre usar `user.id` diretamente.
+
+### Fluxo completo
+
+```
+1. Usuário acessa plataforma → OnboardingGuard detecta onboarding_concluido=false
+2. Redirect → /plataforma/onboarding (Onboarding.tsx)
+3. onboarding_progresso.etapa = 'diagnostico' → exibe formulário diagnóstico
+4. Usuário preenche diagnóstico → concluirDiagnostico() → etapa='athos'
+5. navigate('/plataforma/os?agente=onboarding')
+6. DescompliqueiOS.tsx → Athos GS conversa e monta jornada em JSON
+7. salvarJornadaOS() salva em `jornadas` → onboarding_concluido=true no DB
+8. setConcluido() atualiza PlataformaContext local → OnboardingPlataformaModal aparece
+9. Usuário conclui checklist → onboarding_complete=true → libera plataforma completa
+```
+
+### Arquitetura de arquivos
+
+| Arquivo | Responsabilidade |
+|---------|-----------------|
+| `src/pages/plataforma/Onboarding.tsx` | Formulário diagnóstico + redirect para Athos |
+| `src/hooks/useOnboardingDiagnostico.ts` | Hook do diagnóstico — lê/salva respostas, `concluirDiagnostico()`, `concluirOnboarding()` |
+| `src/pages/plataforma/DescompliqueiOS.tsx` | Chat OS com agentes — salva jornada, chama `setConcluido()` |
+| `src/components/plataforma/OnboardingGuard.tsx` | Guard que redireciona para `/plataforma/onboarding` quando `onboarding_concluido=false` |
+| `src/components/plataforma/OnboardingPlataformaModal.tsx` | Modal "Configure sua plataforma" — aparece após Athos (fase 2) |
+| `src/components/plataforma/OnboardingPlataformaChecklist.tsx` | Checklist flutuante (fase 2) |
+| `src/contexts/PlataformaContext.tsx` | Contexto central — `plataformaUser`, `showOnboarding`, `setConcluido()` |
+
+### Regras críticas do OnboardingGuard
+
+- **`/plataforma/os` está FORA do `OnboardingGuard`** em `App.tsx`. Isso é intencional — a rota `/plataforma/os` é parte do próprio fluxo de onboarding (conversa com Athos). Se colocada dentro do guard, cria loop infinito:  
+  `OnboardingGuard → /plataforma/onboarding → navigate(/plataforma/os) → OnboardingGuard → ...`
+- `OnboardingGuard` retorna `<Outlet />` (não `null`) enquanto `isContextLoading=true` para evitar flash em branco.
+
+### Condições do OnboardingPlataformaModal
+
+```tsx
+// Modal SÓ aparece quando onboarding_concluido=true (Athos concluído) E onboarding_complete=false (checklist pendente)
+const onboardingConcluido = plataformaUser?.onboarding_concluido === true;
+if (isSuperAdmin || !onboardingEnabled || onboardingComplete || !onboardingConcluido) return null;
+```
+
+**Anti-pattern:** o modal NÃO pode aparecer durante o diagnóstico ou durante a conversa com o Athos (quando `onboarding_concluido=false`). A condição `!onboardingConcluido` protege contra isso.
+
+### showOnboarding no PlataformaContext
+
+```tsx
+showOnboarding: plataformaUser?.platform_onboarding_enabled === true
+             && plataformaUser?.onboarding_complete === false
+             && plataformaUser?.onboarding_concluido === true
+             && !isContextLoading,
+```
+
+### setConcluido — atualização local do contexto
+
+Após `salvarJornadaOS()` em `DescompliqueiOS.tsx`, o DB é atualizado E o contexto local é sincronizado via `setConcluido()` para que o modal apareça imediatamente sem reload:
+
+```tsx
+salvarJornadaOS(jornada, user.id).then(async ok => {
+  if (ok) {
+    await supabase.from("platform_users")
+      .update({ onboarding_concluido: true })
+      .eq("crm_user_id", user!.id);
+    setConcluido(); // atualiza PlataformaContext local
+  }
+});
+```
+
+### Prevenção de re-fetch desnecessário no PlataformaContext
+
+```tsx
+// ✅ CORRETO — só re-fetcha quando o ID do usuário muda (não a cada token refresh)
+}, [user?.id, authLoading]);
+
+// ❌ ERRADO — re-fetcha a cada TOKEN_REFRESHED (novo objeto user) causando flash em branco
+}, [user, authLoading]);
+```
+
+O Supabase dispara `TOKEN_REFRESHED` periodicamente criando novo objeto `user`. Usar `user?.id` evita re-fetches desnecessários.
+
+---
+
+## DescompliqueiOS — Agentes OS
+
+Página `/plataforma/os` — chat com agentes Athos GS.
+
+### Tabela `athos_agentes`
+
+| Coluna | Tipo | Descrição |
+|--------|------|-----------|
+| `id` | uuid | PK |
+| `slug` | text | Identificador único (ex: `onboarding`) |
+| `nome` | text | Nome exibido |
+| `descricao` | text | Descrição curta |
+| `system_prompt` | text | Prompt do sistema |
+| `ativo` | bool | Se aparece na lista |
+
+**"Athos GS" NÃO é listado como agente na UI** — é o nome do sistema, não um agente selecionável.
+
+### system_prompt e placeholder de diagnóstico
+
+O campo `system_prompt` do agente `onboarding` contém `[INSERIDO AUTOMATICAMENTE PELO SISTEMA]` como marcador. A edge function `descompliquei-os` substitui esse placeholder pelos dados do `onboarding_diagnosticos` do usuário antes de enviar à IA. Isso contextualiza o Athos com as informações da clínica sem duplicar o diagnóstico no banco.
+
+### UI de seleção de agentes
+
+Sidebar tem um botão `Bot` icon que abre um **floating panel** (não cards expostos). Agente ativo aparece como badge pill no header do chat com `X` para dispensar.
+
+### Salvar conversa com agente
+
+O `agente_slug` na tabela `os_conversations` deve ser atualizado com `await` antes de chamar `loadConversations()`:
+
+```tsx
+// ✅ CORRETO — await garante que o update commitou antes de recarregar a lista
+await supabase.from("os_conversations").update({ agente_slug: slug }).eq("id", convId);
+await loadConversations();
+```
+
+---
+
+## Admin — Reiniciar Onboarding de Cliente
+
+Em `AdminClientePerfil.tsx`, o botão "Reiniciar" executa a função RPC `admin_reset_onboarding_to_athos` via Supabase (SECURITY DEFINER — bypass de RLS).
+
+### IDs importantes
+
+- `client.id` = `platform_users.id` (para queries na tabela `platform_users`)
+- `client.crm_user_id` = `auth.uid()` do cliente (para queries em `jornadas`, `onboarding_diagnosticos`, `os_conversations`)
+
+### Função RPC `admin_reset_onboarding_to_athos`
+
+Reset parcial (mantém diagnóstico preenchido, pula direto para Athos):
+
+```sql
+-- Reseta flags de onboarding
+UPDATE platform_users SET
+  onboarding_concluido = false,
+  platform_onboarding_enabled = true,
+  platform_onboarding_steps = '{}',
+  onboarding_iniciado_em = null,
+  onboarding_concluido_em = null
+WHERE id = p_platform_user_id;
+
+-- Força etapa = 'athos' (pula o diagnóstico)
+UPDATE onboarding_progresso SET etapa = 'athos', bloco_atual = 8
+WHERE user_id = p_auth_user_id;
+
+-- Deleta jornada e conversa anterior com Athos
+DELETE FROM jornadas WHERE user_id = p_auth_user_id;
+DELETE FROM os_conversations WHERE user_id = p_auth_user_id AND agente_slug = 'onboarding';
+-- NÃO deleta onboarding_diagnosticos nem materiais de diagnóstico
+```
+
+**Por que SECURITY DEFINER:** RLS impede um admin de deletar registros de outro usuário. A função roda como owner (sem RLS).
+
+### Chamada no frontend
+
+```tsx
+const { error } = await supabase.rpc('admin_reset_onboarding_to_athos', {
+  p_platform_user_id: client.id,       // platform_users.id
+  p_auth_user_id: client.crm_user_id,  // auth.uid() do cliente
+});
+```
+
+**Após o reset:** o cliente precisa recarregar a página para que o `PlataformaContext` busque os dados atualizados do DB. O contexto só re-fetcha quando `user?.id` muda ou a página é recarregada.

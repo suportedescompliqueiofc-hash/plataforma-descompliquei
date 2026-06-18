@@ -4,7 +4,7 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft, ArrowRight, UserRound, Mail, MapPin, Stethoscope, Star,
-  GitBranch, MessageSquare, CalendarDays, DollarSign, Bot, Zap,
+  MessageSquare, CalendarDays, DollarSign, Bot, Zap,
   StickyNote, Tag, UserPlus, Clock, TrendingUp, Activity,
   ChevronDown, ChevronUp, ExternalLink, AlertCircle,
   Send, Inbox, FileText, UserCog,
@@ -28,7 +28,6 @@ const EVENTO_CONFIG: Record<EventoTipo, {
   mensagem:    { icon: MessageSquare, bgColor: "bg-blue-50",     iconColor: "text-blue-600",    borderColor: "border-blue-200/60",   label: "Mensagens" },
   agendamento: { icon: CalendarDays,  bgColor: "bg-purple-50",   iconColor: "text-purple-600",  borderColor: "border-purple-200/60", label: "Agendamentos" },
   venda:       { icon: DollarSign,    bgColor: "bg-emerald-50",  iconColor: "text-emerald-600", borderColor: "border-emerald-200/60", label: "Vendas" },
-  etapa:       { icon: GitBranch,     bgColor: "bg-amber-50",    iconColor: "text-amber-600",   borderColor: "border-amber-200/60",  label: "Etapas" },
   scoring:     { icon: Star,          bgColor: "bg-orange-50",   iconColor: "text-orange-600",  borderColor: "border-orange-200/60", label: "Qualificacao" },
   tag:         { icon: Tag,           bgColor: "bg-slate-100",   iconColor: "text-slate-600",   borderColor: "border-slate-200/60",  label: "Tags" },
   nota:        { icon: StickyNote,    bgColor: "bg-sky-50",      iconColor: "text-sky-600",     borderColor: "border-sky-200/60",    label: "Notas" },
@@ -44,8 +43,8 @@ const SCORING_CONFIG: Record<string, { label: string; bg: string; text: string }
   D: { label: "Fora do ICP", bg: "bg-red-50 border-red-200/60", text: "text-red-700" },
 };
 
-const ALL_TIPOS: EventoTipo[] = ["entrada","mensagem","agendamento","venda","etapa","scoring","tag","nota","ia","cadencia","responsavel"];
-const MACRO_TIPOS: EventoTipo[] = ["entrada", "etapa", "scoring", "agendamento", "venda"];
+const ALL_TIPOS: EventoTipo[] = ["entrada","mensagem","agendamento","venda","scoring","tag","nota","ia","cadencia","responsavel"];
+const MACRO_TIPOS: EventoTipo[] = ["entrada", "scoring", "agendamento", "venda"];
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -128,7 +127,6 @@ function MacroTimelineStrip({ eventos }: { eventos: JornadaEvento[] }) {
             const isLast = i === milestones.length - 1;
 
             const label =
-              m.tipo === 'etapa'       ? (m.metadata?.etapa_nome || 'Etapa') :
               m.tipo === 'scoring'     ? `Score ${m.metadata?.scoring || ''}` :
               m.tipo === 'venda'       ? formatCurrency(m.metadata?.valor || 0) :
               m.tipo === 'entrada'     ? 'Entrou' :
@@ -345,34 +343,6 @@ function EventoCard({ evento, isLast }: { evento: JornadaEvento; isLast: boolean
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted/60 border border-border/40 text-muted-foreground">
                   <Send className="h-2.5 w-2.5" /> {evento.metadata.saida} enviadas
                 </span>
-              )}
-            </div>
-          )}
-
-          {/* ── Etapa ── */}
-          {evento.tipo === 'etapa' && evento.metadata?.etapa_nome && (
-            <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-              {evento.metadata.from_stage_nome && (
-                <>
-                  <div className="flex items-center gap-1">
-                    {evento.metadata.from_stage_cor && (
-                      <div className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
-                        style={{ backgroundColor: evento.metadata.from_stage_cor }} />
-                    )}
-                    <span className="text-[11px] text-muted-foreground/50">{evento.metadata.from_stage_nome}</span>
-                  </div>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
-                </>
-              )}
-              <div className="flex items-center gap-1">
-                {evento.metadata.etapa_cor && (
-                  <div className="w-2.5 h-2.5 rounded-full shrink-0 border border-black/10"
-                    style={{ backgroundColor: evento.metadata.etapa_cor }} />
-                )}
-                <span className="text-[12px] font-semibold text-foreground">{evento.metadata.etapa_nome}</span>
-              </div>
-              {evento.metadata?.inferido === true && (
-                <span className="text-[9px] text-muted-foreground/40 italic ml-1">(estimado)</span>
               )}
             </div>
           )}
@@ -639,14 +609,6 @@ export default function JornadaPaciente() {
 
               {/* Status badges */}
               <div className="flex flex-wrap gap-1.5 mt-4 pt-4 border-t border-border/40">
-                {stats.etapaAtual && (
-                  <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-lg bg-muted/60 border border-border/40 text-muted-foreground">
-                    {stats.etapaAtualCor && (
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: stats.etapaAtualCor }} />
-                    )}
-                    {stats.etapaAtual}
-                  </span>
-                )}
                 {scoring && (
                   <span className={cn("inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg border", scoring.bg, scoring.text)}>
                     <Star className="h-2.5 w-2.5" />

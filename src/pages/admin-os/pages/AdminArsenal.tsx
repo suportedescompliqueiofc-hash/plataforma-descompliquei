@@ -33,6 +33,7 @@ import {
   AdminCategoria, AdminFerramenta, AdminArsenalMaterial, AdminArsenalTemplate,
   toSlug,
 } from '@/hooks/useAdminArsenal';
+import AdminArsenalAulas from './AdminArsenalAulas';
 
 // ─── Cores por slug ───────────────────────────────────────────────────────────
 
@@ -139,59 +140,66 @@ function TemplateModal({ open, onClose, template, ferramentas }: TemplateModalPr
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-3xl p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-6 py-4 border-b border-border/40">
-          <DialogTitle className="text-[15px] font-semibold">
-            {isEdit ? 'Editar Template' : 'Novo Template'}
-          </DialogTitle>
-        </DialogHeader>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-border/40 bg-muted/[0.03]">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded-lg bg-muted">
+              <LayoutTemplate className="h-4 w-4 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-[15px] font-bold text-foreground">{isEdit ? 'Editar Template' : 'Novo Template'}</p>
+              <p className="text-[11px] text-muted-foreground/60">Conteúdo rico vinculado a uma ferramenta do Arsenal</p>
+            </div>
+          </div>
+        </div>
 
-        <div className="overflow-y-auto max-h-[75vh] px-6 py-5 space-y-4">
+        <div className="overflow-y-auto max-h-[75vh] px-6 py-5 space-y-5">
+          {/* Título */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título *</Label>
-            <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Nome do template" className="h-9 text-sm" />
+            <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Nome do template" className="h-9 text-sm" autoFocus />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Categoria</Label>
-              <Select value={catFilter} onValueChange={handleSelectCat}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder="Selecionar categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categorias.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ferramenta *</Label>
-              <Select value={ferrId} onValueChange={handleSelectFerr} disabled={ferraBycat.length === 0}>
-                <SelectTrigger className="h-9 text-sm">
-                  <SelectValue placeholder={catFilter ? 'Selecionar ferramenta' : 'Selecione a categoria primeiro'} />
-                </SelectTrigger>
-                <SelectContent>
-                  {ferraBycat.map(f => (
-                    <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+          {/* Vínculo */}
+          <div className="rounded-xl border border-border/60 bg-muted/[0.02] p-4 space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Vínculo</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Categoria</Label>
+                <Select value={catFilter} onValueChange={handleSelectCat}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
+                  <SelectContent>
+                    {categorias.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ferramenta *</Label>
+                <Select value={ferrId} onValueChange={handleSelectFerr} disabled={ferraBycat.length === 0}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder={catFilter ? 'Selecionar ferramenta' : 'Selecione a categoria primeiro'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ferraBycat.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
+          {/* Descrição */}
           <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição (opcional)</Label>
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição <span className="text-muted-foreground/40 normal-case font-normal">(opcional)</span></Label>
             <Textarea value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Explique brevemente o que este template ajuda a construir..." rows={2} className="text-sm resize-none" />
           </div>
 
+          {/* Conteúdo */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conteúdo do Template</Label>
             <div className="rounded-xl border border-border/60 overflow-hidden">
-              {/* Toolbar */}
               <div className="border-b border-border/40 bg-muted/[0.02]">
                 <RichToolbar editor={editor} compact />
               </div>
-              {/* Editor */}
               <div
                 className={cn('px-5 py-4 bg-card cursor-text', EDITOR_STYLES, '[&_.ProseMirror]:min-h-[200px]')}
                 onClick={() => editor?.commands.focus()}
@@ -201,29 +209,32 @@ function TemplateModal({ open, onClose, template, ferramentas }: TemplateModalPr
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ordem</Label>
-              <Input type="number" value={ordem} onChange={e => setOrdem(Number(e.target.value))} className="h-9 w-24 text-sm" />
+          {/* Rodapé do form */}
+          <div className="flex items-center justify-between pt-1 border-t border-border/40">
+            <div className="flex items-center gap-3">
+              <div className="space-y-1">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ordem</Label>
+                <Input type="number" value={ordem} onChange={e => setOrdem(Number(e.target.value))} className="h-9 w-20 text-sm" />
+              </div>
             </div>
-            <div className="flex items-center gap-2 pt-5">
+            <div className="flex items-center gap-2.5">
               <Switch checked={ativo} onCheckedChange={setAtivo} />
-              <span className="text-sm text-muted-foreground">Ativo</span>
+              <div>
+                <p className="text-[13px] font-medium text-foreground">Ativo</p>
+                <p className="text-[10px] text-muted-foreground/50">Visível na ferramenta</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-border/40 bg-muted/20">
+        <div className="flex items-center justify-end gap-2 px-6 py-3.5 border-t border-border/40 bg-muted/20">
           <Button variant="ghost" onClick={onClose} className="h-9 text-sm">Cancelar</Button>
-          <Button
-            onClick={handleSave}
-            disabled={createT.isPending || updateT.isPending}
-            className="h-9 rounded-lg text-[12px] font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 gap-1.5"
-          >
+          <Button onClick={handleSave} disabled={createT.isPending || updateT.isPending}
+            className="h-9 rounded-lg text-[12px] font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 gap-1.5">
             {(createT.isPending || updateT.isPending) ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             {isEdit ? 'Salvar alterações' : 'Criar template'}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -341,63 +352,93 @@ function MaterialModal({ open, onClose, material, ferramentas }: MaterialModalPr
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-xl p-0 overflow-hidden gap-0">
-        <DialogHeader className="px-6 py-4 border-b border-border/40">
-          <DialogTitle className="text-[15px] font-semibold">{isEdit ? 'Editar Material' : 'Novo Material'}</DialogTitle>
-        </DialogHeader>
-
-        <div className="px-6 py-5 space-y-4 overflow-y-auto max-h-[70vh]">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Categoria</Label>
-              <Select value={catFilter} onValueChange={handleSelectCat}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecionar categoria" /></SelectTrigger>
-                <SelectContent>
-                  {categorias.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-border/40 bg-muted/[0.03]">
+          <div className="flex items-center gap-3">
+            <div className="p-1.5 rounded-lg bg-muted">
+              <FileText className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ferramenta *</Label>
-              <Select value={ferrId} onValueChange={setFerrId} disabled={ferraBycat.length === 0}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder={catFilter ? 'Selecionar ferramenta' : 'Selecione a categoria primeiro'} /></SelectTrigger>
-                <SelectContent>
-                  {ferraBycat.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <div>
+              <p className="text-[15px] font-bold text-foreground">{isEdit ? 'Editar Material' : 'Novo Material'}</p>
+              <p className="text-[11px] text-muted-foreground/60">PDF ou HTML vinculado a uma ferramenta do Arsenal</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-5 overflow-y-auto max-h-[70vh]">
+          {/* Vínculo */}
+          <div className="rounded-xl border border-border/60 bg-muted/[0.02] p-4 space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Vínculo</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Categoria</Label>
+                <Select value={catFilter} onValueChange={handleSelectCat}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectContent>
+                    {categorias.map(c => <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Ferramenta *</Label>
+                <Select value={ferrId} onValueChange={setFerrId} disabled={ferraBycat.length === 0}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder={catFilter ? 'Selecionar' : 'Selecione a categoria'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ferraBycat.map(f => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
+          {/* Título */}
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título *</Label>
-            <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Nome do material" className="h-9 text-sm" />
+            <Input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder="Nome do material" className="h-9 text-sm" autoFocus />
           </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo</Label>
-            <div className="flex gap-2">
+          {/* Tipo */}
+          <div className="space-y-2">
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tipo de conteúdo</Label>
+            <div className="grid grid-cols-2 gap-2">
               {(['pdf', 'html'] as const).map(t => (
                 <button
                   key={t}
                   onClick={() => setTipo(t)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-[13px] font-medium transition-all ${tipo === t ? 'border-foreground/30 bg-foreground/[0.04]' : 'border-border/60 hover:border-border'}`}
+                  className={cn(
+                    'flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all',
+                    tipo === t
+                      ? t === 'pdf'
+                        ? 'border-red-200 bg-red-50/60 text-red-700'
+                        : 'border-blue-200 bg-blue-50/60 text-blue-700'
+                      : 'border-border/60 text-muted-foreground hover:border-border hover:bg-muted/20'
+                  )}
                 >
-                  {t === 'pdf' ? <FileText className="h-3.5 w-3.5" /> : <Code className="h-3.5 w-3.5" />}
-                  {t.toUpperCase()}
+                  {t === 'pdf'
+                    ? <FileText className="h-4 w-4 shrink-0" />
+                    : <Code className="h-4 w-4 shrink-0" />}
+                  <div>
+                    <p className="text-[12px] font-bold">{t.toUpperCase()}</p>
+                    <p className="text-[10px] opacity-70 font-normal">{t === 'pdf' ? 'Arquivo PDF' : 'Conteúdo HTML'}</p>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Conteúdo */}
           {tipo === 'pdf' ? (
             <div className="space-y-1.5">
               <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Arquivo PDF *</Label>
               <input ref={fileInputRef} type="file" accept="application/pdf" onChange={handleFileChange} className="hidden" />
               {pdfFile ? (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/20">
-                  <div className="p-2 rounded-lg bg-red-50"><File className="h-4 w-4 text-red-500" /></div>
+                <div className="flex items-center gap-3 p-3.5 rounded-xl border border-emerald-200/80 bg-emerald-50/50">
+                  <div className="p-2 rounded-lg bg-emerald-100"><File className="h-4 w-4 text-emerald-600" /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-foreground truncate">{pdfFile.name}</p>
-                    <p className="text-[11px] text-muted-foreground/60">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    <p className="text-[13px] font-semibold text-foreground truncate">{pdfFile.name}</p>
+                    <p className="text-[11px] text-muted-foreground/60">{(pdfFile.size / 1024 / 1024).toFixed(2)} MB · pronto para envio</p>
                   </div>
                   <button onClick={() => { setPdfFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
                     className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground">
@@ -405,49 +446,57 @@ function MaterialModal({ open, onClose, material, ferramentas }: MaterialModalPr
                   </button>
                 </div>
               ) : pdfUrl ? (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/20">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl border border-border/60 bg-muted/10">
                   <div className="p-2 rounded-lg bg-red-50"><File className="h-4 w-4 text-red-500" /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium text-foreground">PDF já enviado</p>
-                    <p className="text-[11px] text-muted-foreground/60 truncate">{pdfUrl}</p>
+                    <p className="text-[13px] font-semibold text-foreground">PDF enviado</p>
+                    <p className="text-[11px] text-muted-foreground/50 truncate">{pdfUrl}</p>
                   </div>
                   <button onClick={() => fileInputRef.current?.click()}
-                    className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted transition-colors">
+                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                     Trocar
                   </button>
                 </div>
               ) : (
                 <button onClick={() => fileInputRef.current?.click()}
-                  className="w-full flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-border/60 hover:border-foreground/20 hover:bg-muted/20 transition-all text-muted-foreground">
-                  <Upload className="h-6 w-6 opacity-40" />
+                  className="w-full flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed border-border/60 hover:border-foreground/20 hover:bg-muted/20 transition-all group">
+                  <div className="p-3 rounded-xl bg-muted/40 group-hover:bg-muted transition-colors">
+                    <Upload className="h-5 w-5 text-muted-foreground/50" />
+                  </div>
                   <div className="text-center">
-                    <p className="text-[13px] font-medium">Clique para selecionar o PDF</p>
-                    <p className="text-[11px] opacity-60 mt-0.5">Máximo 50 MB</p>
+                    <p className="text-[13px] font-semibold text-muted-foreground">Clique para selecionar o PDF</p>
+                    <p className="text-[11px] text-muted-foreground/40 mt-0.5">Máximo 50 MB · apenas PDF</p>
                   </div>
                 </button>
               )}
             </div>
           ) : (
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Conteúdo HTML</Label>
-              <Textarea value={htmlContent} onChange={e => setHtmlContent(e.target.value)} placeholder="<html>...</html>" rows={8} className="text-sm font-mono text-xs resize-none" />
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                <Code className="h-3 w-3" /> Conteúdo HTML
+              </Label>
+              <Textarea value={htmlContent} onChange={e => setHtmlContent(e.target.value)} placeholder="<html>...</html>" rows={8} className="text-sm font-mono text-xs resize-none bg-muted/20" />
             </div>
           )}
 
-          <div className="flex items-center gap-2">
+          {/* Ativo */}
+          <div className="flex items-center gap-3 pt-1 border-t border-border/40">
             <Switch checked={ativo} onCheckedChange={setAtivo} />
-            <span className="text-sm text-muted-foreground">Ativo</span>
+            <div>
+              <p className="text-[13px] font-medium text-foreground">Material ativo</p>
+              <p className="text-[11px] text-muted-foreground/50">Visível para os alunos na plataforma</p>
+            </div>
           </div>
         </div>
 
-        <DialogFooter className="px-6 py-4 border-t border-border/40 bg-muted/20">
+        <div className="flex items-center justify-end gap-2 px-6 py-3.5 border-t border-border/40 bg-muted/20">
           <Button variant="ghost" onClick={onClose} disabled={isSaving} className="h-9 text-sm">Cancelar</Button>
           <Button onClick={handleSave} disabled={isSaving}
             className="h-9 rounded-lg text-[12px] font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 gap-1.5">
             {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-            {uploading ? 'Enviando PDF...' : isEdit ? 'Salvar' : 'Criar'}
+            {uploading ? 'Enviando PDF...' : isEdit ? 'Salvar alterações' : 'Criar material'}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -462,16 +511,34 @@ interface CategoriaModalProps {
   nextOrdem: number;
 }
 
+const CAT_COLORS = [
+  { label: 'Cinza',    value: 'slate',   tw: 'bg-slate-500' },
+  { label: 'Vermelho', value: 'red',     tw: 'bg-red-500' },
+  { label: 'Laranja',  value: 'orange',  tw: 'bg-orange-500' },
+  { label: 'Âmbar',   value: 'amber',   tw: 'bg-amber-500' },
+  { label: 'Verde',    value: 'green',   tw: 'bg-green-500' },
+  { label: 'Esmeralda',value: 'emerald', tw: 'bg-emerald-500' },
+  { label: 'Teal',     value: 'teal',    tw: 'bg-teal-500' },
+  { label: 'Ciano',    value: 'cyan',    tw: 'bg-cyan-500' },
+  { label: 'Azul',     value: 'blue',    tw: 'bg-blue-500' },
+  { label: 'Índigo',   value: 'indigo',  tw: 'bg-indigo-500' },
+  { label: 'Violeta',  value: 'violet',  tw: 'bg-violet-500' },
+  { label: 'Roxo',     value: 'purple',  tw: 'bg-purple-500' },
+  { label: 'Rosa',     value: 'pink',    tw: 'bg-pink-500' },
+  { label: 'Rose',     value: 'rose',    tw: 'bg-rose-500' },
+];
+
 function CategoriaModal({ open, onClose, categoria, nextOrdem }: CategoriaModalProps) {
   const createC = useCreateCategoria();
   const updateC = useUpdateCategoria();
   const isEdit = !!categoria?.id;
 
   const [nome, setNome] = useState('');
+  const [cor, setCor] = useState('');
 
   useEffect(() => {
-    if (open && categoria) { setNome(categoria.nome); }
-    else if (open && !categoria) { setNome(''); }
+    if (open && categoria) { setNome(categoria.nome); setCor(categoria.cor ?? ''); }
+    else if (open && !categoria) { setNome(''); setCor(''); }
   }, [open, categoria]);
 
   const handleSave = async () => {
@@ -479,15 +546,17 @@ function CategoriaModal({ open, onClose, categoria, nextOrdem }: CategoriaModalP
     const slug = toSlug(nome);
     try {
       if (isEdit && categoria?.id) {
-        await updateC.mutateAsync({ id: categoria.id, nome, slug });
+        await updateC.mutateAsync({ id: categoria.id, nome, slug, cor: cor || null });
         toast.success('Categoria atualizada.');
       } else {
-        await createC.mutateAsync({ nome, slug, ordem: nextOrdem });
+        await createC.mutateAsync({ nome, slug, ordem: nextOrdem, cor: cor || null });
         toast.success('Categoria criada.');
       }
       onClose();
     } catch (e: any) { toast.error(e?.message ?? 'Erro ao salvar categoria.'); }
   };
+
+  const selectedColor = CAT_COLORS.find(c => c.value === cor);
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -503,6 +572,35 @@ function CategoriaModal({ open, onClose, categoria, nextOrdem }: CategoriaModalP
               <p className="text-[11px] text-muted-foreground/50">Slug: <span className="font-mono">{toSlug(nome)}</span></p>
             )}
           </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cor</Label>
+              {selectedColor && (
+                <div className="flex items-center gap-1.5">
+                  <span className={cn('h-3 w-3 rounded-full', selectedColor.tw)} />
+                  <span className="text-[11px] text-muted-foreground">{selectedColor.label}</span>
+                  <button onClick={() => setCor('')} className="text-[10px] text-muted-foreground/50 hover:text-foreground ml-1">limpar</button>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {CAT_COLORS.map(c => (
+                <button
+                  key={c.value}
+                  title={c.label}
+                  onClick={() => setCor(c.value)}
+                  className={cn(
+                    'h-7 w-7 rounded-full transition-all border-2',
+                    c.tw,
+                    cor === c.value
+                      ? 'border-foreground scale-110 shadow-md'
+                      : 'border-transparent hover:scale-105 hover:border-foreground/30'
+                  )}
+                />
+              ))}
+            </div>
+          </div>
         </div>
         <DialogFooter className="px-6 py-4 border-t border-border/40 bg-muted/20">
           <Button variant="ghost" onClick={onClose} className="h-9 text-sm">Cancelar</Button>
@@ -512,6 +610,489 @@ function CategoriaModal({ open, onClose, categoria, nextOrdem }: CategoriaModalP
             {isEdit ? 'Salvar' : 'Criar categoria'}
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Categoria Detail Dialog ──────────────────────────────────────────────────
+
+interface CategoriaDetailDialogProps {
+  open: boolean;
+  cat: { id: string; nome: string; slug?: string; cor?: string | null } | null;
+  ferramentas: AdminFerramenta[];
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onEditFerr: (f: AdminFerramenta) => void;
+  onDeleteFerr: (id: string, nome: string) => void;
+  onAddFerr: () => void;
+  onOpenFerr: (f: AdminFerramenta) => void;
+}
+
+function CategoriaDetailDialog({
+  open, cat, ferramentas: ferrList, onClose, onEdit, onDelete, onEditFerr, onDeleteFerr, onAddFerr, onOpenFerr,
+}: CategoriaDetailDialogProps) {
+  const updateF = useUpdateFerramenta();
+
+  const catCorObj = cat?.cor ? CAT_COLORS.find(x => x.value === cat.cor) : null;
+  const c = slugColors(cat?.slug);
+  const dotClass = catCorObj ? catCorObj.tw : c.dot;
+
+  const ativas = ferrList.filter(f => f.ativo).length;
+  const inativas = ferrList.filter(f => !f.ativo).length;
+  const comVideo = ferrList.filter(f => f.video_url).length;
+  const comTexto = ferrList.filter(f => f.texto_aprenda).length;
+
+  const toggleAtivo = async (f: AdminFerramenta) => {
+    await updateF.mutateAsync({ id: f.id, ativo: !f.ativo });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl w-full p-0 flex flex-col overflow-hidden rounded-2xl border border-border/60 max-h-[85vh]">
+        {/* Header */}
+        <div className="shrink-0 px-6 py-4 border-b border-border/40 bg-muted/[0.03]">
+          <div className="flex items-center gap-3">
+            <span className={cn('w-3 h-3 rounded-full shrink-0', dotClass)} />
+            <h2 className="text-[15px] font-bold text-foreground font-display flex-1">{cat?.nome}</h2>
+            <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-muted text-muted-foreground border border-border/40">
+              {ferrList.length} ferramenta{ferrList.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="p-6 space-y-5">
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {[
+                { label: 'Total', value: ferrList.length, color: 'text-foreground' },
+                { label: 'Ativas', value: ativas, color: 'text-emerald-500' },
+                { label: 'Inativas', value: inativas, color: inativas > 0 ? 'text-amber-500' : 'text-muted-foreground' },
+                { label: 'Com vídeo', value: comVideo, color: 'text-blue-500' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="rounded-xl border border-border/60 bg-card px-3.5 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1">{label}</p>
+                  <p className={cn('text-xl font-bold tabular-nums font-display', color)}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Ferramentas list */}
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Ferramentas</p>
+                <button
+                  onClick={onAddFerr}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Nova ferramenta
+                </button>
+              </div>
+
+              {ferrList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-center">
+                  <div className="p-2.5 rounded-xl bg-muted/40 mb-2.5">
+                    <Swords className="h-5 w-5 text-muted-foreground/40" />
+                  </div>
+                  <p className="text-[12px] text-muted-foreground">Nenhuma ferramenta nesta categoria</p>
+                  <button onClick={onAddFerr} className="text-[11px] text-muted-foreground/60 hover:text-foreground mt-1 underline underline-offset-2">
+                    Adicionar primeira ferramenta
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {ferrList.map(f => (
+                    <div key={f.id}
+                      className="group flex items-center gap-3 px-4 py-3 hover:bg-muted/10 transition-colors cursor-pointer"
+                      onClick={() => onOpenFerr(f)}
+                    >
+                      {/* Active indicator */}
+                      <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', f.ativo ? 'bg-emerald-500' : 'bg-muted-foreground/30')} />
+
+                      {/* Name + badges */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className={cn('text-[13px] font-medium', !f.ativo && 'text-muted-foreground/50 line-through')}>
+                            {f.nome}
+                          </p>
+                          {!f.ativo && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border/40 uppercase">
+                              Inativa
+                            </span>
+                          )}
+                        </div>
+                        {f.descricao && (
+                          <p className="text-[11px] text-muted-foreground/50 truncate mt-0.5 max-w-sm">{f.descricao}</p>
+                        )}
+                      </div>
+
+                      {/* Content badges */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {f.video_url && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20 uppercase">
+                            Vídeo
+                          </span>
+                        )}
+                        {f.texto_aprenda && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-500 border border-violet-500/20 uppercase">
+                            Texto
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions (hover-reveal) */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button
+                          onClick={e => { e.stopPropagation(); toggleAtivo(f); }}
+                          title={f.ativo ? 'Desativar' : 'Ativar'}
+                          className={cn(
+                            'h-7 px-2 rounded-lg text-[10px] font-semibold border transition-colors',
+                            f.ativo
+                              ? 'text-muted-foreground border-border/60 hover:bg-muted/50'
+                              : 'text-emerald-600 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10'
+                          )}
+                        >
+                          {f.ativo ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); onEditFerr(f); }}
+                          className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+                          title="Editar"
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); onDeleteFerr(f.id, f.nome); }}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors"
+                          title="Excluir"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 flex items-center justify-between px-6 py-3.5 border-t border-border/40 bg-muted/20">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onEdit}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold border border-border/60 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
+            >
+              <Pencil className="h-3 w-3" /> Editar categoria
+            </button>
+            <button
+              onClick={onDelete}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold border border-destructive/20 text-destructive/60 hover:text-destructive hover:border-destructive/40 hover:bg-destructive/5 transition-colors"
+            >
+              <Trash2 className="h-3 w-3" /> Excluir
+            </button>
+          </div>
+          <Button
+            onClick={onAddFerr}
+            className="h-8 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 gap-1.5"
+          >
+            <Plus className="h-3.5 w-3.5" /> Nova Ferramenta
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Ferramenta Detail Dialog ─────────────────────────────────────────────────
+
+interface FerramentaDetailDialogProps {
+  open: boolean;
+  ferramenta: AdminFerramenta | null;
+  materiais: AdminArsenalMaterial[];
+  templates: AdminArsenalTemplate[];
+  onClose: () => void;
+  onAddMaterial: () => void;
+  onAddTemplate: () => void;
+  onEditMaterial: (m: AdminArsenalMaterial) => void;
+  onEditTemplate: (t: AdminArsenalTemplate) => void;
+  onDeleteMaterial: (id: string, titulo: string) => void;
+  onDeleteTemplate: (id: string, titulo: string) => void;
+}
+
+function FerramentaDetailDialog({
+  open, ferramenta, materiais, templates,
+  onClose, onAddMaterial, onAddTemplate,
+  onEditMaterial, onEditTemplate, onDeleteMaterial, onDeleteTemplate,
+}: FerramentaDetailDialogProps) {
+  const updateF = useUpdateFerramenta();
+  const cat = ferramenta?.arsenal_categorias;
+  const c = slugColors(cat?.slug);
+
+  const [editing, setEditing] = useState(false);
+  const [editNome, setEditNome] = useState('');
+  const [editDescricao, setEditDescricao] = useState('');
+  const [editVideoUrl, setEditVideoUrl] = useState('');
+
+  useEffect(() => {
+    if (ferramenta) {
+      setEditNome(ferramenta.nome ?? '');
+      setEditDescricao(ferramenta.descricao ?? '');
+      setEditVideoUrl(ferramenta.video_url ?? '');
+    }
+    setEditing(false);
+  }, [ferramenta?.id]);
+
+  const toggleAtivo = async () => {
+    if (!ferramenta) return;
+    await updateF.mutateAsync({ id: ferramenta.id, ativo: !ferramenta.ativo });
+  };
+
+  const handleSave = async () => {
+    if (!ferramenta) return;
+    try {
+      await updateF.mutateAsync({
+        id: ferramenta.id,
+        nome: editNome.trim() || ferramenta.nome,
+        descricao: editDescricao || '',
+        video_url: editVideoUrl || null,
+      });
+      toast.success('Ferramenta atualizada.');
+      setEditing(false);
+    } catch { toast.error('Erro ao salvar.'); }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={o => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-2xl w-full p-0 flex flex-col overflow-hidden rounded-2xl border border-border/60 max-h-[85vh]">
+        {/* Header */}
+        <div className="shrink-0 px-6 py-4 border-b border-border/40 bg-muted/[0.03]">
+          <div className="flex items-center gap-3">
+            <span className={cn('w-3 h-3 rounded-full shrink-0', c.dot)} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-[15px] font-bold text-foreground font-display">{ferramenta?.nome}</h2>
+                {cat && (
+                  <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded-full border', c.badge, c.text)}>
+                    {cat.nome}
+                  </span>
+                )}
+                <span className={cn(
+                  'text-[10px] font-bold px-2 py-0.5 rounded-full border',
+                  ferramenta?.ativo
+                    ? 'bg-emerald-50 border-emerald-200/60 text-emerald-600'
+                    : 'bg-muted border-border/40 text-muted-foreground'
+                )}>
+                  {ferramenta?.ativo ? 'Ativa' : 'Inativa'}
+                </span>
+              </div>
+              {ferramenta?.descricao && (
+                <p className="text-[12px] text-muted-foreground/60 mt-0.5 line-clamp-2">{ferramenta.descricao}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="p-6 space-y-5">
+
+            {/* Edit form (inline) */}
+            {editing && (
+              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-border/40 bg-muted/[0.03]">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Editar ferramenta</p>
+                </div>
+                <div className="px-4 py-4 space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Nome</Label>
+                    <Input value={editNome} onChange={e => setEditNome(e.target.value)} className="h-9 text-sm font-semibold" autoFocus />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição curta</Label>
+                    <Input value={editDescricao} onChange={e => setEditDescricao(e.target.value)} placeholder="Breve descrição..." className="h-9 text-sm" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Video className="h-3 w-3" /> URL do Vídeo (YouTube)
+                    </Label>
+                    <Input value={editVideoUrl} onChange={e => setEditVideoUrl(e.target.value)} placeholder="https://youtube.com/watch?v=..." className="h-9 text-sm font-mono text-xs" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {[
+                { label: 'Materiais', value: `${materiais.length}`, color: 'text-blue-500' },
+                { label: 'Templates', value: `${templates.length}`, color: 'text-violet-500' },
+                { label: 'Tem vídeo', value: ferramenta?.video_url ? 'Sim' : 'Não', color: ferramenta?.video_url ? 'text-emerald-500' : 'text-muted-foreground/40' },
+              ].map(({ label, value, color }) => (
+                <div key={label} className="rounded-xl border border-border/60 bg-card px-3.5 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-1">{label}</p>
+                  <p className={cn('text-xl font-bold font-display', color)}>{value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Materiais */}
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Materiais de Apoio</p>
+                </div>
+                <button onClick={onAddMaterial}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                  <Plus className="h-3 w-3" /> Adicionar
+                </button>
+              </div>
+              {materiais.length === 0 ? (
+                <div className="py-7 text-center">
+                  <p className="text-[12px] text-muted-foreground/50">Nenhum material cadastrado</p>
+                  <button onClick={onAddMaterial}
+                    className="text-[11px] text-muted-foreground/40 hover:text-foreground mt-1 underline underline-offset-2 transition-colors">
+                    Adicionar primeiro material
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {materiais.map(m => (
+                    <div key={m.id} className="group flex items-center gap-3 px-4 py-2.5">
+                      <div className={cn('p-1.5 rounded-lg shrink-0', m.tipo === 'pdf' ? 'bg-red-50' : 'bg-blue-50')}>
+                        {m.tipo === 'pdf'
+                          ? <FileText className="h-3 w-3 text-red-500" />
+                          : <Code className="h-3 w-3 text-blue-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-foreground truncate">{m.titulo}</p>
+                        <p className="text-[10px] text-muted-foreground/50 uppercase">{m.tipo}</p>
+                      </div>
+                      <span className={cn(
+                        'shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded border',
+                        m.ativo ? 'bg-emerald-50 border-emerald-200/60 text-emerald-600' : 'bg-muted border-border/40 text-muted-foreground'
+                      )}>
+                        {m.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        {m.pdf_url && (
+                          <a href={m.pdf_url} target="_blank" rel="noreferrer"
+                            className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Ver PDF">
+                            <Globe className="h-3 w-3 text-muted-foreground" />
+                          </a>
+                        )}
+                        <button onClick={() => onEditMaterial(m)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        <button onClick={() => onDeleteMaterial(m.id, m.titulo)}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
+                          <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Templates */}
+            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <LayoutTemplate className="h-3.5 w-3.5 text-muted-foreground/50" />
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Templates</p>
+                </div>
+                <button onClick={onAddTemplate}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
+                  <Plus className="h-3 w-3" /> Adicionar
+                </button>
+              </div>
+              {templates.length === 0 ? (
+                <div className="py-7 text-center">
+                  <p className="text-[12px] text-muted-foreground/50">Nenhum template cadastrado</p>
+                  <button onClick={onAddTemplate}
+                    className="text-[11px] text-muted-foreground/40 hover:text-foreground mt-1 underline underline-offset-2 transition-colors">
+                    Adicionar primeiro template
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {templates.map(t => (
+                    <div key={t.id} className="group flex items-center gap-3 px-4 py-2.5">
+                      <div className="p-1.5 rounded-lg bg-violet-50 shrink-0">
+                        <LayoutTemplate className="h-3 w-3 text-violet-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[12px] font-medium text-foreground truncate">{t.titulo}</p>
+                        {t.descricao && <p className="text-[10px] text-muted-foreground/50 truncate">{t.descricao}</p>}
+                      </div>
+                      <span className={cn(
+                        'shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded border',
+                        t.ativo ? 'bg-emerald-50 border-emerald-200/60 text-emerald-600' : 'bg-muted border-border/40 text-muted-foreground'
+                      )}>
+                        {t.ativo ? 'Ativo' : 'Inativo'}
+                      </span>
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <button onClick={() => onEditTemplate(t)} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+                          <Pencil className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                        <button onClick={() => onDeleteTemplate(t.id, t.titulo)}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors">
+                          <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="shrink-0 flex items-center justify-between px-6 py-3.5 border-t border-border/40 bg-muted/20">
+          {editing ? (
+            <>
+              <button onClick={() => setEditing(false)}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold border border-border/60 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                <X className="h-3 w-3" /> Cancelar
+              </button>
+              <button onClick={handleSave} disabled={updateF.isPending}
+                className="flex items-center gap-1.5 h-8 px-4 rounded-lg text-[11px] font-semibold bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-50">
+                {updateF.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                Salvar alterações
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={onClose}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold border border-border/60 text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                <ChevronRight className="h-3 w-3 rotate-180" /> Voltar
+              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={toggleAtivo}
+                  className={cn(
+                    'h-8 px-3 rounded-lg text-[11px] font-semibold border transition-colors',
+                    ferramenta?.ativo
+                      ? 'text-muted-foreground border-border/60 hover:bg-muted/50'
+                      : 'text-emerald-600 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10'
+                  )}>
+                  {ferramenta?.ativo ? 'Desativar' : 'Ativar'}
+                </button>
+                <button onClick={() => setEditing(true)}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold bg-foreground text-background hover:bg-foreground/90 transition-colors">
+                  <Pencil className="h-3 w-3" /> Editar ferramenta
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -599,17 +1180,15 @@ interface FerramEditModalProps {
 
 function FerramEditModal({ open, onClose, ferramenta }: FerramEditModalProps) {
   const updateF = useUpdateFerramenta();
+  const [nome, setNome] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
-  const [textoAprenda, setTextoAprenda] = useState('');
-  const [templateConstrua, setTemplateConstrua] = useState('');
   const [descricao, setDescricao] = useState('');
   const [ativo, setAtivo] = useState(true);
 
   useEffect(() => {
     if (open && ferramenta) {
+      setNome(ferramenta.nome ?? '');
       setVideoUrl(ferramenta.video_url ?? '');
-      setTextoAprenda(ferramenta.texto_aprenda ?? '');
-      setTemplateConstrua(ferramenta.template_construa ?? '');
       setDescricao(ferramenta.descricao ?? '');
       setAtivo(ferramenta.ativo);
     }
@@ -620,9 +1199,8 @@ function FerramEditModal({ open, onClose, ferramenta }: FerramEditModalProps) {
     try {
       await updateF.mutateAsync({
         id: ferramenta.id,
+        nome: nome.trim() || ferramenta.nome,
         video_url: videoUrl || null,
-        texto_aprenda: textoAprenda || null,
-        template_construa: templateConstrua || null,
         descricao: descricao || '',
         ativo,
       });
@@ -633,7 +1211,7 @@ function FerramEditModal({ open, onClose, ferramenta }: FerramEditModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-2xl p-0 overflow-hidden gap-0">
+      <DialogContent className="max-w-lg p-0 overflow-hidden gap-0">
         <DialogHeader className="px-6 py-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <DialogTitle className="text-[15px] font-semibold">{ferramenta?.nome}</DialogTitle>
@@ -645,35 +1223,19 @@ function FerramEditModal({ open, onClose, ferramenta }: FerramEditModalProps) {
 
         <div className="px-6 py-5 space-y-4 overflow-y-auto max-h-[75vh]">
           <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Nome da ferramenta</Label>
+            <Input value={nome} onChange={e => setNome(e.target.value)} placeholder="Nome da ferramenta..." className="h-9 text-sm font-semibold" autoFocus />
+          </div>
+          <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição curta</Label>
             <Input value={descricao} onChange={e => setDescricao(e.target.value)} placeholder="Descrição da ferramenta..." className="h-9 text-sm" />
           </div>
-
           <div className="space-y-1.5">
             <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
               <Video className="h-3 w-3" /> URL do Vídeo (YouTube)
             </Label>
             <Input value={videoUrl} onChange={e => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="h-9 text-sm font-mono text-xs" />
           </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <BookOpen className="h-3 w-3" /> Texto — Aba Aprenda
-            </Label>
-            <Textarea value={textoAprenda} onChange={e => setTextoAprenda(e.target.value)}
-              placeholder="Conteúdo conceitual mostrado na aba 'Aprenda' desta ferramenta..."
-              rows={5} className="text-sm resize-none" />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <LayoutTemplate className="h-3 w-3" /> Placeholder da Aba Construa
-            </Label>
-            <Textarea value={templateConstrua} onChange={e => setTemplateConstrua(e.target.value)}
-              placeholder="Texto de placeholder exibido no editor da aba 'Construa' quando está vazio..."
-              rows={3} className="text-sm resize-none" />
-          </div>
-
           <div className="flex items-center gap-2 pt-1">
             <Switch checked={ativo} onCheckedChange={setAtivo} />
             <span className="text-sm text-muted-foreground">Ferramenta ativa</span>
@@ -695,7 +1257,7 @@ function FerramEditModal({ open, onClose, ferramenta }: FerramEditModalProps) {
 
 // ─── Página principal ─────────────────────────────────────────────────────────
 
-type Tab = 'ferramentas' | 'materiais' | 'templates';
+type Tab = 'ferramentas' | 'materiais' | 'templates' | 'aulas';
 
 export default function AdminArsenal() {
   const { data: categorias = [] } = useAdminCategorias();
@@ -708,7 +1270,8 @@ export default function AdminArsenal() {
   const deleteCat = useDeleteCategoria();
 
   const [tab, setTab] = useState<Tab>('ferramentas');
-  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+  const [selectedCatId, setSelectedCatId] = useState<string | null>(null);
+  const [selectedFerrId, setSelectedFerrId] = useState<string | null>(null);
   const [ferrFilter, setFerrFilter] = useState('todos');
   const [tmplFilter, setTmplFilter] = useState('todos');
 
@@ -721,21 +1284,7 @@ export default function AdminArsenal() {
   const [editingTmpl, setEditingTmpl] = useState<Partial<AdminArsenalTemplate> | null>(null);
   const [deletingId, setDeletingId] = useState<{ id: string; type: 'mat' | 'tmpl' | 'ferr' | 'cat'; label?: string } | null>(null);
 
-  const toggleCat = (id: string) => {
-    setExpandedCats(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
 
-  // Expand all categories by default
-  useEffect(() => {
-    if (ferramentas.length > 0) {
-      const cats = new Set<string>(ferramentas.map(f => f.arsenal_categorias?.id).filter(Boolean));
-      setExpandedCats(cats);
-    }
-  }, [ferramentas.length]);
 
   // Ferramentas agrupadas por categoria
   const byCategoria = useMemo(() => {
@@ -768,6 +1317,7 @@ export default function AdminArsenal() {
     { id: 'ferramentas', label: 'Ferramentas', icon: Swords,         count: ferramentas.length },
     { id: 'materiais',  label: 'Materiais',    icon: FileText,       count: materiais.length },
     { id: 'templates',  label: 'Templates',    icon: LayoutTemplate, count: templates.length },
+    { id: 'aulas',      label: 'Aulas',        icon: BookOpen,       count: 0 },
   ];
 
   return (
@@ -832,61 +1382,58 @@ export default function AdminArsenal() {
             <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : (
             byCategoria.map(({ cat, ferramentas: ferrList }) => {
-              const c = slugColors(cat?.slug);
-              const isExpanded = expandedCats.has(cat?.id ?? '');
-              const catObj = categorias.find(c2 => c2.id === cat?.id) ?? null;
+              const catFromCategorias = categorias.find(c2 => c2.id === cat?.id);
+              const catCorStr = catFromCategorias?.cor ?? null;
+              const catCorObj = catCorStr ? CAT_COLORS.find(x => x.value === catCorStr) : null;
+              const dotClass = catCorObj ? catCorObj.tw : slugColors(cat?.slug).dot;
+              // Build full AdminCategoria with fallback to joined data
+              const catObj: AdminCategoria | null = cat ? {
+                id: cat.id,
+                nome: catFromCategorias?.nome ?? cat.nome,
+                slug: catFromCategorias?.slug ?? cat.slug,
+                ordem: catFromCategorias?.ordem ?? cat.ordem,
+                cor: catFromCategorias?.cor ?? null,
+              } : null;
               return (
-                <div key={cat?.id} className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                  {/* Category header */}
-                  <div className="flex items-center justify-between px-5 py-3.5 hover:bg-muted/10 transition-colors">
-                    <button onClick={() => toggleCat(cat?.id ?? '')} className="flex items-center gap-3 flex-1 min-w-0 text-left">
-                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${c.dot}`} />
+                <div key={cat?.id}
+                  className="group rounded-2xl border border-border/60 bg-card overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:border-border hover:shadow-md transition-all cursor-pointer"
+                  onClick={() => setSelectedCatId(cat?.id ?? null)}
+                >
+                  <div className="flex items-center justify-between px-5 py-4">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotClass}`} />
                       <span className="text-[13px] font-semibold text-foreground">{cat?.nome}</span>
-                      <span className="text-[11px] text-muted-foreground/60">{ferrList.length} ferramentas</span>
-                      {isExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/40" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />}
-                    </button>
+                      <span className="text-[11px] text-muted-foreground/60">{ferrList.length} ferramenta{ferrList.length !== 1 ? 's' : ''}</span>
+                    </div>
                     <div className="flex items-center gap-1 ml-3">
-                      <button onClick={() => { setEditingCat(catObj); setCatModalOpen(true); }}
-                        className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Editar categoria">
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground/50" />
-                      </button>
-                      <button onClick={() => setDeletingId({ id: cat?.id ?? '', type: 'cat', label: cat?.nome })}
-                        className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Excluir categoria">
-                        <Trash2 className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-destructive" />
-                      </button>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => { setEditingCat(catObj); setCatModalOpen(true); }}
+                          className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Editar categoria">
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground/50" />
+                        </button>
+                        <button onClick={() => setDeletingId({ id: cat?.id ?? '', type: 'cat', label: cat?.nome })}
+                          className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Excluir categoria">
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground/50 hover:text-destructive" />
+                        </button>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/30" />
                     </div>
                   </div>
 
-                  {/* Ferramentas list */}
-                  {isExpanded && (
-                    <div className="border-t border-border/40">
-                      {ferrList.map((f, i) => (
-                        <div key={f.id}
-                          className={`group flex items-center justify-between px-5 py-3 ${i < ferrList.length - 1 ? 'border-b border-border/30' : ''} hover:bg-muted/10 transition-colors`}>
-                          <div className="flex items-center gap-3">
-                            <span className="text-[13px] font-medium text-foreground">{f.nome}</span>
-                            {!f.ativo && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/60">Inativo</span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            {f.video_url && <span title="Tem vídeo" className="p-1 text-muted-foreground/30"><Video className="h-3.5 w-3.5" /></span>}
-                            {f.texto_aprenda && <span title="Tem texto" className="p-1 text-muted-foreground/30"><BookOpen className="h-3.5 w-3.5" /></span>}
-                            <button onClick={() => setEditingFerr(f)} className="p-1.5 rounded-lg hover:bg-muted transition-colors" title="Editar">
-                              <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                            </button>
-                            <button onClick={() => setDeletingId({ id: f.id, type: 'ferr', label: f.nome })}
-                              className="p-1.5 rounded-lg hover:bg-destructive/10 transition-colors" title="Excluir">
-                              <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-                            </button>
-                          </div>
-                        </div>
+                  {/* Preview das ferramentas */}
+                  {ferrList.length > 0 && (
+                    <div className="px-5 pb-3.5 flex items-center gap-1.5 flex-wrap">
+                      {ferrList.slice(0, 5).map(f => (
+                        <span key={f.id} className={cn(
+                          'text-[10px] px-2 py-0.5 rounded-full border font-medium',
+                          f.ativo ? 'bg-muted/40 border-border/40 text-muted-foreground/70' : 'bg-muted/20 border-border/30 text-muted-foreground/40 line-through'
+                        )}>
+                          {f.nome}
+                        </span>
                       ))}
-                      {/* Linha para adicionar ferramenta nessa categoria */}
-                      <button onClick={() => setNovaFerrOpen(true)}
-                        className="w-full flex items-center gap-2 px-5 py-2.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/10 transition-colors border-t border-dashed border-border/30">
-                        <Plus className="h-3.5 w-3.5" /> Adicionar ferramenta
-                      </button>
+                      {ferrList.length > 5 && (
+                        <span className="text-[10px] text-muted-foreground/40">+{ferrList.length - 5} mais</span>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1025,6 +1572,56 @@ export default function AdminArsenal() {
         </div>
       )}
 
+      {/* ─── Categoria Detail Dialog ─── */}
+      {(() => {
+        const entry = byCategoria.find(e => e.cat?.id === selectedCatId);
+        const catFromCategorias = selectedCatId ? categorias.find(c => c.id === selectedCatId) : undefined;
+        const catFromEntry = entry?.cat ?? null;
+        const catObj: AdminCategoria | null = selectedCatId ? {
+          id: selectedCatId,
+          nome: catFromCategorias?.nome ?? catFromEntry?.nome ?? '',
+          slug: catFromCategorias?.slug ?? catFromEntry?.slug ?? '',
+          ordem: catFromCategorias?.ordem ?? catFromEntry?.ordem ?? 0,
+          cor: catFromCategorias?.cor ?? null,
+        } : null;
+        return (
+          <CategoriaDetailDialog
+            open={!!selectedCatId}
+            cat={catObj}
+            ferramentas={entry?.ferramentas ?? []}
+            onClose={() => setSelectedCatId(null)}
+            onEdit={() => { setEditingCat(catObj); setCatModalOpen(true); setSelectedCatId(null); }}
+            onDelete={() => { setDeletingId({ id: selectedCatId!, type: 'cat', label: catObj?.nome }); setSelectedCatId(null); }}
+            onEditFerr={f => { setEditingFerr(f); }}
+            onDeleteFerr={(id, nome) => { setDeletingId({ id, type: 'ferr', label: nome }); setSelectedCatId(null); }}
+            onAddFerr={() => { setNovaFerrOpen(true); setSelectedCatId(null); }}
+            onOpenFerr={f => { setSelectedFerrId(f.id); }}
+          />
+        );
+      })()}
+
+      {/* ─── Ferramenta Detail Dialog ─── */}
+      {(() => {
+        const ferr = ferramentas.find(f => f.id === selectedFerrId) ?? null;
+        const ferrMateriais = materiais.filter(m => m.ferramenta_id === selectedFerrId);
+        const ferrTemplates = templates.filter(t => t.ferramenta_id === selectedFerrId);
+        return (
+          <FerramentaDetailDialog
+            open={!!selectedFerrId}
+            ferramenta={ferr}
+            materiais={ferrMateriais}
+            templates={ferrTemplates}
+            onClose={() => setSelectedFerrId(null)}
+            onAddMaterial={() => { setEditingMat({ ferramenta_id: selectedFerrId ?? undefined }); }}
+            onAddTemplate={() => { setEditingTmpl({ ferramenta_id: selectedFerrId ?? undefined }); }}
+            onEditMaterial={m => { setEditingMat(m); }}
+            onEditTemplate={t => { setEditingTmpl(t); }}
+            onDeleteMaterial={(id, titulo) => setDeletingId({ id, type: 'mat', label: titulo })}
+            onDeleteTemplate={(id, titulo) => setDeletingId({ id, type: 'tmpl', label: titulo })}
+          />
+        );
+      })()}
+
       {/* ─── Modais ─── */}
       <CategoriaModal
         open={catModalOpen}
@@ -1055,6 +1652,9 @@ export default function AdminArsenal() {
         template={editingTmpl}
         ferramentas={ferramentas}
       />
+
+      {/* ─── Aulas ─── */}
+      {tab === 'aulas' && <AdminArsenalAulas />}
 
       {/* ─── Confirmar exclusão ─── */}
       <AlertDialog open={!!deletingId} onOpenChange={open => !open && setDeletingId(null)}>

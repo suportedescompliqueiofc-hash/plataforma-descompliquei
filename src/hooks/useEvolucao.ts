@@ -67,7 +67,7 @@ async function fetchPeriodLeads(orgId: string, start: string, end: string) {
   while (true) {
     const { data, error } = await supabase
       .from('leads')
-      .select('id, criado_em, origem, fonte, is_qualified, is_scheduled, is_closed, posicao_pipeline, lead_scoring, excluir_metricas')
+      .select('id, criado_em, origem, fonte, is_qualified, is_scheduled, is_closed, lead_scoring, excluir_metricas')
       .eq('organization_id', orgId)
       .gte('criado_em', start)
       .lte('criado_em', end)
@@ -81,7 +81,7 @@ async function fetchPeriodLeads(orgId: string, start: string, end: string) {
   return all.filter((l: any) => !l.excluir_metricas && l.fonte !== 'importado');
 }
 
-async function fetchPeriodMetrics(orgId: string, period: DatePeriod, allStages: any[]): Promise<PeriodMetrics> {
+async function fetchPeriodMetrics(orgId: string, period: DatePeriod): Promise<PeriodMetrics> {
   const startDate = startOfDay(period.from).toISOString();
   const endDate = endOfDay(period.to).toISOString();
   const startDayStr = format(startOfDay(period.from), 'yyyy-MM-dd');
@@ -195,18 +195,7 @@ async function fetchPeriodMetrics(orgId: string, period: DatePeriod, allStages: 
   const leadIdsIA = [...new Set(successLogs.map((l: any) => l.lead_id).filter(Boolean))] as string[];
   const leadsAtendidosIA = leadIdsIA.length;
 
-  const handoffStage = allStages.find((s: any) =>
-    s.nome.toLowerCase().includes('handoff') || s.nome.toLowerCase().includes('humano'));
-  const handoffPos = handoffStage?.posicao_ordem || 4;
-  const lostPos = allStages.find((s: any) => s.nome.toLowerCase() === 'perdido')?.posicao_ordem || 999;
-
-  let taxaHandoff = 0;
-  if (leadIdsIA.length > 0) {
-    const iaLeadSet = new Set(leadIdsIA);
-    const iaLeads = leads.filter((l: any) => iaLeadSet.has(l.id));
-    const hc = iaLeads.filter((l: any) => l.posicao_pipeline >= handoffPos && l.posicao_pipeline < lostPos).length;
-    taxaHandoff = (hc / leadIdsIA.length) * 100;
-  }
+  const taxaHandoff = 0;
 
   const durations = successLogs.map((l: any) => Number(l.duracao_ms || 0)).filter((d: number) => d > 0);
   const tempoMedioIA = durations.length > 0 ? Math.round(avgOf(durations) / 1000) : 0;
@@ -245,10 +234,9 @@ export function useEvolucao(periodA: DatePeriod | null, periodB: DatePeriod | nu
     ],
     queryFn: async () => {
       if (!orgId || !periodA || !periodB) return null;
-      const { data: stages } = await supabase.from('etapas').select('*').order('posicao_ordem');
       const [atual, anterior] = await Promise.all([
-        fetchPeriodMetrics(orgId, periodA, stages || []),
-        fetchPeriodMetrics(orgId, periodB, stages || []),
+        fetchPeriodMetrics(orgId, periodA),
+        fetchPeriodMetrics(orgId, periodB),
       ]);
       return { atual, anterior };
     },

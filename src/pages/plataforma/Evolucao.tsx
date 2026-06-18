@@ -369,7 +369,7 @@ export default function Evolucao() {
             <div className="flex items-center justify-between gap-1 overflow-x-auto py-6 px-5">
               {[
                 { label: 'Leads', ca: a.totalLeads, cb: b.totalLeads },
-                { label: 'MQL', ca: a.mqlCount, cb: b.mqlCount },
+                { label: 'Qualificados', ca: a.mqlCount, cb: b.mqlCount },
                 { label: 'Agendamentos', ca: a.scheduledCount, cb: b.scheduledCount },
                 { label: 'Vendas', ca: a.closedCount, cb: b.closedCount },
               ].map((step, i, arr) => (
@@ -414,7 +414,7 @@ export default function Evolucao() {
                 <>
                   <div className="h-px bg-border/30" />
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Scoring de Leads (MQL)</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Scoring de Leads Qualificados</p>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {[
                         { label: 'A — Dos sonhos', current: a.scoringA, prev: b.scoringA, color: 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10' },

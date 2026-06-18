@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths, isAfter, isBefore, startOfDay, endOfDay, isToday, isTomorrow, addDays } from "date-fns";
+import { format, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval, subMonths, isAfter, isBefore, startOfDay, endOfDay, isToday, isTomorrow, addDays, eachDayOfInterval, isSameDay, differenceInCalendarDays } from "date-fns";
 import { DateRange } from "react-day-picker";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Plus, Settings2, List, BarChart3, Eye, EyeOff, Search, ChevronDown, Clock, MapPin, Video, Phone, MessageSquare, Edit2, RefreshCw, Check, X, Loader2, Trash2, TrendingUp, TrendingDown, Users, CheckCircle2, XCircle, AlertCircle, Stethoscope, ClipboardList, Scissors, RotateCcw, ChevronRight, Sparkles, ArrowRight } from "lucide-react";
+import { CalendarDays, Plus, Settings2, List, BarChart3, Eye, EyeOff, Search, ChevronDown, Clock, MapPin, Video, Phone, MessageSquare, Edit2, RefreshCw, Check, X, Loader2, Trash2, TrendingUp, TrendingDown, Users, CheckCircle2, XCircle, AlertCircle, Stethoscope, ClipboardList, Scissors, RotateCcw, ChevronRight, Sparkles, ArrowRight, DollarSign, Tag, Bell, BellOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import FullCalendar from "@fullcalendar/react";
@@ -26,29 +26,37 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Calendar } from "@/components/ui/calendar";
 import { useAgendamentos, Agendamento, AgendamentoInput } from "@/hooks/useAgendamentos";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
+import { useVendas } from "@/hooks/useVendas";
+import { Lead } from "@/hooks/useLeads";
+import { VendaModal } from "@/components/vendas/VendaModal";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
-import { PieChart, Pie, Cell, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from "recharts";
+import { PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from "recharts";
 import ConfigNotificacoes from "@/components/agendamentos/ConfigNotificacoes";
+import { CurrencyInput } from "@/components/CurrencyInput";
+import AgendamentoFinanceiroConfig from "@/components/agendamentos/AgendamentoFinanceiroConfig";
+import { useAgendamentoFinanceiroConfig } from "@/hooks/useAgendamentoFinanceiroConfig";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 
 // ── Constants ─────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
-  agendado: "#3b82f6",
-  confirmado: "#10b981",
-  realizado: "#6b7280",
+  agendado: "#6366f1",
+  confirmado: "#0ea5e9",
+  realizado: "#10b981",
   nao_compareceu: "#ef4444",
   cancelado: "#fca5a5",
   remarcado: "#f59e0b",
 };
 
 const STATUS_BG: Record<string, string> = {
-  agendado: "bg-blue-50 text-blue-700 border-blue-200/60",
-  confirmado: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
-  realizado: "bg-gray-50 text-gray-600 border-gray-200/60",
+  agendado: "bg-indigo-50 text-indigo-700 border-indigo-200/60",
+  confirmado: "bg-sky-50 text-sky-700 border-sky-200/60",
+  realizado: "bg-emerald-50 text-emerald-700 border-emerald-200/60",
   nao_compareceu: "bg-red-50 text-red-700 border-red-200/60",
   cancelado: "bg-red-50/50 text-red-400 border-red-100/60",
   remarcado: "bg-amber-50 text-amber-700 border-amber-200/60",
@@ -65,19 +73,26 @@ const STATUS_LABELS: Record<string, string> = {
 
 const TIPO_ICONS: Record<string, any> = {
   consulta: Stethoscope,
-  avaliacao: ClipboardList,
   procedimento: Scissors,
   retorno: RotateCcw,
 };
 
 const TIPO_LABELS: Record<string, string> = {
   consulta: "Consulta",
-  avaliacao: "Avaliação",
   procedimento: "Procedimento",
   retorno: "Retorno",
 };
 
 const CORES_PREDEFINIDAS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#06b6d4", "#84cc16"];
+
+const TIPO_TITULOS: Record<string, string> = {
+  consulta: "Consulta",
+  procedimento: "Procedimento",
+  retorno: "Retorno",
+};
+function defaultTitulo(tipo: string, leadNome: string) {
+  return `${TIPO_TITULOS[tipo] ?? tipo} — ${leadNome}`;
+}
 
 const DURACOES_RAPIDAS = [
   { label: "30 min", value: 30 },
@@ -131,6 +146,10 @@ export default function Agendamentos() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfMonth(today), to: endOfMonth(today) });
   const [activeTab, setActiveTab] = useState("calendario");
   const [modalConfig, setModalConfig] = useState(false);
+  const [modalFinanceiroConfig, setModalFinanceiroConfig] = useState(false);
+  const { config: financeiroConfig } = useAgendamentoFinanceiroConfig();
+  const { procedimentos } = useProcedimentos();
+  const { vendas: vendasPeriodo } = useVendas(dateRange);
   const [modalCriar, setModalCriar] = useState(false);
   const [modalDetalhes, setModalDetalhes] = useState(false);
   const [modalReagendar, setModalReagendar] = useState(false);
@@ -138,10 +157,16 @@ export default function Agendamentos() {
   const [agendamentoSelecionado, setAgendamentoSelecionado] = useState<Agendamento | null>(null);
   const [editMode, setEditMode] = useState(false);
   const [agendamentoExcluir, setAgendamentoExcluir] = useState<Agendamento | null>(null);
+  const [modalDiaEventos, setModalDiaEventos] = useState<{ date: Date; agendamentos: Agendamento[] } | null>(null);
 
   // Filtros lista
   const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroBusca, setFiltroBusca] = useState("");
+
+  // Filtros métricas
+  const [filtroTipoKpis, setFiltroTipoKpis] = useState("todos");
+  const [filtroTipoFunil, setFiltroTipoFunil] = useState("geral");
 
   // Form state
   const [form, setForm] = useState<AgendamentoInput>({
@@ -153,12 +178,20 @@ export default function Agendamentos() {
     cor: "#3b82f6",
   });
   const [enviarConfirmacao, setEnviarConfirmacao] = useState(false);
+  const [ativarFluxo, setAtivarFluxo] = useState(true);
+  const [dataInicioForm, setDataInicioForm] = useState<Date | undefined>(undefined);
+  const [horaInicioForm, setHoraInicioForm] = useState("08");
+  const [minutoInicioForm, setMinutoInicioForm] = useState("00");
+  const [isDatePickerFormOpen, setIsDatePickerFormOpen] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [leadPopoverOpen, setLeadPopoverOpen] = useState(false);
 
   // Realizado form
   const [obsPos, setObsPos] = useState("");
-  const [leadAvancou, setLeadAvancou] = useState(false);
+  const [fechouProcedimento, setFechouProcedimento] = useState(false);
+  const [vendaModalOpen, setVendaModalOpen] = useState(false);
+  const [vendaLead, setVendaLead] = useState<Lead | null>(null);
+  const [vendaInitialValues, setVendaInitialValues] = useState<{ produto_servico?: string; valor_fechado?: number; agendamento_id?: string; tipo_venda?: string } | undefined>(undefined);
 
   // Reagendar form
   const [novaData, setNovaData] = useState("");
@@ -208,15 +241,114 @@ export default function Agendamentos() {
     const noShow = list.filter((a) => a.status === "nao_compareceu").length;
     const cancelados = list.filter((a) => a.status === "cancelado").length;
     const base = realizados + noShow;
+
+    // Métricas por tipo
+    const consultas = list.filter((a) => a.tipo === "consulta");
+    const procedimentos = list.filter((a) => a.tipo === "procedimento");
+    const consultasRealizadas = consultas.filter((a) => a.status === "realizado").length;
+    const procedimentosRealizados = procedimentos.filter((a) => a.status === "realizado").length;
+
+    // Taxa conversão real: leads com consulta ou procedimento realizado (retornos excluídos) que têm venda no período
+    const agendamentosRealizados = list.filter((a) => a.status === "realizado" && a.tipo !== "retorno");
+    const leadsComAgendamentoRealizado = new Set(agendamentosRealizados.map((a) => a.lead_id).filter(Boolean));
+    const vendasDeLeadsComAgendamento = vendasPeriodo.filter((v) => v.lead_id && leadsComAgendamentoRealizado.has(v.lead_id));
+    const valorTotalVendas = vendasPeriodo.reduce((s, v) => s + (v.valor_fechado || 0), 0);
+    const valorVendasConsulta = vendasDeLeadsComAgendamento.reduce((s, v) => s + (v.valor_fechado || 0), 0);
+    const taxaConversaoConsulta = leadsComAgendamentoRealizado.size > 0
+      ? Math.round((vendasDeLeadsComAgendamento.length / leadsComAgendamentoRealizado.size) * 100 * 10) / 10
+      : 0;
+
+    // Valor orçado nas consultas realizadas (estimativa de potencial)
+    const valorTotalConsultas = consultas.filter((a) => a.status === "realizado").reduce((s, a) => s + (a.valor_orcado || 0), 0);
+    const valorTotalProcedimentos = valorTotalVendas; // mantido por compatibilidade com renders existentes
+
+    const now = new Date();
+    const futuros = list.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) > now).length;
+    const passadoSemResultado = list.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) <= now).length;
+
     return {
       total: list.length,
       realizados,
       no_show: noShow,
       cancelados,
+      futuros,
+      passadoSemResultado,
       taxa_comparecimento: base > 0 ? Math.round((realizados / base) * 100 * 10) / 10 : 0,
       taxa_no_show: base > 0 ? Math.round((noShow / base) * 100 * 10) / 10 : 0,
+      consultas: consultas.length,
+      consultasRealizadas,
+      procedimentos: procedimentos.length,
+      procedimentosRealizados,
+      taxaConversaoConsulta,
+      leadsConvertidos: vendasDeLeadsComAgendamento.length,
+      leadsComConsultaRealizada: leadsComAgendamentoRealizado.size,
+      vendasFechadas: vendasPeriodo.length,
+      vendasDeLeadsComConsulta: vendasDeLeadsComAgendamento.length,
+      valorTotalVendas,
+      valorVendasConsulta,
+      valorTotalConsultas,
+      valorTotalProcedimentos,
     };
-  }, [agendamentosFiltrados]);
+  }, [agendamentosFiltrados, vendasPeriodo]);
+
+  // KPIs filtrados por tipo (para a row de cards)
+  const metricasKpisVisiveis = useMemo(() => {
+    const list = filtroTipoKpis === "todos"
+      ? agendamentosFiltrados
+      : agendamentosFiltrados.filter((a) => a.tipo === filtroTipoKpis);
+    const realizados = list.filter((a) => a.status === "realizado").length;
+    const noShow = list.filter((a) => a.status === "nao_compareceu").length;
+    const cancelados = list.filter((a) => a.status === "cancelado").length;
+    const base = realizados + noShow;
+    const now = new Date();
+    const futuros = list.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) > now).length;
+    const passadoSemResultado = list.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) <= now).length;
+    const leadsAtendidos = new Set(
+      list.filter((a) => a.status === "realizado" && a.tipo !== "retorno").map((a) => a.lead_id).filter(Boolean)
+    );
+    const vendasDeLeads = vendasPeriodo.filter((v) => v.lead_id && leadsAtendidos.has(v.lead_id));
+    const taxaConversao = leadsAtendidos.size > 0
+      ? Math.round((vendasDeLeads.length / leadsAtendidos.size) * 100 * 10) / 10
+      : 0;
+    return {
+      total: list.length,
+      realizados,
+      no_show: noShow,
+      cancelados,
+      futuros,
+      passadoSemResultado,
+      taxa_comparecimento: base > 0 ? Math.round((realizados / base) * 100 * 10) / 10 : 0,
+      taxa_no_show: base > 0 ? Math.round((noShow / base) * 100 * 10) / 10 : 0,
+      vendasDeLeads: vendasDeLeads.length,
+      leadsAtendidos: leadsAtendidos.size,
+      taxaConversao,
+    };
+  }, [agendamentosFiltrados, filtroTipoKpis, vendasPeriodo]);
+
+  // Métricas do funil (filtrado por tipo internamente)
+  const metricasFunil = useMemo(() => {
+    const list = filtroTipoFunil === "geral"
+      ? agendamentosFiltrados.filter((a) => a.tipo !== "retorno")
+      : agendamentosFiltrados.filter((a) => a.tipo === filtroTipoFunil);
+    const realizados = list.filter((a) => a.status === "realizado").length;
+    const leadsAtendidos = new Set(list.filter((a) => a.status === "realizado").map((a) => a.lead_id).filter(Boolean));
+    const vendasDeLeads = vendasPeriodo.filter((v) => v.lead_id && leadsAtendidos.has(v.lead_id));
+    const valorVendas = vendasDeLeads.reduce((s, v) => s + (v.valor_fechado || 0), 0);
+    const valorOrcado = list.filter((a) => a.status === "realizado").reduce((s, a) => s + (a.valor_orcado || 0), 0);
+    const taxa = leadsAtendidos.size > 0
+      ? Math.round((vendasDeLeads.length / leadsAtendidos.size) * 100 * 10) / 10
+      : 0;
+    return {
+      realizados,
+      leadsAtendidos: leadsAtendidos.size,
+      vendasDeLeads: vendasDeLeads.length,
+      totalVendas: vendasPeriodo.length,
+      valorVendas,
+      valorOrcado,
+      taxa,
+      isEmpty: realizados === 0,
+    };
+  }, [agendamentosFiltrados, filtroTipoFunil, vendasPeriodo]);
 
   // Próximos agendamentos (sidebar do calendário)
   const proximosAgendamentos = useMemo(() => {
@@ -247,13 +379,14 @@ export default function Agendamentos() {
 
   const listaFiltrada = useMemo(() => {
     let filtered = agendamentosFiltrados;
+    if (filtroTipo !== "todos") filtered = filtered.filter((a) => a.tipo === filtroTipo);
     if (filtroStatus !== "todos") filtered = filtered.filter((a) => a.status === filtroStatus);
     if (filtroBusca) {
       const q = filtroBusca.toLowerCase();
       filtered = filtered.filter((a) => a.lead?.nome?.toLowerCase().includes(q) || a.titulo.toLowerCase().includes(q));
     }
     return filtered;
-  }, [agendamentosFiltrados, filtroStatus, filtroBusca]);
+  }, [agendamentosFiltrados, filtroTipo, filtroStatus, filtroBusca]);
 
   // Métricas charts
   const tendenciaSemanal = useMemo(() => {
@@ -294,11 +427,40 @@ export default function Agendamentos() {
     }));
   }, [agendamentosFiltrados]);
 
+  const evolucaoDiaria = useMemo(() => {
+    if (!dateRange?.from || !dateRange?.to) return [];
+    const diffDias = differenceInCalendarDays(dateRange.to, dateRange.from);
+    if (diffDias > 90) return [];
+    return eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(day => {
+      const dayAgs = agendamentosFiltrados.filter(ag => isSameDay(parseISO(ag.data_hora_inicio), day));
+      return {
+        label: format(day, "dd/MM"),
+        total: dayAgs.length,
+        realizados: dayAgs.filter(a => a.status === "realizado").length,
+        noShow: dayAgs.filter(a => a.status === "nao_compareceu").length,
+      };
+    });
+  }, [agendamentosFiltrados, dateRange]);
+
+  const topLeads = useMemo(() => {
+    const map = new Map<string, { nome: string; total: number; realizados: number }>();
+    agendamentosFiltrados.forEach(ag => {
+      if (!ag.lead_id || !ag.lead?.nome) return;
+      const ex = map.get(ag.lead_id) || { nome: ag.lead.nome, total: 0, realizados: 0 };
+      map.set(ag.lead_id, { nome: ex.nome, total: ex.total + 1, realizados: ex.realizados + (ag.status === "realizado" ? 1 : 0) });
+    });
+    return Array.from(map.values()).sort((a, b) => b.total - a.total).slice(0, 6);
+  }, [agendamentosFiltrados]);
+
   // ── Actions ────────────────────────────────────────────────
 
   function resetForm() {
-    setForm({ titulo: "", data_hora_inicio: "", data_hora_fim: "", duracao_minutos: 60, tipo: "consulta", cor: "#3b82f6" });
+    setForm({ titulo: "", data_hora_inicio: "", data_hora_fim: "", duracao_minutos: 60, tipo: "consulta", cor: "#3b82f6", valor_orcado: financeiroConfig?.consulta_valor_padrao ?? undefined });
     setEnviarConfirmacao(false);
+    setAtivarFluxo(true);
+    setDataInicioForm(undefined);
+    setHoraInicioForm("08");
+    setMinutoInicioForm("00");
     setEditMode(false);
   }
 
@@ -322,11 +484,12 @@ export default function Agendamentos() {
 
   function openEditar(ag: Agendamento) {
     setEditMode(true);
+    const localInicio = toLocalDatetimeStr(ag.data_hora_inicio);
     setForm({
       lead_id: ag.lead_id,
       titulo: ag.titulo,
       descricao: ag.descricao,
-      data_hora_inicio: toLocalDatetimeStr(ag.data_hora_inicio),
+      data_hora_inicio: localInicio,
       data_hora_fim: toLocalDatetimeStr(ag.data_hora_fim),
       duracao_minutos: ag.duracao_minutos,
       tipo: ag.tipo,
@@ -335,9 +498,61 @@ export default function Agendamentos() {
       cor: ag.cor,
       status: ag.status,
     });
+    parseFormDatetime(localInicio);
     setAgendamentoSelecionado(ag);
     setModalDetalhes(false);
     setModalCriar(true);
+  }
+
+  function buildFormDatetimeStr(date: Date, hora: string, minuto: string): string {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${hora}:${minuto}`;
+  }
+
+  function handleFormDateChange(date: Date | undefined) {
+    setDataInicioForm(date);
+    setIsDatePickerFormOpen(false);
+    if (!date) { setForm(f => ({ ...f, data_hora_inicio: "" })); return; }
+    const str = buildFormDatetimeStr(date, horaInicioForm, minutoInicioForm);
+    setForm(f => {
+      const d = new Date(new Date(str).getTime() + (f.duracao_minutos || 60) * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const fim = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return { ...f, data_hora_inicio: str, data_hora_fim: fim };
+    });
+  }
+
+  function handleFormHoraChange(hora: string) {
+    setHoraInicioForm(hora);
+    if (!dataInicioForm) return;
+    const str = buildFormDatetimeStr(dataInicioForm, hora, minutoInicioForm);
+    setForm(f => {
+      const d = new Date(new Date(str).getTime() + (f.duracao_minutos || 60) * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const fim = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return { ...f, data_hora_inicio: str, data_hora_fim: fim };
+    });
+  }
+
+  function handleFormMinutoChange(minuto: string) {
+    setMinutoInicioForm(minuto);
+    if (!dataInicioForm) return;
+    const str = buildFormDatetimeStr(dataInicioForm, horaInicioForm, minuto);
+    setForm(f => {
+      const d = new Date(new Date(str).getTime() + (f.duracao_minutos || 60) * 60 * 1000);
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const fim = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return { ...f, data_hora_inicio: str, data_hora_fim: fim };
+    });
+  }
+
+  function parseFormDatetime(str: string) {
+    if (!str) return;
+    const d = new Date(str);
+    if (isNaN(d.getTime())) return;
+    setDataInicioForm(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
+    setHoraInicioForm(String(d.getHours()).padStart(2, "0"));
+    setMinutoInicioForm(String(d.getMinutes()).padStart(2, "0"));
   }
 
   function updateDuracao(inicio: string, minutos: number) {
@@ -368,6 +583,29 @@ export default function Agendamentos() {
         if (form.lead_id) {
           await supabase.from("leads").update({ is_scheduled: true }).eq("id", form.lead_id);
         }
+        if (!ativarFluxo && novo?.id && orgId) {
+          const { data: cfg } = await supabase
+            .from("agendamento_config_notificacoes")
+            .select("notif_ativa, lembretes")
+            .eq("organization_id", orgId)
+            .single();
+          const lembretes: { ativo: boolean; minutos_antes: number }[] =
+            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? cfg.lembretes : [];
+          const ativos = lembretes.filter((l: any) => l.ativo && l.minutos_antes > 0);
+          if (ativos.length > 0) {
+            await supabase.from("agendamento_notificacoes").insert(
+              ativos.map((l: any) => ({
+                agendamento_id: novo.id,
+                organization_id: orgId,
+                tipo_destinatario: "lead",
+                canal: "whatsapp",
+                antecedencia_minutos: l.minutos_antes,
+                status: "cancelado",
+                data_hora_envio: new Date().toISOString(),
+              }))
+            );
+          }
+        }
         toast.success("Agendamento criado!");
       }
       setModalCriar(false);
@@ -382,7 +620,7 @@ export default function Agendamentos() {
     if (novoStatus === "realizado") {
       setAgendamentoSelecionado(ag);
       setObsPos("");
-      setLeadAvancou(false);
+      setFechouProcedimento(false);
       setModalDetalhes(false);
       setModalRealizado(true);
       return;
@@ -415,8 +653,25 @@ export default function Agendamentos() {
         status: "realizado",
         observacoes_pos: obsPos || null,
       });
-      toast.success("Consulta marcada como realizada!");
+      toast.success("Atendimento marcado como realizado!");
       setModalRealizado(false);
+      if (fechouProcedimento && agendamentoSelecionado.lead) {
+        const isConsulta = agendamentoSelecionado.tipo === "consulta";
+        setVendaLead({
+          id: agendamentoSelecionado.lead.id,
+          nome: agendamentoSelecionado.lead.nome,
+          telefone: agendamentoSelecionado.lead.telefone ?? null,
+          lead_scoring: agendamentoSelecionado.lead.lead_scoring ?? null,
+        } as Lead);
+        setVendaInitialValues({
+          agendamento_id: agendamentoSelecionado.id,
+          tipo_venda: isConsulta ? "consulta" : "procedimento",
+          produto_servico: isConsulta ? "Consulta" : (agendamentoSelecionado.procedimento_interesse ?? undefined),
+          valor_fechado: isConsulta ? (agendamentoSelecionado.valor_orcado ?? undefined) : undefined,
+        });
+        setVendaModalOpen(true);
+      }
+      setFechouProcedimento(false);
     } catch (err: any) {
       toast.error(err.message);
     }
@@ -525,6 +780,13 @@ export default function Agendamentos() {
 
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setModalFinanceiroConfig(true)}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-white/60 bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] hover:text-white/80 transition-all"
+            >
+              <DollarSign className="h-3.5 w-3.5" />
+              Financeiro
+            </button>
+            <button
               onClick={() => setModalConfig(true)}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-white/60 bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] hover:text-white/80 transition-all"
               data-tutorial="agendamentos-config"
@@ -543,25 +805,36 @@ export default function Agendamentos() {
           </div>
         </div>
 
-        {/* Quick stats inside hero */}
-        {metricasFiltradas.total > 0 && (
-          <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 mt-6" data-tutorial="agendamentos-status">
-            {[
-              { label: "Agendados", value: metricasFiltradas.total, color: "#3b82f6" },
-              { label: "Realizados", value: metricasFiltradas.realizados, color: "#10b981" },
-              { label: "No-show", value: metricasFiltradas.no_show, color: "#ef4444" },
-              { label: "Comparecimento", value: `${metricasFiltradas.taxa_comparecimento}%`, color: "#8b5cf6" },
-            ].map((stat) => (
-              <div key={stat.label} className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-4 py-3">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-white/35">{stat.label}</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: stat.color }} />
-                  <span className="text-lg font-bold text-white tabular-nums">{stat.value}</span>
+        {/* Quick stats inside hero — dados de HOJE */}
+        {(() => {
+          const now = new Date();
+          const hojeRealizados = agendamentosHoje.filter((a) => a.status === "realizado").length;
+          const hojePendentes = agendamentosHoje.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) > now).length;
+          const hojeNoShow = agendamentosHoje.filter((a) => a.status === "nao_compareceu").length;
+          const hojeBase = hojeRealizados + hojeNoShow;
+          const hojeComparecimento = hojeBase > 0 ? Math.round((hojeRealizados / hojeBase) * 100) : null;
+          return (
+            <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 mt-6" data-tutorial="agendamentos-status">
+              {[
+                { label: "Hoje", value: agendamentosHoje.length, sub: "agendamentos", color: "#3b82f6" },
+                { label: "Realizados", value: hojeRealizados, sub: "compareceram", color: "#10b981" },
+                { label: "Pendentes", value: hojePendentes, sub: "ainda por vir", color: "#6366f1" },
+                hojeComparecimento !== null
+                  ? { label: "Comparecimento", value: `${hojeComparecimento}%`, sub: "taxa do dia", color: "#8b5cf6" }
+                  : { label: "No-show", value: hojeNoShow, sub: "não compareceram", color: "#ef4444" },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-4 py-3">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-white/35">{stat.label}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: stat.color }} />
+                    <span className="text-lg font-bold text-white tabular-nums">{stat.value}</span>
+                  </div>
+                  <p className="text-[9px] text-white/25 mt-0.5">{stat.sub}</p>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ═══════════════ TAB NAVIGATION ═══════════════ */}
@@ -603,7 +876,7 @@ export default function Agendamentos() {
             <div className="p-5">
               <FullCalendar
                 plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                initialView="dayGridMonth"
+                initialView="timeGridDay"
                 locale={ptBrLocale}
                 headerToolbar={{
                   left: "prev,today,next",
@@ -616,6 +889,16 @@ export default function Agendamentos() {
                 selectMirror={true}
                 dayMaxEvents={3}
                 height="auto"
+                moreLinkClick={(info) => {
+                  // FullCalendar passes UTC midnight — convert to local midnight to avoid off-by-one in BRT
+                  const localDate = new Date(info.date.getUTCFullYear(), info.date.getUTCMonth(), info.date.getUTCDate());
+                  const dayAgs = agendamentos.filter(ag =>
+                    isSameDay(parseISO(ag.data_hora_inicio), localDate)
+                  ).sort((a, b) => parseISO(a.data_hora_inicio).getTime() - parseISO(b.data_hora_inicio).getTime());
+                  // Defer state update so FullCalendar finishes mounting its Popover before React re-renders
+                  // (avoids "getBoundingClientRect of null" crash — reference element gets destroyed on re-render)
+                  setTimeout(() => setModalDiaEventos({ date: localDate, agendamentos: dayAgs }), 0);
+                }}
                 nowIndicator={true}
                 slotMinTime="06:00:00"
                 slotMaxTime="22:00:00"
@@ -681,22 +964,111 @@ export default function Agendamentos() {
             </div>
           </div>
 
-          {/* Sidebar — Próximos agendamentos */}
+          {/* Sidebar */}
           <div className="space-y-4" data-tutorial="agendamentos-upcoming">
+
+            {/* Card — Resumo do dia */}
+            {(() => {
+              const now = new Date();
+              const hojeTotal = agendamentosHoje.length;
+              const hojeRealizados = agendamentosHoje.filter((a) => a.status === "realizado").length;
+              const hojePendentes = agendamentosHoje.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) > now).length;
+              const hojeNoShow = agendamentosHoje.filter((a) => a.status === "nao_compareceu").length;
+              const hojeCancelados = agendamentosHoje.filter((a) => a.status === "cancelado").length;
+              const progressPct = hojeTotal > 0 ? Math.round((hojeRealizados / hojeTotal) * 100) : 0;
+              const proximoHoje = agendamentosHoje
+                .filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) > now)
+                .sort((a, b) => parseISO(a.data_hora_inicio).getTime() - parseISO(b.data_hora_inicio).getTime())[0];
+
+              return (
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-lg bg-muted">
+                          <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Hoje</p>
+                          <p className="text-[10px] text-muted-foreground/50 mt-0.5 capitalize">{format(now, "EEEE, dd 'de' MMMM", { locale: ptBR })}</p>
+                        </div>
+                      </div>
+                      <span className="text-2xl font-extrabold font-display text-foreground tabular-nums">{hojeTotal}</span>
+                    </div>
+                  </div>
+
+                  <div className="px-5 py-4 space-y-4">
+                    {/* Barra de progresso */}
+                    {hojeTotal > 0 && (
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] text-muted-foreground">Progresso do dia</span>
+                          <span className="text-[11px] font-bold text-emerald-600 tabular-nums">{progressPct}%</span>
+                        </div>
+                        <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Status breakdown */}
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: "Realizados", value: hojeRealizados, color: "text-emerald-600", bg: "bg-emerald-50 border-emerald-100/60" },
+                        { label: "Pendentes", value: hojePendentes, color: "text-indigo-600", bg: "bg-indigo-50 border-indigo-100/60" },
+                        { label: "No-show", value: hojeNoShow, color: "text-red-500", bg: "bg-red-50 border-red-100/60" },
+                        { label: "Cancelados", value: hojeCancelados, color: "text-muted-foreground", bg: "bg-muted/30 border-border/30" },
+                      ].map((s) => (
+                        <div key={s.label} className={cn("rounded-xl border p-2.5 text-center", s.bg)}>
+                          <p className={cn("text-lg font-extrabold font-display tabular-nums leading-none", s.color)}>{s.value}</p>
+                          <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mt-1">{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Próximo da fila */}
+                    {proximoHoje && (
+                      <button
+                        onClick={() => openDetalhes(proximoHoje)}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors text-left border border-border/40"
+                      >
+                        <div className="w-1 h-8 rounded-full shrink-0 bg-indigo-400" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-indigo-500 mb-0.5">Próximo</p>
+                          <p className="text-[12px] font-semibold text-foreground truncate">{proximoHoje.lead?.nome || proximoHoje.titulo}</p>
+                          <p className="text-[10px] text-muted-foreground tabular-nums">{formatTimeBR(proximoHoje.data_hora_inicio)} · {proximoHoje.duracao_minutos}min</p>
+                        </div>
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
+                      </button>
+                    )}
+
+                    {hojeTotal === 0 && (
+                      <div className="py-4 text-center">
+                        <p className="text-[11px] text-muted-foreground/40">Nenhum agendamento hoje</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Card — Próximos agendamentos */}
             <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-5 py-4 border-b border-border/40">
+              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-muted">
                     <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Próximos</h3>
-                    <p className="text-[10px] text-muted-foreground/50">{format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Próximos</p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Agendamentos futuros confirmados</p>
                   </div>
                 </div>
               </div>
-
-              <div className="p-3 space-y-1.5">
+              <div className="p-3 space-y-1">
                 {proximosAgendamentos.length === 0 ? (
                   <div className="py-8 text-center">
                     <CalendarDays className="h-8 w-8 text-muted-foreground/15 mx-auto mb-2" />
@@ -705,68 +1077,30 @@ export default function Agendamentos() {
                 ) : (
                   proximosAgendamentos.map((ag) => {
                     const TipoIcon = TIPO_ICONS[ag.tipo] || CalendarDays;
-                    const initials = (ag.lead?.nome || ag.titulo || "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
                     return (
                       <button
                         key={ag.id}
                         onClick={() => openDetalhes(ag)}
-                        className="w-full flex items-start gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors text-left group"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/50 transition-colors text-left group"
                       >
-                        {/* Color bar + time */}
-                        <div className="flex flex-col items-center gap-1 pt-0.5">
-                          <div className="w-1 h-8 rounded-full" style={{ backgroundColor: getEventColor(ag) }} />
-                        </div>
-
+                        <div className="w-1 h-7 rounded-full shrink-0" style={{ backgroundColor: getEventColor(ag) }} />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-[10px] font-bold text-muted-foreground tabular-nums">
-                              {formatTimeBR(ag.data_hora_inicio)}
-                            </span>
-                            <span className="text-[9px] text-muted-foreground/40">·</span>
-                            <span className="text-[10px] text-muted-foreground/60">
-                              {formatDateLabel(ag.data_hora_inicio)}
-                            </span>
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className="text-[10px] font-bold tabular-nums text-muted-foreground">{formatTimeBR(ag.data_hora_inicio)}</span>
+                            <span className="text-[9px] text-muted-foreground/30">·</span>
+                            <span className="text-[10px] text-muted-foreground/60">{formatDateLabel(ag.data_hora_inicio)}</span>
                           </div>
                           <p className="text-[12px] font-semibold text-foreground truncate">{ag.lead?.nome || ag.titulo}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <TipoIcon className="h-2.5 w-2.5 text-muted-foreground/50" />
-                            <span className="text-[10px] text-muted-foreground/60">{TIPO_LABELS[ag.tipo] || ag.tipo}</span>
-                            {ag.duracao_minutos && (
-                              <>
-                                <span className="text-[10px] text-muted-foreground/30">·</span>
-                                <span className="text-[10px] text-muted-foreground/60">{ag.duracao_minutos}min</span>
-                              </>
-                            )}
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <TipoIcon className="h-2.5 w-2.5 text-muted-foreground/40" />
+                            <span className="text-[10px] text-muted-foreground/50">{TIPO_LABELS[ag.tipo] || ag.tipo}{ag.duracao_minutos ? ` · ${ag.duracao_minutos}min` : ""}</span>
                           </div>
                         </div>
-
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors mt-1.5" />
+                        <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 shrink-0 transition-colors" />
                       </button>
                     );
                   })
                 )}
-              </div>
-            </div>
-
-            {/* Today summary */}
-            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="p-1.5 rounded-lg bg-muted">
-                  <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Resumo de Hoje</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-xl bg-muted/30 border border-border/30 p-3 text-center">
-                  <span className="text-xl font-bold text-foreground tabular-nums">{agendamentosHoje.length}</span>
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">Agendados</p>
-                </div>
-                <div className="rounded-xl bg-muted/30 border border-border/30 p-3 text-center">
-                  <span className="text-xl font-bold text-foreground tabular-nums">
-                    {agendamentosHoje.filter((a) => a.status === "realizado").length}
-                  </span>
-                  <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wider mt-0.5">Realizados</p>
-                </div>
               </div>
             </div>
           </div>
@@ -776,32 +1110,94 @@ export default function Agendamentos() {
       {/* ═══════════════ LISTA TAB ═══════════════ */}
       {activeTab === "lista" && (
         <div className="space-y-5">
-          {/* Filtros */}
-          <div className="flex items-center gap-3">
-            <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-[180px] h-9 text-xs rounded-lg border-border/60">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl">
-                <SelectItem value="todos">Todos os status</SelectItem>
-                {Object.entries(STATUS_LABELS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: STATUS_COLORS[k] }} />
-                      {v}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
-              <Input
-                placeholder="Buscar por lead ou título..."
+
+          {/* Filtros — tipo + status + busca */}
+          <div className="space-y-2.5">
+
+            {/* Linha 1: tipo + busca */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[
+                  { value: "todos", label: "Todos" },
+                  { value: "consulta", label: "Consultas" },
+                  { value: "procedimento", label: "Procedimentos" },
+                  { value: "retorno", label: "Retornos" },
+                ].map((opt) => {
+                  const count = opt.value === "todos"
+                    ? agendamentosFiltrados.length
+                    : agendamentosFiltrados.filter((a) => a.tipo === opt.value).length;
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => setFiltroTipo(opt.value)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold border transition-colors",
+                        filtroTipo === opt.value
+                          ? "bg-foreground text-background border-foreground"
+                          : "bg-background text-muted-foreground border-border/60 hover:text-foreground hover:border-border"
+                      )}
+                    >
+                      {opt.label}
+                      <span className={cn("text-[9px] font-bold tabular-nums px-1 rounded", filtroTipo === opt.value ? "bg-background/20" : "bg-muted")}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="relative flex-1 min-w-[200px] max-w-sm ml-auto">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
+                <Input
+                  placeholder="Buscar por lead ou título..."
                 value={filtroBusca}
                 onChange={(e) => setFiltroBusca(e.target.value)}
                 className="pl-9 h-9 text-xs rounded-lg border-border/60"
               />
+              </div>
+            </div>
+
+            {/* Linha 2: filtro por status — contagens escopadas pelo tipo selecionado */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(() => {
+                const baseTipo = filtroTipo === "todos"
+                  ? agendamentosFiltrados
+                  : agendamentosFiltrados.filter((a) => a.tipo === filtroTipo);
+                return [
+                  { value: "todos", label: "Todos os status", color: null },
+                  { value: "agendado", label: "Agendado", color: STATUS_COLORS.agendado },
+                  { value: "confirmado", label: "Confirmado", color: STATUS_COLORS.confirmado },
+                  { value: "realizado", label: "Realizado", color: STATUS_COLORS.realizado },
+                  { value: "nao_compareceu", label: "Não compareceu", color: STATUS_COLORS.nao_compareceu },
+                  { value: "cancelado", label: "Cancelado", color: STATUS_COLORS.cancelado },
+                  { value: "remarcado", label: "Remarcado", color: STATUS_COLORS.remarcado },
+                ].map((opt) => {
+                const count = opt.value === "todos"
+                  ? baseTipo.length
+                  : baseTipo.filter((a) => a.status === opt.value).length;
+                const isActive = filtroStatus === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => setFiltroStatus(opt.value)}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-colors",
+                      isActive
+                        ? "bg-foreground text-background border-foreground"
+                        : "bg-background text-muted-foreground border-border/60 hover:text-foreground hover:border-border"
+                    )}
+                  >
+                    {opt.color && (
+                      <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />
+                    )}
+                    {opt.label}
+                    <span className={cn("text-[9px] font-bold tabular-nums px-1 rounded", isActive ? "bg-background/20" : "bg-muted")}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              });
+              })()}
             </div>
           </div>
 
@@ -919,158 +1315,346 @@ export default function Agendamentos() {
 
       {/* ═══════════════ MÉTRICAS TAB ═══════════════ */}
       {activeTab === "metricas" && (
-        <div className="space-y-8" data-tutorial="agendamentos-metrics">
-          {/* Performance cards */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 rounded-lg bg-muted">
-                <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
-              </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Performance</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Comparecimento */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Taxa de Comparecimento</span>
-                  <div className="p-1.5 rounded-lg bg-emerald-50">
-                    <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
-                  </div>
-                </div>
-                <span className="text-4xl font-extrabold tracking-tight text-foreground font-display">{metricasFiltradas.taxa_comparecimento}%</span>
-                <div className="h-2 bg-muted/60 rounded-full overflow-hidden mt-4">
-                  <div className="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out" style={{ width: `${Math.min(metricasFiltradas.taxa_comparecimento, 100)}%` }} />
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-2">{metricasFiltradas.realizados} de {metricasFiltradas.realizados + metricasFiltradas.no_show} compareceram</p>
-              </div>
+        <div className="space-y-5" data-tutorial="agendamentos-metrics">
 
-              {/* No-show */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Taxa de No-show</span>
-                  <div className={cn("p-1.5 rounded-lg", metricasFiltradas.taxa_no_show > 20 ? "bg-red-50" : "bg-muted")}>
-                    <TrendingDown className={cn("h-3.5 w-3.5", metricasFiltradas.taxa_no_show > 20 ? "text-red-600" : "text-muted-foreground")} />
+          {/* ═══ KPIs — filtro por tipo ═══ */}
+          <div className="space-y-3">
+            {/* Pills filtro */}
+            <div className="flex items-center gap-1.5 bg-muted/40 rounded-xl p-1 w-fit">
+              {[
+                { value: "todos", label: "Todos" },
+                { value: "consulta", label: "Consultas" },
+                { value: "procedimento", label: "Procedimentos" },
+                { value: "retorno", label: "Retornos" },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setFiltroTipoKpis(opt.value)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all",
+                    filtroTipoKpis === opt.value
+                      ? "bg-foreground text-background shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                {
+                  label: "Total", value: metricasKpisVisiveis.total,
+                  sub: filtroTipoKpis === "todos" ? "agendamentos no período" : `${filtroTipoKpis}s no período`, icon: CalendarDays,
+                },
+                {
+                  label: "Realizados", value: metricasKpisVisiveis.realizados,
+                  sub: `${metricasKpisVisiveis.taxa_comparecimento}% de comparecimento`, icon: CheckCircle2, accent: true,
+                },
+                {
+                  label: "No-show", value: metricasKpisVisiveis.no_show,
+                  sub: `${metricasKpisVisiveis.taxa_no_show}% taxa`, icon: XCircle, danger: metricasKpisVisiveis.taxa_no_show > 20,
+                },
+                {
+                  label: "Cancelados", value: metricasKpisVisiveis.cancelados,
+                  sub: "no período", icon: X,
+                },
+                {
+                  label: "Futuros", value: metricasKpisVisiveis.futuros,
+                  sub: metricasKpisVisiveis.passadoSemResultado > 0
+                    ? `+${metricasKpisVisiveis.passadoSemResultado} passados sem resultado`
+                    : "agendados/confirmados", icon: Clock,
+                  future: true,
+                  passadoSemResultado: metricasKpisVisiveis.passadoSemResultado,
+                },
+                {
+                  label: "Conversão Real", value: `${metricasKpisVisiveis.taxaConversao}%`,
+                  sub: `${metricasKpisVisiveis.vendasDeLeads} de ${metricasKpisVisiveis.leadsAtendidos} leads atendidos`, icon: ArrowRight,
+                },
+              ].map((kpi: any) => (
+                <div
+                  key={kpi.label}
+                  className={cn(
+                    "rounded-2xl px-4 py-3.5 border transition-colors",
+                    kpi.accent
+                      ? "bg-emerald-50/60 border-emerald-200/50"
+                      : kpi.danger
+                      ? "bg-red-50/60 border-red-200/50"
+                      : kpi.future
+                      ? "bg-indigo-50/60 border-indigo-200/50"
+                      : "bg-card border-border/60 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                  )}
+                >
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <kpi.icon className={cn("h-3 w-3", kpi.accent ? "text-emerald-600" : kpi.danger ? "text-red-500" : kpi.future ? "text-indigo-500" : "text-muted-foreground")} />
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{kpi.label}</span>
+                  </div>
+                  <p className={cn("text-lg font-extrabold tracking-tight font-display leading-none", kpi.accent ? "text-emerald-700" : kpi.danger ? "text-red-600" : kpi.future ? "text-indigo-700" : "text-foreground")}>
+                    {kpi.value}
+                  </p>
+                  <p className={cn("text-[10px] mt-1 leading-tight", kpi.passadoSemResultado > 0 ? "text-amber-600/80" : "text-muted-foreground/60")}>{kpi.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ═══ Evolução + Status ═══ */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
+
+            {/* Evolução diária */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-muted"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">EVOLUÇÃO DE AGENDAMENTOS</p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Agendamentos e realizados por dia no período</p>
                   </div>
                 </div>
-                <span className={cn("text-4xl font-extrabold tracking-tight font-display", metricasFiltradas.taxa_no_show > 20 ? "text-red-600" : "text-foreground")}>{metricasFiltradas.taxa_no_show}%</span>
-                <div className="h-2 bg-muted/60 rounded-full overflow-hidden mt-4">
-                  <div className={cn("h-full rounded-full transition-all duration-700 ease-out", metricasFiltradas.taxa_no_show > 20 ? "bg-red-500" : "bg-gray-400")} style={{ width: `${Math.min(metricasFiltradas.taxa_no_show, 100)}%` }} />
+              </div>
+              <div className="p-5">
+                {evolucaoDiaria.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[200px]">
+                    <div className="p-3 rounded-xl bg-muted/40 mb-3"><BarChart3 className="h-6 w-6 text-muted-foreground/30" /></div>
+                    <p className="text-sm font-medium text-muted-foreground">Selecione um período de até 90 dias</p>
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <AreaChart data={evolucaoDiaria} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="agGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.12} />
+                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="realGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#10b981" stopOpacity={0.12} />
+                          <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.3} vertical={false} />
+                      <XAxis dataKey="label" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                      <YAxis allowDecimals={false} fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={24} />
+                      <RechartsTooltip
+                        cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1, strokeDasharray: '4 4' }}
+                        content={({ active, payload, label }) => {
+                          if (!active || !payload?.length) return null;
+                          return (
+                            <div className="rounded-xl border border-border/60 bg-card shadow-[0_4px_16px_rgba(0,0,0,0.08)] px-3.5 py-2.5 min-w-[130px]">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">{label}</p>
+                              {payload.map((p: any) => (
+                                <div key={p.dataKey} className="flex items-center justify-between gap-4">
+                                  <div className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.stroke }} />
+                                    <span className="text-[11px] text-muted-foreground">{p.dataKey === "total" ? "Agendados" : "Realizados"}</span>
+                                  </div>
+                                  <span className="text-[13px] font-bold tabular-nums text-foreground">{p.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }}
+                      />
+                      <Area type="monotone" dataKey="total" stroke="#6366f1" strokeWidth={2} fill="url(#agGradient)" dot={false} name="total" />
+                      <Area type="monotone" dataKey="realizados" stroke="#10b981" strokeWidth={2} fill="url(#realGradient)" dot={false} name="realizados" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
+            </div>
+
+            {/* Distribuição por Status — barras horizontais */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-muted"><BarChart3 className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">POR STATUS</p>
                 </div>
-                <p className="text-[11px] text-muted-foreground mt-2">{metricasFiltradas.no_show} não compareceram no período</p>
+              </div>
+              <div className="p-5 space-y-3">
+                {donutStatus.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <p className="text-[11px] text-muted-foreground/40">Sem dados no período</p>
+                  </div>
+                ) : (
+                  donutStatus.sort((a, b) => b.total - a.total).map(s => {
+                    const pct = metricasFiltradas.total > 0 ? Math.round((s.total / metricasFiltradas.total) * 100) : 0;
+                    return (
+                      <div key={s.status}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
+                            <span className="text-[11px] font-medium text-foreground">{s.label}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold tabular-nums text-foreground">{s.total}</span>
+                            <span className="text-[10px] text-muted-foreground/50 w-8 text-right">{pct}%</span>
+                          </div>
+                        </div>
+                        <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: s.color }} />
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>
 
-          {/* Charts grid */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-1.5 rounded-lg bg-muted">
-                <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+          {/* ═══ Funil Consulta→Procedimento + Tipos ═══ */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+            {/* Funil de conversão */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">FUNIL AGENDAMENTO → FECHAMENTO</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Taxa de conversão de leads no período</p>
+                    </div>
+                  </div>
+                  {/* Pills internas */}
+                  <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5">
+                    {[
+                      { value: "geral", label: "Geral" },
+                      { value: "consulta", label: "Consultas" },
+                      { value: "procedimento", label: "Proced." },
+                    ].map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setFiltroTipoFunil(opt.value)}
+                        className={cn(
+                          "px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all",
+                          filtroTipoFunil === opt.value
+                            ? "bg-foreground text-background shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Análise Visual</span>
+              <div className="p-5">
+                {metricasFunil.isEmpty ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <div className="p-3 rounded-xl bg-muted/40 mb-3"><TrendingUp className="h-6 w-6 text-muted-foreground/30" /></div>
+                    <p className="text-sm font-medium text-muted-foreground">Sem agendamentos realizados no período</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {[
+                      { label: "Agendamentos realizados", value: metricasFunil.realizados, color: "#6366f1", bg: "bg-indigo-50", text: "text-indigo-700" },
+                      { label: "Leads únicos atendidos", value: metricasFunil.leadsAtendidos, color: "#10b981", bg: "bg-emerald-50", text: "text-emerald-700" },
+                      { label: "Leads que fecharam venda", value: metricasFunil.vendasDeLeads, color: "#f59e0b", bg: "bg-amber-50", text: "text-amber-700" },
+                    ].map((step, i, arr) => {
+                      const base = arr[0].value || 1;
+                      const pct = Math.round((step.value / base) * 100);
+                      return (
+                        <div key={step.label}>
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center shrink-0", step.bg)}>
+                              <span className={cn("text-[11px] font-bold", step.text)}>{i + 1}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-medium text-foreground">{step.label}</span>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-[13px] font-bold tabular-nums text-foreground">{step.value}</span>
+                                  {i > 0 && <span className="text-[10px] text-muted-foreground/50">{pct}%</span>}
+                                </div>
+                              </div>
+                              <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: step.color }} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {metricasFunil.leadsAtendidos > 0 && (
+                      <div className="mt-4 p-3.5 rounded-xl bg-amber-50/60 border border-amber-100/60 flex items-center justify-between">
+                        <div>
+                          <p className="text-[11px] font-bold text-amber-700">Taxa de conversão real (CRM)</p>
+                          <p className="text-[10px] text-amber-600/70 mt-0.5">{metricasFunil.vendasDeLeads} vendas de {metricasFunil.leadsAtendidos} leads atendidos</p>
+                        </div>
+                        <span className="text-2xl font-extrabold font-display text-amber-700">{metricasFunil.taxa}%</span>
+                      </div>
+                    )}
+                    {(metricasFunil.valorOrcado > 0 || metricasFunil.valorVendas > 0) && (
+                      <div className="grid grid-cols-2 gap-3 mt-1">
+                        <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Valor orçado</p>
+                          <p className="text-sm font-extrabold font-display text-foreground tabular-nums">
+                            {metricasFunil.valorOrcado.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </p>
+                        </div>
+                        <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-100/60">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-amber-600 mb-1">Receita real (CRM)</p>
+                          <p className="text-sm font-extrabold font-display text-amber-700 tabular-nums">
+                            {metricasFunil.valorVendas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Status donut */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-4 border-b border-border/40">
-                  <h3 className="text-sm font-semibold text-foreground">Distribuição por Status</h3>
-                </div>
-                <div className="p-5">
-                  {donutStatus.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie data={donutStatus} dataKey="total" nameKey="label" cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} strokeWidth={2} stroke="hsl(var(--background))">
-                          {donutStatus.map((entry) => <Cell key={entry.status} fill={entry.color} />)}
-                        </Pie>
-                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
-                        <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="bg-muted/30 p-4 rounded-2xl mb-2"><BarChart3 className="h-6 w-6 text-muted-foreground/20" /></div>
-                      <p className="text-[11px] text-muted-foreground/40">Sem dados no período</p>
-                    </div>
-                  )}
+
+            {/* Top Leads */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                <div className="flex items-center gap-2">
+                  <span className="p-1.5 rounded-lg bg-muted"><Users className="h-3.5 w-3.5 text-muted-foreground" /></span>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TOP LEADS</p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Leads com mais agendamentos no período</p>
+                  </div>
                 </div>
               </div>
-
-              {/* Weekly trend */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-4 border-b border-border/40">
-                  <h3 className="text-sm font-semibold text-foreground">Tendência Semanal</h3>
-                </div>
-                <div className="p-5">
-                  {tendenciaSemanal.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <LineChart data={tendenciaSemanal}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
-                        <XAxis dataKey="semana" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                        <YAxis allowDecimals={false} fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                        <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-                        <Line type="monotone" dataKey="total" stroke="hsl(var(--foreground))" strokeWidth={2.5} dot={{ r: 4, fill: 'hsl(var(--foreground))', strokeWidth: 2, stroke: 'hsl(var(--background))' }} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="bg-muted/30 p-4 rounded-2xl mb-2"><BarChart3 className="h-6 w-6 text-muted-foreground/20" /></div>
-                      <p className="text-[11px] text-muted-foreground/40">Sem dados no período</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Tipo distribution */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-4 border-b border-border/40">
-                  <h3 className="text-sm font-semibold text-foreground">Distribuição por Tipo</h3>
-                </div>
-                <div className="p-5">
-                  {distribuicaoTipo.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <PieChart>
-                        <Pie data={distribuicaoTipo} dataKey="total" nameKey="tipo" cx="50%" cy="50%" outerRadius={85} paddingAngle={3} strokeWidth={2} stroke="hsl(var(--background))">
-                          {distribuicaoTipo.map((_, i) => <Cell key={i} fill={CORES_PREDEFINIDAS[i % CORES_PREDEFINIDAS.length]} />)}
-                        </Pie>
-                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
-                        <RechartsTooltip contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="bg-muted/30 p-4 rounded-2xl mb-2"><BarChart3 className="h-6 w-6 text-muted-foreground/20" /></div>
-                      <p className="text-[11px] text-muted-foreground/40">Sem dados no período</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Monthly attendance */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-4 border-b border-border/40">
-                  <h3 className="text-sm font-semibold text-foreground">Comparecimento Mensal</h3>
-                </div>
-                <div className="p-5">
-                  {comparecimentoMensal.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={250}>
-                      <BarChart data={comparecimentoMensal}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.4} />
-                        <XAxis dataKey="mes" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                        <YAxis unit="%" fontSize={10} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                        <RechartsTooltip formatter={(v: number) => `${v}%`} contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', fontSize: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }} />
-                        <Bar dataKey="taxa" fill="#10b981" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12">
-                      <div className="bg-muted/30 p-4 rounded-2xl mb-2"><BarChart3 className="h-6 w-6 text-muted-foreground/20" /></div>
-                      <p className="text-[11px] text-muted-foreground/40">Sem dados no período</p>
-                    </div>
-                  )}
-                </div>
+              <div className="p-5">
+                {topLeads.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-10">
+                    <div className="p-3 rounded-xl bg-muted/40 mb-3"><Users className="h-6 w-6 text-muted-foreground/30" /></div>
+                    <p className="text-sm font-medium text-muted-foreground">Sem agendamentos vinculados a leads</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    {topLeads.map((lead, i) => {
+                      const maxTotal = topLeads[0]?.total || 1;
+                      const pct = Math.round((lead.total / maxTotal) * 100);
+                      return (
+                        <div key={lead.nome} className="flex items-center gap-3 group">
+                          <div className="w-6 h-6 rounded-md bg-muted flex items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-muted-foreground">{lead.nome[0]?.toUpperCase()}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[11px] font-medium text-foreground truncate">{lead.nome}</span>
+                              <div className="flex items-center gap-2 shrink-0 ml-2">
+                                <span className="text-[10px] text-emerald-600 font-semibold">{lead.realizados}✓</span>
+                                <span className="text-[12px] font-bold tabular-nums text-foreground">{lead.total}</span>
+                              </div>
+                            </div>
+                            <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
+                              <div className="h-full bg-foreground/20 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
+
         </div>
       )}
 
@@ -1130,7 +1714,7 @@ export default function Agendamentos() {
                             key={l.id}
                             value={l.nome || l.id}
                             onSelect={() => {
-                              setForm((f) => ({ ...f, lead_id: l.id, titulo: f.titulo || `Consulta - ${l.nome || ""}` }));
+                              setForm((f) => ({ ...f, lead_id: l.id, titulo: defaultTitulo(f.tipo || "consulta", l.nome || "") }));
                               setLeadPopoverOpen(false);
                             }}
                             className="flex items-center gap-2 px-3 py-2.5 cursor-pointer"
@@ -1173,7 +1757,11 @@ export default function Agendamentos() {
             <div className="grid grid-cols-2 gap-4">
               <div data-tutorial="agendamento-field-tipo" className="space-y-1.5">
                 <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Tipo</Label>
-                <Select value={form.tipo} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
+                <Select value={form.tipo} onValueChange={(v) => {
+                  const leadNome = leadsOrg.find((l) => l.id === form.lead_id)?.nome || "";
+                  const valorPadrao = v === "consulta" ? (financeiroConfig?.consulta_valor_padrao ?? undefined) : undefined;
+                  setForm((f) => ({ ...f, tipo: v, titulo: defaultTitulo(v, leadNome), procedimento_id: undefined, valor_orcado: valorPadrao }));
+                }}>
                   <SelectTrigger className="rounded-lg border-border/60 h-10"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl">
                     {Object.entries(TIPO_LABELS).map(([k, v]) => {
@@ -1213,36 +1801,120 @@ export default function Agendamentos() {
 
             {/* Data/hora */}
             <div data-tutorial="agendamento-field-data" className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Data e Hora</Label>
-              <Input
-                type="datetime-local"
-                value={form.data_hora_inicio}
-                onChange={(e) => {
-                  setForm((f) => ({ ...f, data_hora_inicio: e.target.value }));
-                  updateDuracao(e.target.value, form.duracao_minutos || 60);
-                }}
-                className="rounded-lg border-border/60 h-10"
-              />
-            </div>
-
-
-            {/* Cor */}
-            <div data-tutorial="agendamento-field-cor" className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Cor do Evento</Label>
+              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <CalendarDays className="h-3 w-3" /> Data e Hora de Início
+              </Label>
               <div className="flex gap-2">
-                {CORES_PREDEFINIDAS.map((c) => (
-                  <button
-                    key={c}
-                    className={cn(
-                      "w-8 h-8 rounded-lg border-2 transition-all hover:scale-105",
-                      form.cor === c ? "border-foreground scale-110 shadow-md" : "border-transparent"
-                    )}
-                    style={{ backgroundColor: c }}
-                    onClick={() => setForm((f) => ({ ...f, cor: c }))}
-                  />
-                ))}
+                <Popover open={isDatePickerFormOpen} onOpenChange={setIsDatePickerFormOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "flex-1 justify-start text-left font-normal h-10 rounded-lg text-sm border-border/60",
+                        !dataInicioForm && "text-muted-foreground/50"
+                      )}
+                    >
+                      <CalendarDays className="mr-2 h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      {dataInicioForm
+                        ? format(dataInicioForm, "EEE, dd 'de' MMM", { locale: ptBR })
+                        : "Selecionar data"
+                      }
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0 rounded-xl border-border/60" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dataInicioForm}
+                      onSelect={handleFormDateChange}
+                      initialFocus
+                      locale={ptBR}
+                    />
+                  </PopoverContent>
+                </Popover>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <Select value={horaInicioForm} onValueChange={handleFormHoraChange}>
+                    <SelectTrigger className="h-10 w-[62px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px] rounded-xl border-border/60">
+                      {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(h => (
+                        <SelectItem key={h} value={h} className="text-sm tabular-nums">{h}h</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground font-semibold text-sm">:</span>
+                  <Select value={minutoInicioForm} onValueChange={handleFormMinutoChange}>
+                    <SelectTrigger className="h-10 w-[60px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-border/60">
+                      {["00","05","10","15","20","25","30","35","40","45","50","55"].map(m => (
+                        <SelectItem key={m} value={m} className="text-sm tabular-nums">{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
+
+
+            {/* Seletor de procedimento */}
+            {form.tipo === "procedimento" && (
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Procedimento</Label>
+                {procedimentos.length === 0 ? (
+                  <div className="flex items-center gap-2 p-3 rounded-lg border border-border/40 bg-muted/20">
+                    <Tag className="h-3.5 w-3.5 text-muted-foreground/50" />
+                    <p className="text-[11px] text-muted-foreground/60">Nenhum procedimento cadastrado</p>
+                  </div>
+                ) : (
+                  <Select
+                    value={form.procedimento_id || ""}
+                    onValueChange={(v) => {
+                      const proc = procedimentos.find((p) => p.id === v);
+                      if (!proc) return;
+                      const leadNome = leadsOrg.find((l) => l.id === form.lead_id)?.nome || "";
+                      setForm((f) => ({
+                        ...f,
+                        procedimento_id: proc.id,
+                        titulo: `${proc.nome} — ${leadNome}`,
+                        valor_orcado: proc.valor_base ?? f.valor_orcado,
+                        duracao_minutos: proc.duracao_minutos ?? f.duracao_minutos,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger className="rounded-lg border-border/60 h-10"><SelectValue placeholder="Selecionar procedimento..." /></SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                      {procedimentos.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          <div className="flex items-center gap-2">
+                            <Scissors className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span>{p.nome}</span>
+                            {p.valor_base && <span className="text-muted-foreground/60 text-[11px]">R$ {p.valor_base.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
+
+            {/* Valor orçado */}
+            {(form.tipo === "consulta" || form.tipo === "procedimento") && (
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {form.tipo === "consulta" ? "Valor da Consulta (R$)" : "Valor Orçado (R$)"}
+                </Label>
+                <CurrencyInput
+                  value={form.valor_orcado}
+                  onValueChange={(v) => setForm((f) => ({ ...f, valor_orcado: v ?? null }))}
+                  className="h-10 text-sm rounded-lg border-border/60"
+                />
+              </div>
+            )}
 
             {/* Descrição */}
             <div data-tutorial="agendamento-field-obs" className="space-y-1.5">
@@ -1256,15 +1928,43 @@ export default function Agendamentos() {
               />
             </div>
 
-            {/* WhatsApp */}
             {!editMode && (
-              <div className="flex items-center gap-3 p-3.5 rounded-xl bg-muted/30 border border-border/30">
-                <Checkbox id="enviar-confirm" checked={enviarConfirmacao} onCheckedChange={(c) => setEnviarConfirmacao(!!c)} />
-                <div>
-                  <Label htmlFor="enviar-confirm" className="cursor-pointer text-sm font-medium">Enviar confirmação via WhatsApp</Label>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">O lead receberá uma mensagem com os detalhes do agendamento</p>
+              <button
+                type="button"
+                onClick={() => setAtivarFluxo((v) => !v)}
+                className={cn(
+                  "w-full flex items-center justify-between rounded-xl border px-4 py-3 transition-colors text-left",
+                  ativarFluxo
+                    ? "border-blue-200/80 bg-blue-50/60"
+                    : "border-border/40 bg-muted/20"
+                )}
+              >
+                <div className="flex items-center gap-2.5">
+                  {ativarFluxo
+                    ? <Bell className="h-4 w-4 text-blue-500 shrink-0" />
+                    : <BellOff className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                  }
+                  <div>
+                    <p className={cn("text-[13px] font-medium", ativarFluxo ? "text-foreground" : "text-muted-foreground")}>
+                      Ativar fluxo de notificações
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                      {ativarFluxo
+                        ? "O lead receberá os lembretes automáticos configurados"
+                        : "Nenhuma notificação será enviada para este agendamento"}
+                    </p>
+                  </div>
                 </div>
-              </div>
+                <div className={cn(
+                  "h-5 w-9 rounded-full transition-colors relative shrink-0",
+                  ativarFluxo ? "bg-blue-500" : "bg-muted-foreground/20"
+                )}>
+                  <span className={cn(
+                    "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                    ativarFluxo ? "translate-x-4" : "translate-x-0.5"
+                  )} />
+                </div>
+              </button>
             )}
           </div>
 
@@ -1416,36 +2116,114 @@ export default function Agendamentos() {
       </Dialog>
 
       {/* ═══════════════ MODAL REALIZADO ═══════════════ */}
-      <Dialog open={modalRealizado} onOpenChange={setModalRealizado}>
-        <DialogContent className="max-w-md rounded-2xl border-border/60">
-          <DialogHeader>
-            <DialogTitle className="font-display font-bold">Marcar como Realizado</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
+      <Dialog open={modalRealizado} onOpenChange={(o) => { setModalRealizado(o); if (!o) setFechouProcedimento(false); }}>
+        <DialogContent className="max-w-md rounded-2xl border-border/60 p-0 gap-0 overflow-hidden">
+          <div className="px-5 pt-5 pb-4 border-b border-border/40">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-lg bg-emerald-100">
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">CONFIRMAR REALIZAÇÃO</p>
+                {agendamentoSelecionado && (
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5 truncate max-w-[280px]">{agendamentoSelecionado.titulo}</p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="px-5 py-5 space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Observações pós-reunião</Label>
+              <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Observações pós-atendimento</Label>
               <Textarea
                 value={obsPos}
                 onChange={(e) => setObsPos(e.target.value)}
-                placeholder="Como foi a reunião? Quais foram os próximos passos?"
-                rows={4}
-                className="rounded-lg border-border/60 resize-none"
+                placeholder="Como foi o atendimento? Quais os próximos passos com esse lead?"
+                rows={3}
+                className="rounded-lg border-border/60 resize-none text-sm"
               />
             </div>
-            <div className="flex items-center gap-3 p-3.5 rounded-xl bg-muted/30 border border-border/30">
-              <Checkbox id="lead-avancou" checked={leadAvancou} onCheckedChange={(c) => setLeadAvancou(!!c)} />
-              <Label htmlFor="lead-avancou" className="cursor-pointer text-sm font-medium">Lead avançou no pipeline?</Label>
-            </div>
+
+            {/* Registrar receita — label adapta ao tipo do agendamento */}
+            {(() => {
+              const isConsulta = agendamentoSelecionado?.tipo === "consulta";
+              const isProcedimento = agendamentoSelecionado?.tipo === "procedimento";
+              const temValorOrcado = (agendamentoSelecionado?.valor_orcado ?? 0) > 0;
+              const label = isConsulta
+                ? "Cobrou pela consulta?"
+                : isProcedimento
+                  ? "Registrar venda do procedimento?"
+                  : "Registrar receita?";
+              const sublabel = fechouProcedimento
+                ? `Abre o registro de ${isConsulta ? "consulta" : "venda"} automaticamente ao confirmar`
+                : isConsulta && temValorOrcado
+                  ? `Pré-preenche com R$ ${Number(agendamentoSelecionado!.valor_orcado).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
+                  : "Marque para registrar uma venda ao confirmar";
+              return (
+                <button
+                  type="button"
+                  onClick={() => setFechouProcedimento(v => !v)}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3.5 rounded-xl border transition-all text-left",
+                    fechouProcedimento
+                      ? isConsulta
+                        ? "bg-blue-50 border-blue-200 text-blue-800"
+                        : "bg-emerald-50 border-emerald-200 text-emerald-800"
+                      : "bg-muted/30 border-border/30 text-foreground hover:bg-muted/50"
+                  )}
+                >
+                  <div className={cn(
+                    "h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
+                    fechouProcedimento
+                      ? isConsulta ? "bg-blue-600 border-blue-600" : "bg-emerald-600 border-emerald-600"
+                      : "border-border bg-background"
+                  )}>
+                    {fechouProcedimento && <Check className="h-3 w-3 text-white" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">{label}</p>
+                    <p className="text-[11px] text-muted-foreground/60 mt-0.5">{sublabel}</p>
+                  </div>
+                  <DollarSign className={cn(
+                    "h-4 w-4 shrink-0",
+                    fechouProcedimento
+                      ? isConsulta ? "text-blue-400" : "text-emerald-500"
+                      : "text-muted-foreground/40"
+                  )} />
+                </button>
+              );
+            })()}
           </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setModalRealizado(false)} className="text-xs font-semibold rounded-lg">Cancelar</Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-xs font-semibold rounded-lg gap-2" onClick={handleMarcarRealizado} disabled={formLoading}>
+          <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border/40 bg-muted/20">
+            <Button variant="ghost" onClick={() => { setModalRealizado(false); setFechouProcedimento(false); }} className="h-9 text-xs font-medium rounded-lg px-4">Cancelar</Button>
+            <Button
+              className={cn(
+                "h-9 text-xs font-semibold rounded-lg gap-1.5 px-5",
+                fechouProcedimento
+                  ? "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-foreground hover:bg-foreground/90 text-background"
+              )}
+              onClick={handleMarcarRealizado}
+              disabled={formLoading}
+            >
               {formLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-              Confirmar
+              {fechouProcedimento
+                ? agendamentoSelecionado?.tipo === "consulta"
+                  ? "Confirmar e Cobrar Consulta"
+                  : "Confirmar e Registrar Venda"
+                : "Confirmar"}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
+
+      {/* ═══════════════ MODAL VENDA (pós-realizado) ═══════════════ */}
+      <VendaModal
+        open={vendaModalOpen}
+        onOpenChange={(o) => { setVendaModalOpen(o); if (!o) setVendaInitialValues(undefined); }}
+        lead={vendaLead}
+        initialValues={vendaInitialValues}
+        onSaved={() => { setVendaModalOpen(false); setVendaInitialValues(undefined); }}
+      />
 
       {/* ═══════════════ MODAL REAGENDAR ═══════════════ */}
       <Dialog open={modalReagendar} onOpenChange={setModalReagendar}>
@@ -1481,8 +2259,67 @@ export default function Agendamentos() {
         </DialogContent>
       </Dialog>
 
+      {/* ═══════════════ MODAL DIA — todos os eventos ═══════════════ */}
+      <Dialog open={!!modalDiaEventos} onOpenChange={(o) => { if (!o) setModalDiaEventos(null); }}>
+        <DialogContent className="max-w-sm p-0 rounded-2xl border-border/60 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">AGENDAMENTOS DO DIA</p>
+                {modalDiaEventos && (
+                  <p className="text-[13px] font-semibold text-foreground mt-0.5">
+                    {format(modalDiaEventos.date, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="max-h-[60vh] overflow-y-auto py-2">
+            {modalDiaEventos?.agendamentos.map((ag) => {
+              const TipoIcon = TIPO_ICONS[ag.tipo] || CalendarDays;
+              const bgColor = STATUS_COLORS[ag.status] || ag.cor || "#6366f1";
+              return (
+                <button
+                  key={ag.id}
+                  onClick={() => { openDetalhes(ag); setModalDiaEventos(null); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition-colors text-left group"
+                >
+                  <div className="w-1 h-10 rounded-full shrink-0" style={{ backgroundColor: bgColor }} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12px] font-semibold text-foreground truncate">{ag.titulo}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <TipoIcon className="h-3 w-3 text-muted-foreground/50" />
+                      <span className="text-[10px] text-muted-foreground/60">{formatTimeBR(ag.data_hora_inicio)}</span>
+                      {ag.lead?.nome && <span className="text-[10px] text-muted-foreground/50 truncate">· {ag.lead.nome}</span>}
+                    </div>
+                  </div>
+                  <span className={cn("text-[10px] font-semibold px-2 py-0.5 rounded-md border shrink-0", STATUS_BG[ag.status])}>
+                    {STATUS_LABELS[ag.status]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="px-4 py-3 border-t border-border/40 bg-muted/20 flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">{modalDiaEventos?.agendamentos.length} agendamento{modalDiaEventos?.agendamentos.length !== 1 ? "s" : ""}</span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { if (modalDiaEventos) openCriar(format(modalDiaEventos.date, "yyyy-MM-dd")); setModalDiaEventos(null); }}
+              className="h-7 text-[11px] gap-1.5"
+            >
+              <Plus className="h-3 w-3" /> Novo agendamento
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* ═══════════════ MODAL CONFIG NOTIFICAÇÕES ═══════════════ */}
       <ConfigNotificacoes isOpen={modalConfig} onClose={() => setModalConfig(false)} />
+      <AgendamentoFinanceiroConfig isOpen={modalFinanceiroConfig} onClose={() => setModalFinanceiroConfig(false)} />
 
       {/* ═══════════════ CONFIRMAR EXCLUSÃO ═══════════════ */}
       <AlertDialog open={!!agendamentoExcluir} onOpenChange={(o) => { if (!o) setAgendamentoExcluir(null); }}>

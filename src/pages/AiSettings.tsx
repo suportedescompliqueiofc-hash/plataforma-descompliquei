@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -44,7 +44,10 @@ import {
 } from "@/components/ui/collapsible";
 import { AiFollowupTab } from "@/components/ai/AiFollowupTab";
 import { AiExecutionLogsTab } from "@/components/ai/AiExecutionLogsTab";
+import { AiTriageLogsTab } from "@/components/ai/AiTriageLogsTab";
 import { useAiPrompt } from "@/hooks/useAiPrompt";
+import { useProcedimentos, Procedimento } from "@/hooks/useProcedimentos";
+import { useBranding } from "@/contexts/BrandingContext";
 
 type ProcedureItem = {
   id: string;
@@ -499,6 +502,7 @@ type AgentPromptFormFieldsProps = {
   onFormasChange: (formas: FormasPagamento) => void;
   onContraindicacoesChange: (value: string) => void;
   onPalavrasProibidasChange: (value: string[]) => void;
+  crmProcedimentos: Procedimento[];
   onProcedureChange: (
     id: string,
     field: keyof Omit<ProcedureItem, "id">,
@@ -531,6 +535,7 @@ function AgentPromptFormFields({
   onFieldChange,
   onHorarioChange,
   onFormasChange,
+  crmProcedimentos,
   onContraindicacoesChange,
   onPalavrasProibidasChange,
   onProcedureChange,
@@ -709,7 +714,7 @@ function AgentPromptFormFields({
 
           <div data-tutorial="ia-field-procedures" className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <Label>Quais procedimentos você oferece?</Label>
+              <Label>Procedimentos da clínica</Label>
               <Button
                 type="button"
                 variant="outline"
@@ -723,39 +728,58 @@ function AgentPromptFormFields({
               </Button>
             </div>
 
-            <div className="space-y-3">
-              {data.procedures.map((procedure, index) => (
-                <div
-                  key={procedure.id}
-                  className="rounded-lg border border-border bg-muted/20 p-3"
-                >
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium text-foreground">
-                      Procedimento {index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => onRemoveProcedure(procedure.id)}
-                      disabled={disabled || data.procedures.length === 1}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+            <p className="text-[11px] text-muted-foreground/70">
+              {crmProcedimentos.length > 0
+                ? "Nomes importados automaticamente da sua lista de procedimentos. Você pode remover ou adicionar procedimentos extras aqui."
+                : "Cadastre os procedimentos na página de Procedimentos para sincronização automática."}
+            </p>
 
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <Input
-                      value={procedure.name}
-                      onChange={(event) =>
-                        onProcedureChange(procedure.id, "name", event.target.value)
-                      }
-                      disabled={disabled}
-                      className={fieldInputClass}
-                    />
-                    <div className="space-y-2">
+            {data.procedures.every(p => !p.name) ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center rounded-lg border border-dashed border-border/60">
+                <p className="text-sm text-muted-foreground">Nenhum procedimento cadastrado</p>
+                <p className="text-[11px] text-muted-foreground/50 mt-0.5">Acesse Procedimentos no menu lateral para cadastrar</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {data.procedures.map((procedure, index) => {
+                  const isFromCrm = crmProcedimentos.some(
+                    p => p.nome.toLowerCase().trim() === procedure.name.toLowerCase().trim()
+                  );
+                  return (
+                    <div
+                      key={procedure.id}
+                      className="rounded-lg border border-border bg-muted/20 p-3"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-3">
+                        {isFromCrm ? (
+                          <span className="text-sm font-medium text-foreground">
+                            {procedure.name}
+                          </span>
+                        ) : (
+                          <Input
+                            value={procedure.name}
+                            onChange={(event) =>
+                              onProcedureChange(procedure.id, "name", event.target.value)
+                            }
+                            placeholder={`Procedimento ${index + 1}`}
+                            disabled={disabled}
+                            className={`${fieldInputClass} flex-1`}
+                          />
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => onRemoveProcedure(procedure.id)}
+                          disabled={disabled || data.procedures.length === 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
                       <Textarea
+                        placeholder="Descrição para a IA (opcional) — ex: procedimento minimamente invasivo, sem dor, resultado em 1 sessão"
                         value={procedure.description}
                         onChange={(event) =>
                           onProcedureChange(
@@ -764,14 +788,14 @@ function AgentPromptFormFields({
                             event.target.value,
                           )
                         }
-                        className={`${fieldTextareaClass} min-h-[90px] resize-y`}
+                        className={`${fieldTextareaClass} min-h-[80px] resize-y`}
                         disabled={disabled}
                       />
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            )}
             {errors.procedures && (
               <p className="text-xs text-destructive">{errors.procedures}</p>
             )}
@@ -1127,6 +1151,9 @@ export default function AiSettings() {
     isSavingModel,
   } = useAiPrompt();
 
+  const { procedimentos } = useProcedimentos();
+  const { branding } = useBranding();
+
   const [localForm, setLocalForm] = useState<AgentPromptFormData>(
     createEmptyFormData(),
   );
@@ -1166,8 +1193,38 @@ export default function AiSettings() {
   const [localPalavras, setLocalPalavras] = useState<string[]>([]);
   const [originalPalavras, setOriginalPalavras] = useState<string[]>([]);
 
+  // Rastreia o prompt que foi usado no último init completo para distinguir
+  // "dados do banco mudaram" de "procedimentos/branding atualizaram em background"
+  const lastInitPromptRef = useRef<string | undefined>(undefined);
+  const formIsDirtyRef = useRef(false);
+
   useEffect(() => {
     if (isLoading) return;
+
+    const promptMudou = prompt !== lastInitPromptRef.current;
+
+    // Se o prompt não mudou (só procedimentos ou branding atualizaram em background)
+    // e o usuário tem edições não salvas — apenas atualiza a lista de procedimentos
+    // sem resetar os outros campos
+    if (!promptMudou && formIsDirtyRef.current) {
+      const crmAtivos = procedimentos.filter(p => p.ativo);
+      if (crmAtivos.length > 0) {
+        setLocalForm(prev => {
+          const mergedProcedures = crmAtivos.map(p => {
+            const existing = prev.procedures.find(
+              ep => ep.name.toLowerCase().trim() === p.nome.toLowerCase().trim()
+            );
+            return createProcedureItem({ name: p.nome, description: existing?.description ?? '' });
+          });
+          return { ...prev, procedures: mergedProcedures };
+        });
+      }
+      return;
+    }
+
+    // Reset completo — prompt mudou (novo dado do banco) ou primeira carga
+    lastInitPromptRef.current = prompt;
+    formIsDirtyRef.current = false;
 
     const fallbackForm = createEmptyFormData();
     const parsed = prompt
@@ -1175,8 +1232,21 @@ export default function AiSettings() {
       : ({ ok: true, data: fallbackForm } as const);
 
     if (parsed.ok) {
-      const normalizedPrompt = buildPromptMarkdown(parsed.data);
-      const cloned = cloneFormData(parsed.data);
+      const crmAtivos = procedimentos.filter(p => p.ativo);
+      const existingProcs = parsed.data.procedures;
+      const mergedProcedures = crmAtivos.length > 0
+        ? crmAtivos.map(p => {
+            const existing = existingProcs.find(ep => ep.name.toLowerCase().trim() === p.nome.toLowerCase().trim());
+            return createProcedureItem({ name: p.nome, description: existing?.description ?? '' });
+          })
+        : existingProcs.length > 0 ? existingProcs : [createProcedureItem()];
+      const mergedData: AgentPromptFormData = {
+        ...parsed.data,
+        procedures: mergedProcedures,
+        clinicName: parsed.data.clinicName || branding?.brand_name || '',
+      };
+      const normalizedPrompt = buildPromptMarkdown(mergedData);
+      const cloned = cloneFormData(mergedData);
       setLocalForm(cloned);
       setOriginalForm(cloneFormData(cloned));
       setOriginalPrompt(normalizedPrompt);
@@ -1215,7 +1285,7 @@ export default function AiSettings() {
     setLocalPalavras(palavrasProibidasBanco || []);
     setOriginalPalavras(palavrasProibidasBanco || []);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prompt, acumuloMensagens, isLoading, modeloIaBanco, JSON.stringify(horarioAtendimentoBanco), JSON.stringify(formasPagamentoBanco), contraindicacoesBanco, JSON.stringify(palavrasProibidasBanco)]);
+  }, [prompt, acumuloMensagens, isLoading, modeloIaBanco, JSON.stringify(horarioAtendimentoBanco), JSON.stringify(formasPagamentoBanco), contraindicacoesBanco, JSON.stringify(palavrasProibidasBanco), JSON.stringify(procedimentos), branding?.brand_name ?? '']);
 
   const currentPrompt = buildPromptMarkdown(localForm);
   const hasChanges =
@@ -1233,6 +1303,7 @@ export default function AiSettings() {
     field: K,
     value: AgentPromptFormData[K],
   ) => {
+    formIsDirtyRef.current = true;
     setErrors((previous) => ({ ...previous, [field]: undefined }));
     setLocalForm((previous) => ({ ...previous, [field]: value }));
   };
@@ -1242,6 +1313,7 @@ export default function AiSettings() {
     field: keyof Omit<ProcedureItem, "id">,
     value: string,
   ) => {
+    formIsDirtyRef.current = true;
     setErrors((previous) => ({ ...previous, procedures: undefined }));
     setLocalForm((previous) => ({
       ...previous,
@@ -1252,6 +1324,7 @@ export default function AiSettings() {
   };
 
   const handleAddProcedure = () => {
+    formIsDirtyRef.current = true;
     setErrors((previous) => ({ ...previous, procedures: undefined }));
     setLocalForm((previous) => ({
       ...previous,
@@ -1260,6 +1333,7 @@ export default function AiSettings() {
   };
 
   const handleRemoveProcedure = (id: string) => {
+    formIsDirtyRef.current = true;
     setErrors((previous) => ({ ...previous, procedures: undefined }));
     setLocalForm((previous) => {
       const nextProcedures = previous.procedures.filter(
@@ -1341,6 +1415,7 @@ export default function AiSettings() {
 
     savePrompt(currentPrompt, undefined, localAcumulo, {
       onSuccess: () => {
+        formIsDirtyRef.current = false;
         setOriginalForm(cloneFormData(localForm));
         setOriginalPrompt(currentPrompt);
         setOriginalAcumulo(localAcumulo);
@@ -1359,6 +1434,7 @@ export default function AiSettings() {
   };
 
   const handleRevert = () => {
+    formIsDirtyRef.current = false;
     setLocalForm(cloneFormData(originalForm));
     setLocalAcumulo(originalAcumulo);
     setLocalModelo(originalModelo);
@@ -1396,10 +1472,11 @@ export default function AiSettings() {
       contraindicacoes={localContraindicacoes}
       palavrasProibidas={localPalavras}
       onFieldChange={handleFieldChange}
-      onHorarioChange={setLocalHorario}
-      onFormasChange={setLocalFormas}
-      onContraindicacoesChange={setLocalContraindicacoes}
-      onPalavrasProibidasChange={setLocalPalavras}
+      onHorarioChange={(v) => { formIsDirtyRef.current = true; setLocalHorario(v); }}
+      onFormasChange={(v) => { formIsDirtyRef.current = true; setLocalFormas(v); }}
+      crmProcedimentos={procedimentos.filter(p => p.ativo)}
+      onContraindicacoesChange={(v) => { formIsDirtyRef.current = true; setLocalContraindicacoes(v); }}
+      onPalavrasProibidasChange={(v) => { formIsDirtyRef.current = true; setLocalPalavras(v); }}
       onProcedureChange={handleProcedureChange}
       onAddProcedure={handleAddProcedure}
       onRemoveProcedure={handleRemoveProcedure}
@@ -1460,6 +1537,7 @@ export default function AiSettings() {
           {[
             { key: "config", label: "Configurações", icon: Wrench },
             { key: "followup", label: "Follow-up", icon: RefreshCw },
+            { key: "triage", label: "Triagem", icon: Bot },
             { key: "logs", label: "Logs", icon: Activity },
           ].map((tab) => (
             <button
@@ -1481,6 +1559,9 @@ export default function AiSettings() {
 
       {/* Tab: Follow-up */}
       {pageTab === "followup" && <div data-tutorial="ia-followup"><AiFollowupTab /></div>}
+
+      {/* Tab: Triagem */}
+      {pageTab === "triage" && <div data-tutorial="ia-triage"><AiTriageLogsTab /></div>}
 
       {/* Tab: Logs */}
       {pageTab === "logs" && <div data-tutorial="ia-logs"><AiExecutionLogsTab /></div>}

@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
-import { format, getISOWeek, getISOWeekYear } from 'date-fns';
-import { Trophy, TrendingUp, AlertTriangle, CheckCircle2, Flame, CheckSquare, Square } from 'lucide-react';
+import { format, getISOWeek, getISOWeekYear, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { Trophy, TrendingUp, AlertTriangle, CheckCircle2, Flame, CheckSquare, Square, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 function getDailyKey(d = new Date()) { return format(d, 'yyyy-MM-dd'); }
 function getWeeklyKey(d = new Date()) {
@@ -51,10 +53,23 @@ const FREQ_LABEL: Record<string, string> = {
 interface Props { orgId: string }
 
 export default function AbaPerformance({ orgId }: Props) {
-  const now = new Date();
-  const todayKey = getDailyKey(now);
-  const weekKey = getWeeklyKey(now);
-  const monthKey = getMonthlyKey(now);
+  const [refDateStr, setRefDateStr] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  const refDate = parseISO(refDateStr);
+  const todayKey = getDailyKey(refDate);
+  const weekKey = getWeeklyKey(refDate);
+  const monthKey = getMonthlyKey(refDate);
+
+  function shiftDay(delta: number) {
+    const d = parseISO(refDateStr);
+    d.setDate(d.getDate() + delta);
+    setRefDateStr(format(d, 'yyyy-MM-dd'));
+  }
+
+  const isToday = refDateStr === format(new Date(), 'yyyy-MM-dd');
+
+  const weekStart = format(startOfWeek(refDate, { weekStartsOn: 1 }), 'dd/MM', { locale: ptBR });
+  const weekEnd   = format(endOfWeek(refDate,   { weekStartsOn: 1 }), 'dd/MM', { locale: ptBR });
+  const monthLabel = format(refDate, 'MMMM yyyy', { locale: ptBR });
 
   const { data, isLoading } = useQuery({
     queryKey: ['client_performance', orgId, todayKey],
@@ -104,9 +119,10 @@ export default function AbaPerformance({ orgId }: Props) {
 
   const { daily, weekly, monthly, doneDaily, doneWeekly, doneMonthly, dailyScore, weeklyScore, monthlyScore, overall } = data;
 
+  const dayLabel = isToday ? 'Hoje' : format(refDate, 'dd/MM', { locale: ptBR });
   const scores = [
     { label: 'Overall', value: overall, icon: Trophy, desc: 'pontuação geral (50% diário + 30% semanal + 20% mensal)' },
-    { label: 'Hoje', value: dailyScore, icon: Flame, desc: `${doneDaily.size}/${daily.length} tarefas diárias` },
+    { label: dayLabel, value: dailyScore, icon: Flame, desc: `${doneDaily.size}/${daily.length} tarefas diárias` },
     { label: 'Semana', value: weeklyScore, icon: TrendingUp, desc: `${doneWeekly.size}/${weekly.length} tarefas semanais` },
     { label: 'Mês', value: monthlyScore, icon: CheckCircle2, desc: `${doneMonthly.size}/${monthly.length} tarefas mensais` },
   ];
@@ -119,6 +135,42 @@ export default function AbaPerformance({ orgId }: Props) {
 
   return (
     <div className="space-y-4">
+
+      {/* ── FILTRO DE DATA ────────────────────────────────────────────────── */}
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <CalendarDays className="h-3.5 w-3.5" />
+          <span className="text-[11px] font-semibold uppercase tracking-wider">Período de referência</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
+            <span>Semana: {weekStart}–{weekEnd}</span>
+            <span className="mx-1">·</span>
+            <span className="capitalize">{monthLabel}</span>
+          </div>
+          <div className="flex items-center gap-1 ml-2">
+            <button onClick={() => shiftDay(-1)} className="h-7 w-7 flex items-center justify-center rounded-lg border border-border/60 hover:bg-muted/40 transition-colors">
+              <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+            <input
+              type="date"
+              value={refDateStr}
+              max={format(new Date(), 'yyyy-MM-dd')}
+              onChange={e => e.target.value && setRefDateStr(e.target.value)}
+              className="h-7 px-2 text-[11px] font-mono rounded-lg border border-border/60 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20"
+            />
+            <button onClick={() => shiftDay(1)} disabled={isToday} className="h-7 w-7 flex items-center justify-center rounded-lg border border-border/60 hover:bg-muted/40 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+            {!isToday && (
+              <button onClick={() => setRefDateStr(format(new Date(), 'yyyy-MM-dd'))} className="h-7 px-2.5 text-[11px] font-semibold rounded-lg border border-border/60 hover:bg-muted/40 transition-colors text-muted-foreground">
+                Hoje
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Score cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {scores.map(({ label, value, desc }) => {

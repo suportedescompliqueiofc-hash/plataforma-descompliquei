@@ -7,12 +7,11 @@ import { Loader2, ShieldCheck, LogOut } from 'lucide-react';
 
 import TabVisaoGeral from './tabs/TabVisaoGeral';
 import TabClientes from './tabs/TabClientes';
-import TabTrilha from './tabs/TabTrilha';
-import TabConteudo from './tabs/TabConteudo';
 import TabSessoes from './tabs/TabSessoes';
 import TabMateriais from './tabs/TabMateriais';
 import TabIAs from './tabs/TabIAs';
 import TabSistema from './tabs/TabSistema';
+import TabSuporte from './tabs/TabSuporte';
 
 export default function AdminOS() {
   const { user } = useAuth();
@@ -62,12 +61,11 @@ export default function AdminOS() {
   const tabs = [
     { id: 'visao_geral', label: '① Visão Geral' },
     { id: 'clientes', label: '② Clientes' },
-    { id: 'trilha', label: '③ Trilha' },
-    { id: 'conteudo', label: '④ Conteúdo' },
-    { id: 'sessoes', label: '⑤ Sessões' },
-    { id: 'materiais', label: '⑥ Materiais' },
-    { id: 'ias', label: '⑦ IAs' },
-    { id: 'sistema', label: '⑧ Sistema' },
+    { id: 'sessoes', label: '③ Sessões' },
+    { id: 'materiais', label: '④ Materiais' },
+    { id: 'ias', label: '⑤ IAs' },
+    { id: 'sistema', label: '⑥ Sistema' },
+    { id: 'suporte', label: '⑦ Suporte' },
   ];
 
   return (
@@ -137,12 +135,11 @@ export default function AdminOS() {
       <main className="flex-1 w-full max-w-[1600px] mx-auto p-4 sm:p-6 lg:p-8 overflow-x-hidden">
         {activeTab === 'visao_geral' && <TabVisaoGeral />}
         {activeTab === 'clientes' && <TabClientes />}
-        {activeTab === 'trilha' && <TabTrilha />}
-        {activeTab === 'conteudo' && <TabConteudo />}
         {activeTab === 'sessoes' && <TabSessoes />}
         {activeTab === 'materiais' && <TabMateriais />}
         {activeTab === 'ias' && <TabIAs />}
         {activeTab === 'sistema' && <TabSistema />}
+        {activeTab === 'suporte' && <TabSuporte />}
       </main>
     </div>
   );

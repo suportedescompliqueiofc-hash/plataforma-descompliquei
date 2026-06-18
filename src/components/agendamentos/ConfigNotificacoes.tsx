@@ -1,19 +1,15 @@
 import { useState, useEffect, useMemo } from "react";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, isToday, isTomorrow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Bell, Plus, Trash2, Clock, MessageSquare, Users, History, Loader2 } from "lucide-react";
+import { Bell, Plus, Trash2, Clock, MessageSquare, Users, History, Loader2, CheckCircle2, XCircle, CalendarClock, Ban } from "lucide-react";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
@@ -52,8 +48,8 @@ const PRESETS = [
 
 const VARIAVEIS = [
   { key: "{nome}", desc: "Nome do lead" },
-  { key: "{data}", desc: "Data da reunião" },
-  { key: "{hora}", desc: "Hora da reunião" },
+  { key: "{data}", desc: "Data do atendimento" },
+  { key: "{hora}", desc: "Hora do atendimento" },
   { key: "{tempo}", desc: "Tempo relativo" },
   { key: "{titulo}", desc: "Título do agendamento" },
 ];
@@ -102,6 +98,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<ConfigData | null>(null);
   const [activeTextarea, setActiveTextarea] = useState<"lembrete" | "confirmacao" | null>(null);
+  const [cancelandoKey, setCancelandoKey] = useState<string | null>(null);
 
   const { data: configDb, isLoading } = useQuery({
     queryKey: ["agendamento-config", orgId],
@@ -130,6 +127,43 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
       return data || [];
     },
     enabled: !!orgId && isOpen,
+  });
+
+  const { data: agendamentosFuturos = [] } = useQuery({
+    queryKey: ["agendamentos-futuros-notif", orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("agendamentos")
+        .select("id, titulo, data_hora_inicio, status, leads(nome)")
+        .eq("organization_id", orgId!)
+        .in("status", ["agendado", "confirmado"])
+        .gt("data_hora_inicio", new Date().toISOString())
+        .order("data_hora_inicio", { ascending: true })
+        .limit(30);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!orgId && isOpen,
+  });
+
+  const agendamentoIds = useMemo(
+    () => agendamentosFuturos.map((a) => a.id),
+    [agendamentosFuturos]
+  );
+
+  const { data: notificacoesExistentes = [], refetch: refetchExistentes } = useQuery({
+    queryKey: ["agendamento-notif-existentes", orgId, agendamentoIds.join(",")],
+    queryFn: async () => {
+      if (!agendamentoIds.length) return [];
+      const { data, error } = await supabase
+        .from("agendamento_notificacoes")
+        .select("agendamento_id, antecedencia_minutos, status")
+        .in("agendamento_id", agendamentoIds)
+        .in("status", ["enviado", "cancelado", "pendente"]);
+      if (error) throw error;
+      return (data || []) as { agendamento_id: string; antecedencia_minutos: number; status: string }[];
+    },
+    enabled: !!orgId && isOpen && agendamentoIds.length > 0,
   });
 
   useEffect(() => {
@@ -216,267 +250,487 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
   const previewLembrete = useMemo(() => config ? substituirPreview(config.mensagem_lembrete) : "", [config?.mensagem_lembrete]);
   const previewConfirmacao = useMemo(() => config ? substituirPreview(config.mensagem_confirmacao) : "", [config?.mensagem_confirmacao]);
 
+  const handledKeys = useMemo(() => {
+    const s = new Set<string>();
+    for (const n of notificacoesExistentes) {
+      s.add(`${n.agendamento_id}-${n.antecedencia_minutos}`);
+    }
+    return s;
+  }, [notificacoesExistentes]);
+
+  const proximasNotifs = useMemo(() => {
+    if (!config || !agendamentosFuturos.length) return [];
+    const lembretes = (Array.isArray(config.lembretes) ? config.lembretes : [])
+      .filter((l: any) => l.ativo && l.minutos_antes > 0);
+    if (!config.notif_ativa || lembretes.length === 0) return [];
+
+    const agora = new Date();
+    const result: {
+      agendamento_id: string;
+      lead_nome: string;
+      titulo: string;
+      momento_envio: Date;
+      data_atendimento: Date;
+      minutos_antes: number;
+    }[] = [];
+
+    for (const ag of agendamentosFuturos) {
+      const dataInicio = new Date((ag as any).data_hora_inicio);
+      const leadNome = (ag as any).leads?.nome || "Lead";
+      for (const l of lembretes) {
+        const key = `${ag.id}-${l.minutos_antes}`;
+        if (handledKeys.has(key)) continue;
+        const momentoEnvio = new Date(dataInicio.getTime() - l.minutos_antes * 60 * 1000);
+        if (momentoEnvio > agora) {
+          result.push({
+            agendamento_id: ag.id,
+            lead_nome: leadNome,
+            titulo: (ag as any).titulo || "Atendimento",
+            momento_envio: momentoEnvio,
+            data_atendimento: dataInicio,
+            minutos_antes: l.minutos_antes,
+          });
+        }
+      }
+    }
+
+    return result
+      .sort((a, b) => a.momento_envio.getTime() - b.momento_envio.getTime())
+      .slice(0, 15);
+  }, [config, agendamentosFuturos, handledKeys]);
+
+  async function handleCancelarNotif(agendamento_id: string, minutos_antes: number) {
+    const key = `${agendamento_id}-${minutos_antes}`;
+    setCancelandoKey(key);
+    try {
+      const { error } = await supabase.from("agendamento_notificacoes").insert({
+        agendamento_id,
+        organization_id: orgId!,
+        tipo_destinatario: "lead",
+        canal: "whatsapp",
+        antecedencia_minutos: minutos_antes,
+        status: "cancelado",
+        data_hora_envio: new Date().toISOString(),
+      });
+      if (error) throw error;
+      await refetchExistentes();
+      toast.success("Notificação cancelada.");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao cancelar.");
+    }
+    setCancelandoKey(null);
+  }
+
+  function formatMomentoEnvio(d: Date): string {
+    if (isToday(d)) return `Hoje às ${format(d, "HH:mm")}`;
+    if (isTomorrow(d)) return `Amanhã às ${format(d, "HH:mm")}`;
+    return format(d, "dd/MM 'às' HH:mm", { locale: ptBR });
+  }
+
+  function formatAntecedencia(min: number): string {
+    if (min >= 1440) return `${Math.round(min / 1440)}d antes`;
+    if (min >= 60) return `${Math.round(min / 60)}h antes`;
+    return `${min}min antes`;
+  }
+
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Bell className="h-5 w-5" /> Configurar Notificações
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="w-[95vw] max-w-2xl rounded-2xl border-border/60 p-0 gap-0 overflow-hidden max-h-[90vh] flex flex-col">
 
-        {isLoading || !config ? (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
+        {/* ── Header ── */}
+        <div className="px-5 py-4 border-b border-border/40 shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="p-1.5 rounded-lg bg-muted">
+              <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            <div>
+              <p className="text-[13px] font-semibold text-foreground">Configurar Notificações</p>
+              <p className="text-[10px] text-muted-foreground/50 mt-0.5">Lembretes automáticos e confirmação por WhatsApp</p>
+            </div>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {/* ━━━ SEÇÃO 1: LEMBRETES AUTOMÁTICOS ━━━ */}
-            <section className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-blue-600" />
-                  <h3 className="font-semibold">Lembretes Automáticos</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="notif-ativa" className="text-sm text-muted-foreground">Notificações ativas</Label>
-                  <Switch
-                    id="notif-ativa"
-                    checked={config.notif_ativa}
-                    onCheckedChange={(v) => setConfig({ ...config, notif_ativa: v })}
-                  />
-                </div>
-              </div>
+        </div>
 
-              {config.notif_ativa && (
-                <div className="space-y-3">
-                  {config.lembretes.map((lembrete, i) => (
-                    <Card key={i} className="rounded-xl shadow-sm">
-                      <CardContent className="p-4 space-y-3">
+        {/* ── Body ── */}
+        <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4">
+
+          {isLoading || !config ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+            </div>
+          ) : (
+            <>
+              {/* ━━━ LEMBRETES AUTOMÁTICOS ━━━ */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Lembretes Automáticos</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Mensagens enviadas antes do atendimento</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      {config.notif_ativa ? "Ativo" : "Inativo"}
+                    </span>
+                    <Switch
+                      checked={config.notif_ativa}
+                      onCheckedChange={(v) => setConfig({ ...config, notif_ativa: v })}
+                    />
+                  </div>
+                </div>
+
+                {config.notif_ativa && (
+                  <div className="px-5 py-4 space-y-3">
+                    {config.lembretes.map((lembrete, i) => (
+                      <div key={i} className="rounded-xl border border-border/60 bg-muted/[0.02] px-4 py-3 space-y-3">
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2.5">
                             <Switch
                               checked={lembrete.ativo}
                               onCheckedChange={(v) => updateLembrete(i, { ativo: v })}
                             />
-                            <span className="text-sm font-medium">
+                            <span className="text-[13px] font-medium text-foreground">
                               {formatMinutos(lembrete.minutos_antes)}
                             </span>
                           </div>
-                          <Button variant="ghost" size="sm" onClick={() => removeLembrete(i)} className="text-red-500 hover:text-red-700">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <button
+                            onClick={() => removeLembrete(i)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           {PRESETS.map((p) => (
-                            <Badge
+                            <button
                               key={p.value}
-                              variant={lembrete.minutos_antes === p.value ? "default" : "outline"}
-                              className="cursor-pointer text-xs"
                               onClick={() => updateLembrete(i, { minutos_antes: p.value })}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all",
+                                lembrete.minutos_antes === p.value
+                                  ? "bg-foreground text-background border-foreground shadow-sm"
+                                  : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
+                              )}
                             >
                               {p.label}
-                            </Badge>
+                            </button>
                           ))}
-                          <Input
-                            type="number"
-                            className="w-24 h-7 text-xs"
-                            value={lembrete.minutos_antes}
-                            onChange={(e) => updateLembrete(i, { minutos_antes: parseInt(e.target.value) || 15 })}
-                            min={1}
-                          />
-                          <span className="text-xs text-muted-foreground">min</span>
+                          <div className="flex items-center gap-1.5 ml-1">
+                            <Input
+                              type="number"
+                              className="w-16 h-7 text-[11px] rounded-lg border-border/60 text-center tabular-nums"
+                              value={lembrete.minutos_antes}
+                              onChange={(e) => updateLembrete(i, { minutos_antes: parseInt(e.target.value) || 15 })}
+                              min={1}
+                            />
+                            <span className="text-[11px] text-muted-foreground">min</span>
+                          </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {config.lembretes.length < 5 && (
-                    <Button variant="outline" size="sm" onClick={addLembrete} className="w-full">
-                      <Plus className="h-4 w-4 mr-1" /> Adicionar lembrete
-                    </Button>
-                  )}
+                      </div>
+                    ))}
+
+                    {config.lembretes.length < 5 && (
+                      <button
+                        onClick={addLembrete}
+                        className="w-full flex items-center justify-center gap-1.5 h-9 rounded-xl border border-dashed border-border/60 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Adicionar lembrete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ━━━ MENSAGEM DO LEMBRETE ━━━ */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Mensagem do Lembrete</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Texto enviado nos lembretes automáticos</p>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </section>
-
-            <Separator />
-
-            {/* ━━━ SEÇÃO 2: MENSAGEM DO LEMBRETE ━━━ */}
-            <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-blue-600" />
-                <h3 className="font-semibold">Mensagem do Lembrete</h3>
-              </div>
-              <Textarea
-                value={config.mensagem_lembrete}
-                onChange={(e) => setConfig({ ...config, mensagem_lembrete: e.target.value })}
-                onFocus={() => setActiveTextarea("lembrete")}
-                rows={3}
-                placeholder="Escreva a mensagem de lembrete..."
-              />
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="text-xs text-muted-foreground mr-1">Variáveis:</span>
-                {VARIAVEIS.map((v) => (
-                  <Badge
-                    key={v.key}
-                    variant="secondary"
-                    className="cursor-pointer text-xs hover:bg-blue-100"
-                    onClick={() => insertVariable(v.key)}
-                    title={v.desc}
-                  >
-                    {v.key}
-                  </Badge>
-                ))}
-              </div>
-              <Card className="rounded-lg bg-green-50 border-green-200">
-                <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Preview:</p>
-                  <p className="text-sm">{previewLembrete}</p>
-                </CardContent>
-              </Card>
-            </section>
-
-            <Separator />
-
-            {/* ━━━ SEÇÃO 3: CONFIRMAÇÃO IMEDIATA ━━━ */}
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-green-600" />
-                  <h3 className="font-semibold">Confirmação Imediata</h3>
-                </div>
-                <Switch
-                  checked={config.notif_confirmacao_ativa}
-                  onCheckedChange={(v) => setConfig({ ...config, notif_confirmacao_ativa: v })}
-                />
-              </div>
-              {config.notif_confirmacao_ativa && (
-                <>
+                <div className="px-5 py-4 space-y-3">
                   <Textarea
-                    value={config.mensagem_confirmacao}
-                    onChange={(e) => setConfig({ ...config, mensagem_confirmacao: e.target.value })}
-                    onFocus={() => setActiveTextarea("confirmacao")}
+                    value={config.mensagem_lembrete}
+                    onChange={(e) => setConfig({ ...config, mensagem_lembrete: e.target.value })}
+                    onFocus={() => setActiveTextarea("lembrete")}
                     rows={3}
-                    placeholder="Mensagem enviada ao confirmar agendamento..."
+                    placeholder="Escreva a mensagem de lembrete..."
+                    className="rounded-xl text-sm border-border/60 resize-none"
                   />
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <span className="text-xs text-muted-foreground mr-1">Variáveis:</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mr-0.5">Variáveis:</span>
                     {VARIAVEIS.map((v) => (
-                      <Badge
+                      <button
                         key={v.key}
-                        variant="secondary"
-                        className="cursor-pointer text-xs hover:bg-blue-100"
                         onClick={() => insertVariable(v.key)}
                         title={v.desc}
+                        className="font-mono text-[10px] px-1.5 py-0.5 rounded-md bg-muted/60 border border-border/40 text-muted-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all"
                       >
                         {v.key}
-                      </Badge>
+                      </button>
                     ))}
                   </div>
-                  <Card className="rounded-lg bg-green-50 border-green-200">
-                    <CardContent className="p-3">
-                      <p className="text-xs text-muted-foreground mb-1">Preview:</p>
-                      <p className="text-sm">{previewConfirmacao}</p>
-                    </CardContent>
-                  </Card>
-                </>
-              )}
-            </section>
-
-            <Separator />
-
-            {/* ━━━ SEÇÃO 4: NOTIFICAÇÃO INTERNA ━━━ */}
-            <section className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-purple-600" />
-                  <h3 className="font-semibold">Notificação Interna do Time</h3>
-                </div>
-                <Switch
-                  checked={config.notif_interna_ativa}
-                  onCheckedChange={(v) => setConfig({ ...config, notif_interna_ativa: v })}
-                />
-              </div>
-              {config.notif_interna_ativa && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm whitespace-nowrap">Alertar</Label>
-                    <Input
-                      type="number"
-                      className="w-20"
-                      value={config.notif_interna_minutos_antes}
-                      onChange={(e) => setConfig({ ...config, notif_interna_minutos_antes: parseInt(e.target.value) || 30 })}
-                      min={5}
-                    />
-                    <Label className="text-sm whitespace-nowrap">minutos antes</Label>
+                  <div className="rounded-xl bg-emerald-50/60 border border-emerald-200/50 px-4 py-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/50 mb-1.5">Preview</p>
+                    <p className="text-[13px] text-emerald-900/80 leading-relaxed">{previewLembrete}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Aparecerá como notificação no CRM para todos os usuários da organização.
-                  </p>
                 </div>
-              )}
-            </section>
-
-            <Separator />
-
-            {/* ━━━ SEÇÃO 5: HISTÓRICO RECENTE ━━━ */}
-            <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <History className="h-4 w-4 text-gray-600" />
-                <h3 className="font-semibold">Histórico Recente</h3>
               </div>
-              {historicoLog.length > 0 ? (
-                <div className="overflow-x-auto rounded-lg border">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/50">
-                      <tr>
-                        <th className="text-left p-2 font-medium">Data/Hora</th>
-                        <th className="text-left p-2 font-medium">Lead</th>
-                        <th className="text-left p-2 font-medium">Tipo</th>
-                        <th className="text-left p-2 font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {historicoLog.map((log: any) => (
-                        <tr key={log.id} className="border-t">
-                          <td className="p-2 text-muted-foreground">
-                            {log.criado_em ? format(parseISO(log.criado_em), "dd/MM/yy HH:mm", { locale: ptBR }) : "—"}
-                          </td>
-                          <td className="p-2">{log.lead?.nome || "—"}</td>
-                          <td className="p-2">
-                            <Badge variant="outline" className="text-xs">{log.tipo}</Badge>
-                          </td>
-                          <td className="p-2">
-                            <Badge
-                              className="text-xs text-white"
-                              style={{ backgroundColor: log.status === "enviado" ? "#10b981" : "#ef4444" }}
-                            >
-                              {log.status}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  Nenhuma notificação enviada ainda.
-                </p>
-              )}
-            </section>
-          </div>
-        )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSalvar} disabled={saving || isLoading}>
-            {saving && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+              {/* ━━━ CONFIRMAÇÃO IMEDIATA ━━━ */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Confirmação Imediata</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Mensagem enviada ao criar o agendamento</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notif_confirmacao_ativa}
+                    onCheckedChange={(v) => setConfig({ ...config, notif_confirmacao_ativa: v })}
+                  />
+                </div>
+
+                {config.notif_confirmacao_ativa && (
+                  <div className="px-5 py-4 space-y-3">
+                    <Textarea
+                      value={config.mensagem_confirmacao}
+                      onChange={(e) => setConfig({ ...config, mensagem_confirmacao: e.target.value })}
+                      onFocus={() => setActiveTextarea("confirmacao")}
+                      rows={3}
+                      placeholder="Mensagem enviada ao confirmar agendamento..."
+                      className="rounded-xl text-sm border-border/60 resize-none"
+                    />
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mr-0.5">Variáveis:</span>
+                      {VARIAVEIS.map((v) => (
+                        <button
+                          key={v.key}
+                          onClick={() => insertVariable(v.key)}
+                          title={v.desc}
+                          className="font-mono text-[10px] px-1.5 py-0.5 rounded-md bg-muted/60 border border-border/40 text-muted-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all"
+                        >
+                          {v.key}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="rounded-xl bg-emerald-50/60 border border-emerald-200/50 px-4 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/50 mb-1.5">Preview</p>
+                      <p className="text-[13px] text-emerald-900/80 leading-relaxed">{previewConfirmacao}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ━━━ NOTIFICAÇÃO INTERNA ━━━ */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Notificação Interna do Time</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Alerta para os atendentes antes do horário</p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={config.notif_interna_ativa}
+                    onCheckedChange={(v) => setConfig({ ...config, notif_interna_ativa: v })}
+                  />
+                </div>
+
+                {config.notif_interna_ativa && (
+                  <div className="px-5 py-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] text-muted-foreground">Alertar</span>
+                      <Input
+                        type="number"
+                        className="w-16 h-8 text-sm rounded-lg border-border/60 text-center tabular-nums"
+                        value={config.notif_interna_minutos_antes}
+                        onChange={(e) => setConfig({ ...config, notif_interna_minutos_antes: parseInt(e.target.value) || 30 })}
+                        min={5}
+                      />
+                      <span className="text-[13px] text-muted-foreground">minutos antes</span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      Aparecerá como notificação no CRM para todos os usuários da organização.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* ━━━ PRÓXIMAS NOTIFICAÇÕES ━━━ */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <CalendarClock className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Próximas Notificações</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Lembretes programados para os próximos atendimentos</p>
+                    </div>
+                  </div>
+                </div>
+
+                {!config?.notif_ativa ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="p-3 rounded-xl bg-muted/40 mb-2">
+                      <CalendarClock className="h-5 w-5 text-muted-foreground/30" />
+                    </div>
+                    <p className="text-[13px] font-medium text-muted-foreground">Lembretes desativados</p>
+                    <p className="text-[11px] text-muted-foreground/50 mt-0.5">Ative os lembretes para ver as notificações programadas</p>
+                  </div>
+                ) : proximasNotifs.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="p-3 rounded-xl bg-muted/40 mb-2">
+                      <CalendarClock className="h-5 w-5 text-muted-foreground/30" />
+                    </div>
+                    <p className="text-[13px] font-medium text-muted-foreground">Nenhum envio programado</p>
+                    <p className="text-[11px] text-muted-foreground/50 mt-0.5">Crie agendamentos futuros para ver os lembretes aqui</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/30">
+                    {proximasNotifs.map((notif) => {
+                      const key = `${notif.agendamento_id}-${notif.minutos_antes}`;
+                      const isCancelling = cancelandoKey === key;
+                      return (
+                        <div key={key} className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors group">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="h-7 w-7 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center shrink-0">
+                              <Clock className="h-3.5 w-3.5 text-blue-500" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[13px] font-medium text-foreground truncate">
+                                {notif.lead_nome}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground/60 truncate">
+                                {notif.titulo}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-3">
+                            <div className="text-right">
+                              <p className="text-[11px] font-medium text-foreground tabular-nums">
+                                {formatMomentoEnvio(notif.momento_envio)}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                                {formatAntecedencia(notif.minutos_antes)} do atend.
+                              </p>
+                            </div>
+                            <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200/60">
+                              pendente
+                            </span>
+                            <button
+                              onClick={() => handleCancelarNotif(notif.agendamento_id, notif.minutos_antes)}
+                              disabled={!!cancelandoKey}
+                              title="Cancelar envio"
+                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-all disabled:opacity-30"
+                            >
+                              {isCancelling
+                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                : <Ban className="h-3.5 w-3.5" />
+                              }
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* ━━━ HISTÓRICO RECENTE ━━━ */}
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1.5 rounded-lg bg-muted">
+                      <History className="h-3.5 w-3.5 text-muted-foreground" />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Histórico Recente</p>
+                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Últimas 10 notificações enviadas</p>
+                    </div>
+                  </div>
+                </div>
+
+                {historicoLog.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-center">
+                    <div className="p-3 rounded-xl bg-muted/40 mb-2">
+                      <History className="h-5 w-5 text-muted-foreground/30" />
+                    </div>
+                    <p className="text-[13px] font-medium text-muted-foreground">Nenhuma notificação enviada ainda</p>
+                    <p className="text-[11px] text-muted-foreground/50 mt-0.5">O histórico aparecerá aqui</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/30">
+                    {historicoLog.map((log: any) => (
+                      <div key={log.id} className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          {log.status === "enviado" ? (
+                            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+                          ) : (
+                            <XCircle className="h-3.5 w-3.5 text-destructive/60 shrink-0" />
+                          )}
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-foreground truncate">
+                              {log.lead?.nome || "—"}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground/60 tabular-nums">
+                              {log.criado_em ? format(parseISO(log.criado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR }) : "—"}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-muted/60 border border-border/40 text-muted-foreground">
+                            {log.tipo}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-border/40 bg-muted/20 shrink-0">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-9 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground px-4 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSalvar}
+            disabled={saving || isLoading}
+            className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 flex items-center disabled:opacity-50 transition-colors"
+          >
+            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             Salvar configurações
-          </Button>
-        </DialogFooter>
+          </button>
+        </div>
+
       </DialogContent>
     </Dialog>
   );

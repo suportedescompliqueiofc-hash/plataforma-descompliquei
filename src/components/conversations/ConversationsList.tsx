@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, GitBranch, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye, Sparkles } from "lucide-react";
+import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye, Sparkles, Leaf, HeartPulse, Building2, RotateCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,7 +12,6 @@ import { format, isToday, isYesterday, isValid, parseISO, isAfter, isBefore, sta
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { TAG_COLORS, useTags, Tag } from "@/hooks/useTags";
-import { useStages } from "@/hooks/useStages";
 import { useLeads } from "@/hooks/useLeads";
 import { useCadences, useLeadCadence } from "@/hooks/useCadences";
 import {
@@ -162,8 +161,14 @@ const ConversationItem = ({
               
               {conversation.origem === 'marketing' ? (
                 <Megaphone className="h-3 w-3 text-muted-foreground/60 shrink-0" title="Marketing" />
+              ) : conversation.origem === 'paciente' ? (
+                <HeartPulse className="h-3 w-3 text-muted-foreground/60 shrink-0" title="Paciente" />
+              ) : conversation.origem === 'convenio' ? (
+                <Building2 className="h-3 w-3 text-muted-foreground/60 shrink-0" title="Convênio" />
+              ) : conversation.origem === 'reativacao' ? (
+                <RotateCcw className="h-3 w-3 text-muted-foreground/60 shrink-0" title="Reativação" />
               ) : (
-                <Globe className="h-3 w-3 text-muted-foreground/60 shrink-0" title="Orgânico" />
+                <Globe className="h-3 w-3 text-muted-foreground/60 shrink-0" title="Orgânico / Indicação" />
               )}
               
               {conversation.ia_ativa === true && (
@@ -256,10 +261,6 @@ const ConversationItem = ({
                 Editar Nome
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onQuickAction(conversation.id, 'stage'); }}>
-                <GitBranch className="mr-2 h-4 w-4" />
-                Alterar Etapa
-              </DropdownMenuItem>
               <DropdownMenuItem onSelect={(e) => { e.preventDefault(); onQuickAction(conversation.id, 'tag'); }}>
                 <TagIcon className="mr-2 h-4 w-4" />
                 Adicionar Etiqueta
@@ -292,7 +293,7 @@ const ConversationItem = ({
   );
 };
 
-type BulkActionType = 'stage' | 'tag' | 'cadence' | 'ai' | 'origem' | 'delete' | 'metrics';
+type BulkActionType = 'tag' | 'cadence' | 'ai' | 'origem' | 'delete' | 'metrics';
 
 interface ConversationsListProps {
   origemFilter?: string;
@@ -310,7 +311,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
   const { leadId: activeLeadId } = useParams();
   const { data: conversations, isLoading } = useConversationsList();
   const { availableTags, isLoadingTags } = useTags();
-  const { stages, isLoading: isLoadingStages } = useStages();
   const { mutate: deleteChat } = useDeleteChat();
   const { updateLead, deleteLead } = useLeads();
   const { cadences } = useCadences();
@@ -324,6 +324,54 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
   const [editingName, setEditingName] = useState("");
   const [isNewLeadModalOpen, setIsNewLeadModalOpen] = useState(false);
   const [showNonLeadModal, setShowNonLeadModal] = useState(false);
+
+  // Leads que tiveram interação com IA (mensagens bot) — fonte da verdade para o filtro
+  const [leadsAtendidosIA, setLeadsAtendidosIA] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    const orgId = profile?.organization_id;
+    if (!orgId) return;
+
+    (async () => {
+      const PAGE_SIZE = 1000;
+      const allBotLeadIds = new Set<string>();
+      let from = 0;
+
+      while (true) {
+        const { data, error } = await supabase
+          .from('mensagens')
+          .select('lead_id')
+          .eq('organization_id', orgId)
+          .eq('remetente', 'bot')
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error || !data || data.length === 0) break;
+        for (const row of data) {
+          if (row.lead_id) allBotLeadIds.add(row.lead_id);
+        }
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+
+      setLeadsAtendidosIA(allBotLeadIds);
+    })();
+
+    const channel = supabase.channel('ia-filter-sync')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'mensagens', filter: `organization_id=eq.${orgId}` }, (payload) => {
+        const msg = payload.new as any;
+        if (msg.remetente === 'bot' && msg.lead_id) {
+          setLeadsAtendidosIA(prev => {
+            if (prev.has(msg.lead_id)) return prev;
+            const next = new Set(prev);
+            next.add(msg.lead_id);
+            return next;
+          });
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [profile?.organization_id]);
 
   // Busca profunda em mensagens (estilo WhatsApp)
   const [messageSearchLeadIds, setMessageSearchLeadIds] = useState<Set<string>>(new Set());
@@ -394,7 +442,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
   const [filters, setFilters] = useState({
     origin: "all",
     tagId: "all",
-    stageId: "all",
     iaFilter: "all",
     dateRange: undefined as DateRange | undefined,
   });
@@ -411,10 +458,9 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
 
       const originMatch = filters.origin === "all" || c.origem === filters.origin;
       const tagMatch = filters.tagId === "all" || c.tags?.some(tag => tag.id === filters.tagId);
-      const stageMatch = filters.stageId === "all" || c.posicao_pipeline?.toString() === filters.stageId;
       const iaMatch = filters.iaFilter === "all"
-        || (filters.iaFilter === "com_ia" && (c as any).ia_ja_ativada === true)
-        || (filters.iaFilter === "sem_ia" && (c as any).ia_ja_ativada !== true);
+        || (filters.iaFilter === "com_ia" && leadsAtendidosIA.has(c.id))
+        || (filters.iaFilter === "sem_ia" && !leadsAtendidosIA.has(c.id));
 
       let dateMatch = true;
       if (filters.dateRange?.from) {
@@ -427,14 +473,14 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
 
       const outboundMatch = !origemFilter || c.origem === origemFilter || (c as any).fonte === 'prospecao_ativa';
 
-      return nameMatch && originMatch && tagMatch && stageMatch && iaMatch && dateMatch && outboundMatch;
+      return nameMatch && originMatch && tagMatch && iaMatch && dateMatch && outboundMatch;
     });
-  }, [conversations, searchTerm, filters, messageSearchLeadIds, origemFilter]);
+  }, [conversations, searchTerm, filters, messageSearchLeadIds, origemFilter, leadsAtendidosIA]);
 
-  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.stageId !== "all" || filters.iaFilter !== "all" || !!filters.dateRange;
+  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.iaFilter !== "all" || !!filters.dateRange;
 
   const resetFilters = () => {
-    setFilters({ origin: "all", tagId: "all", stageId: "all", dateRange: undefined });
+    setFilters({ origin: "all", tagId: "all", iaFilter: "all", dateRange: undefined });
   };
 
   const handleToggleSelection = (id: string) => {
@@ -461,7 +507,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
     const conv = conversations?.find(c => c.id === id);
     let initialValue = "";
     if (conv) {
-      if (action === 'stage')  initialValue = conv.posicao_pipeline?.toString() ?? "";
       if (action === 'origem') initialValue = (conv as any).origem ?? "";
       if (action === 'ai')     initialValue = (conv as any).ia_ativa ? 'on' : 'off';
     }
@@ -511,12 +556,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
           await deleteLead(id);
         }
         toast.success(`${idsArray.length} ${idsArray.length === 1 ? 'lead excluído' : 'leads excluídos'} com sucesso.`);
-      } else if (activeAction === 'stage') {
-        const stagePos = parseInt(bulkValue);
-        for (const id of idsArray) {
-          await updateLead({ id, posicao_pipeline: stagePos });
-        }
-        toast.success('Etapa atualizada com sucesso.');
       } else if (activeAction === 'origem') {
         for (const id of idsArray) {
           await updateLead({ id, origem: bulkValue });
@@ -718,29 +757,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                     </Select>
                   </div>
 
-                  {/* Etapa do Pipeline */}
-                  <div className="space-y-1.5" data-tutorial="conversations-filter-stage">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <GitBranch className="h-3 w-3" /> Etapa do Pipeline
-                    </p>
-                    <Select value={filters.stageId} onValueChange={(v) => setFilters(f => ({ ...f, stageId: v }))}>
-                      <SelectTrigger className="h-9 text-xs rounded-lg border-border/60">
-                        <SelectValue placeholder="Todas as etapas" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas as etapas</SelectItem>
-                        {stages.map(stage => (
-                          <SelectItem key={stage.id} value={stage.posicao_ordem.toString()}>
-                            <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.cor }} />
-                              {stage.nome}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
                   {/* Etiquetas */}
                   <div className="space-y-1.5" data-tutorial="conversations-filter-tags">
                     <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -796,7 +812,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
 
       <ScrollArea className="flex-1 w-full">
         <div className="flex flex-col">
-          {isLoading || isLoadingTags || isLoadingStages ? (
+          {isLoading || isLoadingTags ? (
             Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3 p-3 border-b border-border/40">
                 <Skeleton className="h-12 w-12 rounded-full shrink-0" />
@@ -880,7 +896,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
           <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
             <div className="flex items-center gap-2">
               <span className={cn("p-1.5 rounded-lg", activeDialogAction === 'delete' ? "bg-red-50" : "bg-muted")}>
-                {activeDialogAction === 'stage'   && <GitBranch className="h-3.5 w-3.5 text-muted-foreground" />}
                 {activeDialogAction === 'tag'     && <TagIcon    className="h-3.5 w-3.5 text-muted-foreground" />}
                 {activeDialogAction === 'cadence' && <Zap        className="h-3.5 w-3.5 text-muted-foreground" />}
                 {activeDialogAction === 'ai'      && <Bot        className="h-3.5 w-3.5 text-muted-foreground" />}
@@ -889,7 +904,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
               </span>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {activeDialogAction === 'stage'   && 'Alterar Etapa'}
                   {activeDialogAction === 'tag'     && 'Adicionar Etiqueta'}
                   {activeDialogAction === 'cadence' && 'Iniciar Cadência'}
                   {activeDialogAction === 'ai'      && 'Configurar IA'}
@@ -911,27 +925,6 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                 <span className="font-semibold text-foreground">{dialogCount} {dialogCount === 1 ? 'lead' : 'leads'}</span>{' '}
                 e todas as suas conversas? Esta ação não pode ser desfeita.
               </p>
-            )}
-
-            {activeDialogAction === 'stage' && (
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Etapa de destino</p>
-                <Select value={bulkValue} onValueChange={setBulkValue}>
-                  <SelectTrigger className="h-10 text-sm rounded-lg border-border/60">
-                    <SelectValue placeholder="Selecione uma etapa..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stages.map(s => (
-                      <SelectItem key={s.id} value={s.posicao_ordem.toString()}>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: s.cor }} />
-                          {s.nome}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             )}
 
             {activeDialogAction === 'tag' && (

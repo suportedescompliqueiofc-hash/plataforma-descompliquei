@@ -19,6 +19,8 @@ export interface Venda {
   data_fechamento: string;
   forma_pagamento: string | null;
   produto_servico: string | null;
+  agendamento_id: string | null;
+  tipo_venda: string | null;
   criado_em: string;
   leads: Pick<Lead, 'nome' | 'telefone'>; // Para join
 }
@@ -95,17 +97,16 @@ export function useVendas(dateRange?: DateRange) {
       return data;
     },
     onSuccess: async (data) => {
-      // Avança pipeline para "Procedimento Fechado" (posição padrão 6) se ainda não passou dessa etapa
       if (data?.lead_id) {
         await supabase
           .from('leads')
-          .update({ posicao_pipeline: 6, is_closed: true, is_qualified: true })
-          .eq('id', data.lead_id)
-          .or('posicao_pipeline.is.null,posicao_pipeline.lt.6');
+          .update({ is_closed: true, is_qualified: true })
+          .eq('id', data.lead_id);
         queryClient.invalidateQueries({ queryKey: ['leads'] });
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
       }
       queryClient.invalidateQueries({ queryKey: ['vendas', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       toast.success('Venda registrada com sucesso!');
     },
     onError: (error: any) => {
@@ -129,6 +130,7 @@ export function useVendas(dateRange?: DateRange) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendas', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       toast.success('Venda atualizada com sucesso!');
     },
     onError: (error: any) => {
@@ -144,6 +146,7 @@ export function useVendas(dateRange?: DateRange) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendas', orgId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-metrics'] });
       toast.success('Venda excluída com sucesso!');
     },
     onError: (error: any) => {

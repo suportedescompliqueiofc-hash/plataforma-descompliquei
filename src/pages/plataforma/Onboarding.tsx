@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, Check, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Clock, Loader2, Sparkles, CheckCircle2 } from "lucide-react";
 import { useOnboardingDiagnostico, type Respostas } from "@/hooks/useOnboardingDiagnostico";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePlataforma } from "@/contexts/PlataformaContext";
+import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations/supabase/client";
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -61,16 +64,13 @@ const BLOCOS: Bloco[] = [
       { id: "p12", label: "Qual desses canais é o principal?", type: "single", dynamicOptions: (r) => Array.isArray(r.p11) ? r.p11 : [], visibleIf: (r) => Array.isArray(r.p11) && r.p11.length > 1 },
       { id: "p13", label: "Se o canal principal parasse amanhã, continuaria recebendo leads?", type: "single", options: ["Sim, tenho múltiplas fontes", "Reduziria bastante mas não zeraria", "Pararia quase tudo"] },
       { id: "p14", label: "Você investe em tráfego pago hoje?", type: "single", options: ["Sim, de forma consistente", "Já investi mas parei", "Nunca investi"] },
-      // Sub-questões para "Sim, de forma consistente"
       { id: "p14a_ativo", label: "Investimento mensal aproximado?", type: "single", options: ["Menos de R$1k", "R$1k–R$3k", "R$3k–R$5k", "Acima de R$5k"], visibleIf: (r) => r.p14 === "Sim, de forma consistente" },
       { id: "p14b_ativo", label: "Quem gerencia?", type: "single", options: ["Agência", "Freelancer", "Eu mesmo"], visibleIf: (r) => r.p14 === "Sim, de forma consistente" },
       { id: "p14c_ativo", label: "Você rastreia quantos leads vêm dos anúncios?", type: "single", options: ["Sim, com clareza", "Tenho uma ideia", "Não sei dizer"], visibleIf: (r) => r.p14 === "Sim, de forma consistente" },
       { id: "p14d_ativo", label: "Está satisfeito com o retorno?", type: "single", options: ["Sim, o ROI é bom", "É razoável mas poderia ser melhor", "Não — invisto e não vejo retorno claro"], visibleIf: (r) => r.p14 === "Sim, de forma consistente" },
       { id: "p14e_ativo", label: "O problema está em gerar leads ou em converter os que chegam?", type: "single", options: ["Em gerar — poucos leads chegam", "Em converter — chegam mas não fecham", "Os dois"], visibleIf: (r) => r.p14 === "Sim, de forma consistente" },
-      // Sub-questões para "Já investi mas parei"
       { id: "p14a_parou", label: "Por que parou?", type: "single", options: ["Não via retorno claro", "Era muito caro", "Não tinha estrutura para atender os leads", "Problemas com quem gerenciava", "Outro"], visibleIf: (r) => r.p14 === "Já investi mas parei" },
       { id: "p14b_parou", label: "Pretende retomar?", type: "single", options: ["Sim, em breve", "Talvez, dependendo da estrutura", "Não por enquanto"], visibleIf: (r) => r.p14 === "Já investi mas parei" },
-      // Sub-questões para "Nunca investi"
       { id: "p14a_nunca", label: "Por que nunca investiu?", type: "single", options: ["Não sentia necessidade — tenho demanda suficiente", "Não sei como funciona", "Acho caro e arriscado", "Não tive tempo de estruturar"], visibleIf: (r) => r.p14 === "Nunca investi" },
       { id: "p14b_nunca", label: "Tem interesse em começar?", type: "single", options: ["Sim, é um objetivo", "Talvez no futuro", "Não — prefiro outros canais"], visibleIf: (r) => r.p14 === "Nunca investi" },
       { id: "p15", label: "Perfil predominante dos seus pacientes?", type: "single", options: ["Jovens 20–30 anos", "Adultos 30–45 anos", "Acima de 45 anos", "Misto"] },
@@ -418,7 +418,7 @@ function PerguntaView({ pergunta, respostas, setResposta }: {
   );
 }
 
-// ── Tela de Loading ────────────────────────────────────────────────────────────
+// ── Tela de Loading (diagnóstico) ─────────────────────────────────────────────
 
 function TelaLoading() {
   const msgs = [
@@ -451,6 +451,8 @@ function TelaLoading() {
 
 export default function Onboarding() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { completeOnboarding, setConcluido } = usePlataforma();
   const {
     respostas, setResposta,
     blocoAtual, setBlocoAtual,
@@ -458,19 +460,42 @@ export default function Onboarding() {
     salvarDocumento, concluirDiagnostico,
   } = useOnboardingDiagnostico();
 
-  // 0 = welcome, 1-7 = blocos, 8 = loading/gerando
+  // 0 = welcome, 1-7 = blocos, 8 = loading/gerando, 9 = Athos construindo, 10 = finalização
   const [tela, setTela] = useState<number>(0);
   const [transitioning, setTransitioning] = useState(false);
-  const [gerando, setGerando] = useState(false);
 
-  // Ao carregar, retomar de onde parou (ou redirecionar se já passou para Athos)
+  // Estado da tela 9 — Athos streamando
+  const [athosText, setAthosText] = useState("");
+  const [athosStreaming, setAthosStreaming] = useState(false);
+  const [athosErro, setAthosErro] = useState(false);
+  const [athosPhase, setAthosPhase] = useState<"thinking" | "creating" | "summarizing">("thinking");
+  const [athosElapsed, setAthosElapsed] = useState(0);
+  const [jornada, setJornada] = useState<any | null>(null);
+  const [finalizando, setFinalizando] = useState(false);
+  const construcaoIniciadaRef = useRef(false);
+
+  // Cronômetro — corre enquanto athosStreaming = true
+  useEffect(() => {
+    if (!athosStreaming) return;
+    setAthosElapsed(0);
+    const t = setInterval(() => setAthosElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [athosStreaming]);
+
+  // Ao carregar, retomar de onde parou
   useEffect(() => {
     if (loading) return;
-    if (etapa === "athos" || etapa === "concluido") {
-      navigate("/plataforma/descompliquei-os?agente=onboarding", { replace: true });
+    if (etapa === "concluido") {
+      navigate("/plataforma", { replace: true });
+      return;
+    }
+    if (etapa === "athos") {
+      // Diagnóstico já enviado — ir direto para o Athos construir
+      setTela(9);
       return;
     }
     if (blocoAtual > 0) setTela(blocoAtual);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
   const irPara = useCallback((proxima: number) => {
@@ -483,6 +508,161 @@ export default function Onboarding() {
     }, 180);
   }, [setBlocoAtual]);
 
+  // ── Construção automática da jornada pelo Athos (tela 9) ──────────────────
+
+  const construirJornada = async () => {
+    if (!user) return;
+    setAthosStreaming(true);
+    setAthosErro(false);
+    setAthosText("");
+    setAthosPhase("thinking");
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão expirada");
+
+      const [{ data: agente }, { data: diagDoc }] = await Promise.all([
+        (supabase as any)
+          .from("athos_agentes")
+          .select("system_prompt")
+          .eq("slug", "onboarding")
+          .eq("ativo", true)
+          .maybeSingle(),
+        (supabase as any)
+          .from("meus_materiais")
+          .select("conteudo")
+          .eq("user_id", user.id)
+          .eq("categoria", "diagnostico")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+      const systemPromptOverride =
+        (agente?.system_prompt ?? "") +
+        "\n\nINSTRUÇÃO OBRIGATÓRIA: Você TEM a ferramenta `criar_jornada` disponível. " +
+        "Analise o diagnóstico do cliente e use a ferramenta `criar_jornada` para salvar a jornada personalizada. " +
+        "Depois de criar a jornada, escreva um resumo curto e motivacional sobre o que foi criado para o cliente. " +
+        "NÃO escreva JSON no texto — apenas use a ferramenta." +
+        (diagDoc?.conteudo
+          ? `\n\n---\n\nDIAGNÓSTICO DO CLIENTE:\n${diagDoc.conteudo}`
+          : "");
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/descompliquei-os`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          message: "Analise o diagnóstico e crie a jornada personalizada usando a ferramenta criar_jornada.",
+          history: [],
+          model: "qwen/qwen3.7-max",
+          system_prompt_override: systemPromptOverride,
+          tools_override: ["criar_jornada"],
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      if (!res.body) throw new Error("Stream vazio");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let fullText = "";
+      let jornadaCriada = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (value) buffer += decoder.decode(value, { stream: !done });
+
+        const lines = buffer.split("\n");
+        buffer = done ? "" : (lines.pop() ?? "");
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (!raw || raw === "[DONE]") continue;
+          try {
+            const ev = JSON.parse(raw);
+
+            if (ev.type === "tool_start" && ev.tool === "criar_jornada") {
+              setAthosPhase("creating");
+            }
+
+            if (ev.type === "tool_result" && ev.tool === "criar_jornada") {
+              const result = typeof ev.result === "string" ? JSON.parse(ev.result) : ev.result;
+              if (result?.sucesso && result.jornada_id) {
+                jornadaCriada = true;
+                // Busca a jornada completa com passos para exibir na tela 10
+                const { data: jornadaCompleta } = await (supabase as any)
+                  .from("jornadas")
+                  .select(`titulo, jornada_estagios(titulo, descricao, ordem, prazo_dias, jornada_passos(titulo, descricao, ordem))`)
+                  .eq("id", result.jornada_id)
+                  .maybeSingle();
+                if (jornadaCompleta) {
+                  const estagios = (jornadaCompleta.jornada_estagios ?? [])
+                    .sort((a: any, b: any) => a.ordem - b.ordem)
+                    .map((e: any) => ({
+                      ...e,
+                      passos: (e.jornada_passos ?? []).sort((a: any, b: any) => a.ordem - b.ordem),
+                    }));
+                  setJornada({ titulo: jornadaCompleta.titulo, estagios });
+                } else {
+                  setJornada({ titulo: result.titulo, estagios: result.estagios ?? [] });
+                }
+                setConcluido();
+                setAthosPhase("summarizing");
+              }
+            }
+
+            if (ev.type === "text_delta") {
+              fullText += ev.delta;
+              setAthosText(fullText);
+            }
+
+            if (ev.type === "done") {
+              if (jornadaCriada) {
+                setAthosStreaming(false);
+                setTimeout(() => irPara(10), 800);
+              } else {
+                setAthosErro(true);
+                setAthosStreaming(false);
+              }
+            }
+
+            if (ev.type === "error") throw new Error(ev.message ?? "Erro no stream");
+          } catch { /* ignora erros de parse de linha incompleta */ }
+        }
+
+        if (done) break;
+      }
+    } catch (err: any) {
+      console.error("construirJornada error:", err);
+      setAthosErro(true);
+      setAthosStreaming(false);
+    }
+  };
+
+  // Auto-inicia quando entra na tela 9
+  useEffect(() => {
+    if (tela !== 9 || construcaoIniciadaRef.current) return;
+    construcaoIniciadaRef.current = true;
+    construirJornada();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tela]);
+
+  // ── Finalização ────────────────────────────────────────────────────────────
+
+  const finalizarOnboarding = async () => {
+    setFinalizando(true);
+    await completeOnboarding();
+    navigate("/plataforma");
+  };
+
+  // ── Diagnóstico ────────────────────────────────────────────────────────────
+
   const iniciar = async () => {
     await marcarIniciado();
     irPara(1);
@@ -492,7 +672,6 @@ export default function Onboarding() {
     if (tela < 7) {
       irPara(tela + 1);
     } else {
-      // Último bloco → gerar documento
       irPara(8);
       gerarENavegar();
     }
@@ -504,20 +683,18 @@ export default function Onboarding() {
   };
 
   const gerarENavegar = async () => {
-    setGerando(true);
-    await new Promise((r) => setTimeout(r, 3500)); // loading mínimo
+    await new Promise((r) => setTimeout(r, 3500));
     const markdown = gerarDocumento(respostas);
     const nomeClinica = respostas.p1 || "Minha Clínica";
     await salvarDocumento(markdown, nomeClinica);
     await concluirDiagnostico();
-    navigate("/plataforma/descompliquei-os?agente=onboarding");
+    irPara(9);
   };
 
-  // Progresso
+  // ── Progresso ──────────────────────────────────────────────────────────────
+
   const totalBlocos = 7;
   const progresso = tela === 0 ? 0 : Math.round((tela / totalBlocos) * 100);
-
-  // Tempo restante estimado
   const minutosRestantes = tela === 0
     ? TEMPO_TOTAL
     : TEMPO_POR_BLOCO.slice(tela - 1).reduce((a, b) => a + b, 0);
@@ -532,6 +709,18 @@ export default function Onboarding() {
 
   return (
     <div className="fixed inset-0 bg-[#F8F8F6] flex flex-col z-50 overflow-hidden">
+
+      {/* Keyframes para animação dos cards da jornada */}
+      <style>{`
+        @keyframes onb-slide-up {
+          from { opacity: 0; transform: translateY(14px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .onb-stage-card {
+          opacity: 0;
+          animation: onb-slide-up 0.45s ease forwards;
+        }
+      `}</style>
 
       {/* Header */}
       <header className="shrink-0 h-14 flex items-center px-6 border-b border-border/30 bg-[#F8F8F6]/95 backdrop-blur-sm">
@@ -592,7 +781,6 @@ export default function Onboarding() {
           {/* Blocos de perguntas */}
           {tela >= 1 && tela <= 7 && blocoAtivo && (
             <div className="max-w-xl mx-auto px-5 py-10">
-              {/* Cabeçalho do bloco */}
               <div className="mb-8">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
                   Bloco {blocoAtivo.numero} de {totalBlocos}
@@ -602,7 +790,6 @@ export default function Onboarding() {
                 </h2>
               </div>
 
-              {/* Perguntas */}
               <div className="space-y-8">
                 {blocoAtivo.perguntas.map((p) => {
                   if (p.visibleIf && !p.visibleIf(respostas)) return null;
@@ -617,7 +804,6 @@ export default function Onboarding() {
                 })}
               </div>
 
-              {/* Navegação */}
               <div className="flex items-center justify-between mt-12 pt-6 border-t border-border/30">
                 <button
                   onClick={voltar}
@@ -641,8 +827,197 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Tela de loading/geração */}
+          {/* Tela 8 — loading/geração do diagnóstico */}
           {tela === 8 && <TelaLoading />}
+
+          {/* Tela 9 — Athos construindo a jornada */}
+          {tela === 9 && (
+            <div className="max-w-2xl mx-auto px-5 py-12">
+              {/* Header de status */}
+              <div className="flex flex-col items-center text-center mb-10">
+                <div className={cn(
+                  "w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-all duration-500",
+                  athosStreaming ? "bg-foreground" : athosErro ? "bg-red-100" : "bg-emerald-100"
+                )}>
+                  {athosStreaming
+                    ? <Sparkles className="h-7 w-7 text-background animate-pulse" />
+                    : athosErro
+                    ? <span className="text-red-500 text-xl font-bold">!</span>
+                    : <CheckCircle2 className="h-7 w-7 text-emerald-600" />}
+                </div>
+                <h2 className="text-[22px] font-bold text-foreground tracking-tight">
+                  {athosStreaming
+                    ? athosPhase === "thinking"
+                      ? "Analisando seu diagnóstico..."
+                      : athosPhase === "creating"
+                      ? "Criando sua jornada..."
+                      : "Finalizando..."
+                    : athosErro
+                    ? "Algo deu errado"
+                    : "Jornada criada!"}
+                </h2>
+                <p className="text-[13px] text-muted-foreground mt-2 max-w-sm leading-relaxed">
+                  {athosStreaming
+                    ? athosPhase === "thinking"
+                      ? "O Athos está lendo e interpretando seu diagnóstico para montar o plano ideal."
+                      : athosPhase === "creating"
+                      ? "Salvando os estágios e passos da sua jornada personalizada."
+                      : "Preparando o resumo da sua jornada."
+                    : athosErro
+                    ? "Não conseguimos gerar sua jornada. Tente novamente."
+                    : "Sua jornada personalizada está pronta. Redirecionando..."}
+                </p>
+
+                {/* Indicador de fases + cronômetro */}
+                {(athosStreaming || athosErro) && (
+                  <div className="w-full max-w-sm mt-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-4">
+                        {(["thinking", "creating", "summarizing"] as const).map((phase, i) => (
+                          <div key={phase} className="flex items-center gap-1.5">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full transition-all duration-300",
+                              athosPhase === phase
+                                ? "bg-foreground scale-125"
+                                : (["thinking", "creating", "summarizing"].indexOf(athosPhase) > i)
+                                ? "bg-foreground/40"
+                                : "bg-border"
+                            )} />
+                            <span className={cn(
+                              "text-[10px] font-medium transition-colors",
+                              athosPhase === phase ? "text-foreground" : "text-muted-foreground/50"
+                            )}>
+                              {phase === "thinking" ? "Analisando" : phase === "creating" ? "Criando" : "Resumo"}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[11px] text-muted-foreground/60 tabular-nums font-mono">
+                        {athosElapsed}s
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-border/30 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-foreground transition-all duration-700 ease-out"
+                        style={{ width: athosErro ? "0%"
+                          : athosPhase === "thinking" ? `${Math.min(30, athosElapsed * 3)}%`
+                          : athosPhase === "creating" ? "60%"
+                          : "90%"
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Texto do resumo (aparece na fase summarizing) */}
+              {athosText && (
+                <div className={cn(
+                  "rounded-2xl border p-5 max-h-72 overflow-y-auto transition-all",
+                  athosStreaming ? "border-border/40 bg-muted/[0.03]" : athosErro ? "border-red-200/50 bg-red-50/20" : "border-emerald-200/50 bg-emerald-50/30"
+                )}>
+                  <p className="text-[13px] text-foreground/80 leading-relaxed whitespace-pre-wrap">
+                    {athosText}
+                    {athosStreaming && (
+                      <span className="inline-block w-1.5 h-3.5 bg-foreground/50 ml-0.5 align-middle animate-pulse" />
+                    )}
+                  </p>
+                </div>
+              )}
+
+              {/* Erro — botão de retry */}
+              {athosErro && (
+                <div className="flex justify-center mt-8">
+                  <button
+                    onClick={() => {
+                      construcaoIniciadaRef.current = false;
+                      setAthosErro(false);
+                      setAthosText("");
+                      setAthosPhase("thinking");
+                      construirJornada();
+                    }}
+                    className="h-10 px-6 rounded-xl bg-foreground text-background text-[13px] font-semibold hover:bg-foreground/90 transition-colors"
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tela 10 — Finalização com cards da jornada */}
+          {tela === 10 && jornada && (
+            <div className="max-w-2xl mx-auto px-5 py-12">
+              {/* Header */}
+              <div className="text-center mb-10">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
+                  Sua jornada personalizada
+                </p>
+                <h2 className="text-[26px] font-bold text-foreground tracking-tight leading-tight">
+                  {jornada.titulo}
+                </h2>
+                <p className="text-[13px] text-muted-foreground mt-2">
+                  {jornada.estagios?.length} etapas · Criada pelo Athos com base no seu diagnóstico
+                </p>
+              </div>
+
+              {/* Cards das etapas */}
+              <div className="space-y-3">
+                {jornada.estagios?.map((est: any, i: number) => (
+                  <div
+                    key={i}
+                    className="onb-stage-card rounded-2xl border border-border/60 bg-card p-5"
+                    style={{ animationDelay: `${i * 110}ms` }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-foreground/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-[12px] font-bold text-foreground">{i + 1}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[14px] font-bold text-foreground">{est.titulo}</p>
+                        {est.descricao && (
+                          <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">{est.descricao}</p>
+                        )}
+                        {est.passos?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2.5">
+                            {est.passos.slice(0, 3).map((p: any, j: number) => (
+                              <span key={j} className="text-[10px] bg-muted/60 text-muted-foreground px-2 py-0.5 rounded-full border border-border/40">
+                                {p.titulo}
+                              </span>
+                            ))}
+                            {est.passos.length > 3 && (
+                              <span className="text-[10px] text-muted-foreground/50 py-0.5">
+                                +{est.passos.length - 3} mais
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {est.prazo_dias && (
+                        <div className="shrink-0 text-[10px] font-medium text-muted-foreground/50 bg-muted/40 px-2 py-1 rounded-lg whitespace-nowrap">
+                          {est.prazo_dias} dias
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              <div className="mt-10 pt-6 border-t border-border/30 flex justify-end">
+                <button
+                  onClick={finalizarOnboarding}
+                  disabled={finalizando}
+                  className="flex items-center gap-2 h-11 px-8 rounded-xl bg-foreground text-background text-[14px] font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60"
+                >
+                  {finalizando && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {finalizando ? "Entrando na plataforma..." : "Começar minha jornada"}
+                  {!finalizando && <ChevronRight className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       </main>
     </div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Route, CheckCircle2, Circle, ChevronDown, ChevronUp,
-  ExternalLink, Loader2, Zap, Calendar, Crosshair,
+  ExternalLink, Loader2, Zap, Calendar, Crosshair, Lock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -54,12 +54,16 @@ function PassoRow({ passo, onToggle, estagioDeadline }: {
     if (passo.tipo === 'ferramenta_arsenal' && passo.arsenal_ferramentas) {
       const f = passo.arsenal_ferramentas;
       navigate(`/plataforma/arsenal/${f.arsenal_categorias?.slug}/${f.slug}`);
+    } else if (passo.aula_id && passo.arsenal_aulas) {
+      navigate(`/plataforma/arsenal/aulas/${passo.arsenal_aulas.slug}`);
     } else if (passo.tipo === 'categoria_arsenal' && passo.arsenal_categorias) {
       navigate(`/plataforma/arsenal/${passo.arsenal_categorias.slug}`);
     }
   }
 
-  const hasLink = passo.tipo === 'ferramenta_arsenal' || passo.tipo === 'categoria_arsenal';
+  const hasLink =
+    (passo.tipo === 'ferramenta_arsenal' && (!!passo.arsenal_ferramentas || !!passo.aula_id)) ||
+    (passo.tipo === 'categoria_arsenal' && !!passo.arsenal_categorias);
 
   return (
     <div className={cn(
@@ -120,15 +124,15 @@ function PassoRow({ passo, onToggle, estagioDeadline }: {
 
 // ─── Card de etapa (themed + expandível) ─────────────────────────────────────
 
-function EstagioCard({ estagio, index, defaultOpen, onTogglePasso, jornada }: {
+function EstagioCard({ estagio, index, defaultOpen, onTogglePasso, jornada, isLocked }: {
   estagio: JornadaEstagio;
   index: number;
   defaultOpen: boolean;
   onTogglePasso: (id: string, v: boolean) => void;
   jornada: Jornada;
+  isLocked: boolean;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
-  const accent = STAGE_ACCENTS[index % STAGE_ACCENTS.length];
+  const [open, setOpen] = useState(defaultOpen && !isLocked);
   const status = getEstagioStatus(estagio);
   const passos = estagio.jornada_passos ?? [];
   const done = passos.filter(p => p.concluido).length;
@@ -138,73 +142,98 @@ function EstagioCard({ estagio, index, defaultOpen, onTogglePasso, jornada }: {
   const isConcluido = status === 'concluido';
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md transition-shadow">
+    <div className={cn(
+      'overflow-hidden rounded-2xl border transition-shadow',
+      isLocked
+        ? 'border-border/30 bg-muted/20 opacity-60'
+        : 'border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md'
+    )}>
       {/* Barra de acento no topo */}
-      <div className={cn('h-[3px] w-full', isConcluido ? 'bg-emerald-500' : 'bg-foreground/80')} />
+      <div className={cn(
+        'h-[3px] w-full',
+        isLocked ? 'bg-border/40' : isConcluido ? 'bg-emerald-500' : 'bg-foreground/80'
+      )} />
 
-      {/* ── Cabeçalho clicável ── */}
+      {/* ── Cabeçalho ── */}
       <button
-        onClick={() => setOpen(v => !v)}
-        className="w-full text-left px-5 py-4 flex items-center gap-4"
+        onClick={() => !isLocked && setOpen(v => !v)}
+        className={cn('w-full text-left px-5 py-4 flex items-center gap-4', isLocked && 'cursor-not-allowed')}
       >
-        {/* Número */}
+        {/* Número / ícone */}
         <div className={cn(
           'shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[13px] font-bold',
-          isConcluido
-            ? 'bg-emerald-500/10 text-emerald-600'
-            : 'bg-muted text-muted-foreground'
+          isLocked
+            ? 'bg-muted/60 text-muted-foreground/40'
+            : isConcluido
+              ? 'bg-emerald-500/10 text-emerald-600'
+              : 'bg-muted text-muted-foreground'
         )}>
-          {isConcluido
-            ? <CheckCircle2 className="h-4 w-4" />
-            : index + 1
+          {isLocked
+            ? <Lock className="h-3.5 w-3.5" />
+            : isConcluido
+              ? <CheckCircle2 className="h-4 w-4" />
+              : index + 1
           }
         </div>
 
         <div className="flex-1 min-w-0">
           {/* Título + status */}
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-            <h3 className="text-[14px] font-semibold text-foreground leading-snug font-display">{estagio.titulo}</h3>
-            {isConcluido && (
+            <h3 className={cn(
+              'text-[14px] font-semibold leading-snug font-display',
+              isLocked ? 'text-muted-foreground/50' : 'text-foreground'
+            )}>{estagio.titulo}</h3>
+            {isLocked && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground/50 text-[10px] font-semibold">
+                <Lock className="h-2.5 w-2.5" /> Bloqueada
+              </span>
+            )}
+            {!isLocked && isConcluido && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 text-[10px] font-semibold">
                 <CheckCircle2 className="h-2.5 w-2.5" /> Concluída
               </span>
             )}
-            {status === 'em_andamento' && (
+            {!isLocked && status === 'em_andamento' && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 text-[10px] font-semibold">
                 <Zap className="h-2.5 w-2.5" /> Em andamento
               </span>
             )}
           </div>
 
-          {/* Meta */}
-          <div className="flex items-center gap-3 text-[12px] text-muted-foreground/60">
-            {!isConcluido && (
-              <span className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" /> Até {fmtDate(deadline)}
-              </span>
-            )}
-            <span className="font-mono tabular-nums">{done}/{total} passos</span>
-          </div>
-
-          {/* Barra de progresso */}
-          <div className="mt-2.5 h-1.5 rounded-full bg-muted/50 overflow-hidden">
-            <div
-              className={cn('h-full rounded-full transition-all duration-500', isConcluido ? 'bg-emerald-500' : 'bg-foreground/70')}
-              style={{ width: `${Math.max(pct, total > 0 ? 2 : 0)}%` }}
-            />
-          </div>
+          {isLocked ? (
+            <p className="text-[11px] text-muted-foreground/40">Conclua a etapa anterior para desbloquear</p>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 text-[12px] text-muted-foreground/60">
+                {!isConcluido && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Até {fmtDate(deadline)}
+                  </span>
+                )}
+                <span className="font-mono tabular-nums">{done}/{total} passos</span>
+              </div>
+              <div className="mt-2.5 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+                <div
+                  className={cn('h-full rounded-full transition-all duration-500', isConcluido ? 'bg-emerald-500' : 'bg-foreground/70')}
+                  style={{ width: `${Math.max(pct, total > 0 ? 2 : 0)}%` }}
+                />
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="shrink-0 ml-1">
-          {open
-            ? <ChevronUp className="h-4 w-4 text-muted-foreground/30" />
-            : <ChevronDown className="h-4 w-4 text-muted-foreground/30" />
-          }
-        </div>
+        {!isLocked && (
+          <div className="shrink-0 ml-1">
+            {open
+              ? <ChevronUp className="h-4 w-4 text-muted-foreground/30" />
+              : <ChevronDown className="h-4 w-4 text-muted-foreground/30" />
+            }
+          </div>
+        )}
       </button>
 
       {/* ── Passos ── */}
-      {open && (
+      {!isLocked && open && (
         <div className="border-t border-border/40 bg-muted/[0.02]">
           {passos.length > 0 ? (
             <div className="p-4 space-y-2">
@@ -273,7 +302,7 @@ export default function Jornada() {
     <div className="max-w-3xl mx-auto space-y-6">
 
       {/* ─── Hero (mesmo padrão do Arsenal) ─── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-8 py-10 sm:px-12 sm:py-12">
+      <div data-tutorial="jornada-header" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-8 py-10 sm:px-12 sm:py-12">
         {/* Grid texture */}
         <div className="absolute inset-0 opacity-[0.04]" style={{
           backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
@@ -344,6 +373,7 @@ export default function Jornada() {
               defaultOpen={i === currentEstagioIdx || (currentEstagioIdx === -1 && i === 0)}
               onTogglePasso={handleToggle}
               jornada={jornada}
+              isLocked={i > 0 && getEstagioStatus(estagios[i - 1]) !== 'concluido'}
             />
           ))}
         </div>

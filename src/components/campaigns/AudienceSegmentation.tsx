@@ -5,7 +5,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useLeads } from '@/hooks/useLeads';
-import { useStages } from '@/hooks/useStages';
 import { subDays, isAfter, isBefore, startOfDay, endOfDay } from 'date-fns';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -20,14 +19,12 @@ interface AudienceSegmentationProps {
 
 export function AudienceSegmentation({ onConfigChange, onSelectionChange, initialSelectedIds = [] }: AudienceSegmentationProps) {
   const { leads, isLoading: leadsLoading } = useLeads();
-  const { stages, isLoading: stagesLoading } = useStages();
-  
+
   const [segmentType, setSegmentType] = useState('all');
   const [advancedFilters, setAdvancedFilters] = useState({
     lastContact: '',
     gender: 'Todos',
     ageRange: 'Todos',
-    stageId: 'Todos',
     registrationDateRange: undefined as DateRange | undefined,
   });
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(() => new Set(initialSelectedIds));
@@ -35,13 +32,13 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
 
   // 1. Lógica de Filtragem Principal
   const filteredLeads = useMemo(() => {
-    if (leadsLoading || stagesLoading || !leads || !stages) return [];
+    if (leadsLoading || !leads) return [];
 
     let filtered = [...leads];
 
     if (segmentType === 'advanced') {
-      const { lastContact, gender, ageRange, stageId, registrationDateRange } = advancedFilters;
-      
+      const { lastContact, gender, ageRange, registrationDateRange } = advancedFilters;
+
       filtered = leads.filter(lead => {
         // Filtro: Último contato
         if (lastContact && lead.ultimo_contato) {
@@ -50,9 +47,7 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
         }
         // Filtro: Gênero
         if (gender !== 'Todos' && lead.genero !== gender) return false;
-        // Filtro: Etapa
-        if (stageId !== 'Todos' && lead.etapa_id !== parseInt(stageId)) return false;
-        
+
         // Filtro: Faixa Etária
         if (ageRange !== 'Todos') {
           const [min, max] = ageRange.split('-').map(Number);
@@ -87,7 +82,7 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
     }
 
     return filtered;
-  }, [leads, stages, segmentType, advancedFilters, leadsLoading, stagesLoading, searchTerm]);
+  }, [leads, segmentType, advancedFilters, leadsLoading, searchTerm]);
 
   // 2. Sincronização de Seleção
   useEffect(() => {
@@ -135,7 +130,7 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
     });
   };
 
-  if (leadsLoading || stagesLoading) {
+  if (leadsLoading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -179,22 +174,6 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
           <div>
             <Label>Último contato há mais de (dias)</Label>
             <Input type="number" value={advancedFilters.lastContact} onChange={e => setAdvancedFilters({...advancedFilters, lastContact: e.target.value})} />
-          </div>
-          
-          <div>
-            <Label>Etapa do Pipeline</Label>
-            <Select 
-              value={advancedFilters.stageId} 
-              onValueChange={v => setAdvancedFilters({...advancedFilters, stageId: v})}
-            >
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Todos">Todas as Etapas</SelectItem>
-                {stages.map(stage => (
-                  <SelectItem key={stage.id} value={stage.id.toString()}>{stage.nome}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           
           <div>

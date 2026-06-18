@@ -16,7 +16,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PlataformaGuard } from "@/components/PlataformaGuard";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
-import Pipeline from "./pages/Pipeline";
 import Settings from "./pages/Settings";
 import AiSettings from "./pages/AiSettings";
 import NotFound from "./pages/NotFound";
@@ -67,11 +66,12 @@ import AdminTrilhaWrapper from "./pages/admin-os/AdminTrilhaWrapper";
 import AdminArsenal from "./pages/admin-os/pages/AdminArsenal";
 import AdminJornadas from "./pages/admin-os/pages/AdminJornadas";
 import AdminJornadaEditor from "./pages/admin-os/pages/AdminJornadaEditor";
-import AdminAgentes from "./pages/admin-os/pages/AdminAgentes";
 import AdminIAs from "./pages/admin-os/pages/AdminIAs";
 import AdminSessoes from "./pages/admin-os/pages/AdminSessoes";
 import AdminSistema from "./pages/admin-os/pages/AdminSistema";
+import AdminSuporte from "./pages/admin-os/pages/AdminSuporte";
 import AdminProdutos from "./pages/admin-os/pages/AdminProdutos";
+import AdminAthos from "./pages/admin-os/pages/AdminAthos";
 import AdminAcessoCliente from "./pages/admin-os/pages/AdminAcessoCliente";
 import { AcessoGuard } from "./components/AcessoGuard";
 import { OnboardingGuard } from "./components/plataforma/OnboardingGuard";
@@ -94,6 +94,7 @@ import Arsenal from "./pages/plataforma/Arsenal";
 import Jornada from "./pages/plataforma/Jornada";
 import ArsenalCategoria from "./pages/plataforma/ArsenalCategoria";
 import ArsenalFerramenta from "./pages/plataforma/ArsenalFerramenta";
+import ArsenalAula from "./pages/plataforma/ArsenalAula";
 import DescompliqueiOS from "./pages/plataforma/DescompliqueiOS";
 import Modulo from "./pages/plataforma/Modulo";
 import Pilar from "./pages/plataforma/Pilar";
@@ -193,7 +194,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('sidebar-collapsed', false);
   const { modal, closeModal } = useDashboardLeadsModal();
   const location = useLocation();
-  const isConversationsPage = location.pathname.startsWith('/crm/conversas') || location.pathname.startsWith('/outbound/conversas') || location.pathname.startsWith('/plataforma/os');
+  const isConversationsPage = location.pathname.startsWith('/crm/conversas') || location.pathname.startsWith('/outbound/conversas') || location.pathname.startsWith('/plataforma/athos-gs');
   const isPlataformaRoute = location.pathname.startsWith('/plataforma');
 
   // Usar hook para verificar se é superadmin
@@ -283,7 +284,6 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           onClose={closeModal}
           title={modal.title}
           leads={modal.leads}
-          stages={modal.stages}
         />
       )}
     </div>
@@ -318,7 +318,6 @@ const App = () => (
               <Route element={<CrmGuard />}>
                 <Route path="/crm" element={<Dashboard />} />
                 <Route path="/crm/leads" element={<Leads />} />
-                <Route path="/crm/pipeline" element={<Pipeline />} />
                 <Route path="/crm/agendamentos" element={<Agendamentos />} />
                 <Route path="/crm/quick-messages" element={<QuickMessagesPage />} />
                 <Route path="/crm/cadences" element={<Cadences />} />
@@ -362,7 +361,6 @@ const App = () => (
             {/* Legados CRM */}
             <Route path="/login" element={<PlataformaLogin />} />
             <Route path="/leads" element={<Navigate to="/crm/leads" replace />} />
-            <Route path="/pipeline" element={<Navigate to="/crm/pipeline" replace />} />
             <Route path="/quick-messages" element={<Navigate to="/crm/quick-messages" replace />} />
             <Route path="/cadences" element={<Navigate to="/crm/cadences" replace />} />
             <Route path="/ia" element={<Navigate to="/crm/ia" replace />} />
@@ -376,6 +374,7 @@ const App = () => (
             <Route element={<AdminGuard />}>
               <Route element={<AdminLayout />}>
                 <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/athos" element={<AdminAthos />} />
                 <Route path="/admin/clientes" element={<AdminClientes />} />
                 <Route path="/admin/clientes/:id" element={<AdminClientePerfil />} />
                 <Route path="/admin/trilha" element={<AdminTrilhaWrapper />} />
@@ -384,10 +383,10 @@ const App = () => (
                 <Route path="/admin/arsenal" element={<AdminArsenal />} />
                 <Route path="/admin/jornadas" element={<AdminJornadas />} />
                 <Route path="/admin/jornadas/:id" element={<AdminJornadaEditor />} />
-                <Route path="/admin/agentes" element={<AdminAgentes />} />
                 <Route path="/admin/ias" element={<AdminIAs />} />
                 <Route path="/admin/sessoes" element={<AdminSessoes />} />
                 <Route path="/admin/sistema" element={<AdminSistema />} />
+                <Route path="/admin/suporte" element={<AdminSuporte />} />
                 <Route path="/admin/acessos/:orgId" element={<AdminAcessoCliente />} />
                 <Route path="/admin/produtos" element={<AdminProdutos />} />
               </Route>
@@ -396,9 +395,11 @@ const App = () => (
             <Route path="/plataforma/login" element={<Navigate to="/login" replace />} />
             <Route element={<AppLayoutRoute />}>
               <Route element={<PlataformaGuard />}>
-                {/* Rotas de onboarding — acessíveis mesmo antes de concluir */}
+                {/* Rotas sem restrição de onboarding */}
                 <Route path="/plataforma/onboarding" element={<Onboarding />} />
                 <Route path="/plataforma/onboarding/athos" element={<OnboardingAthos />} />
+                {/* /plataforma/athos-gs faz parte do fluxo de onboarding (Athos) — não pode ficar atrás do OnboardingGuard */}
+                <Route path="/plataforma/athos-gs" element={<AcessoGuard accessKey="acesso_os"><DescompliqueiOS /></AcessoGuard>} />
                 {/* Rotas protegidas — redirecionam para /onboarding se não concluído */}
                 <Route element={<OnboardingGuard />}>
                   <Route path="/plataforma" element={<Hub />} />
@@ -407,13 +408,13 @@ const App = () => (
                   <Route path="/plataforma/trilha/:moduloId" element={<AcessoGuard arrayKey="pilares_liberados"><Modulo /></AcessoGuard>} />
                   <Route path="/plataforma/jornada" element={<Jornada />} />
                   <Route path="/plataforma/arsenal" element={<Arsenal />} />
+                  <Route path="/plataforma/arsenal/aulas/:aulaSlug" element={<ArsenalAula />} />
                   <Route path="/plataforma/arsenal/:slug" element={<ArsenalCategoria />} />
                   <Route path="/plataforma/arsenal/:slug/:ferrSlug" element={<ArsenalFerramenta />} />
                   <Route path="/plataforma/sessoes-taticas" element={<AcessoGuard accessKey="acesso_sessoes_taticas"><SessoesTaticas /></AcessoGuard>} />
                   <Route path="/plataforma/materiais" element={<AcessoGuard accessKey="acesso_materiais"><Materiais /></AcessoGuard>} />
                   <Route path="/plataforma/materiais/:id" element={<AcessoGuard accessKey="acesso_materiais"><MateriaisEditor /></AcessoGuard>} />
                   <Route path="/plataforma/configuracoes" element={<Configuracoes />} />
-                  <Route path="/plataforma/os" element={<AcessoGuard accessKey="acesso_os"><DescompliqueiOS /></AcessoGuard>} />
                 </Route>
               </Route>
             </Route>

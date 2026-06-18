@@ -45,7 +45,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'sidebar',
         title: 'Seu centro de comando',
-        description: 'Este é o **menu principal** do seu CRM. Ele está organizado em **4 seções**:\n\n• **Visão Geral** — painel, conversas e alertas\n• **Comercial** — leads, pipeline, agendamentos, vendas e metas\n• **Automação** — mensagens rápidas, cadências e IA\n• **Sistema** — configurações da plataforma\n\nVamos passar por **cada uma** agora.',
+        description: 'Este é o **menu principal** do seu CRM. Ele está organizado em **4 seções**:\n\n• **Visão Geral** — painel, conversas e alertas\n• **Comercial** — leads, agendamentos, vendas e metas\n• **Automação** — mensagens rápidas, cadências e IA\n• **Sistema** — configurações da plataforma\n\nVamos passar por **cada uma** agora.',
         position: 'right',
       },
 
@@ -59,7 +59,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'sidebar-conversas',
         title: 'Conversas — o coração do CRM',
-        description: 'Aqui é onde o **atendimento acontece**. Todas as mensagens do WhatsApp chegam em tempo real.\n\n• Responda com texto, áudios, imagens e documentos\n• Cada conversa está **vinculada a um lead** — tudo que você faz aqui atualiza o perfil dele\n• Altere a etapa do pipeline, qualifique e agende **sem sair da tela**',
+        description: 'Aqui é onde o **atendimento acontece**. Todas as mensagens do WhatsApp chegam em tempo real.\n\n• Responda com texto, áudios, imagens e documentos\n• Cada conversa está **vinculada a um lead** — tudo que você faz aqui atualiza o perfil dele\n• Qualifique e agende **sem sair da tela**',
         position: 'right',
       },
       {
@@ -73,13 +73,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'sidebar-leads',
         title: 'Leads — sua base de contatos',
-        description: 'Todos os contatos que já entraram em contato estão aqui, em **formato de tabela**.\n\n• Busque por **nome ou telefone**\n• Filtre por **origem** (marketing, orgânico, importado)\n• Filtre por **etapa do pipeline** ou **etiquetas**\n• Clique em qualquer lead para ver os **detalhes completos**\n\nÉ a visão mais completa da sua base.',
-        position: 'right',
-      },
-      {
-        target: 'sidebar-pipeline',
-        title: 'Pipeline — seu funil visual',
-        description: 'A versão **visual do seu funil** de vendas. Cada coluna é uma etapa:\n\n**Novo → Qualificado → Agendado → Fechado**\n\n• **Arraste os cards** entre as colunas conforme o lead avança\n• Veja o **valor total** de cada etapa\n• Clique no card para abrir os detalhes\n\nÉ a forma mais intuitiva de gerenciar onde cada paciente está.',
+        description: 'Todos os contatos que já entraram em contato estão aqui, em **formato de tabela**.\n\n• Busque por **nome ou telefone**\n• Filtre por **origem** (marketing, orgânico, importado)\n• Filtre por **etiquetas**\n• Clique em qualquer lead para ver os **detalhes completos**\n\nÉ a visão mais completa da sua base.',
         position: 'right',
       },
       {
@@ -131,7 +125,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'sidebar-settings',
         title: 'Configurações',
-        description: 'Personalize o CRM para o fluxo da sua clínica:\n\n• **Pipeline** — nome, cor e ordem das etapas\n• **Etiquetas** — categorias coloridas para leads (VIP, Indicação, etc.)\n• **Fontes** — de onde vêm seus leads\n• **WhatsApp** — conexão do número\n• **Aparência** — logo, cores e branding\n• **Equipe** — convide colaboradores e acompanhe performance\n\nAdapte tudo ao seu jeito de trabalhar.',
+        description: 'Personalize o CRM para o fluxo da sua clínica:\n\n• **Etiquetas** — categorias coloridas para leads (VIP, Indicação, etc.)\n• **Fontes** — de onde vêm seus leads\n• **WhatsApp** — conexão do número\n• **Aparência** — logo, cores e branding\n• **Equipe** — convide colaboradores e acompanhe performance\n\nAdapte tudo ao seu jeito de trabalhar.',
         position: 'right',
       },
 
@@ -200,31 +194,17 @@ export const tutorials: Tutorial[] = [
         position: 'bottom',
       },
 
-      // ── Funil de Conversão ──
-      {
-        target: 'dashboard-conversion',
-        title: 'Funil de Conversão',
-        description: 'Mostra cada **etapa do seu pipeline** como um nó, com a quantidade de leads em cada uma e a **taxa de passagem** entre etapas consecutivas.\n\n• Cada bloco = uma etapa do pipeline\n• O número grande = leads naquela etapa no período\n• O % no canto = proporção em relação à primeira etapa\n• A seta entre blocos = taxa de conversão de uma etapa para a próxima\n\nClique em qualquer bloco para ver **quais leads** estão naquela etapa.',
-        position: 'top',
-      },
-      {
-        target: 'dashboard-conversion',
-        title: 'Diagnosticando gargalos',
-        description: 'Uma taxa baixa entre dois blocos consecutivos = **gargalo**.\n\nExemplos de diagnóstico:\n• **Primeira → Segunda etapa baixa** — lead chegou mas não está sendo atendido. Revise o tempo de resposta ou o prompt da IA.\n• **Etapa de qualificação baixa** — follow-up fraco. Ative cadências.\n• **Agendado → Fechado baixo** — a consulta não está convertendo em venda. Revise o script.\n\nO funil mostra **onde** está o problema, não apenas que ele existe.',
-        position: 'top',
-      },
-
       // ── Performance Comercial ──
       {
         target: 'dashboard-performance',
         title: 'Performance Comercial',
-        description: 'Três taxas que medem a **eficiência do seu funil comercial**:\n\n• **Taxa de MQL** — % dos leads totais que foram qualificados (MQL ÷ Total de Leads)\n• **Taxa de Agendamento** — % dos MQLs que agendaram consulta (Agendados ÷ Qualificados)\n• **Taxa de Fechamento** — % dos agendados que fecharam procedimento (Fechados ÷ Agendados)\n\nClique em qualquer card para ver a **lista nominal** dos leads daquele grupo.',
+        description: 'Três taxas que medem a **eficiência do seu funil comercial**:\n\n• **Taxa de Qualificação** — % dos leads totais que foram qualificados (Qualificados ÷ Total de Leads)\n• **Taxa de Agendamento** — % dos qualificados que agendaram consulta (Agendados ÷ Qualificados)\n• **Taxa de Fechamento** — % dos agendados que fecharam procedimento (Fechados ÷ Agendados)\n\nClique em qualquer card para ver a **lista nominal** dos leads daquele grupo.',
         position: 'top',
       },
       {
         target: 'dashboard-performance',
         title: 'Benchmarks de referência',
-        description: 'Use esses números como norte:\n\n• **Taxa MQL > 30%** — tráfego está atraindo o público certo\n• **Taxa Agendamento > 40%** dos MQLs — boa conversão de qualificado para consulta\n• **Taxa Fechamento > 50%** dos agendados — operação comercial saudável\n\n**Como agir quando uma taxa cai:**\n• MQL caiu → revise o ICP do criativo\n• Agendamento caiu → revise o follow-up e cadências\n• Fechamento caiu → revise o script de vendas da consulta\n\nDados sem ação são só números.',
+        description: 'Use esses números como norte:\n\n• **Taxa Qualificação > 30%** — tráfego está atraindo o público certo\n• **Taxa Agendamento > 40%** dos qualificados — boa conversão para consulta\n• **Taxa Fechamento > 50%** dos agendados — operação comercial saudável\n\n**Como agir quando uma taxa cai:**\n• Qualificação caiu → revise o ICP do criativo\n• Agendamento caiu → revise o follow-up e cadências\n• Fechamento caiu → revise o script de vendas da consulta\n\nDados sem ação são só números.',
         position: 'top',
       },
 
@@ -256,7 +236,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'dashboard-chart',
         title: 'Evolução no Tempo',
-        description: 'Gráfico de barras duplas com a dinâmica diária do período:\n\n• **Barras laranjas (Captados)** — leads que chegaram naquele dia\n• **Barras verdes (Convertidos)** — leads que fecharam naquele dia\n\nClique em qualquer barra para ver **quais leads** foram captados ou convertidos naquele dia.\n\nPerguntas úteis ao analisar:\n• Quais dias da semana captam mais?\n• Existe pico após lançar campanha?\n• A conversão acompanha a captação ou tem delay?',
+        description: 'Gráfico com a dinâmica diária do período:\n\n• **Captados** — leads que chegaram naquele dia\n\nClique em qualquer barra para ver **quais leads** foram captados naquele dia.\n\nPerguntas úteis ao analisar:\n• Quais dias da semana captam mais?\n• Existe pico após lançar campanha?\n• O volume está crescendo ou caindo?',
         position: 'top',
       },
       {
@@ -264,20 +244,6 @@ export const tutorials: Tutorial[] = [
         title: 'Leitura avançada',
         description: 'Padrões que revelam problemas:\n\n• **Laranja alto, verde baixo** — capta mas não converte. Problema no atendimento, follow-up ou vendas.\n• **Ambos baixos** — problema de captação. Revise investimento ou criativo.\n• **Picos isolados** — campanhas pontuais sem consistência. Foque em fluxo contínuo.\n• **Verde crescendo mais que laranja** — conversão melhorando. Ótimo sinal.\n\nO ideal: **tendência crescente** em ambas as barras. Consistência supera picos isolados.',
         position: 'top',
-      },
-
-      // ── Pipeline Atual ──
-      {
-        target: 'dashboard-funnel',
-        title: 'Pipeline Atual',
-        description: 'Barras horizontais mostrando **quantos leads estão em cada etapa** do pipeline no momento.\n\n• Cada barra = uma etapa, com sua cor definida em Configurações\n• O número à direita = total de leads naquela etapa\n• Clique em qualquer barra para ver a **lista nominal** dos leads\n\n**Diferença do Funil de Conversão:** o Funil mostra a taxa de passagem no período. O Pipeline Atual mostra o **estado real agora** — onde cada lead está parado.',
-        position: 'left',
-      },
-      {
-        target: 'dashboard-funnel',
-        title: 'Lendo o Pipeline',
-        description: 'Identifique **acúmulos** — etapas com muito volume parado:\n\n• Muitos leads na primeira etapa? → Atendimento não está qualificando.\n• Muitos qualificados sem agendar? → Follow-up fraco ou demora para marcar.\n• Muitos agendados sem fechar? → Consulta não está convertendo.\n\n**Rotina:** olhe este card todo dia. Leads parados estão perdendo calor. A ação certa é levá-los para a próxima etapa.',
-        position: 'left',
       },
 
       // ── Conclusão ──
@@ -447,19 +413,11 @@ export const tutorials: Tutorial[] = [
         position: 'bottom',
       },
 
-      // ── 6. Pipeline ──
-      {
-        target: 'conversation-pipeline',
-        title: 'Etapa do Pipeline',
-        description: 'Seletor que mostra e altera a **etapa do funil** deste lead.\n\nClique para selecionar a etapa correta — a cor do ponto muda conforme a etapa.\n\n**Por que é essencial:**\n• Alimenta o **Funil de Conversão** no Painel\n• Mantém o **Pipeline Kanban** atualizado\n• Sem atualizar, seus dados de funil ficam incorretos\n\n**Rotina:** após cada conversa, pergunte: "este lead avançou de etapa?"',
-        position: 'bottom',
-      },
-
-      // ── 7. MQL ──
+      // ── 6. MQL ──
       {
         target: 'conversation-mql',
-        title: 'Qualificado (MQL)',
-        description: '**MQL** = Marketing Qualified Lead — um lead com **interesse real** no seu serviço.\n\n• Clique para marcar como qualificado (botão fica preenchido)\n• Clique novamente para desmarcar\n\n**Quando marcar:** lead demonstrou intenção real — perguntou sobre procedimento, quer agendar, pediu orçamento.\n\n**Quando NÃO marcar:** curiosos, mensagens erradas, spam, fornecedores.\n\n**Impacto direto:** Taxa de MQL = MQLs ÷ Total de Leads. Marcar errado = métricas falsas.',
+        title: 'Qualificado',
+        description: 'Um lead **Qualificado** tem interesse real no seu serviço.\n\n• Clique para marcar como qualificado (botão fica preenchido)\n• Clique novamente para desmarcar\n\n**Quando marcar:** lead demonstrou intenção real — perguntou sobre procedimento, quer agendar, pediu orçamento.\n\n**Quando NÃO marcar:** curiosos, mensagens erradas, spam, fornecedores.\n\n**Impacto direto:** Taxa de Qualificação = Qualificados ÷ Total de Leads. Marcar errado = métricas falsas.',
         position: 'bottom',
       },
 
@@ -499,7 +457,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'conversation-exclude-metrics',
         title: 'Desconsiderar das Métricas',
-        description: '**Um dos botões mais importantes.** Remove este lead de todos os cálculos do Painel.\n\n**O que excluir:**\n• Spam e robôs\n• "Número errado, desculpa"\n• Fornecedores e representantes\n• Amigos e familiares\n• Duplicatas do mesmo paciente\n\nQuando ativo, o ícone fica **amarelo**.\n\n**Por que importa:** 25 leads inválidos em 100 inflam os números. Com limpeza: Taxa MQL de 30% vira 40% real.',
+        description: '**Um dos botões mais importantes.** Remove este lead de todos os cálculos do Painel.\n\n**O que excluir:**\n• Spam e robôs\n• "Número errado, desculpa"\n• Fornecedores e representantes\n• Amigos e familiares\n• Duplicatas do mesmo paciente\n\nQuando ativo, o ícone fica **amarelo**.\n\n**Por que importa:** 25 leads inválidos em 100 inflam os números. Com limpeza: Taxa de Qualificação de 30% vira 40% real.',
         position: 'left',
       },
 
@@ -531,7 +489,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'conversations-list',
         title: 'Rotina diária nas Conversas',
-        description: '**5 ações que fazem a diferença todos os dias:**\n\n• **1. Desconsiderar** — exclua spam e inválidos das métricas (2 min)\n• **2. Atualizar pipeline** — mova cada lead para a etapa certa\n• **3. Marcar MQL** — qualifique quem tem interesse real\n• **4. Agendar** — registre quando o lead marcar consulta\n• **5. Fechar + Registrar venda** — complete os dois passos ao fechar\n\nEssa rotina garante que o Painel reflita a **realidade** da operação.',
+        description: '**4 ações que fazem a diferença todos os dias:**\n\n• **1. Desconsiderar** — exclua spam e inválidos das métricas (2 min)\n• **2. Qualificar** — marque quem tem interesse real\n• **3. Agendar** — registre quando o lead marcar consulta\n• **4. Fechar + Registrar venda** — complete os dois passos ao fechar\n\nEssa rotina garante que o Painel reflita a **realidade** da operação.',
         position: 'right',
       },
     ],
@@ -581,7 +539,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'notificacoes-list',
         title: 'Ir para a conversa',
-        description: 'Ao passar o mouse, aparece um **ícone de link** nos cards de Meta Lead Ads. Clique para ir direto para a **conversa do lead**.\n\n**Fluxo ideal:**\n• Recebeu notificação → clique para abrir a conversa\n• Atenda o lead → marque MQL se qualificado\n• Atualize o pipeline → volte e resolva a notificação\n\nIsso garante que **nenhum lead** fique sem atendimento.',
+        description: 'Ao passar o mouse, aparece um **ícone de link** nos cards de Meta Lead Ads. Clique para ir direto para a **conversa do lead**.\n\n**Fluxo ideal:**\n• Recebeu notificação → clique para abrir a conversa\n• Atenda o lead → marque como qualificado se tiver interesse real\n• Volte e resolva a notificação\n\nIsso garante que **nenhum lead** fique sem atendimento.',
         position: 'top',
       },
       {
@@ -620,7 +578,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'lead-field-nome',
         title: 'Campo: Nome',
-        description: 'Digite o **nome completo** do lead.\n\nEste é o nome que aparecerá em:\n• Lista de leads\n• Conversas do WhatsApp\n• Pipeline\n• Agendamentos e vendas\n\n**Dica:** use o nome como o lead se apresentou. Se disse "Dr. Silva", registre assim.',
+        description: 'Digite o **nome completo** do lead.\n\nEste é o nome que aparecerá em:\n• Lista de leads\n• Conversas do WhatsApp\n• Agendamentos e vendas\n\n**Dica:** use o nome como o lead se apresentou. Se disse "Dr. Silva", registre assim.',
         position: 'right',
         action: { type: 'click', selector: 'tutorial:leads-add', delay: 500 },
       },
@@ -633,7 +591,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'lead-field-origem',
         title: 'Campo: Origem',
-        description: 'Selecione **de onde veio** este lead:\n\n• **Marketing** — veio de anúncio pago (Meta Ads, Google, etc.)\n• **Orgânico** — veio espontaneamente (indicação, busca, redes sociais)\n\n**Por que importa:** a origem define se o lead entra nos cálculos de **CPL, CPMQL e ROAS**. Leads orgânicos não contam para métricas de marketing.',
+        description: 'Selecione **de onde veio** este lead:\n\n• **Marketing** — veio de anúncio pago (Meta Ads, Google, etc.)\n• **Orgânico** — veio espontaneamente (indicação, busca, redes sociais)\n\n**Por que importa:** a origem define se o lead entra nos cálculos de **CPL, Custo por Qualificado e ROAS**. Leads orgânicos não contam para métricas de marketing.',
         position: 'right',
       },
       {
@@ -649,15 +607,9 @@ export const tutorials: Tutorial[] = [
         position: 'right',
       },
       {
-        target: 'lead-field-etapa',
-        title: 'Campo: Etapa do Funil',
-        description: 'Escolha em qual **etapa do pipeline** o lead começa.\n\n• Normalmente, leads novos entram na **primeira etapa**\n• Se já conversou e ele está avançado, coloque na etapa correta\n\n**Dica:** as etapas são personalizáveis em **Configurações > Pipeline**.',
-        position: 'right',
-      },
-      {
         target: 'lead-submit',
         title: 'Salvar lead',
-        description: 'Clique em **"Criar Lead"** para salvar o contato.\n\n**O que acontece:**\n• O lead aparece na tabela de leads\n• Entra no pipeline na etapa selecionada\n• Fica disponível para envio de mensagens WhatsApp\n• Conta nas métricas do Painel de Controle\n\nApós criar, você pode abrir a conversa clicando no lead e enviando a primeira mensagem.',
+        description: 'Clique em **"Criar Lead"** para salvar o contato.\n\n**O que acontece:**\n• O lead aparece na tabela de leads\n• Fica disponível para envio de mensagens WhatsApp\n• Conta nas métricas do Painel de Controle\n\nApós criar, você pode abrir a conversa clicando no lead e enviando a primeira mensagem.',
         position: 'top',
       },
       {
@@ -676,7 +628,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'leads-filters-advanced',
         title: 'Filtros avançados',
-        description: 'Clique no botão **"Filtros"** para expandir o painel de filtros com opções detalhadas:\n\n• **Etapa do pipeline** — em qual fase do funil o lead está\n• **Origem** — Marketing ou Orgânico\n• **Fonte** — canal específico (Instagram, Google, Indicação...)\n• **Etiqueta** — filtre por tags personalizadas\n• **Responsável** — leads atribuídos a um membro específico\n\n**Uso estratégico:** combine filtros para análises precisas. Ex: "Marketing + etapa inicial + últimos 30 dias" → quem precisa de follow-up.',
+        description: 'Clique no botão **"Filtros"** para expandir o painel de filtros com opções detalhadas:\n\n• **Origem** — Marketing ou Orgânico\n• **Fonte** — canal específico (Instagram, Google, Indicação...)\n• **Etiqueta** — filtre por tags personalizadas\n• **Responsável** — leads atribuídos a um membro específico\n\n**Uso estratégico:** combine filtros para análises precisas. Ex: "Marketing + últimos 30 dias" → quem precisa de follow-up.',
         position: 'bottom',
         action: { type: 'click', selector: 'tutorial:leads-filters-advanced', delay: 400 },
       },
@@ -707,13 +659,13 @@ export const tutorials: Tutorial[] = [
       {
         target: 'leads-table',
         title: 'Seleção e ações em massa',
-        description: 'Use os **checkboxes** à esquerda de cada lead para selecionar múltiplos contatos de uma vez.\n\n**Ações em massa disponíveis:**\n• **Adicionar etiquetas** — categorize vários leads simultaneamente\n• **Mover no pipeline** — avance ou retroceda leads no funil\n• **Excluir selecionados** — remova leads em lote\n\n**Dica:** use o checkbox do cabeçalho para selecionar **todos os leads visíveis** na página atual. Combine com filtros para ações precisas.',
+        description: 'Use os **checkboxes** à esquerda de cada lead para selecionar múltiplos contatos de uma vez.\n\n**Ações em massa disponíveis:**\n• **Adicionar etiquetas** — categorize vários leads simultaneamente\n• **Excluir selecionados** — remova leads em lote\n\n**Dica:** use o checkbox do cabeçalho para selecionar **todos os leads visíveis** na página atual. Combine com filtros para ações precisas.',
         position: 'top',
       },
       {
         target: 'leads-bulk-bar',
         title: 'Barra de ações em massa',
-        description: 'Ao selecionar leads, esta **barra flutuante** aparece na parte inferior da tela com as ações disponíveis:\n\n• **Etiquetas** — adicionar ou remover tags em todos os selecionados de uma vez\n• **Mover no Pipeline** — trocar de etapa em lote\n• **Excluir** — remover vários leads simultaneamente\n\nA barra mostra o **número de leads selecionados** e desaparece automaticamente ao desmarcar a seleção.',
+        description: 'Ao selecionar leads, esta **barra flutuante** aparece na parte inferior da tela com as ações disponíveis:\n\n• **Etiquetas** — adicionar ou remover tags em todos os selecionados de uma vez\n• **Excluir** — remover vários leads simultaneamente\n\nA barra mostra o **número de leads selecionados** e desaparece automaticamente ao desmarcar a seleção.',
         position: 'top',
       },
       {
@@ -727,88 +679,6 @@ export const tutorials: Tutorial[] = [
         title: 'Rotina de gestão de leads',
         description: '**Sua rotina ideal com leads:**\n\n• **Diário** — verifique novos leads, classifique por origem e etiquetas\n• **Semanal** — revise leads parados no pipeline, atualize etapas\n• **Mensal** — limpe leads frios, analise métricas por origem\n\n**Regra de ouro:** lead sem etiqueta = lead perdido. Sempre categorize seus contatos para manter a organização e métricas precisas.\n\nA página de Leads é seu **centro de comando** — aqui você tem visão completa de todos os contatos do CRM.',
         position: 'top',
-      },
-    ],
-  },
-
-  // ═══════════════════════════════════════════════════════════════
-  // PIPELINE
-  // ═══════════════════════════════════════════════════════════════
-  {
-    id: 'pipeline',
-    pageRoute: '/crm/pipeline',
-    title: 'Pipeline de Vendas',
-    description: 'Visualize e gerencie seu funil comercial de forma visual. Entenda cada etapa e como mover leads no processo de vendas.',
-    icon: 'GitBranch',
-    category: 'comercial',
-    steps: [
-      {
-        target: 'pipeline-header',
-        title: 'Visão geral do pipeline',
-        description: 'O cabeçalho mostra um **resumo rápido** do seu funil:\n\n• **Total de leads** — quantos contatos estão no pipeline\n• **Qualificados** — quantos foram marcados como MQL\n\nEsse resumo te dá uma visão instantânea da **saúde do seu funil**. Quanto maior a proporção de qualificados vs. total, melhor a qualidade dos seus leads.',
-        position: 'bottom',
-      },
-      {
-        target: 'pipeline-filters',
-        title: 'Filtros do pipeline',
-        description: 'Refine a visualização do seu funil:\n\n• **Período** — veja leads de um intervalo específico de datas\n• **Busca** — encontre um lead específico por nome\n\n**Uso estratégico:** filtre por "últimos 7 dias" para focar nos leads mais recentes que precisam de atenção imediata.',
-        position: 'bottom',
-      },
-      {
-        target: 'pipeline-tabs',
-        title: 'Abas: Kanban e Métricas',
-        description: 'Duas formas de visualizar seu pipeline:\n\n• **Kanban** — visão de quadro com colunas (arrastar e soltar)\n• **Métricas do Funil** — dados analíticos sobre conversão entre etapas\n\nUse o **Kanban** para a gestão diária e as **Métricas** para análise estratégica semanal/mensal.',
-        position: 'bottom',
-      },
-      {
-        target: 'pipeline-board',
-        title: 'Quadro Kanban',
-        description: 'O coração do seu funil de vendas! Cada **coluna** é uma etapa do processo:\n\n• Os **cards** dentro são seus leads\n• **Arraste e solte** para mover um lead entre etapas\n• O número no topo de cada coluna mostra quantos leads tem ali\n\n**Fluxo típico:** Lead Novo → Em Contato → Qualificado → Agendado → Fechado\n\nA ordem das etapas pode ser personalizada em **Configurações > Pipeline**.',
-        position: 'top',
-      },
-      {
-        target: 'pipeline-column',
-        title: 'Coluna do pipeline',
-        description: 'Cada coluna representa uma **etapa do seu funil**:\n\n• **Nome da etapa** — identificação visual com cor\n• **Quantidade** — número de leads nesta etapa\n• **Valor** — soma dos valores dos leads (quando preenchidos)\n\n**Objetivo:** leads devem fluir da esquerda para a direita. Se uma coluna está "congestionada" (muitos leads parados), é sinal de que algo precisa de atenção nessa etapa.',
-        position: 'right',
-      },
-      {
-        target: 'pipeline-card',
-        title: 'Card do lead',
-        description: 'Cada card mostra informações essenciais:\n\n• **Nome** do lead\n• **Telefone** formatado\n• **Tempo** — há quanto tempo está nesta etapa\n• **Origem** — badge Mkt (marketing) ou Org (orgânico)\n• **MQL** — badge verde se qualificado\n\n**Ações rápidas:**\n• **Clique** no card → abre detalhes completos\n• **Ícone de telefone** → abre a conversa WhatsApp\n• **Arrastar** → move para outra etapa\n\n**Dica:** cards com muito tempo na mesma etapa precisam de ação — responda, agende ou atualize.',
-        position: 'right',
-      },
-      {
-        target: 'pipeline-board',
-        title: 'Drag and Drop',
-        description: 'O recurso mais poderoso do pipeline é o **arrastar e soltar**:\n\n• **Clique e segure** um card\n• **Arraste** até a coluna de destino\n• **Solte** para mover o lead de etapa\n\n**Exemplos de uso diário:**\n• Lead respondeu positivamente → mova para "Em Contato"\n• Agendou consulta → mova para "Agendado"\n• Fechou procedimento → mova para "Fechado"\n\nCada movimentação é registrada e alimenta suas **métricas de conversão**.',
-        position: 'top',
-      },
-      {
-        target: 'pipeline-metrics-tab',
-        title: 'Métricas do Funil',
-        description: 'A aba **Métricas** transforma seu pipeline em análise estratégica — mostra onde os leads avançam e onde travam.\n\nVeja a seguir os dois blocos principais desta aba.',
-        position: 'bottom',
-        action: { type: 'click', selector: '[data-tutorial="pipeline-open-metrics-direct"]', delay: 500 },
-      },
-      {
-        target: 'pipeline-metrics-kpis',
-        title: 'KPIs de desempenho',
-        description: 'Três indicadores resumem a saúde do seu funil:\n\n• **Eficiência Global** — % de leads que chegam à etapa final, com barra de progresso proporcional\n• **Maior Perda** — qual etapa perde mais leads e quantos — o seu gargalo principal\n• **Melhor Conversão** — qual etapa tem a maior taxa de aproveitamento — seu ponto forte\n\n**Dica:** se "Maior Perda" for uma etapa inicial, você tem problema de qualificação. Se for etapa final, o problema é fechamento.',
-        position: 'bottom',
-      },
-      {
-        target: 'pipeline-metrics-funnel',
-        title: 'Fluxo de Conversão',
-        description: 'Visualização em funil de cada etapa do pipeline:\n\n• **Barra horizontal** — comprimento proporcional ao volume de leads na etapa\n• **% conversão para a próxima** — mostrado entre cada etapa (verde ≥ 50%, vermelho < 50%)\n• **% desde o início** — acumulado desde o primeiro lead\n\n**Como usar:** percorra de cima para baixo e identifique onde a barra encolhe mais bruscamente — é o gargalo. Revise este funil semanalmente e compare com períodos anteriores.',
-        position: 'top',
-      },
-      {
-        target: 'pipeline-board',
-        title: 'Rotina no pipeline',
-        description: '**Sua rotina diária no Pipeline:**\n\n• **Manhã** — revise leads na primeira etapa, identifique quem precisa de contato\n• **Ao longo do dia** — mova leads conforme avançam nas conversas\n• **Final do dia** — verifique se há leads "travados" há muito tempo\n\n**Regra de ouro:** o pipeline é um reflexo da realidade. Se um lead avançou na conversa, **mova-o no pipeline**. Dados desatualizados geram métricas falsas.\n\nUse as **Métricas do Funil** semanalmente para identificar gargalos na conversão entre etapas.',
-        position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="pipeline-open-kanban-direct"]', delay: 400 },
       },
     ],
   },
@@ -833,7 +703,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'agendamentos-new',
         title: 'Novo agendamento',
-        description: 'Este botão abre o formulário para criar um novo agendamento. Vamos percorrer **cada campo** do formulário para que você saiba exatamente como preencher.\n\n**Dica:** ao agendar, o lead é automaticamente movido no pipeline.',
+        description: 'Este botão abre o formulário para criar um novo agendamento. Vamos percorrer **cada campo** do formulário para que você saiba exatamente como preencher.',
         position: 'bottom',
       },
       {
@@ -882,7 +752,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'agendamento-submit',
         title: 'Criar agendamento',
-        description: 'Clique em **"Criar Agendamento"** para salvar.\n\n**O que acontece automaticamente:**\n• O evento aparece no calendário\n• O lead é movido no pipeline (se configurado)\n• Os cards de status são atualizados\n• Se ativo, um lembrete via WhatsApp é enviado ao paciente\n\nApós criar, você pode clicar no evento no calendário para ver detalhes, editar ou cancelar.',
+        description: 'Clique em **"Criar Agendamento"** para salvar.\n\n**O que acontece automaticamente:**\n• O evento aparece no calendário\n• O lead é marcado como **agendado** e qualificado\n• Os cards de status são atualizados\n• Se ativo, um lembrete via WhatsApp é enviado ao paciente\n\nApós criar, você pode clicar no evento no calendário para ver detalhes, editar ou cancelar.',
         position: 'top',
       },
       {
@@ -978,7 +848,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'vendas-new',
         title: 'Registrar nova venda',
-        description: 'Este é o botão para registrar um novo fechamento. Vamos abrir o formulário e percorrer **cada campo** para que você saiba exatamente como preencher.\n\n**Importante:** ao registrar uma venda, o lead é automaticamente marcado como **"Fechado"** no pipeline. Isso garante consistência entre pipeline e vendas.',
+        description: 'Este é o botão para registrar um novo fechamento. Vamos abrir o formulário e percorrer **cada campo** para que você saiba exatamente como preencher.\n\n**Importante:** ao registrar uma venda, o lead é automaticamente marcado como **"Fechado"**.',
         position: 'bottom',
       },
       {
@@ -1015,7 +885,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'venda-submit',
         title: 'Finalizar registro',
-        description: 'Após preencher todos os campos, clique em **"Registrar Venda"** para salvar.\n\n**O que acontece automaticamente:**\n• A venda aparece na lista abaixo\n• Os cards de métricas são atualizados\n• O lead é marcado como "Fechado" no pipeline\n• O Painel de Controle reflete o novo faturamento\n\nVocê pode fechar este formulário sem salvar — nada será perdido até clicar no botão.',
+        description: 'Após preencher todos os campos, clique em **"Registrar Venda"** para salvar.\n\n**O que acontece automaticamente:**\n• A venda aparece na lista abaixo\n• Os cards de métricas são atualizados\n• O lead é marcado como **"Fechado"**\n• O Painel de Controle reflete o novo faturamento\n\nVocê pode fechar este formulário sem salvar — nada será perdido até clicar no botão.',
         position: 'top',
       },
       {
@@ -1277,7 +1147,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'meta-field-marketing',
         title: 'Campo: Investimento em marketing',
-        description: 'Ative este toggle se sua clínica **investe em marketing pago** (Meta Ads, Google Ads, etc.).\n\nQuando ativado, novos campos aparecem:\n• **CPL Meta** — quanto quer pagar por lead no máximo\n• **Taxa MQL** — percentual esperado de leads qualificados\n\nIsso permite calcular métricas como **CPL, CPMQL e ROAS** automaticamente.',
+        description: 'Ative este toggle se sua clínica **investe em marketing pago** (Meta Ads, Google Ads, etc.).\n\nQuando ativado, novos campos aparecem:\n• **CPL Meta** — quanto quer pagar por lead no máximo\n• **Taxa de Qualificação** — percentual esperado de leads qualificados\n\nIsso permite calcular métricas como **CPL, Custo por Qualificado e ROAS** automaticamente.',
         position: 'right',
       },
       {
@@ -1295,13 +1165,13 @@ export const tutorials: Tutorial[] = [
       {
         target: 'meta-field-taxas',
         title: 'Taxas de conversão',
-        description: 'Ajuste as **taxas de conversão** do seu funil:\n\n• **Taxa MQL** — % de leads que se tornam qualificados\n• **Taxa Agendamento** — % de qualificados que agendam\n• **Taxa Conversão** — % de agendados que fecham\n\n**O que esses números fazem:** o sistema calcula automaticamente quantos leads você precisa no topo do funil para atingir a meta de vendas.\n\nEx: se conversão é 10%, para 20 vendas você precisa de **200 leads**.',
+        description: 'Ajuste as **taxas de conversão** do seu funil:\n\n• **Taxa de Qualificação** — % de leads que se tornam qualificados\n• **Taxa Agendamento** — % de qualificados que agendam\n• **Taxa Conversão** — % de agendados que fecham\n\n**O que esses números fazem:** o sistema calcula automaticamente quantos leads você precisa no topo do funil para atingir a meta de vendas.\n\nEx: se conversão é 10%, para 20 vendas você precisa de **200 leads**.',
         position: 'right',
       },
       {
         target: 'meta-field-funil',
         title: 'Funil calculado',
-        description: 'Com base nas taxas informadas, o sistema calcula o **funil completo**:\n\n• Quantos **leads** você precisa gerar\n• Quantos serão **MQL** (qualificados)\n• Quantos vão **agendar**\n• Quantos vão **fechar**\n• Quanto vai **faturar**\n\nSe os números parecem irreais, ajuste as taxas de conversão ou a meta de receita até encontrar um cenário viável.',
+        description: 'Com base nas taxas informadas, o sistema calcula o **funil completo**:\n\n• Quantos **leads** você precisa gerar\n• Quantos serão **qualificados**\n• Quantos vão **agendar**\n• Quantos vão **fechar**\n• Quanto vai **faturar**\n\nSe os números parecem irreais, ajuste as taxas de conversão ou a meta de receita até encontrar um cenário viável.',
         position: 'right',
       },
       {
@@ -1314,7 +1184,7 @@ export const tutorials: Tutorial[] = [
         target: 'metas-funnel',
         action: { type: 'dismiss', delay: 300 },
         title: 'Funil de conversão',
-        description: 'O funil mostra o **fluxo de conversão** da sua operação:\n\n**Leads → MQL → Agendamentos → Vendas**\n\nEntre cada etapa, você vê a **taxa de conversão**:\n• Leads → MQL = quantos leads se tornaram qualificados\n• MQL → Agendamentos = quantos qualificados agendaram\n• Agendamentos → Vendas = quantos agendados fecharam\n\n**Análise:** se uma taxa está baixa, identifique o gargalo. Ex: se MQL→Agendamentos é baixa, sua equipe precisa melhorar o agendamento de consultas.',
+        description: 'O funil mostra o **fluxo de conversão** da sua operação:\n\n**Leads → Qualificados → Agendamentos → Vendas**\n\nEntre cada etapa, você vê a **taxa de conversão**:\n• Leads → Qualificados = quantos leads demonstraram interesse real\n• Qualificados → Agendamentos = quantos qualificados agendaram\n• Agendamentos → Vendas = quantos agendados fecharam\n\n**Análise:** se uma taxa está baixa, identifique o gargalo. Ex: se Qualificados→Agendamentos é baixa, sua equipe precisa melhorar o agendamento de consultas.',
         position: 'bottom',
       },
       {
@@ -1671,7 +1541,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'settings-nav',
         title: 'Menu de Configurações',
-        description: 'As configurações estão organizadas em grupos:\n\n• **Conta** — perfil pessoal, senha e aparência _(todos os usuários)_\n• **CRM** — etapas do pipeline, fontes de leads e etiquetas _(somente dono)_\n• **Sistema** — marca e WhatsApp _(somente dono)_\n• **Equipe** — membros e performance da equipe _(somente dono)_\n\nMembros da equipe veem apenas a seção **Conta** — suas configurações pessoais.',
+        description: 'As configurações estão organizadas em grupos:\n\n• **Conta** — perfil pessoal, senha e aparência _(todos os usuários)_\n• **CRM** — fontes de leads e etiquetas _(somente dono)_\n• **Sistema** — marca e WhatsApp _(somente dono)_\n• **Equipe** — membros e performance da equipe _(somente dono)_\n\nMembros da equipe veem apenas a seção **Conta** — suas configurações pessoais.',
         position: 'right',
       },
       // -- Perfil --
@@ -1681,14 +1551,6 @@ export const tutorials: Tutorial[] = [
         description: 'Aqui você configura suas **informações pessoais**:\n\n• **Foto de perfil** — clique no avatar para fazer upload da sua foto\n• **Nome completo** — como você aparece no sistema e nas conversas\n• **Telefone** — seu contato interno\n• **Dados da empresa** — nome, CNPJ, e-mail e telefone da clínica _(somente donos)_\n\n**Dica:** clique diretamente na foto de perfil para escolher uma imagem. Formatos aceitos: JPG, PNG (máx. 5 MB).',
         position: 'left',
         action: { type: 'click', selector: '[data-tutorial="settings-nav-profile"]', delay: 400 },
-      },
-      // -- Pipeline --
-      {
-        target: 'settings-pipeline',
-        title: 'Etapas do Pipeline',
-        description: 'Personalize as **etapas do seu funil** de vendas:\n\n• **Adicione etapas** — crie quantas forem necessárias (ex: Novo Lead, Em Contato, Agendado, Fechado)\n• **Renomeie** — use termos que fazem sentido para sua equipe\n• **Reordene** — arraste para mudar a ordem do funil\n• **Cores** — defina cores visuais para cada etapa\n\n**Importante:** As etapas do pipeline aparecem em todo o CRM — na lista de leads, no kanban e nos relatórios.',
-        position: 'left',
-        action: { type: 'click', selector: '[data-tutorial="settings-nav-pipeline"]', delay: 400 },
       },
       // -- Fontes --
       {
@@ -1913,7 +1775,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'sidebar',
         title: 'Menu da plataforma',
-        description: 'Este é o **menu lateral** — por ele você navega entre todas as ferramentas disponíveis no seu plano.\n\nEstá organizado em seções:\n\n• **Hub** — ponto de partida e visão geral\n• **Arsenal** — ferramentas comerciais práticas\n• **Trilha** — aprendizado guiado\n• **Meus Materiais** — seus documentos e construções\n• **Athos GS** — IA estratégica da sua clínica\n• **Sessões Táticas** — encontros ao vivo',
+        description: 'Este é o **menu lateral** — por ele você navega entre todas as ferramentas disponíveis no seu plano.\n\nEstá organizado em seções:\n\n• **Hub** — ponto de partida e visão geral\n• **Jornada** — sua jornada personalizada de implementação\n• **Arsenal** — ferramentas e aulas comerciais práticas\n• **Meus Materiais** — seus documentos e construções\n• **Athos GS** — IA estratégica da sua clínica\n• **Sessões Táticas** — encontros ao vivo',
       },
       // ── 2. Hub ──────────────────────────────────────────────────────────────
       {
@@ -1929,12 +1791,12 @@ export const tutorials: Tutorial[] = [
         description: 'O **Arsenal** é a sua caixa de ferramentas comerciais — construções prontas que transformam conhecimento em ação.\n\nOrganizado por categorias:\n\n• **Estratégia de captação** — anúncios, scripts, fluxos\n• **Qualificação** — filtros, argumentos, objeções\n• **Fechamento** — propostas, follow-up, reativação\n\nCada ferramenta tem uma construção que você preenche e salva em **Meus Materiais**.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-arsenal"]', delay: 600 },
       },
-      // ── 4. Trilha de Aprendizado ────────────────────────────────────────────
+      // ── 4. Jornada ──────────────────────────────────────────────────────────
       {
-        target: 'trilha-header',
-        title: 'Trilha de Aprendizado',
-        description: 'A **Trilha** é onde você aprende o método completo de captação e conversão — do tráfego até o fechamento.\n\n• Módulos em **vídeo** com materiais complementares\n• Progresso salvo **automaticamente**\n• Conteúdo dividido em **pilares** que desbloqueiam em sequência\n\n**Dica:** Assista na ordem. Cada pilar é pré-requisito para o próximo.',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-trilha"]', delay: 600 },
+        target: 'jornada-header',
+        title: 'Jornada Personalizada',
+        description: 'A **Jornada** é o seu plano de implementação personalizado — criado pelo Athos GS com base no seu diagnóstico.\n\n• Dividida em **etapas** com prazo e passos concretos\n• Cada passo vinculado a uma **ferramenta ou aula** do Arsenal\n• Etapas desbloqueiam em sequência — conclua uma para avançar\n\n**Dica:** Siga a ordem. Cada etapa concluída desbloqueia a próxima.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-jornada"]', delay: 600 },
       },
       // ── 5. Meus Materiais ───────────────────────────────────────────────────
       {
@@ -1946,7 +1808,7 @@ export const tutorials: Tutorial[] = [
       // ── 6. Athos GS ─────────────────────────────────────────────────────────
       {
         target: 'sidebar-os',
-        title: 'Athos GS — Descompliquei OS',
+        title: 'Athos GS',
         description: 'O **Athos GS** é a sua IA estratégica — treinada com o método Descompliquei e com os dados da sua clínica.\n\nUse para:\n\n• Tirar dúvidas sobre estratégia comercial\n• Analisar situações e tomar decisões\n• Criar materiais, scripts e planos de ação\n• Revisar o que está funcionando e o que não está\n\nO Athos conhece o seu **Diagnóstico Estratégico** — as conversas são contextualizadas para a realidade da sua clínica.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-os"]', delay: 600 },
       },
@@ -1961,7 +1823,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'hub-tools',
         title: 'Tour concluído!',
-        description: 'Agora você conhece todas as seções da plataforma.\n\n**Por onde começar:**\n\n• Explore o **Arsenal** e complete as construções da sua clínica\n• Assista os módulos da **Trilha** na ordem\n• Use o **Athos GS** sempre que precisar de orientação estratégica\n• Configure o **CRM** para gerenciar seus leads\n\nVocê pode refazer este tour a qualquer momento pela Central de Ajuda.',
+        description: 'Agora você conhece todas as seções da plataforma.\n\n**Por onde começar:**\n\n• Siga os passos da sua **Jornada** — cada um tem uma ação concreta vinculada\n• Explore o **Arsenal** e complete as construções da sua clínica\n• Use o **Athos GS** sempre que precisar de orientação estratégica\n• Configure o **CRM** para gerenciar seus leads\n\nVocê pode refazer este tour a qualquer momento pela Central de Ajuda.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 600 },
       },
     ],

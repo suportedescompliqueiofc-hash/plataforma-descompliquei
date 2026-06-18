@@ -9,9 +9,10 @@ export interface DraftPasso {
   dbId?: string;
   titulo: string;
   descricao: string;
-  tipo: 'acao_livre' | 'ferramenta_arsenal' | 'categoria_arsenal';
+  tipo: 'acao_livre' | 'ferramenta_arsenal' | 'categoria_arsenal' | 'aula_arsenal';
   ferramenta_id: string | null;
   categoria_id: string | null;
+  aula_id: string | null;
   prazo_dias: number | null;
   obrigatorio: boolean;
   concluido: boolean;
@@ -41,6 +42,7 @@ export interface JornadaResumo {
   updated_at: string;
   perfis: { nome_completo: string; email: string } | null;
   _progress?: { total: number; done: number };
+  _stages?: { total: number; currentIndex: number; currentTitle: string | null };
 }
 
 export interface JornadaFull {
@@ -86,15 +88,36 @@ export function useAdminJornadas() {
         .select(`
           id, user_id, titulo, status, gerada_por, created_at, updated_at,
           perfis ( nome_completo, email ),
-          jornada_estagios ( jornada_passos ( concluido ) )
+          jornada_estagios ( id, titulo, ordem, jornada_passos ( concluido, obrigatorio ) )
         `)
         .order('updated_at', { ascending: false });
       if (error) throw error;
       return (data ?? []).map((j: any) => {
-        const passos = (j.jornada_estagios ?? []).flatMap((e: any) => e.jornada_passos ?? []);
+        const estagios = [...(j.jornada_estagios ?? [])].sort((a: any, b: any) => a.ordem - b.ordem);
+
+        // Progress: all passos across all stages
+        const passos = estagios.flatMap((e: any) => e.jornada_passos ?? []);
         const total = passos.length;
         const done = passos.filter((p: any) => p.concluido).length;
-        return { ...j, jornada_estagios: undefined, _progress: { total, done } } as JornadaResumo;
+
+        // Current stage: first stage where not all required (or all) passos are done
+        const totalEstagios = estagios.length;
+        let currentIndex = totalEstagios; // all done sentinel
+        let currentTitle: string | null = null;
+        for (let i = 0; i < estagios.length; i++) {
+          const ep = estagios[i].jornada_passos ?? [];
+          const required = ep.filter((p: any) => p.obrigatorio);
+          const check = required.length > 0 ? required : ep;
+          const allDone = check.length === 0 || check.every((p: any) => p.concluido);
+          if (!allDone) { currentIndex = i; currentTitle = estagios[i].titulo; break; }
+        }
+
+        return {
+          ...j,
+          jornada_estagios: undefined,
+          _progress: { total, done },
+          _stages: { total: totalEstagios, currentIndex, currentTitle },
+        } as JornadaResumo;
       });
     },
     staleTime: 30_000,
@@ -230,6 +253,7 @@ export function useSaveJornadaEstrutura() {
           tipo: p.tipo,
           ferramenta_id: p.tipo === 'ferramenta_arsenal' ? p.ferramenta_id : null,
           categoria_id: p.tipo === 'categoria_arsenal' ? p.categoria_id : null,
+          aula_id: p.tipo === 'aula_arsenal' ? p.aula_id : null,
           prazo_dias: p.prazo_dias,
           obrigatorio: p.obrigatorio,
           ...(p.dbId ? {} : { concluido: false }),
@@ -297,9 +321,10 @@ export function jornadaToDraft(jornada: JornadaFull): DraftEstagio[] {
       dbId: p.id,
       titulo: p.titulo,
       descricao: p.descricao ?? '',
-      tipo: p.tipo,
+      tipo: p.tipo as DraftPasso['tipo'],
       ferramenta_id: p.ferramenta_id,
       categoria_id: (p as any).categoria_id ?? null,
+      aula_id: (p as any).aula_id ?? null,
       prazo_dias: p.prazo_dias,
       obrigatorio: p.obrigatorio,
       concluido: p.concluido,

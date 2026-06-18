@@ -18,13 +18,6 @@ interface Lead {
   telefone?: string;
   criado_em: string;
   atualizado_em?: string;
-  posicao_pipeline?: number;
-}
-
-interface Stage {
-  posicao_ordem: number;
-  nome: string;
-  cor?: string | null;
 }
 
 interface DashboardLeadsModalProps {
@@ -32,10 +25,9 @@ interface DashboardLeadsModalProps {
   onClose: () => void;
   title: string;
   leads: Lead[];
-  stages: Stage[];
 }
 
-export function DashboardLeadsModal({ open, onClose, title, leads, stages }: DashboardLeadsModalProps) {
+export function DashboardLeadsModal({ open, onClose, title, leads }: DashboardLeadsModalProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -51,16 +43,6 @@ export function DashboardLeadsModal({ open, onClose, title, leads, stages }: Das
     const dateB = b.atualizado_em || b.criado_em;
     return dateB.localeCompare(dateA);
   });
-
-  const getStageName = (pos?: number) => {
-    if (!pos || !stages?.length) return '—';
-    return stages.find(s => s.posicao_ordem === pos)?.nome ?? '—';
-  };
-
-  const getStageColor = (pos?: number) => {
-    if (!pos || !stages?.length) return '#94a3b8';
-    return stages.find(s => s.posicao_ordem === pos)?.cor ?? '#94a3b8';
-  };
 
   const getInitials = (nome?: string) => {
     if (!nome) return '?';
@@ -111,17 +93,11 @@ export function DashboardLeadsModal({ open, onClose, title, leads, stages }: Das
           )}
           onClick={() => setSelectedLead(lead)}
         >
-          <div
-            className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
-            style={{ backgroundColor: getStageColor(lead.posicao_pipeline) }}
-          >
+          <div className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-muted-foreground/30 flex-shrink-0">
             {getInitials(lead.nome)}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[12px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
-            <p className="text-[10px] truncate" style={{ color: getStageColor(lead.posicao_pipeline) }}>
-              {getStageName(lead.posicao_pipeline)}
-            </p>
             <p className="text-[10px] text-muted-foreground truncate">
               {format(new Date(lead.atualizado_em || lead.criado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
             </p>
@@ -191,10 +167,7 @@ export function DashboardLeadsModal({ open, onClose, title, leads, stages }: Das
           >
             {/* Banner: lead + tirar das métricas */}
             <div className="flex items-center gap-2.5 px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
-              <div
-                className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                style={{ backgroundColor: getStageColor(viewingLead.posicao_pipeline) }}
-              >
+              <div className="h-7 w-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white bg-muted-foreground/30 shrink-0">
                 {getInitials(viewingLead.nome)}
               </div>
               <div className="flex-1 min-w-0">
@@ -270,10 +243,7 @@ export function DashboardLeadsModal({ open, onClose, title, leads, stages }: Das
                   className="flex items-center gap-3 py-3 px-5 hover:bg-muted/30 transition-colors cursor-pointer"
                   onClick={() => setSelectedLead(lead)}
                 >
-                  <div
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
-                    style={{ backgroundColor: getStageColor(lead.posicao_pipeline) }}
-                  >
+                  <div className="h-8 w-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white bg-muted-foreground/30 flex-shrink-0">
                     {getInitials(lead.nome)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -281,9 +251,6 @@ export function DashboardLeadsModal({ open, onClose, title, leads, stages }: Das
                     <p className="text-[11px] text-muted-foreground truncate">{lead.telefone || '—'}</p>
                   </div>
                   <div className="text-right flex-shrink-0 mr-1">
-                    <p className="text-[11px] font-medium" style={{ color: getStageColor(lead.posicao_pipeline) }}>
-                      {getStageName(lead.posicao_pipeline)}
-                    </p>
                     <p className="text-[10px] text-muted-foreground">
                       {format(new Date(lead.atualizado_em || lead.criado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
                     </p>

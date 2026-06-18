@@ -46,28 +46,20 @@ function formatPhone(telefone: string): string {
   return digits.startsWith('55') && digits.length >= 12 ? digits : `55${digits}`;
 }
 
-interface NotifConfig {
-  ativa: boolean;
-  antecedencia_minutos: number;
-  canal: string;
-  destinatario: string;
-  template: string;
-}
+// ── Lê o schema atual do frontend ──────────────────────────────
+// O frontend salva: notif_ativa (bool), lembretes (jsonb [{ativo, minutos_antes}]),
+// mensagem_lembrete (text). A função retorna um array de lembretes ativos com
+// o template global preenchido.
+function extrairLembretes(config: any): { antecedencia_minutos: number; template: string }[] {
+  if (!config.notif_ativa) return [];
 
-function extrairLembretesConfig(config: any): NotifConfig[] {
-  const lembretes: NotifConfig[] = [];
-  for (const i of [1, 2, 3]) {
-    if (config[`notif_${i}_ativa`]) {
-      lembretes.push({
-        ativa: true,
-        antecedencia_minutos: config[`notif_${i}_antecedencia_minutos`],
-        canal: config[`notif_${i}_canal`] || 'whatsapp',
-        destinatario: config[`notif_${i}_destinatario`] || 'lead',
-        template: config[`notif_${i}_template`] || '',
-      });
-    }
-  }
-  return lembretes;
+  const lembretes: { ativo: boolean; minutos_antes: number }[] =
+    Array.isArray(config.lembretes) ? config.lembretes : [];
+  const template = config.mensagem_lembrete || '';
+
+  return lembretes
+    .filter((l) => l.ativo && l.minutos_antes > 0)
+    .map((l) => ({ antecedencia_minutos: l.minutos_antes, template }));
 }
 
 serve(async (req) => {
@@ -86,6 +78,7 @@ serve(async (req) => {
     console.log('[process-appointment-notifications] Iniciando verificação...');
     const agora = new Date();
 
+    // Busca agendamentos futuros pendentes
     const { data: agendamentos, error: agErr } = await supabaseAdmin
       .from('agendamentos')
       .select('id, organization_id, lead_id, titulo, data_hora_inicio, status')
@@ -105,13 +98,15 @@ serve(async (req) => {
 
     const orgIds = [...new Set(agendamentos.map((a) => a.organization_id))];
 
+    // Configs de notificação por org
     const { data: configs } = await supabaseAdmin
       .from('agendamento_config_notificacoes')
-      .select('*')
+      .select('organization_id, notif_ativa, lembretes, mensagem_lembrete')
       .in('organization_id', orgIds);
 
     const configMap = new Map((configs || []).map((c) => [c.organization_id, c]));
 
+    // Conexões WhatsApp ativas por org
     const { data: connections } = await supabaseAdmin
       .from('whatsapp_connections')
       .select('organization_id, uazapi_url, uazapi_token')
@@ -127,53 +122,37 @@ serve(async (req) => {
         continue;
       }
 
-      const lembretes = extrairLembretesConfig(config);
+      const lembretes = extrairLembretes(config);
       if (lembretes.length === 0) continue;
 
       const dataInicio = new Date(ag.data_hora_inicio);
 
       for (const lembrete of lembretes) {
-        const tipo = `lembrete_${lembrete.antecedencia_minutos}`;
         const momentoEnvio = new Date(dataInicio.getTime() - lembrete.antecedencia_minutos * 60 * 1000);
         const diffMs = Math.abs(agora.getTime() - momentoEnvio.getTime());
-        const dentroJanela = diffMs <= 3 * 60 * 1000;
+        // Janela de 5 minutos (intervalo do cron) para não perder nem duplicar
+        const dentroJanela = diffMs <= 5 * 60 * 1000;
 
         if (!dentroJanela) continue;
 
         resumo.processados++;
 
+        // Dedup: já foi enviado ou está pendente para este agendamento + antecedência?
         const { data: jaEnviado } = await supabaseAdmin
           .from('agendamento_notificacoes')
           .select('id')
           .eq('agendamento_id', ag.id)
           .eq('antecedencia_minutos', lembrete.antecedencia_minutos)
-          .in('status', ['enviado', 'pendente'])
+          .in('status', ['enviado', 'pendente', 'cancelado'])
           .limit(1);
 
         if (jaEnviado && jaEnviado.length > 0) {
-          console.log(`[process-appointment-notifications] ${tipo} já enviado para agendamento ${ag.id}, pulando.`);
-          continue;
-        }
-
-        if (lembrete.canal !== 'whatsapp' && lembrete.canal !== 'ambos') {
-          console.log(`[process-appointment-notifications] Canal ${lembrete.canal} não é WhatsApp, registrando apenas.`);
-          await supabaseAdmin.from('agendamento_notificacoes').insert({
-            agendamento_id: ag.id,
-            organization_id: ag.organization_id,
-            tipo_destinatario: lembrete.destinatario,
-            canal: lembrete.canal,
-            antecedencia_minutos: lembrete.antecedencia_minutos,
-            mensagem_template: lembrete.template,
-            status: 'enviado',
-            enviado_em: agora.toISOString(),
-            data_hora_envio: momentoEnvio.toISOString(),
-          });
-          resumo.enviados++;
+          console.log(`[process-appointment-notifications] Lembrete de ${lembrete.antecedencia_minutos}min já enviado para agendamento ${ag.id}, pulando.`);
           continue;
         }
 
         if (!ag.lead_id) {
-          console.log(`[process-appointment-notifications] Agendamento ${ag.id} sem lead_id, pulando envio WhatsApp.`);
+          console.log(`[process-appointment-notifications] Agendamento ${ag.id} sem lead_id, pulando.`);
           continue;
         }
 
@@ -184,15 +163,16 @@ serve(async (req) => {
           .single();
 
         if (!lead || !lead.telefone) {
-          console.log(`[process-appointment-notifications] Lead ${ag.lead_id} sem telefone, pulando.`);
-          await supabaseAdmin.from('agendamento_notificacoes').insert({
-            agendamento_id: ag.id,
-            organization_id: ag.organization_id,
-            tipo_destinatario: lembrete.destinatario,
-            canal: 'whatsapp',
+          console.log(`[process-appointment-notifications] Lead ${ag.lead_id} sem telefone.`);
+          await registrarLog(supabaseAdmin, {
+            agendamento_id: ag.id, organization_id: ag.organization_id,
+            lead_id: ag.lead_id, tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
+            status: 'falhou', erro: 'Lead sem telefone',
+          });
+          await registrarDedup(supabaseAdmin, {
+            agendamento_id: ag.id, organization_id: ag.organization_id,
             antecedencia_minutos: lembrete.antecedencia_minutos,
-            status: 'falhou',
-            erro: 'Lead sem telefone',
+            status: 'falhou', erro: 'Lead sem telefone',
             data_hora_envio: momentoEnvio.toISOString(),
           });
           resumo.erros++;
@@ -202,14 +182,15 @@ serve(async (req) => {
         const conn = connMap.get(ag.organization_id);
         if (!conn) {
           console.log(`[process-appointment-notifications] Sem conexão WhatsApp para org ${ag.organization_id}.`);
-          await supabaseAdmin.from('agendamento_notificacoes').insert({
-            agendamento_id: ag.id,
-            organization_id: ag.organization_id,
-            tipo_destinatario: lembrete.destinatario,
-            canal: 'whatsapp',
+          await registrarLog(supabaseAdmin, {
+            agendamento_id: ag.id, organization_id: ag.organization_id,
+            lead_id: lead.id, tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
+            status: 'falhou', erro: 'Sem conexão WhatsApp ativa',
+          });
+          await registrarDedup(supabaseAdmin, {
+            agendamento_id: ag.id, organization_id: ag.organization_id,
             antecedencia_minutos: lembrete.antecedencia_minutos,
-            status: 'falhou',
-            erro: 'Sem conexão WhatsApp ativa',
+            status: 'falhou', erro: 'Sem conexão WhatsApp ativa',
             data_hora_envio: momentoEnvio.toISOString(),
           });
           resumo.erros++;
@@ -218,12 +199,10 @@ serve(async (req) => {
 
         const vars = {
           nome: lead.nome || 'Cliente',
-          nome_lead: lead.nome || 'Cliente',
           data: formatDatePtBR(dataInicio),
           hora: formatHora(dataInicio),
-          horario: formatHora(dataInicio),
           tempo: formatTempoRelativo(lembrete.antecedencia_minutos),
-          titulo: ag.titulo || 'Reunião',
+          titulo: ag.titulo || 'Atendimento',
         };
 
         const mensagem = substituirVariaveis(lembrete.template, vars);
@@ -232,9 +211,10 @@ serve(async (req) => {
 
         let envioStatus = 'enviado';
         let envioErro: string | null = null;
+        let waMessageId: string | null = null;
 
         try {
-          console.log(`[process-appointment-notifications] Enviando ${tipo} para ${phoneFormatted} (agendamento ${ag.id})`);
+          console.log(`[process-appointment-notifications] Enviando lembrete de ${lembrete.antecedencia_minutos}min para ${phoneFormatted} (ag ${ag.id})`);
 
           const response = await fetch(`${uazapiUrl}/send/text`, {
             method: 'POST',
@@ -243,10 +223,7 @@ serve(async (req) => {
               'Accept': 'application/json',
               'token': conn.uazapi_token,
             },
-            body: JSON.stringify({
-              number: phoneFormatted,
-              text: mensagem,
-            }),
+            body: JSON.stringify({ number: phoneFormatted, text: mensagem }),
           });
 
           if (!response.ok) {
@@ -254,8 +231,9 @@ serve(async (req) => {
             throw new Error(`UAZAPI ${response.status}: ${errorText.substring(0, 200)}`);
           }
 
-          const uazData = await response.json();
-          console.log(`[process-appointment-notifications] Enviado com sucesso: ${JSON.stringify(uazData).substring(0, 100)}`);
+          const uazData = await response.json().catch(() => ({}));
+          waMessageId = uazData?.MessageID || uazData?.id || uazData?.messageId || null;
+          console.log(`[process-appointment-notifications] Enviado: ${JSON.stringify(uazData).substring(0, 100)}`);
           resumo.enviados++;
         } catch (sendErr: any) {
           console.error(`[process-appointment-notifications] Erro ao enviar: ${sendErr.message}`);
@@ -264,23 +242,48 @@ serve(async (req) => {
           resumo.erros++;
         }
 
-        await supabaseAdmin.from('agendamento_notificacoes').insert({
+        if (envioStatus === 'enviado') {
+          const { error: msgErr } = await supabaseAdmin.from('mensagens').insert({
+            lead_id: lead.id,
+            organization_id: ag.organization_id,
+            conteudo: mensagem,
+            direcao: 'saida',
+            remetente: 'bot',
+            tipo_conteudo: 'texto',
+            id_mensagem: waMessageId,
+          });
+          if (msgErr) console.error('[process-appointment-notifications] Erro ao salvar mensagem:', msgErr.message);
+        }
+
+        const now = agora.toISOString();
+
+        // Registra em agendamento_notif_log (exibido no histórico do frontend)
+        await registrarLog(supabaseAdmin, {
           agendamento_id: ag.id,
           organization_id: ag.organization_id,
-          tipo_destinatario: lembrete.destinatario,
-          canal: 'whatsapp',
+          lead_id: lead.id,
+          tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
+          status: envioStatus,
+          erro: envioErro,
+          enviado_em: envioStatus === 'enviado' ? now : null,
+        });
+
+        // Registra em agendamento_notificacoes (usado para dedup nas próximas execuções)
+        await registrarDedup(supabaseAdmin, {
+          agendamento_id: ag.id,
+          organization_id: ag.organization_id,
           antecedencia_minutos: lembrete.antecedencia_minutos,
           mensagem_template: mensagem,
           status: envioStatus,
-          enviado_em: envioStatus === 'enviado' ? agora.toISOString() : null,
           erro: envioErro,
+          enviado_em: envioStatus === 'enviado' ? now : null,
           data_hora_envio: momentoEnvio.toISOString(),
         });
 
         resumo.detalhes.push({
           agendamento_id: ag.id,
           lead: lead.nome,
-          tipo,
+          tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
           status: envioStatus,
           erro: envioErro,
         });
@@ -300,3 +303,58 @@ serve(async (req) => {
     });
   }
 });
+
+// ── Helpers de persistência ────────────────────────────────────
+
+async function registrarLog(
+  db: ReturnType<typeof createClient>,
+  data: {
+    agendamento_id: string;
+    organization_id: string;
+    lead_id: string | null;
+    tipo: string;
+    status: string;
+    erro?: string | null;
+    enviado_em?: string | null;
+  }
+) {
+  const { error } = await db.from('agendamento_notif_log').insert({
+    agendamento_id: data.agendamento_id,
+    organization_id: data.organization_id,
+    lead_id: data.lead_id,
+    tipo: data.tipo,
+    canal: 'whatsapp',
+    status: data.status,
+    erro: data.erro ?? null,
+    enviado_em: data.enviado_em ?? null,
+  });
+  if (error) console.error('[registrarLog] Erro:', error.message);
+}
+
+async function registrarDedup(
+  db: ReturnType<typeof createClient>,
+  data: {
+    agendamento_id: string;
+    organization_id: string;
+    antecedencia_minutos: number;
+    mensagem_template?: string;
+    status: string;
+    erro?: string | null;
+    enviado_em?: string | null;
+    data_hora_envio: string;
+  }
+) {
+  const { error } = await db.from('agendamento_notificacoes').insert({
+    agendamento_id: data.agendamento_id,
+    organization_id: data.organization_id,
+    tipo_destinatario: 'lead',
+    canal: 'whatsapp',
+    antecedencia_minutos: data.antecedencia_minutos,
+    mensagem_template: data.mensagem_template ?? null,
+    status: data.status,
+    erro: data.erro ?? null,
+    enviado_em: data.enviado_em ?? null,
+    data_hora_envio: data.data_hora_envio,
+  });
+  if (error) console.error('[registrarDedup] Erro:', error.message);
+}

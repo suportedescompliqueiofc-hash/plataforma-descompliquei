@@ -6,7 +6,7 @@ import {
   Target, TrendingUp, Calendar, AlertTriangle,
   CheckCircle2, XCircle, Plus, Edit2, Loader2, ArrowRight, BarChart3,
   DollarSign, Users, CalendarCheck, Award, Zap, SlidersHorizontal, History, LineChart,
-  Clock, Flame, Gauge, ArrowUpRight, ChevronRight, ChevronLeft, ChevronDown, Activity, Trash2,
+  Clock, Flame, Gauge, ArrowUpRight, ChevronRight, ChevronLeft, ChevronDown, Activity, Trash2, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   AreaChart, Area,
   XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Legend, Line,
@@ -201,23 +201,16 @@ export default function Metas() {
   const [formFim, setFormFim] = useState("");
   const [formReceita, setFormReceita] = useState(50000);
   const [formTicket, setFormTicket] = useState(5000);
-  const [formCpl, setFormCpl] = useState(40);
   const [formTxMql, setFormTxMql] = useState(60);
   const [formTxAgend, setFormTxAgend] = useState(40);
   const [formTxConv, setFormTxConv] = useState(25);
   const [formLoading, setFormLoading] = useState(false);
-  const [formInvesteMarketing, setFormInvesteMarketing] = useState(true);
 
-  // Preview do funil — adapta com/sem marketing
+  // Preview do funil
   const previewFechamentos = formTicket > 0 ? formReceita / formTicket : 0;
   const previewReunioes = formTxConv > 0 ? previewFechamentos / (formTxConv / 100) : 0;
-  const previewMqls = formInvesteMarketing
-    ? (formTxAgend > 0 ? previewReunioes / (formTxAgend / 100) : 0)
-    : previewReunioes; // sem marketing, não tem etapa MQL
-  const previewLeads = formInvesteMarketing
-    ? (formTxMql > 0 ? previewMqls / (formTxMql / 100) : 0)
-    : (formTxAgend > 0 ? previewReunioes / (formTxAgend / 100) : 0); // sem MQL: Leads → Agendamentos direto
-  const previewBucket = formInvesteMarketing ? previewLeads * formCpl : 0;
+  const previewMqls = formTxAgend > 0 ? previewReunioes / (formTxAgend / 100) : 0;
+  const previewLeads = formTxMql > 0 ? previewMqls / (formTxMql / 100) : 0;
 
   // ── Simulador ──────────────────────────────────────────
 
@@ -250,9 +243,8 @@ export default function Metas() {
         data_fim: formFim,
         meta_receita: formReceita,
         ticket_medio: formTicket,
-        // Sem marketing: CPL=0 e tx_mql=100 (todos leads passam direto)
-        cpl_meta: formInvesteMarketing ? formCpl : 0,
-        tx_mql: formInvesteMarketing ? formTxMql : 100,
+        cpl_meta: 0,
+        tx_mql: formTxMql,
         tx_agendamento: formTxAgend,
         tx_conversao: formTxConv,
       };
@@ -300,9 +292,8 @@ export default function Metas() {
     setFormPeriodo("mensal");
     setFormInicio(format(startOfMonth(now), "yyyy-MM-dd"));
     setFormFim(format(endOfMonth(now), "yyyy-MM-dd"));
-    setFormReceita(50000); setFormTicket(5000); setFormCpl(40);
+    setFormReceita(50000); setFormTicket(5000);
     setFormTxMql(60); setFormTxAgend(40); setFormTxConv(25);
-    setFormInvesteMarketing(true);
     setModalMeta(true);
   }
 
@@ -312,10 +303,8 @@ export default function Metas() {
     setFormNome(meta.nome); setFormPeriodo(meta.periodo_tipo);
     setFormInicio(meta.data_inicio); setFormFim(meta.data_fim);
     setFormReceita(Number(meta.meta_receita)); setFormTicket(Number(meta.ticket_medio));
-    setFormCpl(Number(meta.cpl_meta)); setFormTxMql(Number(meta.tx_mql));
+    setFormTxMql(Number(meta.tx_mql));
     setFormTxAgend(Number(meta.tx_agendamento)); setFormTxConv(Number(meta.tx_conversao));
-    // Detecta se investe em marketing: cpl_meta > 0 significa que sim
-    setFormInvesteMarketing(Number(meta.cpl_meta) > 0);
     setModalMeta(true);
   }
 
@@ -425,7 +414,6 @@ export default function Metas() {
   // ── Computed ────────────────────────────────────────────
 
   const m = meta;
-  const investeMarketing = Number(m.cpl_meta) > 0;
   const diasRestantes = Math.max(Number(m.dias_restantes) || 0, 0);
   const diasDecorridos = Math.max(Number(m.dias_decorridos) || 0, 0);
   const totalDias = Number(m.total_dias) || 30;
@@ -436,20 +424,15 @@ export default function Metas() {
   const reunioesT = Number(m.reunioes_total) || 0;
   const fechamentosT = Number(m.fechamentos_total) || 0;
   const receitaT = Number(m.receita_total) || 0;
-  const bucketT = Number(m.bucket_total) || 0;
-
   const pctLeads = Number(m.pct_leads) || 0;
   const pctMqls = Number(m.pct_mqls) || 0;
   const pctReunioes = Number(m.pct_reunioes) || 0;
   const pctFechamentos = Number(m.pct_fechamentos) || 0;
   const pctReceita = Number(m.pct_receita) || 0;
-  const pctBucket = Number(m.meta_bucket) > 0 ? Math.round((bucketT / Number(m.meta_bucket)) * 1000) / 10 : 0;
 
   const txMqlReal = leadsT > 0 ? Math.round((mqlsT / leadsT) * 1000) / 10 : 0;
   const txAgendReal = mqlsT > 0 ? Math.round((reunioesT / mqlsT) * 1000) / 10 : 0;
   const txConvReal = reunioesT > 0 ? Math.round((fechamentosT / reunioesT) * 1000) / 10 : 0;
-  const cplReal = leadsT > 0 ? Math.round((bucketT / leadsT) * 100) / 100 : 0;
-
   const leadsHoje = Number(m.leads_hoje) || 0;
   const mqlsHoje = Number(m.mqls_hoje) || 0;
   const leadsSemana = Number(m.leads_semana) || 0;
@@ -506,28 +489,10 @@ export default function Metas() {
               </div>
             </div>
 
-            {/* ── Marketing toggle ── */}
-            <div data-tutorial="meta-field-marketing" className="rounded-xl border border-border/40 bg-muted/15 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={cn("p-2 rounded-lg transition-colors", formInvesteMarketing ? "bg-primary/10" : "bg-muted")}>
-                    <DollarSign className={cn("h-4 w-4 transition-colors", formInvesteMarketing ? "text-primary" : "text-muted-foreground")} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-foreground">Investe em marketing pago?</p>
-                    <p className="text-[11px] text-muted-foreground/60">
-                      {formInvesteMarketing ? "Funil completo com CPL, Bucket e MQL" : "Funil simplificado: Leads → Agendamentos → Fechamentos"}
-                    </p>
-                  </div>
-                </div>
-                <Switch checked={formInvesteMarketing} onCheckedChange={setFormInvesteMarketing} />
-              </div>
-            </div>
-
             {/* ── Valores ── */}
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Valores</p>
-              <div className={cn("grid gap-3", formInvesteMarketing ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-1 sm:grid-cols-2")}>
+              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
                 <div data-tutorial="meta-field-receita" className="space-y-1.5">
                   <Label className="text-[11px] font-medium text-muted-foreground/70">Meta Receita</Label>
                   <CurrencyInput
@@ -537,23 +502,13 @@ export default function Metas() {
                   />
                 </div>
                 <div data-tutorial="meta-field-ticket" className="space-y-1.5">
-                  <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Medio</Label>
+                  <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Médio</Label>
                   <CurrencyInput
                     value={formTicket}
                     onValueChange={(v) => setFormTicket(v ?? 0)}
                     className="h-10 text-sm rounded-lg border-border/60"
                   />
                 </div>
-                {formInvesteMarketing && (
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-medium text-muted-foreground/70">CPL Meta</Label>
-                    <CurrencyInput
-                      value={formCpl}
-                      onValueChange={(v) => setFormCpl(v ?? 0)}
-                      className="h-10 text-sm rounded-lg border-border/60"
-                    />
-                  </div>
-                )}
               </div>
             </div>
 
@@ -561,21 +516,13 @@ export default function Metas() {
             <div data-tutorial="meta-field-taxas" className="rounded-xl border border-border/40 bg-muted/15 p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <div className="p-1 rounded-md bg-muted"><Target className="h-3 w-3 text-muted-foreground" /></div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {formInvesteMarketing ? "Taxas do Funil" : "Taxas de Conversao"}
-                </p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Taxas do Funil</p>
               </div>
-              {(formInvesteMarketing
-                ? [
-                    { label: "Taxa MQL", desc: "Leads qualificados pelo marketing", value: formTxMql, set: setFormTxMql },
-                    { label: "Taxa Agendamento", desc: "MQLs que agendam", value: formTxAgend, set: setFormTxAgend },
-                    { label: "Taxa Conversao", desc: "Agendados que fecham", value: formTxConv, set: setFormTxConv },
-                  ]
-                : [
-                    { label: "Taxa Agendamento", desc: "Leads que agendam procedimento", value: formTxAgend, set: setFormTxAgend },
-                    { label: "Taxa Conversao", desc: "Agendados que fecham", value: formTxConv, set: setFormTxConv },
-                  ]
-              ).map((s) => (
+              {[
+                { label: "Taxa Qualificação", desc: "Leads qualificados", value: formTxMql, set: setFormTxMql },
+                { label: "Taxa Agendamento", desc: "Qualificados que agendam", value: formTxAgend, set: setFormTxAgend },
+                { label: "Taxa Conversão", desc: "Agendados que fecham", value: formTxConv, set: setFormTxConv },
+              ].map((s) => (
                 <div key={s.label}>
                   <div className="flex items-center justify-between mb-2">
                     <div>
@@ -593,24 +540,14 @@ export default function Metas() {
             <div data-tutorial="meta-field-funil" className="rounded-xl bg-[#1a1a1a] p-5 relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
               <div className="relative">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-4">
-                  {formInvesteMarketing ? "Funil Calculado" : "Projeção Simplificada"}
-                </p>
+                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-4">Funil Calculado</p>
                 <div className="flex items-center justify-between gap-1 text-xs flex-wrap">
-                  {(formInvesteMarketing
-                    ? [
-                        { v: fmtBRL(previewBucket), s: "Bucket" },
-                        { v: Math.round(previewLeads).toString(), s: "Leads" },
-                        { v: Math.round(previewMqls).toString(), s: "MQL" },
-                        { v: Math.round(previewReunioes).toString(), s: "Agend." },
-                        { v: Math.round(previewFechamentos).toString(), s: "Fecham.", accent: true },
-                      ]
-                    : [
-                        { v: Math.round(previewLeads).toString(), s: "Leads" },
-                        { v: Math.round(previewReunioes).toString(), s: "Agend." },
-                        { v: Math.round(previewFechamentos).toString(), s: "Fecham.", accent: true },
-                      ]
-                  ).map((item, i, arr) => (
+                  {[
+                    { v: Math.round(previewLeads).toString(), s: "Leads" },
+                    { v: Math.round(previewMqls).toString(), s: "Qualif." },
+                    { v: Math.round(previewReunioes).toString(), s: "Agend." },
+                    { v: Math.round(previewFechamentos).toString(), s: "Fecham.", accent: true },
+                  ].map((item, i, arr) => (
                     <Fragment key={item.s}>
                       <div className="text-center flex-1 min-w-0">
                         <p className={cn("text-base sm:text-lg font-extrabold font-display tabular-nums leading-none", item.accent ? "text-primary" : "text-white")}>{item.v}</p>
@@ -797,12 +734,13 @@ export default function Metas() {
       </div>
 
       {/* ═══ HERO METRIC CARDS ═══ */}
+      <TooltipProvider delayDuration={200}>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Receita", value: fmtBRL(receitaT), meta: `Meta: ${fmtBRL(Number(m.meta_receita))}`, pct: pctReceita, accent: true, icon: DollarSign },
-          { label: "Leads", value: fmtNum(leadsT), meta: `Meta: ${fmtNum(Number(m.meta_leads))}`, pct: pctLeads, icon: Users },
-          { label: "Agendamentos", value: fmtNum(reunioesT), meta: `Meta: ${fmtNum(Number(m.meta_reunioes))}`, pct: pctReunioes, icon: CalendarCheck },
-          { label: "Fechamentos", value: fmtNum(fechamentosT), meta: `Meta: ${fmtNum(Number(m.meta_fechamentos))}`, pct: pctFechamentos, icon: Award },
+          { label: "Receita", value: fmtBRL(receitaT), meta: `Meta: ${fmtBRL(Number(m.meta_receita))}`, pct: pctReceita, accent: true, icon: DollarSign, tooltip: "Soma do valor fechado de todas as vendas no período" },
+          { label: "Leads", value: fmtNum(leadsT), meta: `Meta: ${fmtNum(Number(m.meta_leads))}`, pct: pctLeads, icon: Users, tooltip: "Total de novos leads cadastrados no período" },
+          { label: "Agendamentos", value: fmtNum(reunioesT), meta: `Meta: ${fmtNum(Number(m.meta_reunioes))}`, pct: pctReunioes, icon: CalendarCheck, tooltip: "Leads únicos com pelo menos 1 agendamento realizado no período" },
+          { label: "Fechamentos", value: fmtNum(fechamentosT), meta: `Meta: ${fmtNum(Number(m.meta_fechamentos))}`, pct: pctFechamentos, icon: Award, tooltip: "Leads únicos com pelo menos 1 venda fechada no período" },
         ].map((card) => (
           <div
             key={card.label}
@@ -821,7 +759,17 @@ export default function Metas() {
                 <card.icon className={cn("h-4 w-4", card.accent ? "text-primary" : "text-muted-foreground")} />
               </div>
             </div>
-            <p className={cn("text-[9px] font-bold uppercase tracking-widest", card.accent ? "text-primary/60" : "text-muted-foreground")}>{card.label}</p>
+            <div className="flex items-center gap-1">
+              <p className={cn("text-[9px] font-bold uppercase tracking-widest", card.accent ? "text-primary/60" : "text-muted-foreground")}>{card.label}</p>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className={cn("h-3 w-3 cursor-help shrink-0", card.accent ? "text-primary/30" : "text-muted-foreground/30")} />
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px] text-xs">
+                  {card.tooltip}
+                </TooltipContent>
+              </Tooltip>
+            </div>
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-display mt-2 tabular-nums">{card.value}</p>
             <p className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{card.meta}</p>
             <div className="flex items-center gap-2 mt-3">
@@ -836,20 +784,21 @@ export default function Metas() {
           </div>
         ))}
       </div>
+      <div className="flex items-center gap-2 mt-2 px-1">
+        <Info className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
+        <p className="text-[11px] text-muted-foreground/50">
+          <span className="font-semibold text-muted-foreground/70">Agendamentos</span> e <span className="font-semibold text-muted-foreground/70">Fechamentos</span> contam <span className="font-semibold text-muted-foreground/70">leads únicos</span> com pelo menos 1 evento realizado no período.
+        </p>
+      </div>
+      </TooltipProvider>
 
       {/* ═══ FUNNEL FLOW — Conversão entre etapas ═══ */}
       <div className="hidden sm:flex items-center justify-center gap-0 -mt-1" data-tutorial="metas-funnel">
-        {(investeMarketing
-          ? [
-              { label: "MQL", rate: txMqlReal },
-              { label: "Agend.", rate: txAgendReal },
-              { label: "Conv.", rate: txConvReal },
-            ]
-          : [
-              { label: "Agend.", rate: txAgendReal },
-              { label: "Conv.", rate: txConvReal },
-            ]
-        ).map((step, i) => (
+        {[
+          { label: "Qualif.", rate: txMqlReal },
+          { label: "Agend.", rate: txAgendReal },
+          { label: "Conv.", rate: txConvReal },
+        ].map((step, i) => (
           <div key={step.label} className="flex items-center gap-2">
             {i === 0 && <div className="w-4" />}
             <div className="flex flex-col items-center px-3 py-1.5">
@@ -918,7 +867,7 @@ export default function Metas() {
                   )}
                 </div>
                 <div className="space-y-3">
-                  {(investeMarketing ? [{ label: "Leads", real: leadsHoje, meta: metaLeadsDia }, { label: "MQLs", real: mqlsHoje, meta: metaMqlsDia }] : [{ label: "Leads", real: leadsHoje, meta: metaLeadsDia }]).map((r) => {
+                  {[{ label: "Leads", real: leadsHoje, meta: metaLeadsDia }, { label: "Qualificados", real: mqlsHoje, meta: metaMqlsDia }].map((r) => {
                     const p = r.meta > 0 ? Math.round((r.real / r.meta) * 100) : 0;
                     return (
                       <div key={r.label}>
@@ -953,7 +902,7 @@ export default function Metas() {
                   )}
                 </div>
                 <div className="space-y-3">
-                  {(investeMarketing ? [{ label: "Leads", real: leadsSemana, meta: metaLeadsSem }, { label: "MQLs", real: mqlsSemana, meta: metaMqlsSem }] : [{ label: "Leads", real: leadsSemana, meta: metaLeadsSem }]).map((r) => {
+                  {[{ label: "Leads", real: leadsSemana, meta: metaLeadsSem }, { label: "Qualificados", real: mqlsSemana, meta: metaMqlsSem }].map((r) => {
                     const p = r.meta > 0 ? Math.round((r.real / r.meta) * 100) : 0;
                     return (
                       <div key={r.label}>
@@ -1052,13 +1001,12 @@ export default function Metas() {
                 </thead>
                 <tbody className="divide-y divide-border/30">
                   {[
-                    ...(investeMarketing ? [{ label: "Taxa MQL", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` }] : []),
-                    { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: investeMarketing ? `${reunioesT}/${mqlsT}` : `${reunioesT}/${leadsT}` },
-                    { label: "Taxa Conversao", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
-                    ...(investeMarketing ? [{ label: "CPL", meta: Number(m.cpl_meta), real: cplReal, isCurrency: true, invertColor: true }] : []),
-                    { label: "Ticket Medio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
+                    { label: "Taxa Qualificação", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` },
+                    { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: `${reunioesT}/${mqlsT}` },
+                    { label: "Taxa Conversão", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
+                    { label: "Ticket Médio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
                   ].map((row) => {
-                    const isGood = row.invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
+                    const isGood = (row as any).invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
                     const isCritical = row.invertColor ? (row.real > row.meta * 1.5 && row.real > 0) : (row.real < row.meta * 0.5 && row.real > 0);
                     const barPct = row.meta > 0 ? Math.min(Math.round((row.real / row.meta) * 100), 150) : 0;
                     const barColor = row.real === 0 ? "#e5e5e5" : isGood ? "#10b981" : isCritical ? "#ef4444" : "#f59e0b";
@@ -1094,14 +1042,13 @@ export default function Metas() {
             {/* Mobile cards */}
             <div className="space-y-2 md:hidden">
               {[
-                ...(investeMarketing ? [{ label: "Taxa MQL", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` }] : []),
-                { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: investeMarketing ? `${reunioesT}/${mqlsT}` : `${reunioesT}/${leadsT}` },
-                { label: "Taxa Conversao", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
-                ...(investeMarketing ? [{ label: "CPL", meta: Number(m.cpl_meta), real: cplReal, isCurrency: true, invertColor: true }] : []),
-                { label: "Ticket Medio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
+                { label: "Taxa Qualificação", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` },
+                { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: `${reunioesT}/${mqlsT}` },
+                { label: "Taxa Conversão", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
+                { label: "Ticket Médio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
               ].map((row) => {
-                const isGood = row.invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
-                const isCritical = row.invertColor ? (row.real > row.meta * 1.5 && row.real > 0) : (row.real < row.meta * 0.5 && row.real > 0);
+                const isGood = (row as any).invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
+                const isCritical = (row as any).invertColor ? (row.real > row.meta * 1.5 && row.real > 0) : (row.real < row.meta * 0.5 && row.real > 0);
                 const barPct = row.meta > 0 ? Math.min(Math.round((row.real / row.meta) * 100), 150) : 0;
                 const barColor = row.real === 0 ? "#e5e5e5" : isGood ? "#10b981" : isCritical ? "#ef4444" : "#f59e0b";
                 return (
@@ -1208,9 +1155,8 @@ export default function Metas() {
                             <td colSpan={7} className="px-5 py-4 bg-muted/10">
                               <div className="flex items-center gap-1.5 text-xs flex-wrap justify-center">
                                 {[
-                                  ...(Number(mt.cpl_meta) > 0 ? [{ l: "Bucket", v: `${fmtBRL(Number(mt.bucket_total))}/${fmtBRL(Number(mt.meta_bucket))}` }] : []),
                                   { l: "Leads", v: `${fmtNum(Number(mt.leads_total))}/${fmtNum(Number(mt.meta_leads))}` },
-                                  ...(Number(mt.cpl_meta) > 0 ? [{ l: "MQL", v: `${fmtNum(Number(mt.mqls_total))}/${fmtNum(Number(mt.meta_mqls))}` }] : []),
+                                  { l: "Qualificados", v: `${fmtNum(Number(mt.mqls_total))}/${fmtNum(Number(mt.meta_mqls))}` },
                                   { l: "Agendamentos", v: `${fmtNum(Number(mt.reunioes_total))}/${fmtNum(Number(mt.meta_reunioes))}` },
                                   { l: "Fechamentos", v: `${fmtNum(Number(mt.fechamentos_total))}/${fmtNum(Number(mt.meta_fechamentos))}` },
                                 ].map((item, i, arr) => (
@@ -1284,10 +1230,9 @@ export default function Metas() {
                       <div className="grid grid-cols-3 gap-3 mt-2">
                         {[
                           { l: "Leads", v: fmtNum(Number(mt.leads_total)), m: fmtNum(Number(mt.meta_leads)) },
-                          ...(Number(mt.cpl_meta) > 0 ? [{ l: "MQL", v: fmtNum(Number(mt.mqls_total)), m: fmtNum(Number(mt.meta_mqls)) }] : []),
+                          { l: "Qualificados", v: fmtNum(Number(mt.mqls_total)), m: fmtNum(Number(mt.meta_mqls)) },
                           { l: "Agendamentos", v: fmtNum(Number(mt.reunioes_total)), m: fmtNum(Number(mt.meta_reunioes)) },
                           { l: "Fechamentos", v: fmtNum(Number(mt.fechamentos_total)), m: fmtNum(Number(mt.meta_fechamentos)) },
-                          ...(Number(mt.cpl_meta) > 0 ? [{ l: "Bucket", v: fmtBRL(Number(mt.bucket_total)), m: fmtBRL(Number(mt.meta_bucket)) }] : []),
                         ].map((item) => (
                           <div key={item.l} className="text-center">
                             <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">{item.l}</p>
@@ -1339,7 +1284,7 @@ export default function Metas() {
                 <tbody className="divide-y divide-border/30">
                   {projecao && [
                     { label: "Leads", meta: Number(m.meta_leads), proj: projecao.leadsProj },
-                    ...(investeMarketing ? [{ label: "MQLs", meta: Number(m.meta_mqls), proj: projecao.mqlsProj }] : []),
+                    { label: "Qualificados", meta: Number(m.meta_mqls), proj: projecao.mqlsProj },
                     { label: "Agendamentos", meta: Number(m.meta_reunioes), proj: projecao.reunioesProj },
                     { label: "Fechamentos", meta: Number(m.meta_fechamentos), proj: projecao.fechamentosProj },
                     { label: "Receita", meta: Number(m.meta_receita), proj: projecao.receitaProj, isCurrency: true },
@@ -1374,7 +1319,7 @@ export default function Metas() {
                 <div className="space-y-5">
                   {[
                     { label: "Leads por dia", value: simLeadsDia, set: setSimLeadsDia, min: 0, max: 50, step: 0.5, fmt: (v: number) => v.toString() },
-                    ...(investeMarketing ? [{ label: "Taxa MQL (%)", value: simTxMql, set: setSimTxMql, min: 1, max: 100, step: 1, fmt: (v: number) => `${v}%` }] : []),
+                    { label: "Taxa Qualificação (%)", value: simTxMql, set: setSimTxMql, min: 1, max: 100, step: 1, fmt: (v: number) => `${v}%` },
                     { label: "Taxa Agendamento (%)", value: simTxAgend, set: setSimTxAgend, min: 1, max: 100, step: 1, fmt: (v: number) => `${v}%` },
                     { label: "Taxa Conversão (%)", value: simTxConv, set: setSimTxConv, min: 1, max: 100, step: 1, fmt: (v: number) => `${v}%` },
                     { label: "Ticket Medio (R$)", value: simTicket, set: setSimTicket, min: 500, max: 50000, step: 500, fmt: (v: number) => fmtBRL(v) },
@@ -1419,7 +1364,7 @@ export default function Metas() {
                     <div className="space-y-4">
                       {[
                         { label: "Leads", meta: Number(m.meta_leads), sim: simulacao.leads },
-                        ...(investeMarketing ? [{ label: "MQLs", meta: Number(m.meta_mqls), sim: simulacao.mqls }] : []),
+                        { label: "Qualificados", meta: Number(m.meta_mqls), sim: simulacao.mqls },
                         { label: "Agendamentos", meta: Number(m.meta_reunioes), sim: simulacao.reunioes },
                         { label: "Fechamentos", meta: Number(m.meta_fechamentos), sim: simulacao.fechamentos },
                         { label: "Receita", meta: Number(m.meta_receita), sim: simulacao.receita, isCurrency: true },

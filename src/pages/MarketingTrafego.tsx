@@ -736,7 +736,7 @@ export default function MarketingTrafego() {
                   <div className="flex items-center gap-4 text-xs text-muted-foreground border-t pt-3">
                     <span>CPL Real: <strong className="text-foreground">{displayValue(ef?.cpl_real)}</strong></span>
                     <span>CPMQL: <strong className="text-foreground">{displayValue(ef?.qualificados && ef.qualificados > 0 ? ef.total_investido / ef.qualificados : null)}</strong>
-                      <InfoTooltip text="Custo por MQL — investimento / qualificados" />
+                      <InfoTooltip text="Custo por Qualificado — investimento / qualificados" />
                     </span>
                     <span>CPR Real: <strong className="text-foreground">{displayValue(ef?.cpa_real)}</strong>
                       <InfoTooltip text="Custo por Reunião — investimento / agendamentos" />

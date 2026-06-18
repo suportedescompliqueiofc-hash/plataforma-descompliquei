@@ -3,11 +3,10 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 interface ModalState {
   title: string;
   leads: any[];
-  stages: any[];
 }
 
 interface DashboardLeadsModalContextValue {
-  openModal: (title: string, leads: any[], stages?: any[]) => void;
+  openModal: (title: string, leads: any[]) => void;
   closeModal: () => void;
   modal: ModalState | null;
 }
@@ -17,8 +16,8 @@ const DashboardLeadsModalContext = createContext<DashboardLeadsModalContextValue
 export function DashboardLeadsModalProvider({ children }: { children: ReactNode }) {
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const openModal = (title: string, leads: any[], stages: any[] = []) => {
-    setModal({ title, leads, stages });
+  const openModal = (title: string, leads: any[]) => {
+    setModal({ title, leads });
   };
 
   const closeModal = () => setModal(null);

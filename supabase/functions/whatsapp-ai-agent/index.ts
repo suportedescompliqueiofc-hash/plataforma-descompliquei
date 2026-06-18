@@ -22,7 +22,7 @@ Sempre responda ao lead com clareza e uma pergunta por vez.
 A IA não fecha, não negocia e não agenda.
 `;
 
-let promptBaseCache: { valor: string; carregadoEm: number } | null = null;
+const promptBaseCache = new Map<string, { valor: string; carregadoEm: number }>();
 const grok = new OpenAI({ apiKey: XAI_API_KEY, baseURL: "https://api.x.ai/v1" });
 const openrouter = new OpenAI({ apiKey: OPENROUTER_API_KEY, baseURL: "https://openrouter.ai/api/v1" });
 const openaiWhisper = new OpenAI({ apiKey: OPENAI_API_KEY });
@@ -42,18 +42,38 @@ function resolveLlmClient(model: string): { client: OpenAI; provider: "openroute
   return { client: grok, provider: "xai" };
 }
 
-async function loadPromptBase(): Promise<string> {
+async function loadPromptBase(orgId?: string): Promise<string> {
+  const cacheKey = orgId ?? "__global__";
   const agora = Date.now();
 
-  if (promptBaseCache && agora - promptBaseCache.carregadoEm < PROMPT_BASE_CACHE_TTL_MS) {
-    return promptBaseCache.valor;
+  const cached = promptBaseCache.get(cacheKey);
+  if (cached && agora - cached.carregadoEm < PROMPT_BASE_CACHE_TTL_MS) {
+    return cached.valor;
   }
 
   try {
+    // Override por org: se existir, tem prioridade absoluta sobre o global
+    if (orgId) {
+      const { data: orgData } = await supabase
+        .from("system_ai_config")
+        .select("valor")
+        .eq("chave", "prompt_base_agente")
+        .eq("organization_id", orgId)
+        .maybeSingle();
+
+      if (typeof orgData?.valor === "string" && orgData.valor.trim()) {
+        const valor = orgData.valor.trim();
+        promptBaseCache.set(cacheKey, { valor, carregadoEm: agora });
+        return valor;
+      }
+    }
+
+    // Fallback: prompt base global (organization_id IS NULL)
     const { data, error } = await supabase
       .from("system_ai_config")
       .select("valor")
       .eq("chave", "prompt_base_agente")
+      .is("organization_id", null)
       .maybeSingle();
 
     const valor = typeof data?.valor === "string" ? data.valor.trim() : "";
@@ -62,15 +82,15 @@ async function loadPromptBase(): Promise<string> {
       if (error) {
         console.error("[AI-Agent] Falha ao carregar prompt base:", error.message);
       }
-      promptBaseCache = { valor: PROMPT_BASE_MINIMO, carregadoEm: agora };
+      promptBaseCache.set(cacheKey, { valor: PROMPT_BASE_MINIMO, carregadoEm: agora });
       return PROMPT_BASE_MINIMO;
     }
 
-    promptBaseCache = { valor, carregadoEm: agora };
+    promptBaseCache.set(cacheKey, { valor, carregadoEm: agora });
     return valor;
   } catch (error) {
     console.error("[AI-Agent] Erro inesperado ao carregar prompt base:", error);
-    promptBaseCache = { valor: PROMPT_BASE_MINIMO, carregadoEm: agora };
+    promptBaseCache.set(cacheKey, { valor: PROMPT_BASE_MINIMO, carregadoEm: agora });
     return PROMPT_BASE_MINIMO;
   }
 }
@@ -690,6 +710,46 @@ async function transcribeAudio(mediaPath: string): Promise<string | null> {
   }
 }
 
+const VISION_MODEL = "google/gemini-2.5-flash-lite";
+
+async function describeImage(mediaPath: string): Promise<string | null> {
+  try {
+    const bucket = "media-mensagens";
+    const cleanPath = mediaPath.startsWith(`${bucket}/`) ? mediaPath.slice(bucket.length + 1) : mediaPath;
+    const { data: blob, error } = await supabase.storage.from(bucket).download(cleanPath);
+    if (error || !blob) {
+      console.error("[AI-Agent] Erro ao baixar imagem:", error?.message, `| path: ${cleanPath}`);
+      return null;
+    }
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    let binary = "";
+    const CHUNK = 8192;
+    for (let i = 0; i < uint8.length; i += CHUNK) {
+      binary += String.fromCharCode(...uint8.subarray(i, i + CHUNK));
+    }
+    const base64 = btoa(binary);
+    const mimeType = blob.type || "image/jpeg";
+    const resp = await openrouter.chat.completions.create({
+      model: VISION_MODEL,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
+          { type: "text", text: "Analise esta imagem detalhadamente. Descreva todo o conteúdo visível: textos, números, nomes, tabelas, gráficos e qualquer informação relevante. Seja preciso e completo. Responda em português." },
+        ],
+      }],
+      max_tokens: 512,
+    });
+    const desc = resp.choices[0]?.message?.content ?? null;
+    console.log(`[AI-Agent] Imagem descrita (${mediaPath}): ${desc?.slice(0, 100)}`);
+    return desc;
+  } catch (e: any) {
+    console.error("[AI-Agent] Erro ao descrever imagem:", e?.message);
+    return null;
+  }
+}
+
 async function loadMemory(sessionId: string, orgId: string, limit = 15): Promise<Array<{ role: string; content: string }>> {
   const { data } = await supabase
     .from("memoria_agente")
@@ -779,23 +839,22 @@ async function executeCrm(args: any, leadId: string): Promise<string> {
 }
 
 async function executeNotificacao(
-  args: any, leadId: string, orgId: string
+  args: any, leadId: string, orgId: string, leadOrigem?: string | null
 ): Promise<string> {
   const nome = args.nome_lead || "Não informado";
   const resumo = args.resumo || "Sem resumo";
+  const origemLabel = leadOrigem || "Não informada";
 
   // Formatar notificação limpa e estruturada
   const mensagem = [
     `🚨 *LEAD PRONTO PARA ATENDIMENTO*`,
     ``,
     `👤 *Nome:* ${nome}`,
-    `📱 *Origem:* Marketing (IA)`,
+    `📱 *Origem:* ${origemLabel} (IA)`,
     ``,
     `📋 *Resumo do Atendimento:*`,
     resumo,
     ``,
-    `⚡ *Ação:* Entrar em contato o mais rápido possível.`,
-    `O lead está aquecido e pronto para o fechamento.`,
   ].join("\n");
 
   await supabase.from("notificacoes").insert({
@@ -822,7 +881,8 @@ async function executeNotificacao(
 async function processToolCalls(
   toolCalls: OpenAI.Chat.ChatCompletionMessageToolCall[],
   leadId: string,
-  orgId: string
+  orgId: string,
+  leadOrigem?: string | null
 ): Promise<OpenAI.Chat.ChatCompletionToolMessageParam[]> {
   const results: OpenAI.Chat.ChatCompletionToolMessageParam[] = [];
   for (const tc of toolCalls) {
@@ -831,7 +891,7 @@ async function processToolCalls(
     if (tc.function.name === "crm") {
       resultContent = await executeCrm(args, leadId);
     } else if (tc.function.name === "notificacao") {
-      resultContent = await executeNotificacao(args, leadId, orgId);
+      resultContent = await executeNotificacao(args, leadId, orgId, leadOrigem);
     } else {
       resultContent = JSON.stringify({ ok: false, error: "Tool desconhecida" });
     }
@@ -912,7 +972,7 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ ok: false, reason: "ia_nao_configurada" });
     }
 
-    const modeloRaw = aiConfig.modelo_ia || "grok-3-fast";
+    const modeloRaw = aiConfig.modelo_ia || "openrouter/deepseek/deepseek-v4-flash";
     const { client: llmClient, provider: llmProvider } = resolveLlmClient(modeloRaw);
     const modelo = modeloRaw.startsWith("openrouter/") ? modeloRaw.slice("openrouter/".length) : modeloRaw;
     const delayMs = aiConfig.delay_entre_mensagens || 2000;
@@ -933,12 +993,15 @@ Deno.serve(async (req: Request) => {
     await wait(acumuloSeg);
 
     // 4. Coleta msgs acumuladas
+    // Buffer de 5s antes de pendingSince para capturar a mensagem original que disparou
+    // o agente (ela é salva no DB alguns ms antes de pendingSince ser registrado)
+    const queryFrom = new Date(new Date(pendingSince).getTime() - 5000).toISOString();
     const { data: recentMsgs } = await supabase
       .from("mensagens")
       .select("conteudo, tipo_conteudo, media_path, criado_em")
       .eq("lead_id", lead_id)
       .eq("direcao", "entrada")
-      .gte("criado_em", pendingSince)
+      .gte("criado_em", queryFrom)
       .order("criado_em", { ascending: true });
 
     await supabase.from("leads").update({ ai_pending_since: null }).eq("id", lead_id);
@@ -964,8 +1027,9 @@ Deno.serve(async (req: Request) => {
           }
         } else if (msg.tipo_conteudo === "texto" && msg.conteudo) {
           parts.push(isUnreadableMessage(msg.conteudo) ? UNREADABLE_REPLACEMENT : msg.conteudo);
-        } else if (msg.tipo_conteudo === "imagem") {
-          parts.push("[Imagem recebida - a IA não suporta processamento de imagens]");
+        } else if (msg.tipo_conteudo === "imagem" && msg.media_path) {
+          const descricao = await describeImage(msg.media_path);
+          parts.push(descricao ? `[Análise da imagem]: ${descricao}` : "[Imagem recebida — não foi possível analisar o conteúdo]");
         } else if (msg.conteudo) {
           parts.push(`[${msg.tipo_conteudo}]: ${msg.conteudo ?? ""}`);
         }
@@ -980,8 +1044,12 @@ Deno.serve(async (req: Request) => {
         if (execLogId) await updateLog(execLogId, { status: "running", etapa: "transcrevendo_audio", detalhe: "Transcrevendo áudio via Whisper..." });
         const transcricao = await transcribeAudio(media_path);
         if (transcricao) userMessageFinal = `[Áudio transcrito]: ${transcricao}`;
-      } else if (tipo_mensagem === "imagem") {
-        userMessageFinal = "[Imagem recebida - a IA não suporta processamento de imagens]";
+      } else if (tipo_mensagem === "imagem" && media_path) {
+        if (execLogId) await updateLog(execLogId, { status: "running", etapa: "analisando_imagem", detalhe: "Analisando imagem via Gemini Flash..." });
+        const descricao = await describeImage(media_path);
+        const imagePart = descricao ? `[Análise da imagem]: ${descricao}` : "[Imagem recebida — não foi possível analisar o conteúdo]";
+        const caption = mensagem_usuario?.trim();
+        userMessageFinal = caption ? `${imagePart}\n[Mensagem do lead]: ${caption}` : imagePart;
       }
     }
 
@@ -1013,7 +1081,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const dadosCliente = (aiConfig.prompt ?? "").trim();
-    const promptBaseAgente = await loadPromptBase();
+    const promptBaseAgente = await loadPromptBase(orgId);
 
     // --- Montar secoes dos novos campos ---
     const horario = aiConfig.horario_atendimento;
@@ -1142,7 +1210,7 @@ Deno.serve(async (req: Request) => {
     const retriablePatterns = ["429", "502", "503", "rate limit", "too many requests", "overloaded", "capacity"];
 
     // Modelo de fallback: se o principal falhar todas as tentativas, tenta com grok-3-fast
-    const FALLBACK_MODEL = "grok-3-fast";
+    const FALLBACK_MODEL = "openrouter/deepseek/deepseek-v4-flash";
     let usandoFallback = false;
     let clienteAtual = llmClient;
     let modeloAtual = modelo;
@@ -1376,7 +1444,7 @@ Deno.serve(async (req: Request) => {
         detalhe: `IA acionou ferramentas: ${toolNames}. Processando...`,
       });
 
-      const toolResults = await processToolCalls(aiResponse.tool_calls, lead_id, orgId);
+      const toolResults = await processToolCalls(aiResponse.tool_calls, lead_id, orgId, lead.origem);
 
       // Coleta resumo para o log
       toolCallsSummary.push(...aiResponse.tool_calls.map((tc) => ({

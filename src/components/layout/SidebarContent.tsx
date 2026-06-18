@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard, Users, GitBranch, BarChart3, Settings, LogOut, ChevronLeft,
-  MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, ShieldCheck,
+  LayoutDashboard, Users, BarChart3, Settings, LogOut, ChevronLeft,
+  MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, GitBranch, ShieldCheck,
   PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay, PenLine,
   Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Sparkles, Swords, Route
 } from "lucide-react";
@@ -80,7 +80,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Notificações", icon: Bell, path: "/crm/notificacoes" },
     { isSeparator: true, title: "Comercial" },
     { title: "Leads", icon: Users, path: "/crm/leads" },
-    { title: "Pipeline", icon: GitBranch, path: "/crm/pipeline" },
     { title: "Agendamentos", icon: CalendarDays, path: "/crm/agendamentos" },
     { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
     { title: "Procedimentos", icon: Stethoscope, path: "/crm/procedimentos" },
@@ -136,7 +135,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { isSeparator: true, title: "Ao Vivo" },
     { title: "Sessões Táticas", icon: Calendar, path: "/plataforma/sessoes-taticas", accessKey: 'acesso_sessoes_taticas' as const },
     { isSeparator: true, title: "Ferramenta" },
-    ...(temOS ? [{ title: "Athos GS", icon: Sparkles, path: "/plataforma/os" }] : []),
+    ...(temOS ? [{ title: "Athos GS", icon: Sparkles, path: "/plataforma/athos-gs" }] : []),
     { title: "Acessar CRM", icon: BarChart3, path: "/crm", accessKey: 'acesso_crm' as const },
     { isSeparator: true, title: "Admin", superadminOnly: true },
     { title: "Super Admin", icon: ShieldCheck, path: "/admin", superadminOnly: true }
@@ -148,7 +147,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/conversas':          'conversas',
     '/crm/notificacoes':       'notificacoes',
     '/crm/leads':              'leads',
-    '/crm/pipeline':           'pipeline',
     '/crm/agendamentos':       'agendamentos',
     '/crm/vendas':             'vendas',
     '/crm/procedimentos':      'procedimentos',
@@ -213,7 +211,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/conversas': 'sidebar-conversas',
     '/crm/notificacoes': 'sidebar-notificacoes',
     '/crm/leads': 'sidebar-leads',
-    '/crm/pipeline': 'sidebar-pipeline',
     '/crm/agendamentos': 'sidebar-agendamentos',
     '/crm/vendas': 'sidebar-vendas',
     '/crm/procedimentos': 'sidebar-procedimentos',
@@ -228,7 +225,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/plataforma/trilha': 'sidebar-trilha',
     '/plataforma/materiais': 'sidebar-materiais',
     '/plataforma/sessoes-taticas': 'sidebar-sessoes',
-    '/plataforma/descompliquei-os': 'sidebar-os',
+    '/plataforma/athos-gs': 'sidebar-os',
     '/plataforma/jornada': 'sidebar-jornada',
     '/crm/evolucao': 'sidebar-evolucao',
   };
