@@ -247,7 +247,11 @@ serve(async (req: Request) => {
     }
 
     if (!conn?.uazapi_url || !conn?.uazapi_token || !conn?.instance_name) {
-      throw new Error('Connection data missing. Please save URL, token and instance name first.')
+      // Retorna graciosamente para actions que não precisam de conexão existente
+      if (action === 'check_status' || action === 'disconnect') {
+        return new Response(JSON.stringify({ status: 'not_configured' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+      throw new Error('WhatsApp não configurado. Clique em "Conectar WhatsApp" para iniciar.')
     }
 
     const baseUrl = conn.uazapi_url.endsWith('/') ? conn.uazapi_url.slice(0, -1) : conn.uazapi_url
