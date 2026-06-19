@@ -282,8 +282,8 @@ export function WhatsAppSettings() {
             <div className="px-4 py-3 space-y-3">
               {[
                 { n: 1, text: 'Clique em "Conectar WhatsApp" abaixo — um QR Code será gerado automaticamente.' },
-                { n: 2, text: 'No seu celular, abra o WhatsApp Business e toque nos três pontos (⋮) no canto superior direito.' },
-                { n: 3, text: 'Selecione "Aparelhos conectados" e depois "Conectar um aparelho".' },
+                { n: 2, text: 'No seu celular, abra o WhatsApp Business e toque em "Configurações" (ícone de engrenagem).' },
+                { n: 3, text: 'Selecione "Dispositivos conectados" e depois "Conectar dispositivo".' },
                 { n: 4, text: 'Aponte a câmera para o QR Code exibido na tela. A conexão é feita em segundos.' },
               ].map(({ n, text }) => (
                 <div key={n} className="flex items-start gap-3">
