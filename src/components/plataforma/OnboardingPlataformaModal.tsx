@@ -154,7 +154,7 @@ export default function OnboardingPlataformaModal() {
       if (password.length < 8) { setSenhaError('A senha deve ter pelo menos 8 caracteres.'); return; }
       if (password !== confirm) { setSenhaError('As senhas não coincidem.'); return; }
       setSavingPwd(true);
-      const { error } = await supabase.auth.updateUser({ password });
+      const { error } = await supabase.auth.updateUser({ password, data: { password_set: true } });
       setSavingPwd(false);
       if (error) {
         if (error.message.includes('different from the old password')) {

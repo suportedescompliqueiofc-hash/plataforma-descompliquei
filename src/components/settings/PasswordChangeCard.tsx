@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { KeyRound, Eye, EyeOff, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Loader2, Save, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default function PasswordChangeCard() {
   const [currentPassword, setCurrentPassword] = useState('');
@@ -14,6 +14,13 @@ export default function PasswordChangeCard() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFirstAccess, setIsFirstAccess] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsFirstAccess(!user?.user_metadata?.password_set);
+    });
+  }, []);
 
   const reset = () => {
     setCurrentPassword('');
@@ -39,45 +46,77 @@ export default function PasswordChangeCard() {
   const strength = passwordStrength(newPassword);
 
   const handleChangePassword = async () => {
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error('Preencha todos os campos.');
-      return;
-    }
-    if (newPassword.length < 8) {
-      toast.error('A nova senha precisa ter no mínimo 8 caracteres.');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error('A confirmação da nova senha não confere.');
-      return;
-    }
-    if (newPassword === currentPassword) {
-      toast.error('A nova senha deve ser diferente da atual.');
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) throw new Error('Sessão inválida. Faça login novamente.');
-
-      const { error: signInErr } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: currentPassword,
-      });
-      if (signInErr) {
-        throw new Error('Senha atual incorreta.');
+    if (isFirstAccess) {
+      if (!newPassword || !confirmPassword) {
+        toast.error('Preencha todos os campos.');
+        return;
+      }
+      if (newPassword.length < 8) {
+        toast.error('A senha precisa ter no mínimo 8 caracteres.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        toast.error('A confirmação da senha não confere.');
+        return;
       }
 
-      const { error: updateErr } = await supabase.auth.updateUser({ password: newPassword });
-      if (updateErr) throw updateErr;
+      setIsSaving(true);
+      try {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword,
+          data: { password_set: true },
+        });
+        if (error) throw error;
+        setIsFirstAccess(false);
+        toast.success('Senha definida com sucesso!');
+        reset();
+      } catch (err: any) {
+        toast.error(err.message || 'Erro ao definir senha.');
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        toast.error('Preencha todos os campos.');
+        return;
+      }
+      if (newPassword.length < 8) {
+        toast.error('A nova senha precisa ter no mínimo 8 caracteres.');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        toast.error('A confirmação da nova senha não confere.');
+        return;
+      }
+      if (newPassword === currentPassword) {
+        toast.error('A nova senha deve ser diferente da atual.');
+        return;
+      }
 
-      toast.success('Senha alterada com sucesso!');
-      reset();
-    } catch (err: any) {
-      toast.error(err.message || 'Erro ao alterar senha.');
-    } finally {
-      setIsSaving(false);
+      setIsSaving(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user?.email) throw new Error('Sessão inválida. Faça login novamente.');
+
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: currentPassword,
+        });
+        if (signInErr) throw new Error('Senha atual incorreta.');
+
+        const { error: updateErr } = await supabase.auth.updateUser({
+          password: newPassword,
+          data: { password_set: true },
+        });
+        if (updateErr) throw updateErr;
+
+        toast.success('Senha alterada com sucesso!');
+        reset();
+      } catch (err: any) {
+        toast.error(err.message || 'Erro ao alterar senha.');
+      } finally {
+        setIsSaving(false);
+      }
     }
   };
 
@@ -122,7 +161,9 @@ export default function PasswordChangeCard() {
             <KeyRound className="h-3.5 w-3.5 text-muted-foreground" />
           </span>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Alterar Senha</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+              {isFirstAccess ? 'Definir Senha' : 'Alterar Senha'}
+            </p>
             <p className="text-[10px] text-muted-foreground/50 mt-0.5">Proteja sua conta com uma senha forte</p>
           </div>
         </div>
@@ -130,30 +171,43 @@ export default function PasswordChangeCard() {
 
       {/* Body */}
       <div className="p-5 space-y-4">
-        {/* Security tip */}
-        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/30 border border-border/30">
-          <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Use ao menos 8 caracteres, combinando letras maiúsculas, minúsculas, números e símbolos para maior segurança.
-          </p>
-        </div>
+        {isFirstAccess ? (
+          /* Banner primeiro acesso */
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-blue-50/60 border border-blue-200/50">
+            <Sparkles className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-blue-700 leading-relaxed">
+              Este é seu primeiro acesso. Crie uma senha para entrar sem precisar de link por e-mail.
+            </p>
+          </div>
+        ) : (
+          /* Dica de segurança */
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/30 border border-border/30">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              Use ao menos 8 caracteres, combinando letras maiúsculas, minúsculas, números e símbolos para maior segurança.
+            </p>
+          </div>
+        )}
 
-        <PasswordInput
-          id="current-password"
-          label="Senha Atual"
-          value={currentPassword}
-          onChange={setCurrentPassword}
-          show={showCurrent}
-          onToggle={() => setShowCurrent(v => !v)}
-          placeholder="Digite sua senha atual"
-          autoComplete="current-password"
-        />
+        {/* Campo senha atual — só aparece quando não é primeiro acesso */}
+        {!isFirstAccess && (
+          <PasswordInput
+            id="current-password"
+            label="Senha Atual"
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            show={showCurrent}
+            onToggle={() => setShowCurrent(v => !v)}
+            placeholder="Digite sua senha atual"
+            autoComplete="current-password"
+          />
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <PasswordInput
               id="new-password"
-              label="Nova Senha"
+              label={isFirstAccess ? 'Nova Senha' : 'Nova Senha'}
               value={newPassword}
               onChange={setNewPassword}
               show={showNew}
@@ -205,11 +259,13 @@ export default function PasswordChangeCard() {
         </Button>
         <Button
           onClick={handleChangePassword}
-          disabled={isSaving}
+          disabled={isSaving || isFirstAccess === null}
           className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5"
         >
           {isSaving ? (
             <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Salvando...</>
+          ) : isFirstAccess ? (
+            <><Save className="h-3.5 w-3.5" /> Definir Senha</>
           ) : (
             <><Save className="h-3.5 w-3.5" /> Alterar Senha</>
           )}

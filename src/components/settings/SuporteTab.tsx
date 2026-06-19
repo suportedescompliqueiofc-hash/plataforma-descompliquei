@@ -8,8 +8,10 @@ import {
   LifeBuoy, Plus, X, ChevronRight, ChevronLeft, Upload, Image, Video,
   Clock, CheckCircle2, AlertCircle, MessageSquare, Paperclip, Send,
   ArrowUpCircle, Bug, Lightbulb, HelpCircle, MoreHorizontal, Loader2,
-  FileText, Eye, RefreshCw,
+  FileText, Eye, RefreshCw, BookOpen, Search, Rocket, Users, Bot, Calendar,
+  BarChart2, Tag, ChevronDown,
 } from 'lucide-react';
+import { useKbCategorias, useKbArtigos, type KbArtigo, type KbCategoria } from '@/hooks/useKbArtigos';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -497,6 +499,248 @@ function TicketRow({ ticket, onClick }: { ticket: any; onClick: () => void }) {
   );
 }
 
+// ── Knowledge Base ────────────────────────────────────────────────────────
+
+const KB_ICONS: Record<string, React.ReactNode> = {
+  Rocket: <Rocket className="h-3.5 w-3.5" />,
+  Users: <Users className="h-3.5 w-3.5" />,
+  MessageSquare: <MessageSquare className="h-3.5 w-3.5" />,
+  Bot: <Bot className="h-3.5 w-3.5" />,
+  Calendar: <Calendar className="h-3.5 w-3.5" />,
+  BarChart2: <BarChart2 className="h-3.5 w-3.5" />,
+  BookOpen: <BookOpen className="h-3.5 w-3.5" />,
+};
+
+function KbArticleContent({ content }: { content: string }) {
+  const parts = content.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <div className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+      {parts.map((part, i) =>
+        part.startsWith('**') && part.endsWith('**')
+          ? <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+          : part
+      )}
+    </div>
+  );
+}
+
+function KbArtigoDetalhe({ artigo, onBack, onOpenTicket }: {
+  artigo: KbArtigo;
+  onBack: () => void;
+  onOpenTicket: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ChevronLeft className="h-3.5 w-3.5" />
+        Voltar para artigos
+      </button>
+
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+          {artigo.kb_categorias && (
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted text-[10px] font-semibold text-muted-foreground mb-2">
+              {KB_ICONS[artigo.kb_categorias.icone] ?? <BookOpen className="h-3 w-3" />}
+              {artigo.kb_categorias.nome}
+            </span>
+          )}
+          <h2 className="text-base font-bold text-foreground font-display">{artigo.titulo}</h2>
+        </div>
+        <div className="p-5">
+          <KbArticleContent content={artigo.conteudo} />
+        </div>
+        {artigo.tags && artigo.tags.length > 0 && (
+          <div className="px-5 py-3 border-t border-border/30 bg-muted/[0.02] flex items-center gap-2 flex-wrap">
+            <Tag className="h-3 w-3 text-muted-foreground/30 shrink-0" />
+            {artigo.tags.map(tag => (
+              <span key={tag} className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-medium text-muted-foreground">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-start gap-2.5">
+          <div className="p-1.5 rounded-lg bg-muted shrink-0 mt-0.5">
+            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold text-foreground">Não resolveu sua dúvida?</p>
+            <p className="text-[11px] text-muted-foreground/70 mt-0.5">Abra um ticket e nossa equipe te ajuda diretamente.</p>
+          </div>
+        </div>
+        <Button
+          onClick={onOpenTicket}
+          variant="outline"
+          className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 shrink-0"
+        >
+          <LifeBuoy className="h-3.5 w-3.5" />
+          Abrir ticket
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function KbView({ onOpenTicket }: { onOpenTicket: () => void }) {
+  const { data: categorias = [] } = useKbCategorias();
+  const [filtroCategoria, setFiltroCategoria] = useState<string>('todos');
+  const { data: artigos = [], isLoading } = useKbArtigos(filtroCategoria === 'todos' ? undefined : filtroCategoria);
+  const [busca, setBusca] = useState('');
+  const [artigoSelecionado, setArtigoSelecionado] = useState<KbArtigo | null>(null);
+
+  if (artigoSelecionado) {
+    return (
+      <KbArtigoDetalhe
+        artigo={artigoSelecionado}
+        onBack={() => setArtigoSelecionado(null)}
+        onOpenTicket={onOpenTicket}
+      />
+    );
+  }
+
+  const artigosFiltrados = artigos.filter(a => {
+    if (!busca) return true;
+    const q = busca.toLowerCase();
+    return a.titulo.toLowerCase().includes(q) || a.conteudo.toLowerCase().includes(q) || a.tags.some(t => t.includes(q));
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Busca */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
+        <Input
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar artigos, dúvidas, tutoriais..."
+          className="pl-9 h-10 text-sm rounded-lg border-border/60"
+        />
+      </div>
+
+      {/* Categorias */}
+      {!busca && (
+        <div className="flex gap-1.5 flex-wrap">
+          <button
+            onClick={() => setFiltroCategoria('todos')}
+            className={cn(
+              'px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+              filtroCategoria === 'todos'
+                ? 'bg-foreground text-background shadow-sm'
+                : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60'
+            )}
+          >
+            Todos
+          </button>
+          {categorias.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setFiltroCategoria(cat.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-all',
+                filtroCategoria === cat.id
+                  ? 'bg-foreground text-background shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted/60'
+              )}
+            >
+              {KB_ICONS[cat.icone] ?? <BookOpen className="h-3 w-3" />}
+              {cat.nome}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Artigos */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : artigosFiltrados.length === 0 ? (
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-col items-center justify-center py-12 text-center">
+          <div className="p-3 rounded-xl bg-muted/40 mb-3">
+            <BookOpen className="h-6 w-6 text-muted-foreground/40" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {busca ? `Nenhum artigo encontrado para "${busca}"` : 'Nenhum artigo disponível'}
+          </p>
+          <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+            {busca ? 'Tente termos diferentes ou abra um ticket' : 'Em breve teremos artigos aqui'}
+          </p>
+          {busca && (
+            <Button
+              onClick={onOpenTicket}
+              variant="outline"
+              className="mt-4 h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"
+            >
+              <LifeBuoy className="h-3.5 w-3.5" />
+              Abrir ticket de suporte
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {artigosFiltrados.map(artigo => (
+            <button
+              key={artigo.id}
+              onClick={() => setArtigoSelecionado(artigo)}
+              className="w-full rounded-xl border border-border/60 bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)] p-4 hover:shadow-[0_2px_6px_rgba(0,0,0,0.08)] hover:border-border/80 transition-all text-left group"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-muted shrink-0">
+                  {artigo.kb_categorias
+                    ? (KB_ICONS[artigo.kb_categorias.icone] ?? <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />)
+                    : <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
+                  }
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground group-hover:text-foreground/80 transition-colors">
+                    {artigo.titulo}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/60 mt-0.5 line-clamp-2">
+                    {artigo.conteudo.replace(/\*\*/g, '').split('\n')[0]}
+                  </p>
+                  {artigo.kb_categorias && (
+                    <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground/40">
+                      {KB_ICONS[artigo.kb_categorias.icone] ?? null}
+                      {artigo.kb_categorias.nome}
+                    </span>
+                  )}
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors shrink-0 mt-0.5" />
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* CTA fixo */}
+      <div className="rounded-xl border border-border/40 bg-muted/20 px-4 py-3 flex items-center justify-between gap-4">
+        <div className="flex items-start gap-2.5">
+          <div className="p-1.5 rounded-lg bg-muted shrink-0 mt-0.5">
+            <Lightbulb className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+          <p className="text-[11px] text-muted-foreground/70 leading-relaxed">
+            Não encontrou o que precisava? Abra um ticket e nossa equipe responde em até 48h úteis.
+          </p>
+        </div>
+        <Button
+          onClick={onOpenTicket}
+          variant="outline"
+          className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 shrink-0"
+        >
+          <LifeBuoy className="h-3.5 w-3.5" />
+          Abrir ticket
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export function SuporteTab() {
@@ -506,6 +750,7 @@ export function SuporteTab() {
   const [novoAberto, setNovoAberto] = useState(false);
   const [ticketSelecionado, setTicketSelecionado] = useState<string | null>(null);
   const [filtroStatus, setFiltroStatus] = useState<TicketStatus | 'todos'>('todos');
+  const [tabAtiva, setTabAtiva] = useState<'solicitacoes' | 'base_conhecimento'>('solicitacoes');
 
   if (ticketSelecionado) {
     return (
@@ -514,6 +759,37 @@ export function SuporteTab() {
         orgId={orgId}
         onBack={() => setTicketSelecionado(null)}
       />
+    );
+  }
+
+  if (tabAtiva === 'base_conhecimento') {
+    return (
+      <>
+        {novoAberto && <NovoTicketModal onClose={() => setNovoAberto(false)} />}
+        <div className="space-y-4">
+          <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 w-fit">
+            {([
+              { id: 'solicitacoes', label: 'Minhas Solicitações', icon: LifeBuoy },
+              { id: 'base_conhecimento', label: 'Base de Conhecimento', icon: BookOpen },
+            ] as const).map(t => (
+              <button
+                key={t.id}
+                onClick={() => setTabAtiva(t.id)}
+                className={cn(
+                  'flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all',
+                  tabAtiva === t.id
+                    ? 'bg-foreground text-background shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                <t.icon className="h-3.5 w-3.5" />
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <KbView onOpenTicket={() => { setTabAtiva('solicitacoes'); setNovoAberto(true); }} />
+        </div>
+      </>
     );
   }
 
@@ -535,6 +811,28 @@ export function SuporteTab() {
       {novoAberto && <NovoTicketModal onClose={() => setNovoAberto(false)} />}
 
       <div className="space-y-5">
+        {/* Tabs de navegação */}
+        <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 w-fit">
+          {([
+            { id: 'solicitacoes', label: 'Minhas Solicitações', icon: LifeBuoy },
+            { id: 'base_conhecimento', label: 'Base de Conhecimento', icon: BookOpen },
+          ] as const).map(t => (
+            <button
+              key={t.id}
+              onClick={() => setTabAtiva(t.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all',
+                tabAtiva === t.id
+                  ? 'bg-foreground text-background shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <t.icon className="h-3.5 w-3.5" />
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         {/* Métricas rápidas */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[

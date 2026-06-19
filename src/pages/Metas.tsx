@@ -249,7 +249,7 @@ export default function Metas() {
         data_inicio: formInicio,
         data_fim: formFim,
         meta_receita: formReceita,
-        ticket_medio: formTicket,
+        ticket_medio: 0,
         cpl_meta: 0,
         tx_mql: 0,
         tx_agendamento: 0,
@@ -551,23 +551,13 @@ export default function Metas() {
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Valores</p>
 
               {formTipoMeta === 'simples' ? (
-                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                  <div data-tutorial="meta-field-receita" className="space-y-1.5">
-                    <Label className="text-[11px] font-medium text-muted-foreground/70">Meta Receita</Label>
-                    <CurrencyInput
-                      value={formReceita}
-                      onValueChange={(v) => setFormReceita(v ?? 0)}
-                      className="h-10 text-sm rounded-lg border-border/60"
-                    />
-                  </div>
-                  <div data-tutorial="meta-field-ticket" className="space-y-1.5">
-                    <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Médio</Label>
-                    <CurrencyInput
-                      value={formTicket}
-                      onValueChange={(v) => setFormTicket(v ?? 0)}
-                      className="h-10 text-sm rounded-lg border-border/60"
-                    />
-                  </div>
+                <div data-tutorial="meta-field-receita" className="space-y-1.5">
+                  <Label className="text-[11px] font-medium text-muted-foreground/70">Meta Receita</Label>
+                  <CurrencyInput
+                    value={formReceita}
+                    onValueChange={(v) => setFormReceita(v ?? 0)}
+                    className="h-10 text-sm rounded-lg border-border/60"
+                  />
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -608,14 +598,6 @@ export default function Metas() {
                         className="h-10 text-sm rounded-lg border-violet-200 bg-violet-50/50 focus-visible:ring-violet-300"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Médio</Label>
-                    <CurrencyInput
-                      value={formTicket}
-                      onValueChange={(v) => setFormTicket(v ?? 0)}
-                      className="h-10 text-sm rounded-lg border-border/60"
-                    />
                   </div>
                 </div>
               )}
