@@ -111,7 +111,16 @@ export function useOnboarding() {
   const completeStep = useMutation({
     mutationFn: async (stepKey: string) => {
       if (!orgId) throw new Error('No org');
-      const newSteps = [...new Set([...completedSteps, stepKey])];
+      // Read fresh state from DB to avoid stale-closure race when multiple steps
+      // are completed in quick succession (each mutation must see prior writes).
+      const { data: fresh, error: readErr } = await supabase
+        .from('organizations')
+        .select('onboarding_completed_steps')
+        .eq('id', orgId)
+        .single();
+      if (readErr) throw readErr;
+      const current = (fresh?.onboarding_completed_steps ?? []) as string[];
+      const newSteps = [...new Set([...current, stepKey])];
       const { error } = await supabase
         .from('organizations')
         .update({ onboarding_completed_steps: newSteps } as any)
@@ -119,7 +128,11 @@ export function useOnboarding() {
       if (error) throw error;
       return newSteps;
     },
-    onSuccess: () => {
+    onSuccess: (newSteps) => {
+      // Optimistic cache update prevents the modal from flashing back to stale state
+      queryClient.setQueryData(['onboarding', orgId], (old: any) =>
+        old ? { ...old, onboarding_completed_steps: newSteps } : old,
+      );
       queryClient.invalidateQueries({ queryKey: ['onboarding', orgId] });
     },
   });

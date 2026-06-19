@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone,
-  CheckCircle2, Circle, ArrowRight, Trophy,
+  CheckCircle2, Circle, ArrowRight, Trophy, X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOnboarding, ONBOARDING_ALLOWED_PATHS, type OnboardingStep } from '@/hooks/useOnboarding';
 import { useTutorialContext } from '@/components/tutorial/TutorialProvider';
 import { useWhatsAppMonitor } from '@/hooks/useWhatsAppMonitor';
+import { useProfile } from '@/hooks/useProfile';
 import { toast } from 'sonner';
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -124,10 +125,28 @@ export function OnboardingModal() {
   const navigate = useNavigate();
   const location = useLocation();
   const { steps, mandatoryComplete, shouldShowModal, completeStep, isLoading } = useOnboarding();
+  const { profile } = useProfile();
   const { startTutorial } = useTutorialContext();
   const { status: waStatus } = useWhatsAppMonitor();
   const [celebrating, setCelebrating] = useState(false);
   const [wasModalVisible, setWasModalVisible] = useState(false);
+
+  const dismissedKey = profile?.organization_id ? `onboarding_dismissed_${profile.organization_id}` : null;
+  const [dismissed, setDismissed] = useState(() =>
+    dismissedKey ? localStorage.getItem(dismissedKey) === '1' : false
+  );
+
+  const handleDismiss = () => {
+    if (dismissedKey) localStorage.setItem(dismissedKey, '1');
+    setDismissed(true);
+  };
+
+  // Sincroniza o dismissed quando o orgId carrega (profile pode não estar pronto no primeiro render)
+  useEffect(() => {
+    if (dismissedKey) {
+      setDismissed(localStorage.getItem(dismissedKey) === '1');
+    }
+  }, [dismissedKey]);
 
   // Auto-completa o passo WhatsApp quando a conexão é detectada
   useEffect(() => {
@@ -145,6 +164,8 @@ export function OnboardingModal() {
   // Só celebra se o modal de passos estava visível E o usuário completou tudo agora
   useEffect(() => {
     if (mandatoryComplete && wasModalVisible) {
+      if (dismissedKey) localStorage.removeItem(dismissedKey);
+      setDismissed(false);
       setCelebrating(true);
       setWasModalVisible(false);
     }
@@ -160,6 +181,7 @@ export function OnboardingModal() {
 
   if (isAllowedPath && !celebrating) return null;
   if (!shouldShowModal && !celebrating) return null;
+  if (dismissed && !celebrating) return null;
 
   const handleStartGuide = (step: OnboardingStep) => {
     // Navega para a página e depois inicia o tutorial
@@ -202,7 +224,7 @@ export function OnboardingModal() {
                   <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
                     <Trophy className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <h2 className="text-[15px] font-bold text-foreground font-display leading-tight">
                       Configure seu CRM
                     </h2>
@@ -210,6 +232,13 @@ export function OnboardingModal() {
                       Siga os passos abaixo — o sistema guia você campo por campo
                     </p>
                   </div>
+                  <button
+                    onClick={handleDismiss}
+                    className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors shrink-0"
+                    title="Fechar por agora (volta na próxima sessão)"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-2 rounded-full bg-muted/40 overflow-hidden">

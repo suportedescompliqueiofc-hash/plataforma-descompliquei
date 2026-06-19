@@ -1,26 +1,40 @@
-import { useState, Fragment } from 'react';
+import { useState, Fragment, useRef } from 'react';
 import { usePlataforma } from '@/contexts/PlataformaContext';
 import { useEvolucao, computeDelta, type DatePeriod, type PeriodMetrics } from '@/hooks/useEvolucao';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Calendar as UICalendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import {
   TrendingUp, Users, Target, Calendar, DollarSign,
   MessageSquare, Bot, Activity, ArrowUp, ArrowDown, Minus,
   Loader2, Clock, BarChart3, UserCheck, ShieldCheck,
-  ArrowRight, Lock
+  ArrowRight, Lock, ChevronLeft, ChevronRight, CalendarDays
 } from 'lucide-react';
 import {
-  startOfMonth, endOfMonth, subMonths, subDays,
-  startOfQuarter, endOfQuarter, subQuarters,
-  startOfYear, endOfYear, subYears,
-  format
+  startOfMonth, endOfMonth, subMonths, subDays, addDays,
+  startOfQuarter, endOfQuarter, subQuarters, addQuarters,
+  startOfYear, endOfYear, subYears, addYears,
+  startOfWeek, endOfWeek, subWeeks, addWeeks,
+  addMonths, format
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { LucideIcon } from 'lucide-react';
 
 const PRESETS = [
   {
+    id: 'dia', label: 'Dia',
+    getA: () => ({ from: new Date(), to: new Date() }),
+    getB: () => ({ from: subDays(new Date(), 1), to: subDays(new Date(), 1) }),
+  },
+  {
+    id: 'semana', label: 'Semana',
+    getA: () => ({ from: startOfWeek(new Date(), { locale: ptBR }), to: endOfWeek(new Date(), { locale: ptBR }) }),
+    getB: () => ({ from: startOfWeek(subWeeks(new Date(), 1), { locale: ptBR }), to: endOfWeek(subWeeks(new Date(), 1), { locale: ptBR }) }),
+  },
+  {
     id: 'mes', label: 'Mês',
-    getA: () => ({ from: startOfMonth(new Date()), to: new Date() }),
+    getA: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }),
     getB: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }),
   },
   {
@@ -100,22 +114,31 @@ function DeltaBadge({ current, previous, invert = false, size = 'sm' }: {
   );
 }
 
-function KpiCard({ label, icon: Icon, current, previous, fmt = 'num', invert = false }: {
+function KpiCard({ label, icon: Icon, current, previous, fmt = 'num', invert = false, className }: {
   label: string; icon: LucideIcon; current: number; previous: number;
-  fmt?: FmtType; invert?: boolean;
+  fmt?: FmtType; invert?: boolean; className?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5 flex flex-col">
-      <div className="flex items-center gap-2 mb-3">
+    <div className={cn("rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 flex flex-col gap-3", className)}>
+      {/* Header */}
+      <div className="flex items-center gap-1.5">
         <span className="p-1.5 rounded-lg bg-muted">
           <Icon className="h-3.5 w-3.5 text-muted-foreground" />
         </span>
         <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{label}</p>
+        <div className="ml-auto"><DeltaBadge current={current} previous={previous} invert={invert} /></div>
       </div>
-      <p className="text-2xl font-bold font-mono tabular-nums text-foreground">{fmtValue(current, fmt)}</p>
-      <div className="flex items-center gap-2 mt-2">
-        <DeltaBadge current={current} previous={previous} invert={invert} />
-        <span className="text-[10px] text-muted-foreground/40">vs {fmtValue(previous, fmt)}</span>
+      {/* Valor atual — destaque */}
+      <div>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-primary/60 mb-1">Atual</p>
+        <p className="text-2xl font-extrabold font-display tabular-nums text-foreground leading-none">{fmtValue(current, fmt)}</p>
+      </div>
+      {/* Separador */}
+      <div className="h-px bg-border/30" />
+      {/* Valor anterior — secundário */}
+      <div>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-1">Anterior</p>
+        <p className="text-base font-bold font-display tabular-nums text-muted-foreground leading-none">{fmtValue(previous, fmt)}</p>
       </div>
     </div>
   );
@@ -143,12 +166,18 @@ function MetricRow({ label, current, previous, fmt = 'num', invert = false }: {
   label: string; current: number; previous: number; fmt?: FmtType; invert?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between py-3 px-5 border-b border-border/20 last:border-b-0">
-      <p className="text-sm text-foreground font-medium">{label}</p>
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-bold font-mono tabular-nums text-foreground">{fmtValue(current, fmt)}</span>
+    <div className="flex items-center justify-between py-3 px-5 border-b border-border/20 last:border-b-0 gap-4">
+      <p className="text-sm text-foreground font-medium flex-1">{label}</p>
+      <div className="flex items-center gap-4 shrink-0">
+        <div className="text-right hidden sm:block">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-0.5">Anterior</p>
+          <p className="text-sm font-mono tabular-nums text-muted-foreground">{fmtValue(previous, fmt)}</p>
+        </div>
         <DeltaBadge current={current} previous={previous} invert={invert} />
-        <span className="text-[10px] text-muted-foreground/40 w-16 text-right">{fmtValue(previous, fmt)}</span>
+        <div className="text-right min-w-[72px]">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-primary/60 mb-0.5">Atual</p>
+          <p className="text-sm font-bold font-mono tabular-nums text-foreground">{fmtValue(current, fmt)}</p>
+        </div>
       </div>
     </div>
   );
@@ -196,7 +225,7 @@ export default function Evolucao() {
   const { isMember, acesso, isContextLoading, tenant } = usePlataforma();
 
   const [activePreset, setActivePreset] = useState('mes');
-  const defaultPreset = PRESETS[0];
+  const defaultPreset = PRESETS.find(p => p.id === 'mes')!;
   const [periodA, setPeriodA] = useState<DatePeriod>(defaultPreset.getA());
   const [periodB, setPeriodB] = useState<DatePeriod>(defaultPreset.getB());
 
@@ -209,6 +238,84 @@ export default function Evolucao() {
       setPeriodA(preset.getA());
       setPeriodB(preset.getB());
     }
+  }
+
+  function navigatePeriod(dir: 'prev' | 'next', which: 'A' | 'B') {
+    const amt = dir === 'prev' ? -1 : 1;
+    const curr = which === 'A' ? periodA : periodB;
+    const set = which === 'A' ? setPeriodA : setPeriodB;
+    switch (activePreset) {
+      case 'dia': { const d = addDays(curr.from, amt); set({ from: d, to: d }); break; }
+      case 'semana': { const w = addWeeks(curr.from, amt); set({ from: startOfWeek(w, { locale: ptBR }), to: endOfWeek(w, { locale: ptBR }) }); break; }
+      case 'mes': { const m = addMonths(curr.from, amt); set({ from: startOfMonth(m), to: endOfMonth(m) }); break; }
+      case '30d': set({ from: addDays(curr.from, amt * 30), to: addDays(curr.to, amt * 30) }); break;
+      case 'trimestre': { const q = addQuarters(curr.from, amt); set({ from: startOfQuarter(q), to: endOfQuarter(q) }); break; }
+      case 'semestre': set({ from: addMonths(curr.from, amt * 6), to: addMonths(curr.to, amt * 6) }); break;
+      case 'ano': { const y = addYears(curr.from, amt); set({ from: startOfYear(y), to: endOfYear(y) }); break; }
+    }
+  }
+
+  function DatePill({ period, setPeriod, label, accent }: {
+    period: DatePeriod; setPeriod: (p: DatePeriod) => void;
+    label: string; accent?: boolean;
+  }) {
+    const isSameDay = period.from.toDateString() === period.to.toDateString();
+    const displayFrom = format(period.from, "dd MMM", { locale: ptBR });
+    const displayTo = format(period.to, "dd MMM yyyy", { locale: ptBR });
+    const displayFull = isSameDay ? format(period.from, "dd MMM yyyy", { locale: ptBR }) : `${displayFrom} – ${displayTo}`;
+    const canNav = activePreset !== 'custom';
+    return (
+      <div className="flex-1 min-w-0">
+        <p className={cn("text-[9px] font-bold uppercase tracking-widest mb-1.5", accent ? "text-primary/70" : "text-muted-foreground/50")}>{label}</p>
+        <div className="flex items-center gap-1.5">
+          {canNav && (
+            <button onClick={() => navigatePeriod('prev', accent ? 'A' : 'B')}
+              className="h-8 w-8 shrink-0 rounded-lg border border-border/60 bg-card flex items-center justify-center hover:bg-muted transition-colors">
+              <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          )}
+          {activePreset === 'custom' ? (
+            // Custom mode — dois calendar popovers
+            <div className="flex items-center gap-1.5 flex-1">
+              {(['from', 'to'] as const).map((key, idx) => (
+                <Fragment key={key}>
+                  {idx === 1 && <span className="text-xs text-muted-foreground/40">—</span>}
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button className="flex-1 h-9 rounded-lg border border-border/60 bg-card px-3 text-xs font-medium tabular-nums text-foreground hover:bg-muted transition-colors text-center">
+                        {format(period[key], "dd/MM/yyyy")}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <UICalendar
+                        mode="single"
+                        selected={period[key]}
+                        onSelect={(d) => { if (d) { setPeriod({ ...period, [key]: d }); } }}
+                        locale={ptBR}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </Fragment>
+              ))}
+            </div>
+          ) : (
+            // Preset mode — pill de texto clicável
+            <div className={cn("flex-1 rounded-xl border px-4 py-2.5 text-center transition-colors",
+              accent ? "border-primary/20 bg-primary/[0.04]" : "border-border/50 bg-muted/20"
+            )}>
+              <p className="text-xs font-semibold tabular-nums text-foreground">{displayFull}</p>
+            </div>
+          )}
+          {canNav && (
+            <button onClick={() => navigatePeriod('next', accent ? 'A' : 'B')}
+              className="h-8 w-8 shrink-0 rounded-lg border border-border/60 bg-card flex items-center justify-center hover:bg-muted transition-colors">
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+      </div>
+    );
   }
 
   if (isContextLoading) {
@@ -295,50 +402,13 @@ export default function Evolucao() {
           </button>
         </div>
 
-        {/* Date inputs */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 w-16">Atual</span>
-            <input
-              type="date"
-              value={toInputDate(periodA.from)}
-              onChange={e => { setPeriodA({ ...periodA, from: fromInputDate(e.target.value) }); setActivePreset('custom'); }}
-              className="h-9 rounded-lg border border-border/60 bg-background px-3 text-xs font-mono text-foreground focus-visible:ring-1 focus-visible:ring-border/60 focus-visible:outline-none"
-            />
-            <span className="text-xs text-muted-foreground/40">—</span>
-            <input
-              type="date"
-              value={toInputDate(periodA.to)}
-              onChange={e => { setPeriodA({ ...periodA, to: fromInputDate(e.target.value) }); setActivePreset('custom'); }}
-              className="h-9 rounded-lg border border-border/60 bg-background px-3 text-xs font-mono text-foreground focus-visible:ring-1 focus-visible:ring-border/60 focus-visible:outline-none"
-            />
+        {/* Period pickers */}
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end">
+          <DatePill period={periodA} setPeriod={setPeriodA} label="Atual" accent />
+          <div className="flex items-center justify-center sm:pb-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/30">vs</span>
           </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/30 hidden sm:block">vs</span>
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 w-16">Anterior</span>
-            <input
-              type="date"
-              value={toInputDate(periodB.from)}
-              onChange={e => { setPeriodB({ ...periodB, from: fromInputDate(e.target.value) }); setActivePreset('custom'); }}
-              className="h-9 rounded-lg border border-border/60 bg-background px-3 text-xs font-mono text-foreground focus-visible:ring-1 focus-visible:ring-border/60 focus-visible:outline-none"
-            />
-            <span className="text-xs text-muted-foreground/40">—</span>
-            <input
-              type="date"
-              value={toInputDate(periodB.to)}
-              onChange={e => { setPeriodB({ ...periodB, to: fromInputDate(e.target.value) }); setActivePreset('custom'); }}
-              className="h-9 rounded-lg border border-border/60 bg-background px-3 text-xs font-mono text-foreground focus-visible:ring-1 focus-visible:ring-border/60 focus-visible:outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground/40">
-          <Activity className="h-3 w-3" />
-          <span>
-            Atual: {format(periodA.from, "dd MMM yyyy", { locale: ptBR })} — {format(periodA.to, "dd MMM yyyy", { locale: ptBR })}
-            {' · '}
-            Anterior: {format(periodB.from, "dd MMM yyyy", { locale: ptBR })} — {format(periodB.to, "dd MMM yyyy", { locale: ptBR })}
-          </span>
+          <DatePill period={periodB} setPeriod={setPeriodB} label="Anterior" />
         </div>
       </div>
 
@@ -355,12 +425,12 @@ export default function Evolucao() {
           {/* ── VISÃO GERAL ─────────────────────────────────────────── */}
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3 ml-1">Visão Geral</p>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <KpiCard label="Leads" icon={Users} current={a.totalLeads} previous={b.totalLeads} />
-              <KpiCard label="Qualificados" icon={Target} current={a.mqlCount} previous={b.mqlCount} />
-              <KpiCard label="Agendamentos" icon={Calendar} current={a.scheduledCount} previous={b.scheduledCount} />
-              <KpiCard label="Vendas" icon={DollarSign} current={a.closedCount} previous={b.closedCount} />
-              <KpiCard label="Faturamento" icon={BarChart3} current={a.faturamento} previous={b.faturamento} fmt="currency" />
+            <div className="flex flex-wrap justify-center gap-4">
+              <KpiCard label="Leads" icon={Users} current={a.totalLeads} previous={b.totalLeads} className="w-[calc(50%-8px)] md:w-[calc(33.333%-11px)]" />
+              <KpiCard label="Qualificados" icon={Target} current={a.mqlCount} previous={b.mqlCount} className="w-[calc(50%-8px)] md:w-[calc(33.333%-11px)]" />
+              <KpiCard label="Agendamentos" icon={Calendar} current={a.scheduledCount} previous={b.scheduledCount} className="w-[calc(50%-8px)] md:w-[calc(33.333%-11px)]" />
+              <KpiCard label="Vendas" icon={DollarSign} current={a.vendasCount} previous={b.vendasCount} className="w-[calc(50%-8px)] md:w-[calc(33.333%-11px)]" />
+              <KpiCard label="Faturamento" icon={BarChart3} current={a.faturamento} previous={b.faturamento} fmt="currency" className="w-[calc(50%-8px)] md:w-[calc(33.333%-11px)]" />
             </div>
           </div>
 
@@ -371,14 +441,17 @@ export default function Evolucao() {
                 { label: 'Leads', ca: a.totalLeads, cb: b.totalLeads },
                 { label: 'Qualificados', ca: a.mqlCount, cb: b.mqlCount },
                 { label: 'Agendamentos', ca: a.scheduledCount, cb: b.scheduledCount },
-                { label: 'Vendas', ca: a.closedCount, cb: b.closedCount },
+                { label: 'Vendas', ca: a.vendasCount, cb: b.vendasCount },
               ].map((step, i, arr) => (
                 <Fragment key={step.label}>
                   <div className="flex flex-col items-center min-w-[90px]">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{step.label}</p>
-                    <p className="text-2xl font-bold font-mono tabular-nums text-foreground mt-1">{fmtNum(step.ca)}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1">{step.label}</p>
+                    <p className="text-2xl font-bold font-mono tabular-nums text-foreground">{fmtNum(step.ca)}</p>
                     <DeltaBadge current={step.ca} previous={step.cb} size="lg" />
-                    <p className="text-[10px] text-muted-foreground/40 mt-0.5">vs {fmtNum(step.cb)}</p>
+                    <div className="mt-1.5 text-center">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40">Anterior</p>
+                      <p className="text-sm font-mono tabular-nums text-muted-foreground font-medium">{fmtNum(step.cb)}</p>
+                    </div>
                   </div>
                   {i < arr.length - 1 && (() => {
                     const rates = [
@@ -428,7 +501,7 @@ export default function Evolucao() {
                             <span className={`text-lg font-bold font-mono ${s.color.split(' ')[0]} rounded-lg px-2 py-0.5 ${s.color.split(' ').slice(1).join(' ')}`}>{s.current}</span>
                             <DeltaBadge current={s.current} previous={s.prev} />
                           </div>
-                          <p className="text-[9px] text-muted-foreground/40">vs {s.prev}</p>
+                          <p className="text-xs font-mono tabular-nums text-muted-foreground">Ant.: {s.prev}</p>
                         </div>
                       ))}
                     </div>
@@ -447,12 +520,18 @@ export default function Evolucao() {
                   { label: 'Ticket Médio', current: a.ticketMedio, prev: b.ticketMedio, fmt: 'currency' as FmtType },
                   { label: 'Vendas Fechadas', current: a.vendasCount, prev: b.vendasCount, fmt: 'num' as FmtType },
                 ].map(m => (
-                  <div key={m.label} className="p-5 space-y-1">
+                  <div key={m.label} className="p-5 space-y-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{m.label}</p>
-                    <p className="text-xl font-bold font-mono tabular-nums text-foreground">{fmtValue(m.current, m.fmt)}</p>
-                    <div className="flex items-center gap-2">
-                      <DeltaBadge current={m.current} previous={m.prev} />
-                      <span className="text-[10px] text-muted-foreground/40">vs {fmtValue(m.prev, m.fmt)}</span>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-primary/60 mb-0.5">Atual</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xl font-bold font-mono tabular-nums text-foreground">{fmtValue(m.current, m.fmt)}</p>
+                        <DeltaBadge current={m.current} previous={m.prev} />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/40 mb-0.5">Anterior</p>
+                      <p className="text-base font-mono tabular-nums text-muted-foreground">{fmtValue(m.prev, m.fmt)}</p>
                     </div>
                   </div>
                 ))}
@@ -465,11 +544,12 @@ export default function Evolucao() {
                     {a.topProcedimentos.map(proc => {
                       const prev = b.topProcedimentos.find(p => p.name === proc.name)?.count || 0;
                       return (
-                        <div key={proc.name} className="flex items-center justify-between py-1">
-                          <p className="text-sm text-foreground">{proc.name}</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-mono font-semibold tabular-nums">{proc.count}</span>
+                        <div key={proc.name} className="flex items-center justify-between py-1.5 gap-4">
+                          <p className="text-sm text-foreground flex-1">{proc.name}</p>
+                          <div className="flex items-center gap-3 shrink-0">
+                            <span className="text-xs font-mono tabular-nums text-muted-foreground hidden sm:block">{prev > 0 ? prev : '—'}</span>
                             <DeltaBadge current={proc.count} previous={prev} />
+                            <span className="text-sm font-mono font-bold tabular-nums w-8 text-right">{proc.count}</span>
                           </div>
                         </div>
                       );
@@ -498,9 +578,6 @@ export default function Evolucao() {
               <MetricRow label="Tempo médio de 1ª resposta" current={a.tempoRespostaHumano} previous={b.tempoRespostaHumano} fmt="time" invert />
               <MetricRow label="Duração média do atendimento" current={a.duracaoAtendimento} previous={b.duracaoAtendimento} fmt="time" invert />
               <MetricRow label="Taxa sem resposta (24h)" current={a.taxaSemResposta} previous={b.taxaSemResposta} fmt="pct" invert />
-              <MetricRow label="Conversas totais" current={a.conversasTotal} previous={b.conversasTotal} />
-              <MetricRow label="Conversas com humano" current={a.conversasHumano} previous={b.conversasHumano} />
-              <MetricRow label="Conversas com IA" current={a.conversasIA} previous={b.conversasIA} />
             </div>
           </SectionCard>
 
