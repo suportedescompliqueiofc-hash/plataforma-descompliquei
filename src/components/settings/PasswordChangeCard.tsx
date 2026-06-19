@@ -6,6 +6,40 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { KeyRound, Eye, EyeOff, Loader2, Save, ShieldCheck, Sparkles } from 'lucide-react';
 
+function PasswordInput({
+  id, label, value, onChange, show, onToggle, placeholder, autoComplete,
+}: {
+  id: string; label: string; value: string; onChange: (v: string) => void;
+  show: boolean; onToggle: () => void; placeholder: string; autoComplete: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {label}
+      </Label>
+      <div className="relative">
+        <Input
+          id={id}
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="h-10 text-sm rounded-lg border-border/60 pr-10"
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+          tabIndex={-1}
+        >
+          {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PasswordChangeCard() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -119,38 +153,6 @@ export default function PasswordChangeCard() {
       }
     }
   };
-
-  const PasswordInput = ({
-    id, label, value, onChange, show, onToggle, placeholder, autoComplete,
-  }: {
-    id: string; label: string; value: string; onChange: (v: string) => void;
-    show: boolean; onToggle: () => void; placeholder: string; autoComplete: string;
-  }) => (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </Label>
-      <div className="relative">
-        <Input
-          id={id}
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-          className="h-10 text-sm rounded-lg border-border/60 pr-10"
-        />
-        <button
-          type="button"
-          onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-          tabIndex={-1}
-        >
-          {show ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-        </button>
-      </div>
-    </div>
-  );
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">

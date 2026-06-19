@@ -83,6 +83,7 @@ export default function AdminClientePerfil() {
           product_id: client.product_id ?? null,
           trial_ends_at: client.trial_ends_at ?? null,
           send_welcome: true,
+          is_resend: true,
         },
       });
       if (error) throw error;

@@ -231,11 +231,16 @@ export default function Metas() {
     if (!meta) return;
     const diasDecorridos = Number(meta.dias_decorridos) || 1;
     const mediaLeadsDia = Math.round(((Number(meta.leads_total) || 0) / diasDecorridos) * 10) / 10;
+    const fe = Number(meta.fechamentos_total) || 0;
+    const ticketReal = fe > 0 ? Math.round((Number(meta.receita_total) || 0) / fe) : 5000;
+    const la = Number(meta.leads_total) || 0;
+    const mq = Number(meta.mqls_total) || 0;
+    const re = Number(meta.reunioes_total) || 0;
     setSimLeadsDia(mediaLeadsDia || 3);
-    setSimTxMql(Number(meta.tx_mql) || 60);
-    setSimTxAgend(Number(meta.tx_agendamento) || 40);
-    setSimTxConv(Number(meta.tx_conversao) || 25);
-    setSimTicket(Number(meta.ticket_medio) || 5000);
+    setSimTxMql(la > 0 ? Math.round((mq / la) * 100) : 60);
+    setSimTxAgend(mq > 0 ? Math.round((re / mq) * 100) : 40);
+    setSimTxConv(re > 0 ? Math.round((fe / re) * 100) : 25);
+    setSimTicket(ticketReal);
   };
 
   // ── Mutations ──────────────────────────────────────────
@@ -373,7 +378,9 @@ export default function Metas() {
     const mp = lp * (txM / 100);
     const rp = mp * (txA / 100);
     const fp = rp * (txC / 100);
-    return { mediaLeadsDia: Math.round(mld * 10) / 10, txMqlReal: Math.round(txM * 10) / 10, txAgendReal: Math.round(txA * 10) / 10, txConvReal: Math.round(txC * 10) / 10, leadsProj: Math.round(lp), mqlsProj: Math.round(mp), reunioesProj: Math.round(rp), fechamentosProj: Math.round(fp), receitaProj: Math.round(fp * Number(meta.ticket_medio)) };
+    // Ticket médio real do período (evita depender de meta.ticket_medio que pode ser 0)
+    const ticketReal = fe > 0 ? Number(meta.receita_total) / fe : 0;
+    return { mediaLeadsDia: Math.round(mld * 10) / 10, txMqlReal: Math.round(txM * 10) / 10, txAgendReal: Math.round(txA * 10) / 10, txConvReal: Math.round(txC * 10) / 10, leadsProj: Math.round(lp), mqlsProj: Math.round(mp), reunioesProj: Math.round(rp), fechamentosProj: Math.round(fp), receitaProj: Math.round(fp * ticketReal), ticketReal: Math.round(ticketReal) };
   }, [meta]);
 
   const simulacao = useMemo(() => {
@@ -937,7 +944,7 @@ export default function Metas() {
                     <p className="text-[13px] font-semibold text-foreground">Hoje</p>
                     <p className="text-[10px] text-muted-foreground/60 capitalize">{format(new Date(), "EEEE, dd/MM", { locale: ptBR })}</p>
                   </div>
-                  {leadsHoje >= metaLeadsDia ? (
+                  {metaLeadsDia > 0 && (leadsHoje >= metaLeadsDia ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60">
                       <Zap className="h-3 w-3" /> No ritmo
                     </span>
@@ -945,7 +952,7 @@ export default function Metas() {
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200/60">
                       <AlertTriangle className="h-3 w-3" /> Abaixo
                     </span>
-                  )}
+                  ))}
                 </div>
                 <div className="space-y-3">
                   {[{ label: "Leads", real: leadsHoje, meta: metaLeadsDia }, { label: "Qualificados", real: mqlsHoje, meta: metaMqlsDia }].map((r) => {
@@ -954,11 +961,16 @@ export default function Metas() {
                       <div key={r.label}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-bold tabular-nums">{r.real} <span className="text-muted-foreground/40 font-normal">/ {fmtNum(r.meta)}</span></span>
+                          <span className="text-xs font-bold tabular-nums">
+                            {r.real}
+                            {r.meta > 0 && <span className="text-muted-foreground/40 font-normal"> / {fmtNum(r.meta)}</span>}
+                          </span>
                         </div>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: pctColor(p) }} />
-                        </div>
+                        {r.meta > 0 && (
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: pctColor(p) }} />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -972,7 +984,7 @@ export default function Metas() {
                     <p className="text-[13px] font-semibold text-foreground">Semana</p>
                     <p className="text-[10px] text-muted-foreground/60">{format(startOfWeek(new Date(), { locale: ptBR }), "dd/MM")} a {format(endOfWeek(new Date(), { locale: ptBR }), "dd/MM")}</p>
                   </div>
-                  {leadsSemana >= metaLeadsSem ? (
+                  {metaLeadsSem > 0 && (leadsSemana >= metaLeadsSem ? (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200/60">
                       <Zap className="h-3 w-3" /> No ritmo
                     </span>
@@ -980,7 +992,7 @@ export default function Metas() {
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg bg-amber-50 text-amber-600 border border-amber-200/60">
                       <AlertTriangle className="h-3 w-3" /> Abaixo
                     </span>
-                  )}
+                  ))}
                 </div>
                 <div className="space-y-3">
                   {[{ label: "Leads", real: leadsSemana, meta: metaLeadsSem }, { label: "Qualificados", real: mqlsSemana, meta: metaMqlsSem }].map((r) => {
@@ -989,11 +1001,16 @@ export default function Metas() {
                       <div key={r.label}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs text-muted-foreground">{r.label}</span>
-                          <span className="text-xs font-bold tabular-nums">{r.real} <span className="text-muted-foreground/40 font-normal">/ {fmtNum(r.meta)}</span></span>
+                          <span className="text-xs font-bold tabular-nums">
+                            {r.real}
+                            {r.meta > 0 && <span className="text-muted-foreground/40 font-normal"> / {fmtNum(r.meta)}</span>}
+                          </span>
                         </div>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: pctColor(p) }} />
-                        </div>
+                        {r.meta > 0 && (
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(p, 100)}%`, backgroundColor: pctColor(p) }} />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1016,11 +1033,15 @@ export default function Metas() {
                       <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Receita / dia</p>
                       <p className="text-2xl font-extrabold text-white font-display tabular-nums leading-none">{fmtBRL(Number(m.receita_necessaria_por_dia))}</p>
                     </div>
-                    <div className="h-px bg-white/[0.06]" />
-                    <div>
-                      <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Leads / dia</p>
-                      <p className="text-2xl font-extrabold text-primary font-display tabular-nums leading-none">{fmtNum(Number(m.leads_necessarios_por_dia))}</p>
-                    </div>
+                    {Number(m.meta_leads) > 0 && (
+                      <>
+                        <div className="h-px bg-white/[0.06]" />
+                        <div>
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Leads / dia</p>
+                          <p className="text-2xl font-extrabold text-primary font-display tabular-nums leading-none">{fmtNum(Number(m.leads_necessarios_por_dia))}</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1047,8 +1068,8 @@ export default function Metas() {
                     <XAxis dataKey="dia" fontSize={10} tick={{ fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
                     <YAxis fontSize={10} tick={{ fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
                     <RechartsTooltip content={<CustomTooltip />} />
-                    <Legend wrapperStyle={{ fontSize: "10px" }} />
-                    <Line type="monotone" dataKey="Meta Linear" stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={1.5} dot={false} />
+                    {metaLeadsDia > 0 && <Legend wrapperStyle={{ fontSize: "10px" }} />}
+                    {metaLeadsDia > 0 && <Line type="monotone" dataKey="Meta Linear" stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={1.5} dot={false} />}
                     <Area type="monotone" dataKey="Leads Reais" stroke="hsl(var(--primary))" fill="url(#gradLeadsMeta)" strokeWidth={2.5} dot={{ r: 2.5, fill: "hsl(var(--primary))" }} connectNulls={false} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -1073,49 +1094,29 @@ export default function Metas() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-muted/30 border-b border-border/60">
-                    <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Metrica</th>
-                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Meta</th>
-                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Real</th>
-                    <th className="px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest text-center w-[140px]">Progresso</th>
-                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Status</th>
+                    <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Métrica</th>
+                    <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Valor Real</th>
+                    <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Detalhe</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
                   {[
-                    { label: "Taxa Qualificação", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` },
-                    { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: `${reunioesT}/${mqlsT}` },
-                    { label: "Taxa Conversão", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
-                    { label: "Ticket Médio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
-                  ].map((row) => {
-                    const isGood = (row as any).invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
-                    const isCritical = row.invertColor ? (row.real > row.meta * 1.5 && row.real > 0) : (row.real < row.meta * 0.5 && row.real > 0);
-                    const barPct = row.meta > 0 ? Math.min(Math.round((row.real / row.meta) * 100), 150) : 0;
-                    const barColor = row.real === 0 ? "#e5e5e5" : isGood ? "#10b981" : isCritical ? "#ef4444" : "#f59e0b";
-                    return (
-                      <tr key={row.label} className="hover:bg-muted/20 transition-colors">
-                        <td className="px-5 py-3.5 text-[13px] font-medium">{row.label}</td>
-                        <td className="px-5 py-3.5 text-right text-xs text-muted-foreground tabular-nums">{row.isCurrency ? fmtBRL2(row.meta) : `${row.meta}%`}</td>
-                        <td className="px-5 py-3.5 text-right text-xs font-medium tabular-nums">
-                          {row.real === 0 && !row.isCurrency ? <span className="text-muted-foreground/40">—</span> : row.isCurrency ? fmtBRL2(row.real) : `${row.real}%`}
-                          {row.detail && row.real > 0 && <span className="text-muted-foreground/50 ml-1 text-[10px]">({row.detail})</span>}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <div className="h-1.5 bg-muted rounded-full overflow-hidden w-full">
-                            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(barPct, 100)}%`, backgroundColor: barColor }} />
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5 text-right">
-                          {row.real === 0 ? <span className="text-muted-foreground/40 text-xs">—</span> : isGood ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600"><CheckCircle2 className="h-3 w-3" /> Otimo</span>
-                          ) : isCritical ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600"><XCircle className="h-3 w-3" /> Critico</span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600"><AlertTriangle className="h-3 w-3" /> Abaixo</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
+                    { label: "Taxa Qualificação", real: txMqlReal, detail: `${mqlsT} de ${leadsT} leads`, isRate: true },
+                    { label: "Taxa Agendamento", real: txAgendReal, detail: `${reunioesT} de ${mqlsT} qualificados`, isRate: true },
+                    { label: "Taxa Conversão", real: txConvReal, detail: `${fechamentosT} de ${reunioesT} agendados`, isRate: true },
+                    { label: "Ticket Médio", real: fechamentosT > 0 ? receitaT / fechamentosT : 0, detail: `${fechamentosT} fechamentos`, isCurrency: true },
+                  ].map((row) => (
+                    <tr key={row.label} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-5 py-3.5 text-[13px] font-medium">{row.label}</td>
+                      <td className="px-5 py-3.5 text-right">
+                        {row.real === 0
+                          ? <span className="text-muted-foreground/40 text-xs">—</span>
+                          : <span className="text-sm font-bold tabular-nums">{row.isCurrency ? fmtBRL2(row.real) : `${row.real}%`}</span>
+                        }
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-muted-foreground/60">{row.real > 0 ? row.detail : '—'}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -1123,38 +1124,21 @@ export default function Metas() {
             {/* Mobile cards */}
             <div className="space-y-2 md:hidden">
               {[
-                { label: "Taxa Qualificação", meta: Number(m.tx_mql), real: txMqlReal, detail: `${mqlsT}/${leadsT}` },
-                { label: "Taxa Agendamento", meta: Number(m.tx_agendamento), real: txAgendReal, detail: `${reunioesT}/${mqlsT}` },
-                { label: "Taxa Conversão", meta: Number(m.tx_conversao), real: txConvReal, detail: `${fechamentosT}/${reunioesT}` },
-                { label: "Ticket Médio", meta: Number(m.ticket_medio), real: fechamentosT > 0 ? receitaT / fechamentosT : 0, isCurrency: true },
-              ].map((row) => {
-                const isGood = (row as any).invertColor ? (row.real <= row.meta || row.real === 0) : (row.real >= row.meta * 0.8);
-                const isCritical = (row as any).invertColor ? (row.real > row.meta * 1.5 && row.real > 0) : (row.real < row.meta * 0.5 && row.real > 0);
-                const barPct = row.meta > 0 ? Math.min(Math.round((row.real / row.meta) * 100), 150) : 0;
-                const barColor = row.real === 0 ? "#e5e5e5" : isGood ? "#10b981" : isCritical ? "#ef4444" : "#f59e0b";
-                return (
-                  <div key={row.label} className="rounded-xl border border-border/60 bg-card p-3.5">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-foreground">{row.label}</span>
-                      {row.real === 0 ? <span className="text-muted-foreground/40 text-xs">—</span> : isGood ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600"><CheckCircle2 className="h-3 w-3" /></span>
-                      ) : isCritical ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-600"><XCircle className="h-3 w-3" /></span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600"><AlertTriangle className="h-3 w-3" /></span>
-                      )}
-                    </div>
-                    <div className="flex items-baseline gap-2 mb-2">
-                      <span className="text-base font-bold tabular-nums">{row.isCurrency ? fmtBRL2(row.real) : `${row.real}%`}</span>
-                      <span className="text-[10px] text-muted-foreground/50 tabular-nums">/ {row.isCurrency ? fmtBRL2(row.meta) : `${row.meta}%`}</span>
-                      {row.detail && row.real > 0 && <span className="text-muted-foreground/40 text-[10px]">({row.detail})</span>}
-                    </div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(barPct, 100)}%`, backgroundColor: barColor }} />
-                    </div>
+                { label: "Taxa Qualificação", real: txMqlReal, detail: `${mqlsT} de ${leadsT} leads`, isRate: true },
+                { label: "Taxa Agendamento", real: txAgendReal, detail: `${reunioesT} de ${mqlsT} qualificados`, isRate: true },
+                { label: "Taxa Conversão", real: txConvReal, detail: `${fechamentosT} de ${reunioesT} agendados`, isRate: true },
+                { label: "Ticket Médio", real: fechamentosT > 0 ? receitaT / fechamentosT : 0, detail: `${fechamentosT} fechamentos`, isCurrency: true },
+              ].map((row) => (
+                <div key={row.label} className="rounded-xl border border-border/60 bg-card p-3.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-semibold text-foreground">{row.label}</span>
+                    {row.real > 0 && <span className="text-[10px] text-muted-foreground/50">{row.detail}</span>}
                   </div>
-                );
-              })}
+                  <span className="text-lg font-bold tabular-nums">
+                    {row.real === 0 ? <span className="text-muted-foreground/40 text-sm">—</span> : (row as any).isCurrency ? fmtBRL2(row.real) : `${row.real}%`}
+                  </span>
+                </div>
+              ))}
             </div>
 
             {projecao && (
@@ -1349,43 +1333,79 @@ export default function Metas() {
               <div className="p-1.5 rounded-lg bg-muted"><TrendingUp className="h-3.5 w-3.5 text-muted-foreground" /></div>
               <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Projecao do Mes</span>
             </div>
+
             {projecao && (
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 border-l-4 border-l-primary mb-4">
-                <p className="text-xs text-muted-foreground">Com base nos ultimos {diasDecorridos} dias (media de <strong className="text-foreground">{projecao.mediaLeadsDia} leads/dia</strong>):</p>
-              </div>
+              <>
+                {/* Nota de base */}
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 border-l-4 border-l-primary mb-4">
+                  <p className="text-xs text-muted-foreground">
+                    Com base nos últimos <strong className="text-foreground">{diasDecorridos} dias</strong> (média de <strong className="text-foreground">{projecao.mediaLeadsDia} leads/dia</strong>
+                    {projecao.ticketReal > 0 && <> · ticket real <strong className="text-foreground">{fmtBRL(projecao.ticketReal)}</strong></>}):
+                  </p>
+                </div>
+
+                {/* Funil projetado — 4 pills informativos */}
+                <div className="rounded-2xl bg-[#1a1a1a] p-5 relative overflow-hidden mb-4">
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
+                  <div className="relative">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-4">Funil Projetado ao Final do Período</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {[
+                        { label: "Leads", val: projecao.leadsProj, sub: `${fmtNum(leadsT)} atual` },
+                        { label: "Qualificados", val: projecao.mqlsProj, sub: `Taxa ${projecao.txMqlReal}%` },
+                        { label: "Agendamentos", val: projecao.reunioesProj, sub: `Taxa ${projecao.txAgendReal}%` },
+                        { label: "Fechamentos", val: projecao.fechamentosProj, sub: `Taxa ${projecao.txConvReal}%`, accent: true },
+                      ].map((item) => (
+                        <div key={item.label}>
+                          <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">{item.label}</p>
+                          <p className={cn("text-2xl font-extrabold font-display tabular-nums leading-none", item.accent ? "text-primary" : "text-white")}>{fmtNum(item.val)}</p>
+                          <p className="text-[10px] text-white/30 mt-1">{item.sub}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Receita projetada vs meta */}
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Receita — Meta vs Projeção</p>
+                  </div>
+                  <div className="p-5 space-y-4">
+                    {/* Barra visual */}
+                    <div>
+                      <div className="flex items-baseline justify-between mb-2">
+                        <span className="text-2xl font-extrabold font-display tabular-nums">{fmtBRL(projecao.receitaProj)}</span>
+                        <span className="text-xs text-muted-foreground tabular-nums">meta: {fmtBRL(Number(m.meta_receita))}</span>
+                      </div>
+                      {(() => {
+                        const pct = Number(m.meta_receita) > 0 ? Math.min((projecao.receitaProj / Number(m.meta_receita)) * 100, 150) : 0;
+                        const diff = projecao.receitaProj - Number(m.meta_receita);
+                        const isPos = diff >= 0;
+                        return (
+                          <>
+                            <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pct >= 80 ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444" }} />
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-[11px] text-muted-foreground">{Math.round(pct)}% da meta</span>
+                              <span className={cn("text-xs font-bold tabular-nums", isPos ? "text-emerald-600" : "text-red-600")}>
+                                {isPos ? "+" : ""}{fmtBRL(diff)}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                    {projecao.ticketReal === 0 && (
+                      <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200/60 rounded-lg px-3 py-2">
+                        Sem fechamentos no período — projeção de receita indisponível.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              <table className="w-full text-sm">
-                <thead><tr className="bg-muted/30 border-b border-border/60">
-                  <th className="text-left px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Metrica</th>
-                  <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Meta</th>
-                  <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Projecao</th>
-                  <th className="text-right px-5 py-3 text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Diferenca</th>
-                </tr></thead>
-                <tbody className="divide-y divide-border/30">
-                  {projecao && [
-                    { label: "Leads", meta: Number(m.meta_leads), proj: projecao.leadsProj },
-                    { label: "Qualificados", meta: Number(m.meta_mqls), proj: projecao.mqlsProj },
-                    { label: "Agendamentos", meta: Number(m.meta_reunioes), proj: projecao.reunioesProj },
-                    { label: "Fechamentos", meta: Number(m.meta_fechamentos), proj: projecao.fechamentosProj },
-                    { label: "Receita", meta: Number(m.meta_receita), proj: projecao.receitaProj, isCurrency: true },
-                  ].map((row) => {
-                    const diff = row.proj - row.meta;
-                    const isPos = diff >= 0;
-                    return (
-                      <tr key={row.label} className="hover:bg-muted/20 transition-colors">
-                        <td className="px-5 py-3.5 text-[13px] font-medium">{row.label}</td>
-                        <td className="px-5 py-3.5 text-right text-xs text-muted-foreground tabular-nums">{row.isCurrency ? fmtBRL(row.meta) : fmtNum(row.meta)}</td>
-                        <td className="px-5 py-3.5 text-right text-xs font-bold tabular-nums">{row.isCurrency ? fmtBRL(row.proj) : fmtNum(row.proj)}</td>
-                        <td className={cn("px-5 py-3.5 text-right text-xs font-bold tabular-nums", isPos ? "text-emerald-600" : "text-red-600")}>
-                          <span className="inline-flex items-center gap-1">{isPos ? "+" : ""}{row.isCurrency ? fmtBRL(diff) : fmtNum(diff)} {isPos ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           </div>
 
           {/* Simulador */}
@@ -1443,29 +1463,39 @@ export default function Metas() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-4">Detalhamento do Funil</p>
                   {simulacao && (
                     <div className="space-y-4">
+                      {/* Funil — valores projetados sem comparação de meta */}
                       {[
-                        { label: "Leads", meta: Number(m.meta_leads), sim: simulacao.leads },
-                        { label: "Qualificados", meta: Number(m.meta_mqls), sim: simulacao.mqls },
-                        { label: "Agendamentos", meta: Number(m.meta_reunioes), sim: simulacao.reunioes },
-                        { label: "Fechamentos", meta: Number(m.meta_fechamentos), sim: simulacao.fechamentos },
-                        { label: "Receita", meta: Number(m.meta_receita), sim: simulacao.receita, isCurrency: true },
-                      ].map((row) => {
-                        const pct = row.meta > 0 ? Math.round((row.sim / row.meta) * 100) : 0;
+                        { label: "Leads", sim: simulacao.leads },
+                        { label: "Qualificados", sim: simulacao.mqls },
+                        { label: "Agendamentos", sim: simulacao.reunioes },
+                        { label: "Fechamentos", sim: simulacao.fechamentos },
+                      ].map((row) => (
+                        <div key={row.label} className="flex items-center justify-between">
+                          <span className="text-xs text-muted-foreground">{row.label}</span>
+                          <span className="text-sm font-bold tabular-nums">{fmtNum(row.sim)}</span>
+                        </div>
+                      ))}
+                      <div className="h-px bg-border/40" />
+                      {/* Receita — única linha com barra de progresso vs meta */}
+                      {(() => {
+                        const pct = Number(m.meta_receita) > 0 ? Math.round((simulacao.receita / Number(m.meta_receita)) * 100) : 0;
                         return (
-                          <div key={row.label}>
+                          <div>
                             <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-xs text-muted-foreground">{row.label}</span>
+                              <span className="text-xs text-muted-foreground">Receita</span>
                               <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold tabular-nums">{row.isCurrency ? fmtBRL(row.sim) : fmtNum(row.sim)}</span>
-                                <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border tabular-nums", pctBg(pct))}>{pct}%</span>
+                                <span className="text-xs font-bold tabular-nums">{fmtBRL(simulacao.receita)}</span>
+                                {Number(m.meta_receita) > 0 && <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border tabular-nums", pctBg(pct))}>{pct}%</span>}
                               </div>
                             </div>
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }} />
-                            </div>
+                            {Number(m.meta_receita) > 0 && (
+                              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }} />
+                              </div>
+                            )}
                           </div>
                         );
-                      })}
+                      })()}
                     </div>
                   )}
                 </div>

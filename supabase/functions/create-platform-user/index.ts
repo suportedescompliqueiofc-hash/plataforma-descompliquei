@@ -27,11 +27,12 @@ function generateWelcomeEmailHtml(opts: {
   email: string;
   isExisting: boolean;
   isCrmOnly: boolean;
+  isResend: boolean;
 }): string {
   const { clinicName, planName, magicLink, email, isExisting, isCrmOnly } = opts;
   const productLabel = isCrmOnly ? 'CRM Descompliquei' : 'Plataforma Descompliquei';
-  const headline = isExisting ? 'Seu acesso foi atualizado' : isCrmOnly ? 'Bem-vindo(a) ao CRM!' : 'Bem-vindo(a) à plataforma';
-  const bodyText = isExisting
+  const headline = isExisting && !opts.isResend ? 'Seu acesso foi atualizado' : isCrmOnly ? 'Bem-vindo(a) ao CRM!' : 'Bem-vindo(a) à plataforma';
+  const bodyText = isExisting && !opts.isResend
     ? `Seu plano no ${productLabel} foi atualizado para <strong>${planName}</strong>. Acesse com o link abaixo para continuar de onde parou.`
     : isCrmOnly
       ? `Seu acesso ao CRM Descompliquei está pronto. Clique no botão abaixo para entrar — não é necessária senha no primeiro acesso.`
@@ -193,7 +194,7 @@ Deno.serve(async (req: Request) => {
     // 3. Validar body
     step = 'parse-body';
     const body = await req.json();
-    const { email, clinic_name, product_id, trial_ends_at, monthly_fee, send_welcome, site_url, responsible_name } = body;
+    const { email, clinic_name, product_id, trial_ends_at, monthly_fee, send_welcome, site_url, responsible_name, is_resend } = body;
     console.log(`[step:parse-body] email=${email} clinic=${clinic_name} product_id=${product_id}`);
 
     if (!email || !clinic_name) {
@@ -208,13 +209,13 @@ Deno.serve(async (req: Request) => {
     if (product_id) {
       const { data: prod, error: prodErr } = await supabaseAdmin
         .from('platform_products')
-        .select('nome, plano, acesso_arsenal, acesso_os, acesso_sessoes_taticas, acesso_materiais')
+        .select('nome, acesso_arsenal, acesso_os, acesso_sessoes_taticas, acesso_materiais')
         .eq('id', product_id)
         .maybeSingle();
       if (prodErr) console.error(`[step:fetch-product] ERROR: ${prodErr.message}`);
       productName = prod?.nome ?? null;
-      productPlan = prod?.plano ?? 'pca';
       hasPlataformaAccess = !!(prod?.acesso_arsenal || prod?.acesso_os || prod?.acesso_sessoes_taticas || prod?.acesso_materiais);
+      productPlan = hasPlataformaAccess ? 'pca' : 'crm';
     }
     console.log(`[step:fetch-product] productName=${productName} plan=${productPlan} hasPlataformaAccess=${hasPlataformaAccess}`);
 
@@ -279,7 +280,7 @@ Deno.serve(async (req: Request) => {
         }
 
         isExisting = true;
-        const { error: updateErr } = await supabaseAdmin.auth.admin.updateUser(userIdResolved, { password: senha_temporaria });
+        const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(userIdResolved, { password: senha_temporaria });
         if (updateErr) {
           console.error(`[step:find-existing-user] updateUser error: ${updateErr.message}`);
           return respond({ error: `Erro ao atualizar senha do usuário existente: ${updateErr.message}` });
@@ -464,6 +465,7 @@ Deno.serve(async (req: Request) => {
         email,
         isExisting,
         isCrmOnly: !hasPlataformaAccess,
+        isResend: !!is_resend,
       });
 
       const resendRes = await fetch('https://api.resend.com/emails', {
