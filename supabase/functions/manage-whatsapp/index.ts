@@ -47,6 +47,87 @@ serve(async (req: Request) => {
       .eq('organization_id', orgId)
       .maybeSingle()
 
+    // === auto_setup — cria instância automaticamente via admin token ===
+    if (action === 'auto_setup') {
+      const adminToken = Deno.env.get('UAZAPI_ADMIN_TOKEN')
+      const baseUrl = Deno.env.get('UAZAPI_BASE_URL') ?? 'https://odontonova.uazapi.com'
+      if (!adminToken) throw new Error('UAZAPI_ADMIN_TOKEN não configurado no servidor.')
+
+      // Se já tem conexão com token, apenas reconecta
+      if (conn?.uazapi_token && conn?.instance_name) {
+        const uazHeaders = { 'token': conn.uazapi_token, 'Content-Type': 'application/json' }
+        const connectRes = await fetch(`${baseUrl}/instance/connect`, { method: 'POST', headers: uazHeaders, body: JSON.stringify({}) })
+        const connectData = await connectRes.json()
+        const qr = connectData?.instance?.qrcode || connectData?.qrcode || null
+        if (connectData?.connected) {
+          await supabaseAdmin.from('whatsapp_connections').update({ status: 'connected', qr_code: null, last_connected_at: new Date().toISOString() }).eq('id', conn.id)
+          return new Response(JSON.stringify({ status: 'connected' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        }
+        if (qr) {
+          await supabaseAdmin.from('whatsapp_connections').update({ status: 'qr_pending', qr_code: qr }).eq('id', conn.id)
+        }
+        return new Response(JSON.stringify({ status: 'qr_pending', qr }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+      }
+
+      // Cria nova instância usando o admin token
+      const instanceName = `crm-${orgId.replace(/-/g, '').slice(0, 12)}`
+      const createRes = await fetch(`${baseUrl}/instance/create`, {
+        method: 'POST',
+        headers: { 'admintoken': adminToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: instanceName, adminField01: orgId }),
+      })
+      if (!createRes.ok) {
+        const errText = await createRes.text()
+        throw new Error(`Falha ao criar instância UAZAPI: ${createRes.status} — ${errText}`)
+      }
+      const createData = await createRes.json()
+      // O token da instância pode vir em campos diferentes dependendo da versão
+      const instanceToken = createData?.token || createData?.instance?.token || createData?.data?.token
+      if (!instanceToken) throw new Error(`Token da instância não retornado pela UAZAPI: ${JSON.stringify(createData)}`)
+
+      const webhookUrl = `${Deno.env.get('SUPABASE_URL')}/functions/v1/receive-message`
+
+      // Salva a conexão no banco
+      const connPayload = {
+        organization_id: orgId,
+        uazapi_url: baseUrl,
+        uazapi_token: instanceToken,
+        instance_name: instanceName,
+        n8n_webhook_url: webhookUrl,
+        status: 'disconnected' as const,
+        usuario_id_default: user.id,
+      }
+      if (conn) {
+        const { data: updated } = await supabaseAdmin.from('whatsapp_connections').update({ ...connPayload, updated_at: new Date().toISOString() }).eq('id', conn.id).select().single()
+        conn = updated
+      } else {
+        const { data: created } = await supabaseAdmin.from('whatsapp_connections').insert(connPayload).select().single()
+        conn = created
+      }
+
+      // Configura webhook automaticamente
+      try {
+        await fetch(`${baseUrl}/webhook`, {
+          method: 'POST',
+          headers: { 'token': instanceToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled: true, url: webhookUrl, events: ['messages', 'connection'], excludeMessages: ['wasSentByApi'] }),
+        })
+      } catch (_) {}
+
+      // Inicia conexão para gerar QR
+      const connectRes = await fetch(`${baseUrl}/instance/connect`, {
+        method: 'POST',
+        headers: { 'token': instanceToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const connectData = await connectRes.json()
+      const qr = connectData?.instance?.qrcode || connectData?.qrcode || null
+      if (qr && conn) {
+        await supabaseAdmin.from('whatsapp_connections').update({ status: 'qr_pending', qr_code: qr }).eq('id', conn.id)
+      }
+      return new Response(JSON.stringify({ status: 'qr_pending', qr }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+    }
+
     // === send_message — envia via UaZAPI diretamente (sem n8n) ===
     if (action === 'send_message') {
       const { lead_id, conteudo_mensagem, tipo, url_midia, titulo_pdf, telefone, internal_msg_id } = body
