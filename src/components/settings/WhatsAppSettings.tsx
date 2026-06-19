@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Smartphone, RefreshCw, Wifi, WifiOff, QrCode, CheckCircle2, Loader2 } from 'lucide-react';
+import { Smartphone, RefreshCw, Wifi, WifiOff, QrCode, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,7 @@ export function WhatsAppSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stopPolling = () => {
@@ -119,6 +120,27 @@ export function WhatsAppSettings() {
       toast.error(err.message || 'Erro ao iniciar conexão.');
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const handleCheckStatus = async () => {
+    setIsCheckingStatus(true);
+    try {
+      const result = await callManage('check_status');
+      if (result?.status) {
+        setConnection(prev => prev ? {
+          ...prev,
+          status: result.status as ConnectionStatus,
+          phone_number: result.phone || prev.phone_number,
+          qr_code: result.status === 'connected' ? null : prev.qr_code,
+        } : prev);
+        const labels: Record<string, string> = { connected: 'Conectado', disconnected: 'Desconectado', qr_pending: 'Aguardando QR', not_configured: 'Não configurado' };
+        toast.info(`Status: ${labels[result.status] ?? result.status}`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao verificar status.');
+    } finally {
+      setIsCheckingStatus(false);
     }
   };
 
@@ -254,16 +276,28 @@ export function WhatsAppSettings() {
       {/* Footer */}
       <div className="flex items-center justify-end gap-2 px-5 py-3.5 border-t border-border/40 bg-muted/20">
         {isConnected && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleDisconnect}
-            disabled={isDisconnecting}
-            className="h-9 rounded-lg text-xs font-medium border-destructive/30 text-destructive hover:bg-destructive/10 gap-1.5 px-4"
-          >
-            {isDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WifiOff className="h-3.5 w-3.5" />}
-            Desconectar
-          </Button>
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCheckStatus}
+              disabled={isCheckingStatus}
+              className="h-9 rounded-lg text-xs font-medium border-border/60 gap-1.5 px-4"
+            >
+              {isCheckingStatus ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+              Verificar Status
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDisconnect}
+              disabled={isDisconnecting}
+              className="h-9 rounded-lg text-xs font-medium border-destructive/30 text-destructive hover:bg-destructive/10 gap-1.5 px-4"
+            >
+              {isDisconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WifiOff className="h-3.5 w-3.5" />}
+              Desconectar
+            </Button>
+          </>
         )}
         {!isConnected && !isQrPending && (
           <Button
