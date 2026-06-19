@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Smartphone, RefreshCw, Wifi, WifiOff, QrCode, CheckCircle2, Loader2, ShieldCheck } from 'lucide-react';
+import { Smartphone, RefreshCw, Wifi, WifiOff, QrCode, CheckCircle2, Loader2, ShieldCheck, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -262,13 +262,43 @@ export function WhatsAppSettings() {
 
       {/* Estado inicial / desconectado */}
       {!isQrPending && !isConnected && (
-        <div className="p-6">
-          <div className="flex flex-col items-center gap-3 py-6 text-center">
-            <div className="p-3 rounded-xl bg-muted/40">
-              <WifiOff className="h-6 w-6 text-muted-foreground/40" />
+        <div className="p-5 space-y-4">
+          {/* Aviso de desconexão */}
+          {status === 'disconnected' && (
+            <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 border border-red-200/60">
+              <WifiOff className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-red-700 leading-relaxed">
+                <strong>Conexão perdida.</strong> Seu WhatsApp foi desconectado. Clique em "Conectar WhatsApp" abaixo para reconectar escaneando o QR Code novamente.
+              </p>
             </div>
-            <p className="text-sm font-medium text-muted-foreground">Nenhum WhatsApp conectado</p>
-            <p className="text-[11px] text-muted-foreground/50">Clique no botão abaixo para conectar seu número</p>
+          )}
+
+          {/* Instrução de como conectar */}
+          <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/30">
+              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Como conectar</p>
+            </div>
+            <div className="px-4 py-3 space-y-3">
+              {[
+                { n: 1, text: 'Clique em "Conectar WhatsApp" abaixo — um QR Code será gerado automaticamente.' },
+                { n: 2, text: 'No seu celular, abra o WhatsApp Business e toque nos três pontos (⋮) no canto superior direito.' },
+                { n: 3, text: 'Selecione "Aparelhos conectados" e depois "Conectar um aparelho".' },
+                { n: 4, text: 'Aponte a câmera para o QR Code exibido na tela. A conexão é feita em segundos.' },
+              ].map(({ n, text }) => (
+                <div key={n} className="flex items-start gap-3">
+                  <span className="h-5 w-5 rounded-full bg-foreground/10 text-foreground text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">
+                    {n}
+                  </span>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">{text}</p>
+                </div>
+              ))}
+            </div>
+            <div className="px-4 py-2.5 border-t border-border/40 bg-muted/10">
+              <p className="text-[10px] text-muted-foreground/50">
+                Use o número de WhatsApp Business da clínica — o mesmo que seus pacientes já conhecem.
+              </p>
+            </div>
           </div>
         </div>
       )}

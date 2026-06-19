@@ -30,6 +30,15 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     ctaLabel: 'Configurar marca',
   },
   {
+    key: 'whatsapp',
+    title: 'Conecte seu WhatsApp',
+    description: 'Vincule seu número para receber e enviar mensagens diretamente pelo CRM. Você só precisa escanear um QR Code — sem instalar nada.',
+    icon: 'Smartphone',
+    mandatory: true,
+    path: '/crm/settings?section=whatsapp',
+    ctaLabel: 'Conectar WhatsApp',
+  },
+  {
     key: 'etiquetas',
     title: 'Sincronize as etiquetas do WhatsApp',
     description: 'Importe suas etiquetas do WhatsApp Business para organizar os leads',
