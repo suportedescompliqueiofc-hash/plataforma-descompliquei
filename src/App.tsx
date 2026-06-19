@@ -10,6 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, useParams, Outlet } from "react-router-dom";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
+import { useWhatsAppMonitor } from "@/hooks/useWhatsAppMonitor";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -202,6 +203,8 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const { diasRestantes } = usePlataforma();
   const [isReturning, setIsReturning] = useState(false);
   const isSuperAdmin = role === 'superadmin';
+  const { status: waStatus } = useWhatsAppMonitor();
+  const waDisconnected = waStatus === 'disconnected' && !isPlataformaRoute;
   
   // Impersonação: detectada APENAS quando o fluxo de "Acessar CRM" salvou a org original no localStorage
   // Isso permite que múltiplos superadmins tenham orgs diferentes sem falso positivo
@@ -246,6 +249,18 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {isPlataformaRoute && diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 7 && (
         <div className="bg-[#E85D24] text-white text-xs sm:text-sm font-medium py-2 px-4 text-center z-[60] relative">
           <strong>Seu acesso expira em {diasRestantes === 0 ? 'hoje' : `${diasRestantes} dia${diasRestantes === 1 ? '' : 's'}`}.</strong> Entre em contato para renovar.
+        </div>
+      )}
+      {waDisconnected && (
+        <div className="bg-red-600 text-white text-xs sm:text-sm font-medium py-2.5 px-4 text-center z-[60] relative flex items-center justify-center gap-3">
+          <span className="h-2 w-2 rounded-full bg-white/70 animate-pulse shrink-0" />
+          <span><strong>WhatsApp desconectado.</strong> Sua conexão com o WhatsApp caiu e as mensagens não estão sendo recebidas.</span>
+          <a
+            href="/crm/settings?section=whatsapp"
+            className="underline underline-offset-2 font-semibold hover:text-white/80 transition-colors shrink-0"
+          >
+            Reconectar agora
+          </a>
         </div>
       )}
       <div className="hidden lg:block relative">

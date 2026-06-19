@@ -21,7 +21,6 @@ import { TutorialHelpButton } from "@/components/tutorial/TutorialHelpButton";
 import { usePerformanceBadge } from "@/hooks/usePerformance";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { useOnboarding } from "@/hooks/useOnboarding";
-import { useWhatsAppMonitor } from "@/hooks/useWhatsAppMonitor";
 
 interface SidebarContentProps {
   isCollapsed?: boolean;
@@ -37,7 +36,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   const { plataformaUser, plan, progressPercent, acesso, isContextLoading: plataformaLoading, isMember } = usePlataforma();
   const { pending: performancePending } = usePerformanceBadge();
   const { showInSidebar: showOnboarding, completedCount: onboardingDone, totalCount: onboardingTotal } = useOnboarding();
-  useWhatsAppMonitor();
 
   const isSuperAdmin = role === 'superadmin';
   const permissions = usePermissions();
