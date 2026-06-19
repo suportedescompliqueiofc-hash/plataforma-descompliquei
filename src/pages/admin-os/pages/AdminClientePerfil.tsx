@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, ArrowLeft, Activity, KeyRound, Trophy, RotateCcw, Users, Copy, Check, BarChart3 } from 'lucide-react';
+import { Loader2, ArrowLeft, Activity, KeyRound, Trophy, RotateCcw, Users, Copy, Check, BarChart3, Send } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -43,6 +43,7 @@ export default function AdminClientePerfil() {
   const [platformData, setPlatformData] = useState<PlatformData | null>(null);
   const [engajamentoData, setEngajamentoData] = useState<EngajamentoData | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [resending, setResending] = useState(false);
   const [copied, setCopied] = useState(false);
 
   function handleCopyId() {
@@ -68,6 +69,29 @@ export default function AdminClientePerfil() {
       toast.error('Erro ao reiniciar onboarding');
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function handleResendAccess() {
+    if (!client?.email) return;
+    setResending(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('create-platform-user', {
+        body: {
+          email: client.email,
+          clinic_name: client.org_name || client.clinic_name || client.nome_completo,
+          product_id: client.product_id ?? null,
+          trial_ends_at: client.trial_ends_at ?? null,
+          send_welcome: true,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast.success('E-mail de acesso reenviado com sucesso!');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao reenviar acesso.');
+    } finally {
+      setResending(false);
     }
   }
 
@@ -131,6 +155,7 @@ export default function AdminClientePerfil() {
         org_name: org?.name ?? null,
         organization_id: id,
         product_name,
+        product_id: tenant?.product_id ?? null,
         tenant_status: tenant?.status ?? null,
         trial_ends_at: tenant?.trial_ends_at ?? null,
         tenant_created_at: tenant?.created_at ?? null,
@@ -285,6 +310,34 @@ export default function AdminClientePerfil() {
 
               {/* Ações */}
               <div className="flex items-center gap-2 shrink-0">
+                {/* Reenviar Acesso */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <button
+                      className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold border border-border/60 text-muted-foreground hover:text-foreground hover:border-border transition-colors disabled:opacity-40"
+                      disabled={resending}
+                    >
+                      {resending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                      Reenviar Acesso
+                    </button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Reenviar e-mail de acesso?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Um novo link de acesso será gerado e enviado para <strong>{client.email}</strong>. O link anterior será invalidado.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleResendAccess}>
+                        Reenviar
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
+                {/* Reiniciar Onboarding */}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <button
