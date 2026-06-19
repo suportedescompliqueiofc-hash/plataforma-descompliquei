@@ -8,10 +8,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const MENSAGENS: Record<string, string> = {
-  'acesso-nao-encontrado': 'Acesso não encontrado. Entre em contato com o administrador.',
+  'acesso-nao-encontrado': 'Acesso não encontrado. Entre em contato com a equipe da Descompliquei.',
   'bloqueado': 'Seu acesso foi suspenso. Entre em contato com o suporte.',
   'expirado': 'Seu período de acesso expirou. Entre em contato para renovar.',
-  'link-expirado': 'O link de acesso expirou. Solicite um novo link ao administrador ou entre com e-mail e senha.',
+  'link-expirado': 'O link de acesso expirou. Solicite um novo link à equipe da Descompliquei ou entre com e-mail e senha.',
   'acesso-negado': 'O link de acesso é inválido ou já foi utilizado. Entre com e-mail e senha.',
   'link-invalido': 'O link de acesso não é válido. Solicite um novo link ou entre com e-mail e senha.',
 };
@@ -41,7 +41,9 @@ export default function PlataformaLogin() {
       if (error) {
         const msg = error.message?.includes('fetch')
           ? 'Servidor indisponível. Tente novamente em alguns segundos.'
-          : error.message || 'Email ou senha incorretos';
+          : (error.message?.includes('Invalid login credentials') || error.message?.includes('invalid_credentials'))
+            ? 'E-mail ou senha incorretos.'
+            : error.message || 'E-mail ou senha incorretos.';
         toast.error(msg, { closeButton: true });
       } else {
         window.location.href = '/';
@@ -238,7 +240,7 @@ export default function PlataformaLogin() {
           {/* Footer */}
           <div className="mt-8 pt-6" style={{ borderTop: '1px solid hsl(var(--border) / 0.4)' }}>
             <p className="text-center text-[11px] text-muted-foreground/40">
-              Para solicitar acesso, entre em contato com o administrador.
+              Para solicitar acesso, entre em contato com a equipe da Descompliquei.
             </p>
           </div>
         </div>
