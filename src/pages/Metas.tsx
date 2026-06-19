@@ -80,6 +80,10 @@ interface Meta {
   meta_receita_semana?: number;
   receita_necessaria_por_dia?: number;
   leads_necessarios_por_dia?: number;
+  // Sistema de níveis
+  tipo_meta?: string;
+  meta_receita_piso?: number;
+  meta_receita_super?: number;
 }
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -198,6 +202,9 @@ export default function Metas() {
   const [formNome, setFormNome] = useState("");
   const [formPeriodo, setFormPeriodo] = useState("mensal");
   const [formInicio, setFormInicio] = useState("");
+  const [formTipoMeta, setFormTipoMeta] = useState<'simples' | 'niveis'>('simples');
+  const [formReceitaPiso, setFormReceitaPiso] = useState(30000);
+  const [formReceitaSuper, setFormReceitaSuper] = useState(80000);
   const [formFim, setFormFim] = useState("");
   const [formReceita, setFormReceita] = useState(50000);
   const [formTicket, setFormTicket] = useState(5000);
@@ -244,9 +251,12 @@ export default function Metas() {
         meta_receita: formReceita,
         ticket_medio: formTicket,
         cpl_meta: 0,
-        tx_mql: formTxMql,
-        tx_agendamento: formTxAgend,
-        tx_conversao: formTxConv,
+        tx_mql: 0,
+        tx_agendamento: 0,
+        tx_conversao: 0,
+        tipo_meta: formTipoMeta,
+        meta_receita_piso: formTipoMeta === 'niveis' ? formReceitaPiso : 0,
+        meta_receita_super: formTipoMeta === 'niveis' ? formReceitaSuper : 0,
       };
       if (editingMeta) {
         const { error } = await supabase.from("metas").update(payload).eq("id", editingMeta.id);
@@ -294,6 +304,8 @@ export default function Metas() {
     setFormFim(format(endOfMonth(now), "yyyy-MM-dd"));
     setFormReceita(50000); setFormTicket(5000);
     setFormTxMql(60); setFormTxAgend(40); setFormTxConv(25);
+    setFormTipoMeta('simples');
+    setFormReceitaPiso(30000); setFormReceitaSuper(80000);
     setModalMeta(true);
   }
 
@@ -305,6 +317,9 @@ export default function Metas() {
     setFormReceita(Number(meta.meta_receita)); setFormTicket(Number(meta.ticket_medio));
     setFormTxMql(Number(meta.tx_mql));
     setFormTxAgend(Number(meta.tx_agendamento)); setFormTxConv(Number(meta.tx_conversao));
+    setFormTipoMeta((meta.tipo_meta as 'simples' | 'niveis') || 'simples');
+    setFormReceitaPiso(Number(meta.meta_receita_piso) || 30000);
+    setFormReceitaSuper(Number(meta.meta_receita_super) || 80000);
     setModalMeta(true);
   }
 
@@ -430,6 +445,18 @@ export default function Metas() {
   const pctFechamentos = Number(m.pct_fechamentos) || 0;
   const pctReceita = Number(m.pct_receita) || 0;
 
+  // Sistema de níveis
+  const tipoMeta = (m.tipo_meta || 'simples') as 'simples' | 'niveis';
+  const receitaPiso = Number(m.meta_receita_piso) || 0;
+  const receitaAlvo = Number(m.meta_receita) || 0;
+  const receitaSuper = Number(m.meta_receita_super) || 0;
+  const nivelAtingido: 'none' | 'piso' | 'alvo' | 'super' =
+    tipoMeta !== 'niveis' ? 'none'
+    : receitaT >= receitaSuper && receitaSuper > 0 ? 'super'
+    : receitaT >= receitaAlvo && receitaAlvo > 0 ? 'alvo'
+    : receitaT >= receitaPiso && receitaPiso > 0 ? 'piso'
+    : 'none';
+
   const txMqlReal = leadsT > 0 ? Math.round((mqlsT / leadsT) * 1000) / 10 : 0;
   const txAgendReal = mqlsT > 0 ? Math.round((reunioesT / mqlsT) * 1000) / 10 : 0;
   const txConvReal = reunioesT > 0 ? Math.round((fechamentosT / reunioesT) * 1000) / 10 : 0;
@@ -489,76 +516,111 @@ export default function Metas() {
               </div>
             </div>
 
+            {/* ── Tipo de Meta ── */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Tipo de Meta</p>
+              <div className="flex rounded-xl border border-border/60 bg-muted/30 p-1 gap-0.5 w-fit">
+                {([
+                  { value: 'simples', label: 'Meta Simples' },
+                  { value: 'niveis', label: 'Meta com Níveis' },
+                ] as const).map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setFormTipoMeta(value)}
+                    className={cn(
+                      "px-4 py-2 text-xs font-medium rounded-lg transition-all",
+                      formTipoMeta === value
+                        ? "bg-foreground text-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground hover:bg-background/80"
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {formTipoMeta === 'niveis' && (
+                <p className="text-[10px] text-muted-foreground/50 mt-2">
+                  <span className="font-semibold text-muted-foreground/70">Piso</span> = mínimo obrigatório · <span className="font-semibold text-muted-foreground/70">Alvo</span> = meta principal · <span className="font-semibold text-muted-foreground/70">Super</span> = máximo esforço
+                </p>
+              )}
+            </div>
+
             {/* ── Valores ── */}
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Valores</p>
-              <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                <div data-tutorial="meta-field-receita" className="space-y-1.5">
-                  <Label className="text-[11px] font-medium text-muted-foreground/70">Meta Receita</Label>
-                  <CurrencyInput
-                    value={formReceita}
-                    onValueChange={(v) => setFormReceita(v ?? 0)}
-                    className="h-10 text-sm rounded-lg border-border/60"
-                  />
-                </div>
-                <div data-tutorial="meta-field-ticket" className="space-y-1.5">
-                  <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Médio</Label>
-                  <CurrencyInput
-                    value={formTicket}
-                    onValueChange={(v) => setFormTicket(v ?? 0)}
-                    className="h-10 text-sm rounded-lg border-border/60"
-                  />
-                </div>
-              </div>
-            </div>
 
-            {/* ── Taxas do Funil ── */}
-            <div data-tutorial="meta-field-taxas" className="rounded-xl border border-border/40 bg-muted/15 p-4 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-md bg-muted"><Target className="h-3 w-3 text-muted-foreground" /></div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Taxas do Funil</p>
-              </div>
-              {[
-                { label: "Taxa Qualificação", desc: "Leads qualificados", value: formTxMql, set: setFormTxMql },
-                { label: "Taxa Agendamento", desc: "Qualificados que agendam", value: formTxAgend, set: setFormTxAgend },
-                { label: "Taxa Conversão", desc: "Agendados que fecham", value: formTxConv, set: setFormTxConv },
-              ].map((s) => (
-                <div key={s.label}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <Label className="text-xs font-medium text-foreground">{s.label}</Label>
-                      <p className="text-[10px] text-muted-foreground/50">{s.desc}</p>
-                    </div>
-                    <span className="text-sm font-bold text-foreground tabular-nums bg-muted/50 px-2 py-0.5 rounded-md">{s.value}%</span>
+              {formTipoMeta === 'simples' ? (
+                <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
+                  <div data-tutorial="meta-field-receita" className="space-y-1.5">
+                    <Label className="text-[11px] font-medium text-muted-foreground/70">Meta Receita</Label>
+                    <CurrencyInput
+                      value={formReceita}
+                      onValueChange={(v) => setFormReceita(v ?? 0)}
+                      className="h-10 text-sm rounded-lg border-border/60"
+                    />
                   </div>
-                  <Slider value={[s.value]} onValueChange={(v) => s.set(v[0])} min={1} max={100} step={1} />
+                  <div data-tutorial="meta-field-ticket" className="space-y-1.5">
+                    <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Médio</Label>
+                    <CurrencyInput
+                      value={formTicket}
+                      onValueChange={(v) => setFormTicket(v ?? 0)}
+                      className="h-10 text-sm rounded-lg border-border/60"
+                    />
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid gap-3 grid-cols-3">
+                    {/* Piso */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2 w-2 rounded-full bg-amber-400" />
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-amber-600">Piso</Label>
+                      </div>
+                      <CurrencyInput
+                        value={formReceitaPiso}
+                        onValueChange={(v) => setFormReceitaPiso(v ?? 0)}
+                        className="h-10 text-sm rounded-lg border-amber-200 bg-amber-50/50 focus-visible:ring-amber-300"
+                      />
+                    </div>
+                    {/* Alvo */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">Alvo</Label>
+                      </div>
+                      <CurrencyInput
+                        value={formReceita}
+                        onValueChange={(v) => setFormReceita(v ?? 0)}
+                        className="h-10 text-sm rounded-lg border-emerald-200 bg-emerald-50/50 focus-visible:ring-emerald-300"
+                      />
+                    </div>
+                    {/* Super */}
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2 w-2 rounded-full bg-violet-500" />
+                        <Label className="text-[11px] font-semibold uppercase tracking-wider text-violet-600">Super</Label>
+                      </div>
+                      <CurrencyInput
+                        value={formReceitaSuper}
+                        onValueChange={(v) => setFormReceitaSuper(v ?? 0)}
+                        className="h-10 text-sm rounded-lg border-violet-200 bg-violet-50/50 focus-visible:ring-violet-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-medium text-muted-foreground/70">Ticket Médio</Label>
+                    <CurrencyInput
+                      value={formTicket}
+                      onValueChange={(v) => setFormTicket(v ?? 0)}
+                      className="h-10 text-sm rounded-lg border-border/60"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* ── Preview do Funil Calculado ── */}
-            <div data-tutorial="meta-field-funil" className="rounded-xl bg-[#1a1a1a] p-5 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
-              <div className="relative">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-white/40 mb-4">Funil Calculado</p>
-                <div className="flex items-center justify-between gap-1 text-xs flex-wrap">
-                  {[
-                    { v: Math.round(previewLeads).toString(), s: "Leads" },
-                    { v: Math.round(previewMqls).toString(), s: "Qualif." },
-                    { v: Math.round(previewReunioes).toString(), s: "Agend." },
-                    { v: Math.round(previewFechamentos).toString(), s: "Fecham.", accent: true },
-                  ].map((item, i, arr) => (
-                    <Fragment key={item.s}>
-                      <div className="text-center flex-1 min-w-0">
-                        <p className={cn("text-base sm:text-lg font-extrabold font-display tabular-nums leading-none", item.accent ? "text-primary" : "text-white")}>{item.v}</p>
-                        <p className="text-[8px] text-white/35 uppercase tracking-wider mt-1.5">{item.s}</p>
-                      </div>
-                      {i < arr.length - 1 && <ArrowRight className="h-3 w-3 text-white/15 shrink-0 mx-0.5" />}
-                    </Fragment>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Footer */}
@@ -737,11 +799,19 @@ export default function Metas() {
       <TooltipProvider delayDuration={200}>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { label: "Receita", value: fmtBRL(receitaT), meta: `Meta: ${fmtBRL(Number(m.meta_receita))}`, pct: pctReceita, accent: true, icon: DollarSign, tooltip: "Soma do valor fechado de todas as vendas no período" },
-          { label: "Leads", value: fmtNum(leadsT), meta: `Meta: ${fmtNum(Number(m.meta_leads))}`, pct: pctLeads, icon: Users, tooltip: "Total de novos leads cadastrados no período" },
-          { label: "Agendamentos", value: fmtNum(reunioesT), meta: `Meta: ${fmtNum(Number(m.meta_reunioes))}`, pct: pctReunioes, icon: CalendarCheck, tooltip: "Leads únicos com pelo menos 1 agendamento realizado no período" },
-          { label: "Fechamentos", value: fmtNum(fechamentosT), meta: `Meta: ${fmtNum(Number(m.meta_fechamentos))}`, pct: pctFechamentos, icon: Award, tooltip: "Leads únicos com pelo menos 1 venda fechada no período" },
-        ].map((card) => (
+          { label: "Receita", value: fmtBRL(receitaT), meta: tipoMeta === 'niveis' ? `Alvo: ${fmtBRL(receitaAlvo)}` : `Meta: ${fmtBRL(Number(m.meta_receita))}`, pct: pctReceita, accent: true, icon: DollarSign, tooltip: "Soma do valor fechado de todas as vendas no período", isReceita: true, metaVal: Number(m.meta_receita) },
+          { label: "Leads", value: fmtNum(leadsT), meta: `Meta: ${fmtNum(Number(m.meta_leads))}`, pct: pctLeads, icon: Users, tooltip: "Total de novos leads cadastrados no período", isReceita: false, metaVal: Number(m.meta_leads) },
+          { label: "Agendamentos", value: fmtNum(reunioesT), meta: `Meta: ${fmtNum(Number(m.meta_reunioes))}`, pct: pctReunioes, icon: CalendarCheck, tooltip: "Leads únicos com pelo menos 1 agendamento realizado no período", isReceita: false, metaVal: Number(m.meta_reunioes) },
+          { label: "Fechamentos", value: fmtNum(fechamentosT), meta: `Meta: ${fmtNum(Number(m.meta_fechamentos))}`, pct: pctFechamentos, icon: Award, tooltip: "Leads únicos com pelo menos 1 venda fechada no período", isReceita: false, metaVal: Number(m.meta_fechamentos) },
+        ].map((card) => {
+          const showNiveis = card.isReceita && tipoMeta === 'niveis' && receitaSuper > 0;
+          const nivelBarColor = nivelAtingido === 'super' ? '#8b5cf6' : nivelAtingido === 'alvo' ? '#10b981' : nivelAtingido === 'piso' ? '#f59e0b' : '#ef4444';
+          const nivelFill = showNiveis ? Math.min((receitaT / receitaSuper) * 100, 100) : Math.min(card.pct, 100);
+          const pisoPct  = showNiveis && receitaSuper > 0 ? (receitaPiso / receitaSuper) * 100 : 0;
+          const alvoPct  = showNiveis && receitaSuper > 0 ? (receitaAlvo / receitaSuper) * 100 : 0;
+          const nivelLabel = { super: 'Super Meta', alvo: 'Alvo', piso: 'Piso', none: '' }[nivelAtingido];
+          const nivelBadgeColor = { super: 'bg-violet-50 text-violet-700 border-violet-200', alvo: 'bg-emerald-50 text-emerald-700 border-emerald-200', piso: 'bg-amber-50 text-amber-700 border-amber-200', none: '' }[nivelAtingido];
+          return (
           <div
             key={card.label}
             className={cn(
@@ -771,18 +841,47 @@ export default function Metas() {
               </Tooltip>
             </div>
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-display mt-2 tabular-nums">{card.value}</p>
-            <p className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{card.meta}</p>
-            <div className="flex items-center gap-2 mt-3">
-              <div className={cn("flex-1 h-1.5 rounded-full overflow-hidden", card.accent ? "bg-primary/10" : "bg-muted")}>
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min(card.pct, 100)}%`, backgroundColor: card.accent ? "hsl(var(--primary))" : pctColor(card.pct) }}
-                />
+            {card.metaVal > 0 && <p className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{card.meta}</p>}
+
+            {showNiveis ? (
+              /* ── Barra de 3 níveis ── */
+              <div className="mt-3 space-y-2">
+                <div className="relative h-2 bg-primary/10 rounded-full overflow-visible">
+                  {/* Preenchimento */}
+                  <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${nivelFill}%`, backgroundColor: nivelBarColor }} />
+                  {/* Marco Piso */}
+                  <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-amber-400 rounded-full z-10" style={{ left: `${pisoPct}%` }} />
+                  {/* Marco Alvo */}
+                  <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-4 bg-emerald-500 rounded-full z-10" style={{ left: `${alvoPct}%` }} />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 text-[9px] text-muted-foreground/50">
+                    <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />Piso</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />Alvo</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500" />Super</span>
+                  </div>
+                  {nivelAtingido !== 'none' && (
+                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border tabular-nums", nivelBadgeColor)}>
+                      {nivelLabel} atingida
+                    </span>
+                  )}
+                </div>
               </div>
-              <span className={cn("text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md border", pctBg(card.pct))}>{fmtPct(card.pct)}</span>
-            </div>
+            ) : card.metaVal > 0 ? (
+              /* ── Barra simples ── */
+              <div className="flex items-center gap-2 mt-3">
+                <div className={cn("flex-1 h-1.5 rounded-full overflow-hidden", card.accent ? "bg-primary/10" : "bg-muted")}>
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(card.pct, 100)}%`, backgroundColor: card.accent ? "hsl(var(--primary))" : pctColor(card.pct) }}
+                  />
+                </div>
+                <span className={cn("text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md border", pctBg(card.pct))}>{fmtPct(card.pct)}</span>
+              </div>
+            ) : null}
           </div>
-        ))}
+          );
+        })}
       </div>
       <div className="flex items-center gap-2 mt-2 px-1">
         <Info className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
@@ -980,11 +1079,11 @@ export default function Metas() {
             </div>
           </div>
 
-          {/* Taxas Reais vs Meta */}
+          {/* Performance do Funil */}
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="p-1.5 rounded-lg bg-muted"><Gauge className="h-3.5 w-3.5 text-muted-foreground" /></div>
-              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Taxas Reais vs Meta</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Performance do Funil</span>
             </div>
 
             {/* Desktop table */}
