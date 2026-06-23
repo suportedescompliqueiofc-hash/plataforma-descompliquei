@@ -256,15 +256,16 @@ export function AiFollowupTab() {
     <div className="space-y-4">
       {/* Tab switcher */}
       <div className="flex items-center justify-between">
-        <div className="inline-flex bg-muted/40 rounded-xl p-1 gap-0.5">
+        <div className="inline-flex bg-muted/40 rounded-xl p-1 gap-0.5" data-tutorial="ia-followup-tabs">
           {(
             [
-              { key: "analise", label: "Análise" },
-              { key: "config", label: "Configuração" },
+              { key: "analise", label: "Análise", tutorialKey: "ia-followup-tab-analise" },
+              { key: "config", label: "Configuração", tutorialKey: "ia-followup-tab-config" },
             ] as const
-          ).map(({ key, label }) => (
+          ).map(({ key, label, tutorialKey }) => (
             <button
               key={key}
+              data-tutorial={tutorialKey}
               onClick={() => setActiveTab(key)}
               className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
                 activeTab === key

@@ -1338,22 +1338,31 @@ export const tutorials: Tutorial[] = [
         position: 'bottom',
         action: { type: 'click', selector: '[data-tutorial="ia-subtab-identidade"]', delay: 300 },
       },
-      // ── 14. Aba Follow-up: config ──
+      // ── 14. Aba Follow-up: visão geral ──
+      {
+        target: 'ia-followup-tabs',
+        title: 'Aba Follow-up',
+        description: 'A aba de Follow-up tem duas seções:\n\n• **Configuração** — ativa/desativa o follow-up e define sequências e intervalos\n• **Análise** — histórico completo e métricas de todos os follow-ups enviados\n\nVamos ver cada uma.',
+        position: 'bottom',
+        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(2)', delay: 500 },
+      },
+      // ── 15. Follow-up: config ──
       {
         target: 'ia-followup-config',
         title: 'Configuração de Follow-up',
         description: 'O follow-up automático envia **mensagens humanizadas** para leads que sumiram durante o atendimento.\n\n• **Ative/desative** o follow-up com o interruptor\n• Configure a **sequência de tentativas** (até 5)\n• Defina o **intervalo** entre cada mensagem:\n  - 1ª tentativa: 15min a 2h (lead ainda está quente)\n  - 2ª tentativa: 1h a 8h (reforço)\n  - 3ª tentativa: 12h a 3 dias (última chance)\n• Configure se deve **respeitar horário de atendimento**\n\nA IA **para automaticamente** quando o lead responde.',
         position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(2)', delay: 500 },
+        action: { type: 'click', selector: '[data-tutorial="ia-followup-tab-config"]', delay: 400 },
       },
-      // ── 15. Follow-up: histórico ──
+      // ── 16. Follow-up: análise ──
       {
         target: 'ia-followup-history',
-        title: 'Histórico de Follow-ups',
-        description: 'Logo abaixo da configuração está o **histórico completo** de todos os follow-ups enviados:\n\n• **Enviado** — mensagem entregue com sucesso\n• **IA ignorou** — a IA decidiu que não fazia sentido enviar\n• **Fora do horário** — bloqueado pela regra de horário\n• **Lead respondeu** — follow-up cancelado porque o lead voltou\n• **Erro** — falha no envio\n\nUse este histórico para **ajustar os intervalos** e verificar se a IA está tomando boas decisões.',
+        title: 'Análise de Follow-ups',
+        description: 'Na aba **Análise** você encontra o histórico completo de todos os follow-ups:\n\n• **Enviado** — mensagem entregue com sucesso\n• **IA ignorou** — a IA decidiu que não fazia sentido enviar\n• **Fora do horário** — bloqueado pela regra de horário\n• **Lead respondeu** — follow-up cancelado porque o lead voltou\n• **Erro** — falha no envio\n\nUse este histórico para **ajustar os intervalos** e verificar se a IA está tomando boas decisões.',
         position: 'top',
+        action: { type: 'click', selector: '[data-tutorial="ia-followup-tab-analise"]', delay: 400 },
       },
-      // ── 16. Aba Triagem ──
+      // ── 17. Aba Triagem ──
       {
         target: 'ia-triage',
         title: 'Triagem de Leads',
@@ -1361,7 +1370,7 @@ export const tutorials: Tutorial[] = [
         position: 'top',
         action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(3)', delay: 500 },
       },
-      // ── 17. Aba Logs ──
+      // ── 18. Aba Logs ──
       {
         target: 'ia-logs',
         title: 'Logs de Execução da IA',
