@@ -812,7 +812,7 @@ export function SuporteTab() {
 
       <div className="space-y-5">
         {/* Tabs de navegação */}
-        <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 w-fit">
+        <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1 w-fit" data-tutorial="suporte-tabs">
           {([
             { id: 'solicitacoes', label: 'Minhas Solicitações', icon: LifeBuoy },
             { id: 'base_conhecimento', label: 'Base de Conhecimento', icon: BookOpen },
@@ -834,7 +834,7 @@ export function SuporteTab() {
         </div>
 
         {/* Métricas rápidas */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-tutorial="suporte-metrics">
           {[
             { label: 'Total', value: contagens.todos, icon: FileText, color: 'text-muted-foreground' },
             { label: 'Abertos', value: contagens.aberto + contagens.em_analise, icon: AlertCircle, color: 'text-blue-500' },
@@ -852,7 +852,7 @@ export function SuporteTab() {
         </div>
 
         {/* Card principal */}
-        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="suporte-tickets">
           {/* Header */}
           <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -866,6 +866,7 @@ export function SuporteTab() {
             </div>
             <Button
               onClick={() => setNovoAberto(true)}
+              data-tutorial="suporte-novo-ticket"
               className="h-8 rounded-lg text-[11px] font-semibold bg-foreground text-background hover:bg-foreground/90 px-3 gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone,
+  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone, LifeBuoy,
   CheckCircle2, Circle, ArrowRight, Trophy, X, KeyRound, Eye, EyeOff, Loader2, HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone, KeyRound, HelpCircle,
+  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone, KeyRound, HelpCircle, LifeBuoy,
 };
 
 // ─── Step Card ────────────────────────────────────────────────────────────────
@@ -248,7 +248,7 @@ export function OnboardingModal() {
   const location = useLocation();
   const { steps, mandatoryComplete, shouldShowModal, completeStep, isLoading } = useOnboarding();
   const { profile } = useProfile();
-  const { startTutorial, setHelpCenterOpen } = useTutorialContext();
+  const { startTutorial } = useTutorialContext();
   const { status: waStatus } = useWhatsAppMonitor();
   const [celebrating, setCelebrating] = useState(false);
   const [wasModalVisible, setWasModalVisible] = useState(false);
@@ -306,14 +306,6 @@ export function OnboardingModal() {
   if (dismissed && !celebrating) return null;
 
   const handleStartGuide = (step: OnboardingStep) => {
-    if (step.key === 'suporte') {
-      // Marca o passo como completo, esconde o modal temporariamente (sem localStorage)
-      // e abre o help center — evita conflito de z-index entre o modal e o Dialog
-      completeStep.mutate('suporte');
-      setDismissed(true);
-      setHelpCenterOpen(true);
-      return;
-    }
     if (step.path) navigate(step.path);
     if (step.tutorialId) {
       setTimeout(() => startTutorial(step.tutorialId!), 600);

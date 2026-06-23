@@ -166,6 +166,7 @@ export default function Settings() {
       <button data-tutorial="settings-go-marca" className="sr-only" onClick={() => setActiveSection('marca')} tabIndex={-1} aria-hidden="true" />
       <button data-tutorial="settings-go-tags" className="sr-only" onClick={() => setActiveSection('tags')} tabIndex={-1} aria-hidden="true" />
       <button data-tutorial="settings-go-team" className="sr-only" onClick={() => setActiveSection('team')} tabIndex={-1} aria-hidden="true" />
+      <button data-tutorial="settings-go-suporte" className="sr-only" onClick={() => setActiveSection('suporte')} tabIndex={-1} aria-hidden="true" />
 
       {/* ═══ PAGE HEADER ═══ */}
       <div>

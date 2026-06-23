@@ -91,12 +91,13 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     key: 'suporte',
-    title: 'Conheça a Central de Ajuda',
-    description: 'Tutoriais interativos para cada funcionalidade do CRM — disponíveis a qualquer momento pelo botão de ajuda na barra lateral.',
-    icon: 'HelpCircle',
+    title: 'Conheça a Central de Suporte',
+    description: 'Abra tickets, acompanhe suas solicitações e acesse a base de conhecimento com artigos e tutoriais.',
+    icon: 'LifeBuoy',
     mandatory: true,
-    ctaLabel: 'Abrir central de ajuda',
-    // Sem path/tutorialId — abre o HelpCenter inline via setHelpCenterOpen
+    path: '/crm/settings?section=suporte',
+    tutorialId: 'onboarding-suporte',
+    ctaLabel: 'Abrir Central de Suporte',
   },
   {
     key: 'tutorial',

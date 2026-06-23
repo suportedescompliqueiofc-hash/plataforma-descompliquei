@@ -1792,6 +1792,43 @@ export const tutorials: Tutorial[] = [
     ],
   },
 
+  // ── Onboarding — Central de Suporte ─────────────────────────────────────────
+  {
+    id: 'onboarding-suporte',
+    pageRoute: '/crm/settings',
+    title: 'Central de Suporte',
+    description: 'Abra tickets e acesse a base de conhecimento.',
+    icon: 'LifeBuoy',
+    category: 'onboarding' as any,
+    steps: [
+      {
+        target: 'suporte-tabs',
+        title: 'Central de Suporte',
+        description: 'Você está na **Central de Suporte**. Aqui você se comunica diretamente com a equipe Descompliquei.\n\nDuas seções:\n\n• **Minhas Solicitações** — tickets abertos, em andamento e resolvidos\n• **Base de Conhecimento** — artigos com respostas para dúvidas frequentes',
+        position: 'bottom' as const,
+        action: { type: 'click' as const, selector: '[data-tutorial="settings-go-suporte"]', delay: 500 },
+      },
+      {
+        target: 'suporte-metrics',
+        title: 'Painel de status',
+        description: 'Acompanhe o **resumo das suas solicitações** em tempo real:\n\n• **Total** — todos os tickets já abertos\n• **Abertos** — aguardando análise ou em andamento\n• **Aguardando** — precisam de mais informações da sua parte\n• **Resolvidos** — tickets concluídos\n\nOs status são atualizados automaticamente pela equipe.',
+        position: 'bottom' as const,
+      },
+      {
+        target: 'suporte-novo-ticket',
+        title: 'Abrir um ticket',
+        description: 'Clique em **"Novo Ticket"** para enviar uma solicitação à equipe.\n\nPreencha:\n• **Título** — descreva o problema em uma frase\n• **Categoria** — Bug, Melhoria, Dúvida ou Outro\n• **Prioridade** — Baixa, Média, Alta ou Crítica\n• **Descrição** — quanto mais detalhe, mais rápido resolvemos\n• **Anexos** — imagens ou vídeos opcionais\n\nPrazo médio de resposta: **até 48 horas úteis**.',
+        position: 'left' as const,
+      },
+      {
+        target: 'suporte-tickets',
+        title: 'Acompanhar solicitações',
+        description: 'Na lista de tickets você vê todas as suas solicitações com status em tempo real.\n\nClique em qualquer ticket para abrir a **conversa completa** — você pode enviar mensagens adicionais e a equipe responde direto por aqui.\n\n**Dica:** use os filtros de status (Abertos, Em Análise, etc.) para encontrar rapidamente o que precisa.\n\n**Pronto!** Volte ao onboarding e marque este passo como concluído.',
+        position: 'left' as const,
+      },
+    ],
+  },
+
   // ── Plataforma — Tour Completo ───────────────────────────────────────────────
   {
     id: 'platform-tour',

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import {
-  Building2, Bot, Stethoscope, Users, GraduationCap, Tag,
+  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone, KeyRound, LifeBuoy,
   CheckCircle2, Circle, ArrowRight, Trophy,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,7 @@ import { useTutorialContext } from '@/components/tutorial/TutorialProvider';
 import { toast } from 'sonner';
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  Building2, Bot, Stethoscope, Users, GraduationCap, Tag,
+  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone, KeyRound, LifeBuoy,
 };
 
 export default function CrmOnboarding() {
