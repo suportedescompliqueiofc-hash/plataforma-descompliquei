@@ -374,7 +374,7 @@ export default function Evolucao() {
       </div>
 
       {/* Period selector */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5 space-y-4">
+      <div data-tutorial="evolucao-period" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5 space-y-4">
         {/* Presets */}
         <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit">
           {PRESETS.map(p => (
@@ -423,7 +423,7 @@ export default function Evolucao() {
       {d && a && b && (
         <>
           {/* ── VISÃO GERAL ─────────────────────────────────────────── */}
-          <div>
+          <div data-tutorial="evolucao-kpis">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3 ml-1">Visão Geral</p>
             <div className="flex flex-wrap justify-center gap-4">
               <KpiCard label="Leads" icon={Users} current={a.totalLeads} previous={b.totalLeads} className="w-[calc(50%-8px)] md:w-[calc(33.333%-11px)]" />
@@ -435,7 +435,7 @@ export default function Evolucao() {
           </div>
 
           {/* ── FUNIL DE CONVERSÃO ──────────────────────────────────── */}
-          <SectionCard title="Funil de Conversão" icon={Activity}>
+          <div data-tutorial="evolucao-funnel"><SectionCard title="Funil de Conversão" icon={Activity}>
             <div className="flex items-center justify-between gap-1 overflow-x-auto py-6 px-5">
               {[
                 { label: 'Leads', ca: a.totalLeads, cb: b.totalLeads },
@@ -471,10 +471,10 @@ export default function Evolucao() {
                 </Fragment>
               ))}
             </div>
-          </SectionCard>
+          </SectionCard></div>
 
           {/* ── LEADS & AQUISIÇÃO ───────────────────────────────────── */}
-          <SectionCard title="Leads & Aquisição" icon={Users}>
+          <div data-tutorial="evolucao-leads"><SectionCard title="Leads & Aquisição" icon={Users}>
             <div className="p-5 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <ComparisonBar label="Marketing" current={a.leadsMkt} previous={b.leadsMkt} color="bg-blue-500/80" />
@@ -509,10 +509,10 @@ export default function Evolucao() {
                 </>
               )}
             </div>
-          </SectionCard>
+          </SectionCard></div>
 
           {/* ── VENDAS & RECEITA ────────────────────────────────────── */}
-          <SectionCard title="Vendas & Receita" icon={DollarSign}>
+          <div data-tutorial="evolucao-vendas"><SectionCard title="Vendas & Receita" icon={DollarSign}>
             <div>
               <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border/30">
                 {[
@@ -558,10 +558,10 @@ export default function Evolucao() {
                 </div>
               )}
             </div>
-          </SectionCard>
+          </SectionCard></div>
 
           {/* ── AGENDAMENTOS ────────────────────────────────────────── */}
-          <SectionCard title="Agendamentos" icon={Calendar}>
+          <div data-tutorial="evolucao-agendamentos"><SectionCard title="Agendamentos" icon={Calendar}>
             <div>
               <MetricRow label="Total de Agendamentos" current={a.agTotal} previous={b.agTotal} />
               <MetricRow label="Realizados" current={a.agRealizados} previous={b.agRealizados} />
@@ -570,16 +570,16 @@ export default function Evolucao() {
               <MetricRow label="Taxa de Comparecimento" current={a.agTaxaComparecimento} previous={b.agTaxaComparecimento} fmt="pct" />
               <MetricRow label="Taxa de No-Show" current={a.agTaxaNoShow} previous={b.agTaxaNoShow} fmt="pct" invert />
             </div>
-          </SectionCard>
+          </SectionCard></div>
 
           {/* ── ATENDIMENTO ─────────────────────────────────────────── */}
-          <SectionCard title="Atendimento" icon={MessageSquare}>
+          <div data-tutorial="evolucao-atendimento"><SectionCard title="Atendimento" icon={MessageSquare}>
             <div>
               <MetricRow label="Tempo médio de 1ª resposta" current={a.tempoRespostaHumano} previous={b.tempoRespostaHumano} fmt="time" invert />
               <MetricRow label="Duração média do atendimento" current={a.duracaoAtendimento} previous={b.duracaoAtendimento} fmt="time" invert />
               <MetricRow label="Taxa sem resposta (24h)" current={a.taxaSemResposta} previous={b.taxaSemResposta} fmt="pct" invert />
             </div>
-          </SectionCard>
+          </SectionCard></div>
 
         </>
       )}

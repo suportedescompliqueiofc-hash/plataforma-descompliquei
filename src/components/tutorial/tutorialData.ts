@@ -304,7 +304,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'conversations-filter-panel',
         title: 'Painel de filtros — 4 dimensões',
-        description: 'O painel oferece **4 filtros** que podem ser combinados:\n\n• **Origem** — segmente por canal de aquisição:\n  - Marketing (anúncios pagos)\n  - Orgânico (indicação, busca, redes sociais)\n  - Reativação (retorno após inatividade)\n  - Paciente (já é cliente)\n\n• **Etapa do Pipeline** — filtre por fase do funil (Novo Lead, Em Atendimento, Agendado...)\n\n• **Etiquetas** — filtre por tags personalizadas (VIP, Retorno, Urgente...)\n\n• **Data de Cadastro** — intervalo de datas para isolar leads de um período\n\n**"Limpar tudo"** remove todos os filtros de uma vez. Combine filtros para análises precisas — ex: "Marketing + Novo Lead + esta semana" = leads pagos recentes sem atendimento.',
+        description: 'O painel oferece **4 filtros** que podem ser combinados:\n\n• **Origem** — segmente por canal de aquisição:\n  - Marketing (anúncios pagos)\n  - Orgânico (indicação, busca, redes sociais)\n  - Reativação (retorno após inatividade)\n  - Paciente (já é cliente)\n\n• **IA** — filtre conversas com IA ativa ou sem IA\n\n• **Etiquetas** — filtre por tags personalizadas (VIP, Retorno, Urgente...)\n\n• **Período** — intervalo de datas para isolar leads de um período\n\n**"Limpar tudo"** remove todos os filtros de uma vez. Combine filtros para análises precisas — ex: "Marketing + Etiqueta VIP" = leads pagos de alta prioridade.',
         position: 'left',
         action: { type: 'click', selector: '[data-tutorial="conversations-filter"]', delay: 500 },
       },
@@ -322,7 +322,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'conversations-item-menu',
         title: 'Menu ⋮ — 8 ações rápidas',
-        description: 'Sem abrir a conversa, você acessa **8 ações instantâneas** no menu que acabou de abrir:\n\n• **Editar Nome** — renomeia o lead na lista\n• **Alterar Etapa** — move para outra fase do pipeline\n• **Adicionar Etiqueta** — aplica ou remove tags\n• **Iniciar Cadência** — dispara fluxo automático para este lead\n• **Configurar IA** — ativa ou desativa a IA para esta conversa\n• **Alterar Origem** — corrige o canal (Marketing/Orgânico/Reativação/Paciente)\n• **Desconsiderar das métricas** — exclui do Painel (leads teste, spam)\n• **Excluir Conversa** — remove lead e histórico permanentemente\n\n**Dica:** use "Alterar Etapa" e "Adicionar Etiqueta" aqui para organizar sua lista rapidamente sem abrir cada atendimento.',
+        description: 'Sem abrir a conversa, você acessa **7 ações instantâneas** no menu que acabou de abrir:\n\n• **Editar Nome** — renomeia o lead na lista\n• **Adicionar Etiqueta** — aplica ou remove tags\n• **Iniciar Cadência** — dispara fluxo automático para este lead\n• **Configurar IA** — ativa ou desativa a IA para esta conversa\n• **Alterar Origem** — corrige o canal (Marketing/Orgânico/Reativação/Paciente)\n• **Desconsiderar das métricas** — exclui do Painel (leads teste, spam)\n• **Excluir Conversa** — remove lead e histórico permanentemente\n\n**Dica:** use "Adicionar Etiqueta" e "Iniciar Cadência" aqui para organizar sua lista rapidamente sem abrir cada atendimento.',
         position: 'left',
         action: { type: 'click', selector: '[data-tutorial="conversations-item-menu-btn"]', delay: 600 },
       },
@@ -340,7 +340,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'conversations-header-menu',
         title: 'Opções de seleção em massa',
-        description: 'Ao clicar no ⋮, aparecem **3 opções**:\n\n• **Selecionar Conversas** — ativa checkboxes em cada item. Clique individualmente para marcar ou desmarcar cada conversa.\n• **Selecionar Tudo** — marca de uma vez **todas** as conversas visíveis (respeitando os filtros ativos).\n• **Cancelar Seleção** — aparece quando já está no modo seleção.\n\nCom conversas selecionadas, o painel direito exibe **6 ações em massa**:\n\n• **Alterar Etapa** — move todos para uma fase do pipeline\n• **Adicionar Etiqueta** — aplica a mesma tag em todos\n• **Iniciar Cadência** — dispara fluxo automático para o grupo\n• **Configurar IA** — ativa ou desativa a IA em lote\n• **Alterar Origem** — corrige o canal de vários leads\n• **Excluir Leads** (vermelho) — remove permanentemente\n\n**Cenário prático:** filtro "Marketing + Novo Lead" → Selecionar Tudo → Alterar Etapa "Em Atendimento" → fila priorizada em segundos.',
+        description: 'Ao clicar no ⋮, aparecem **3 opções**:\n\n• **Selecionar Conversas** — ativa checkboxes em cada item. Clique individualmente para marcar ou desmarcar cada conversa.\n• **Selecionar Tudo** — marca de uma vez **todas** as conversas visíveis (respeitando os filtros ativos).\n• **Cancelar Seleção** — aparece quando já está no modo seleção.\n\nCom conversas selecionadas, o painel direito exibe **5 ações em massa**:\n\n• **Adicionar Etiqueta** — aplica a mesma tag em todos\n• **Iniciar Cadência** — dispara fluxo automático de mensagens para o grupo\n• **Configurar IA** — ativa ou desativa a IA em lote\n• **Alterar Origem** — corrige o canal de aquisição de vários leads\n• **Excluir Leads** (vermelho) — remove permanentemente\n\n**Cenário prático:** filtro "Marketing" → Selecionar Tudo → Adicionar Etiqueta "Novo" → toda a fila categorizada em segundos.',
         position: 'left',
         action: { type: 'click', selector: '[data-tutorial="conversations-menu-btn"]', delay: 600 },
       },
@@ -367,7 +367,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'conversations-bulk-panel',
         title: 'Painel de ações em massa',
-        description: 'Com conversas selecionadas, este painel aparece no lado direito com **6 ações**:\n\n• **Alterar Etapa** — move todos os selecionados para uma fase do pipeline\n• **Adicionar Etiqueta** — aplica a mesma tag em todos\n• **Iniciar Cadência** — dispara fluxo automático de mensagens para o grupo\n• **Configurar IA** — ativa ou desativa a IA em lote\n• **Alterar Origem** — corrige o canal de aquisição de vários leads\n• **Excluir Leads** (vermelho) — remove todos permanentemente — use com cuidado!\n\n**Cenário real:** filtre por "Marketing + Novo Lead" → Selecionar Tudo → Alterar Etapa para "Em Atendimento" → toda a fila organizada em segundos.',
+        description: 'Com conversas selecionadas, este painel aparece no lado direito com **5 ações**:\n\n• **Adicionar Etiqueta** — aplica a mesma tag em todos\n• **Iniciar Cadência** — dispara fluxo automático de mensagens para o grupo\n• **Configurar IA** — ativa ou desativa a IA em lote\n• **Alterar Origem** — corrige o canal de aquisição de vários leads\n• **Excluir Leads** (vermelho) — remove todos permanentemente — use com cuidado!\n\n**Cenário real:** filtre por "Marketing" → Selecionar Tudo → Adicionar Etiqueta → toda a fila categorizada em segundos.',
         position: 'left',
       },
 
@@ -647,7 +647,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'leads-table',
         title: 'Tabela de leads',
-        description: 'A tabela central mostra **todos os seus leads** com informações essenciais:\n\n• **Nome e telefone** — dados de contato\n• **Origem** — badge colorido (Mkt = marketing, Org = orgânico, Imp = importado)\n• **Etiquetas** — tags coloridas para categorização\n• **Pipeline** — etapa atual do funil com cor\n• **Data** — quando o lead foi cadastrado\n\n**Clique em qualquer lead** para abrir o modal completo com todos os detalhes, histórico e opções de edição.',
+        description: 'A tabela central mostra **todos os seus leads** com informações essenciais:\n\n• **Nome e telefone** — dados de contato\n• **Origem** — badge colorido (Mkt = marketing, Org = orgânico, Imp = importado)\n• **Etiquetas** — tags coloridas para categorização\n• **Responsável** — atendente vinculado ao lead\n• **Data** — quando o lead foi cadastrado\n\n**Clique em qualquer lead** para abrir o modal completo com todos os detalhes, histórico e opções de edição.',
         position: 'top',
       },
       {
@@ -735,12 +735,6 @@ export const tutorials: Tutorial[] = [
         target: 'agendamento-field-data',
         title: 'Campo: Data e Hora',
         description: 'Selecione a **data e horário** do atendimento.\n\n• Use o seletor de data e hora\n• Confirme que não há conflito com outros agendamentos\n\n**Dica:** no calendário, você também pode criar agendamentos **clicando diretamente em um horário** — a data e hora já vêm preenchidas.',
-        position: 'right',
-      },
-      {
-        target: 'agendamento-field-cor',
-        title: 'Campo: Cor do evento',
-        description: 'Escolha uma **cor** para identificar visualmente o agendamento no calendário.\n\n**Sugestão de organização:**\n• Azul → Consultas\n• Verde → Procedimentos\n• Laranja → Avaliações\n• Roxo → Retornos\n\nUsar cores consistentes facilita a leitura rápida do calendário.',
         position: 'right',
       },
       {
@@ -1145,33 +1139,9 @@ export const tutorials: Tutorial[] = [
         position: 'right',
       },
       {
-        target: 'meta-field-marketing',
-        title: 'Campo: Investimento em marketing',
-        description: 'Ative este toggle se sua clínica **investe em marketing pago** (Meta Ads, Google Ads, etc.).\n\nQuando ativado, novos campos aparecem:\n• **CPL Meta** — quanto quer pagar por lead no máximo\n• **Taxa de Qualificação** — percentual esperado de leads qualificados\n\nIsso permite calcular métricas como **CPL, Custo por Qualificado e ROAS** automaticamente.',
-        position: 'right',
-      },
-      {
         target: 'meta-field-receita',
         title: 'Campo: Meta de Receita',
         description: 'Defina quanto você quer **faturar** neste período.\n\nEste é o número mais importante — ele direciona todos os outros cálculos.\n\n**Como definir:** olhe seu faturamento dos últimos 3 meses, calcule a média e adicione **10-20%** de crescimento. Ex: se faturou R$50k/mês, meta = R$55k a R$60k.',
-        position: 'right',
-      },
-      {
-        target: 'meta-field-ticket',
-        title: 'Campo: Ticket Médio',
-        description: 'Informe o **valor médio** das suas vendas.\n\nO ticket médio é usado para calcular automaticamente quantas **vendas** você precisa para atingir a meta de receita.\n\nEx: Meta de R$60k com ticket de R$3k = **20 vendas necessárias**\n\n**Dica:** consulte a página de Vendas para ver seu ticket médio real dos últimos meses.',
-        position: 'right',
-      },
-      {
-        target: 'meta-field-taxas',
-        title: 'Taxas de conversão',
-        description: 'Ajuste as **taxas de conversão** do seu funil:\n\n• **Taxa de Qualificação** — % de leads que se tornam qualificados\n• **Taxa Agendamento** — % de qualificados que agendam\n• **Taxa Conversão** — % de agendados que fecham\n\n**O que esses números fazem:** o sistema calcula automaticamente quantos leads você precisa no topo do funil para atingir a meta de vendas.\n\nEx: se conversão é 10%, para 20 vendas você precisa de **200 leads**.',
-        position: 'right',
-      },
-      {
-        target: 'meta-field-funil',
-        title: 'Funil calculado',
-        description: 'Com base nas taxas informadas, o sistema calcula o **funil completo**:\n\n• Quantos **leads** você precisa gerar\n• Quantos serão **qualificados**\n• Quantos vão **agendar**\n• Quantos vão **fechar**\n• Quanto vai **faturar**\n\nSe os números parecem irreais, ajuste as taxas de conversão ou a meta de receita até encontrar um cenário viável.',
         position: 'right',
       },
       {
@@ -1181,16 +1151,16 @@ export const tutorials: Tutorial[] = [
         position: 'top',
       },
       {
-        target: 'metas-funnel',
+        target: 'metas-cards',
         action: { type: 'dismiss', delay: 300 },
-        title: 'Funil de conversão',
-        description: 'O funil mostra o **fluxo de conversão** da sua operação:\n\n**Leads → Qualificados → Agendamentos → Vendas**\n\nEntre cada etapa, você vê a **taxa de conversão**:\n• Leads → Qualificados = quantos leads demonstraram interesse real\n• Qualificados → Agendamentos = quantos qualificados agendaram\n• Agendamentos → Vendas = quantos agendados fecharam\n\n**Análise:** se uma taxa está baixa, identifique o gargalo. Ex: se Qualificados→Agendamentos é baixa, sua equipe precisa melhorar o agendamento de consultas.',
+        title: 'Visão Geral — Progresso e Funil',
+        description: 'A aba **Visão Geral** mostra os cards de progresso da meta atual e o funil de conversão da operação:\n\n**Leads → Qualificados → Agendamentos → Vendas**\n\nEntre cada etapa você vê a **taxa de conversão** real:\n• Leads → Qualificados = interesse demonstrado\n• Qualificados → Agendamentos = taxa de agendamento\n• Agendamentos → Vendas = taxa de fechamento\n\n**Análise:** se uma taxa está baixa, identifique o gargalo e ajuste o processo naquele ponto.',
         position: 'bottom',
       },
       {
         target: 'metas-tabs',
         title: 'Abas de visualização',
-        description: 'Três perspectivas diferentes sobre suas metas:\n\n• **Visão Geral** — cards com progresso atual de cada meta\n• **Histórico** — comparação com meses anteriores\n• **Projeção** — simulador de cenários futuros\n\n**Quando usar cada uma:**\n• Visão Geral → acompanhamento diário\n• Histórico → análise de evolução mensal\n• Projeção → planejamento e simulação de cenários',
+        description: 'Duas perspectivas sobre suas metas:\n\n• **Visão Geral** — cards com progresso atual, funil de conversão e ritmo diário\n• **Evolução** — gráfico histórico, comparação de períodos e simulador de cenários\n\n**Quando usar cada uma:**\n• Visão Geral → acompanhamento diário do progresso\n• Evolução → análise de tendência e planejamento de próximos meses',
         position: 'bottom',
       },
       {
@@ -1206,24 +1176,129 @@ export const tutorials: Tutorial[] = [
         position: 'top',
       },
       {
-        target: 'metas-historico',
-        title: 'Histórico de metas',
-        description: 'A aba **Histórico** mostra a evolução das suas metas ao longo dos meses anteriores.\n\n**O que analisar:**\n• **Tendência** — seus resultados estão melhorando mês a mês?\n• **Sazonalidade** — existem meses naturalmente mais fracos?\n• **Consistência** — você bate as metas com frequência?\n\n**Dica:** se nos últimos 3 meses você superou as metas facilmente, **aumente os objetivos**. Se ficou muito abaixo, ajuste para algo mais realista e vá subindo gradualmente.',
+        target: 'metas-projecao',
+        title: 'Aba Evolução',
+        description: 'A aba **Evolução** mostra o histórico e o simulador de cenários:\n\n• **Gráfico histórico** — comparação de meses anteriores para identificar tendências e sazonalidade\n• **Simulador** — ajuste variáveis (receita-alvo, ticket médio, taxas) e veja o impacto projetado\n\n**O que analisar:**\n• Seus resultados estão melhorando mês a mês?\n• Existem meses naturalmente mais fracos?\n• Se superou metas com facilidade, **aumente os objetivos**.\n\n**Cenários:** compare otimista, realista e pessimista antes de definir metas futuras.',
         position: 'bottom',
         action: { type: 'click', selector: '[data-tutorial="metas-tabs"] button:nth-child(2)' },
-      },
-      {
-        target: 'metas-projecao',
-        title: 'Simulador de projeção',
-        description: 'A aba **Projeção** é um **simulador de cenários** poderoso:\n\n• Ajuste variáveis como investimento, taxa de conversão e ticket médio\n• Veja instantaneamente o impacto projetado nos resultados\n• Compare cenários otimistas, realistas e pessimistas\n\n**Quando usar:**\n• Planejando o orçamento do próximo mês\n• Avaliando se vale aumentar o investimento em tráfego\n• Apresentando projeções para sócios ou gestores\n\nÉ a ferramenta ideal para tomar decisões **baseadas em dados**, não em achismos.',
-        position: 'bottom',
-        action: { type: 'click', selector: '[data-tutorial="metas-tabs"] button:nth-child(3)' },
       },
       {
         target: 'metas-cards',
         title: 'Rotina de metas',
         action: { type: 'click', selector: '[data-tutorial="metas-tabs"] button:nth-child(1)' },
         description: '**Sua rotina com Metas:**\n\n• **Todo dia** — abra esta página e confira o progresso. São 30 segundos que fazem diferença.\n• **Toda semana** — compare com o Histórico para ver se está melhorando\n• **Todo mês** — defina novas metas baseadas nos resultados anteriores\n\n**O ciclo virtuoso:** Metas claras → Ação focada → Resultados medidos → Metas ajustadas\n\nMetas são o que transformam o CRM de uma simples ferramenta em um **sistema de gestão inteligente**. Use-as religiosamente.',
+        position: 'top',
+      },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // EQUIPE
+  // ═══════════════════════════════════════════════════════════════
+  {
+    id: 'equipe',
+    pageRoute: '/crm/equipe',
+    title: 'Desempenho da Equipe',
+    description: 'Acompanhe o desempenho individual de cada membro da equipe e compare métricas comerciais por período.',
+    icon: 'UsersRound',
+    category: 'comercial',
+    steps: [
+      {
+        target: 'equipe-header',
+        title: 'Página de Equipe',
+        description: 'A página **Equipe** mostra o desempenho comercial da sua equipe no período selecionado.\n\nAqui você encontra:\n• Métricas de leads, qualificações, agendamentos e faturamento\n• Funil de conversão por membro\n• Evolução de leads no tempo\n• Ranking de procedimentos vendidos\n\n**Dica:** use os filtros de período para comparar semanas, meses ou o ano completo.',
+        position: 'bottom',
+      },
+      {
+        target: 'equipe-period',
+        title: 'Filtro de Período',
+        description: 'Selecione o período de análise:\n\n• **Dia** — apenas hoje\n• **Semana** — semana atual (segunda a domingo)\n• **Mês** — mês corrente\n• **Ano** — ano inteiro\n\nTodas as métricas e gráficos da página são recalculados automaticamente ao trocar o período.',
+        position: 'bottom',
+      },
+      {
+        target: 'equipe-members',
+        title: 'Filtrar por Membro',
+        description: 'Clique em um **nome da equipe** para ver as métricas exclusivas daquele colaborador.\n\nClique em **"Todos"** para voltar à visão consolidada da equipe.\n\n• Leads ativos, qualificados, agendamentos e fechamentos do membro\n• Faturamento gerado pelo membro no período\n• Funil de conversão individual\n\n**Dica:** use este filtro em reuniões 1:1 para dar feedback com dados precisos.',
+        position: 'bottom',
+      },
+      {
+        target: 'equipe-kpis',
+        title: 'Visão Geral do Período',
+        description: 'Cinco métricas-chave do período selecionado (ou do membro filtrado):\n\n• **Leads Ativos** — total de leads no sistema\n• **Qualificados** — leads marcados como MQL e taxa de qualificação\n• **Agendamentos** — consultas agendadas e taxa de conversão\n• **Fechamentos** — vendas realizadas e taxa de fechamento\n• **Faturamento** — receita gerada e ticket médio\n\nAs taxas mostradas embaixo de cada número indicam a conversão de uma etapa para a próxima.',
+        position: 'top',
+      },
+      {
+        target: 'equipe-funnel',
+        title: 'Funil de Conversão',
+        description: 'Visualize o funil em 4 etapas:\n\n**Leads → MQL → Agendamentos → Fechados**\n\n• A barra colorida mostra a proporção em relação ao topo do funil\n• A taxa entre etapas indica onde ocorre a maior perda\n\n**O que analisar:**\n• Taxa de qualificação baixa? Revise o script da IA\n• Taxa de agendamento baixa? Melhore o follow-up pós-qualificação\n• Taxa de fechamento baixa? Trabalhe a apresentação e contorno de objeções',
+        position: 'top',
+      },
+      {
+        target: 'equipe-charts',
+        title: 'Evolução e Procedimentos',
+        description: 'Dois painéis complementares:\n\n**Evolução no Período** — gráfico de área com a captação diária de leads. Identifica dias de pico e quedas.\n\n**Top Procedimentos** — ranking dos procedimentos mais vendidos no período, com quantidade e receita gerada por cada um.\n\n**Dica:** cruze os dados — se os leads cresceram mas os procedimentos top mudaram, pode indicar uma mudança no perfil do público.',
+        position: 'top',
+      },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // EVOLUÇÃO
+  // ═══════════════════════════════════════════════════════════════
+  {
+    id: 'evolucao',
+    pageRoute: '/crm/evolucao',
+    title: 'Evolução',
+    description: 'Compare dois períodos lado a lado e acompanhe a evolução de todas as métricas da sua operação.',
+    icon: 'TrendingUp',
+    category: 'geral',
+    steps: [
+      {
+        target: 'evolucao-header',
+        title: 'Página de Evolução',
+        description: 'A página **Evolução** permite comparar **dois períodos** de forma simultânea — "Atual" vs "Anterior" — em todas as métricas da operação.\n\nDiferente do Painel de Controle (que mostra um período), aqui você vê **a variação** entre os períodos com badges de porcentagem (verde = melhorou, vermelho = piorou).\n\n**Ideal para:** reuniões mensais de revisão, análises de tendência e identificação de pontos de melhoria.',
+        position: 'bottom',
+      },
+      {
+        target: 'evolucao-period',
+        title: 'Seletor de Períodos',
+        description: 'Configure quais dois períodos serão comparados:\n\n**Presets rápidos:** Dia, Semana, Mês, 30 dias, Trimestre, Semestre, Ano — selecionam automaticamente o período atual e o anterior equivalente.\n\n**Personalizado:** defina datas de início e fim para cada período livremente.\n\n**Navegar com setas:** use os botões ◀ ▶ ao lado das datas para avançar ou voltar um período de cada vez.\n\nExemplo com preset Mês: **Junho** vs **Maio** com setas para ir a Maio vs Abril.',
+        position: 'bottom',
+      },
+      {
+        target: 'evolucao-kpis',
+        title: 'Visão Geral',
+        description: 'Cinco cards com as métricas principais comparadas:\n\n• **Leads, Qualificados, Agendamentos, Vendas, Faturamento**\n\nCada card mostra:\n• **Atual** (destaque em grande) — valor do período selecionado\n• **Anterior** (menor, em cinza) — valor do período de comparação\n• **Badge de variação** — porcentagem de mudança (verde = cresceu, vermelho = caiu)\n\n**Dica:** o badge desaparece quando ambos os períodos têm zero — não é erro.',
+        position: 'bottom',
+      },
+      {
+        target: 'evolucao-funnel',
+        title: 'Funil de Conversão',
+        description: 'Comparação visual do funil em 4 etapas (Leads → Qualificados → Agendamentos → Vendas).\n\nPara cada etapa:\n• Valor atual em destaque + badge de variação\n• Valor anterior em cinza abaixo\n• Taxa de conversão entre etapas (atual e anterior entre parênteses)\n\n**O que analisar:** se a taxa de qualificação caiu de 40% para 28%, a IA ou o atendimento piorou — investigue antes de aumentar tráfego.',
+        position: 'top',
+      },
+      {
+        target: 'evolucao-leads',
+        title: 'Leads & Aquisição',
+        description: 'Breakdown da origem dos leads no período:\n\n• **Marketing** — leads vindos de anúncios pagos\n• **Orgânico** — leads sem investimento (indicação, busca direta)\n• **Reativação** — leads antigos que voltaram\n• **Outros** — demais origens\n\nAs barras de comparação mostram visualmente o volume atual vs anterior.\n\n**Dica:** se os leads de Marketing caíram mas os Orgânicos subiram, a operação está mais eficiente mesmo com menos investimento.',
+        position: 'top',
+      },
+      {
+        target: 'evolucao-vendas',
+        title: 'Vendas & Receita',
+        description: 'Três métricas financeiras comparadas:\n\n• **Faturamento** — receita total no período\n• **Ticket Médio** — valor médio por venda\n• **Vendas Fechadas** — número de fechamentos\n\nAbaixo, o **ranking de Top Procedimentos** compara quais procedimentos foram mais vendidos em cada período.\n\n**Atenção:** queda no faturamento com aumento de vendas indica que o ticket médio caiu — revise precificação ou mix de procedimentos.',
+        position: 'top',
+      },
+      {
+        target: 'evolucao-agendamentos',
+        title: 'Agendamentos',
+        description: 'Métricas detalhadas de agendamentos comparadas entre os períodos:\n\n• **Total** — todos os agendamentos criados\n• **Realizados** — consultas que aconteceram\n• **No-Show** — faltas sem aviso\n• **Cancelados** — cancelamentos com aviso\n• **Taxa de Comparecimento** — % de quem apareceu\n• **Taxa de No-Show** — % de quem faltou\n\n**Dica:** taxa de no-show acima de 20% indica problema no processo de confirmação — ative ou revise os lembretes automáticos de WhatsApp.',
+        position: 'top',
+      },
+      {
+        target: 'evolucao-atendimento',
+        title: 'Atendimento',
+        description: 'Métricas de qualidade do atendimento:\n\n• **Tempo médio de 1ª resposta** — quanto tempo leva para um humano responder após o handoff da IA\n• **Duração média do atendimento** — tempo total do contato até a decisão\n• **Taxa sem resposta (24h)** — % de leads que não receberam resposta em 24h\n\n**Para estas métricas, menor é melhor** (badges vermelhos = aumento = piorou).\n\n**Meta ideal:** 1ª resposta < 5min e taxa sem resposta < 5%.',
         position: 'top',
       },
     ],

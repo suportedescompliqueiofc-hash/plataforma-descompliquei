@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, MessageSquare, Users, GitBranch, CalendarDays,
+  LayoutDashboard, MessageSquare, Users, UsersRound, GitBranch, CalendarDays,
   ShoppingCart, Target, Bot, Zap, GitMerge, Settings, Sparkles,
   TrendingUp, CheckCircle2, Play, RotateCcw, GraduationCap, X, ChevronRight,
 } from 'lucide-react';
@@ -11,7 +11,7 @@ import { tutorials, tutorialCategories, Tutorial } from './tutorialData';
 import { cn } from '@/lib/utils';
 
 const ICON_MAP: Record<string, any> = {
-  Sparkles, LayoutDashboard, MessageSquare, Users, GitBranch,
+  Sparkles, LayoutDashboard, MessageSquare, Users, UsersRound, GitBranch,
   CalendarDays, ShoppingCart, Target, Bot, Zap, GitMerge,
   Settings, TrendingUp, GraduationCap,
 };

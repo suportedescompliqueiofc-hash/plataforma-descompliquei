@@ -230,6 +230,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/plataforma/athos-gs': 'sidebar-os',
     '/plataforma/jornada': 'sidebar-jornada',
     '/crm/evolucao': 'sidebar-evolucao',
+    '/crm/equipe': 'sidebar-equipe',
   };
 
   const hasImpersonationFlag = !!localStorage.getItem('original_master_org_id');

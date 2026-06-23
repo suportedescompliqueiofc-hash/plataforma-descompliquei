@@ -138,7 +138,7 @@ export default function Equipe() {
     <div className="p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
 
       {/* ── Page Header ── */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div data-tutorial="equipe-header" className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="p-1.5 rounded-lg bg-muted">
@@ -152,7 +152,7 @@ export default function Equipe() {
         </div>
 
         {/* Período */}
-        <div className="flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
+        <div data-tutorial="equipe-period" className="flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
           {PERIODS.map(p => (
             <button
               key={p.key}
@@ -171,7 +171,7 @@ export default function Equipe() {
       </div>
 
       {/* ── Seletor de Membro ── */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tutorial="equipe-members" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="px-4 sm:px-5 py-3 border-b border-border/40 bg-muted/[0.03]">
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">VISUALIZAR POR MEMBRO</p>
         </div>
@@ -216,7 +216,7 @@ export default function Equipe() {
       </div>
 
       {/* ── KPI Strip ── */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tutorial="equipe-kpis" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="px-4 sm:px-5 py-3 border-b border-border/40 bg-muted/[0.03]">
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">VISÃO GERAL DO PERÍODO</p>
         </div>
@@ -265,7 +265,7 @@ export default function Equipe() {
       </div>
 
       {/* ── Funil de Conversão ── */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tutorial="equipe-funnel" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="px-4 sm:px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
           <div className="flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-muted">
@@ -316,7 +316,7 @@ export default function Equipe() {
       </div>
 
       {/* ── Evolução + Top Procedimentos ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+      <div data-tutorial="equipe-charts" className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
         {/* Evolução no Tempo */}
         <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
