@@ -228,20 +228,35 @@ export default function Equipe() {
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 bg-border/40 gap-px">
             {kpis.map((kpi, i) => {
               const Icon = kpi.icon;
+              const isFaturamento = i === 4;
               return (
-                <div key={i} className="bg-card px-4 sm:px-6 py-5">
+                <div key={i} className="bg-card px-4 sm:px-5 py-5 min-w-0">
                   <div className="flex items-center gap-2 mb-2">
                     <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em] leading-tight">{kpi.label}</span>
                   </div>
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className={cn("text-2xl sm:text-[32px] font-bold font-display leading-none tracking-tight", kpi.color)}>
-                      {kpi.value}
-                    </span>
-                    {kpi.rate && (
-                      <span className="text-xs font-semibold text-muted-foreground font-mono">{kpi.rate}</span>
-                    )}
-                  </div>
+                  {isFaturamento ? (
+                    <div className="min-w-0">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className={cn("text-base font-bold font-display", kpi.color)}>R$</span>
+                        <span className={cn("text-2xl sm:text-[26px] font-bold font-display leading-none tracking-tight font-mono tabular-nums truncate", kpi.color)}>
+                          {fmt(faturamento)}
+                        </span>
+                      </div>
+                      {kpi.rate && (
+                        <span className="text-[10px] font-medium text-muted-foreground font-mono mt-1 block">{kpi.rate}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <span className={cn("text-2xl sm:text-[32px] font-bold font-display leading-none tracking-tight", kpi.color)}>
+                        {kpi.value}
+                      </span>
+                      {kpi.rate && (
+                        <span className="text-xs font-semibold text-muted-foreground font-mono">{kpi.rate}</span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -3,7 +3,7 @@ import {
   Megaphone, Users, CalendarCheck, BadgeCheck, ArrowRight,
   Target, Activity, ChevronRight, ArrowUpRight, ArrowDownRight,
   Wallet, Zap, Bot, Clock, UserCheck, BarChart3, Stethoscope, Layers, Timer, Gauge,
-  Trophy, CheckCircle2, Bell, ListChecks, Info
+  Trophy, CheckCircle2, Bell, ListChecks, Info, PieChart
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
@@ -1000,10 +1000,12 @@ export default function Dashboard() {
                 },
                 {
                   label: 'Taxa Fechamento',
-                  value: `${metrics.taxaFechamento ?? 0}%`,
-                  count: closedCount, total: scheduledCount, unitLabel: `agendado${scheduledCount !== 1 ? 's' : ''}`,
-                  icon: BadgeCheck, color: '#10b981',
-                  listKey: 'closedLeadsList', listTitle: 'Leads Fechados',
+                  value: `${scheduledCount > 0 ? (((metrics as any).fechadosComAgend ?? 0) / scheduledCount * 100).toFixed(1) : 0}%`,
+                  count: (metrics as any).fechadosComAgend ?? 0,
+                  total: scheduledCount,
+                  unitLabel: `agendado${scheduledCount !== 1 ? 's' : ''}`,
+                  icon: CalendarCheck, color: '#10b981',
+                  listKey: 'fechadosComAgendList', listTitle: 'Fechados com Agendamento',
                 },
               ].map((item) => {
                 const Icon = item.icon;
@@ -1042,6 +1044,40 @@ export default function Dashboard() {
               })}
             </div>
             </TooltipProvider>
+
+            {/* Tira de alerta — Sem Agendamento */}
+            {(() => {
+              const semAgend     = (metrics as any).fechadosSemAgend ?? 0;
+              const semAgendList = (metrics as any).fechadosSemAgendList ?? [];
+              const pctSem       = (metrics as any).pctFechadosSemAgend ?? 0;
+              if (semAgend === 0) return null;
+              return (
+                <div
+                  className="border-t-2 cursor-pointer group transition-colors"
+                  style={{ borderTopColor: 'rgba(245,158,11,0.40)', backgroundColor: 'rgba(245,158,11,0.04)' }}
+                  onClick={() => semAgendList.length > 0 && openLeadsModal('Fechados sem Agendamento', semAgendList)}
+                >
+                  <div className="px-5 py-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0" style={{ backgroundColor: '#f59e0b15' }}>
+                        <AlertTriangle className="h-3.5 w-3.5" style={{ color: '#f59e0b' }} />
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-semibold" style={{ color: '#f59e0b' }}>
+                            {semAgend} {semAgend === 1 ? 'lead fechou' : 'leads fecharam'} sem agendamento no sistema
+                          </span>
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>Revisar</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">{pctSem}% dos fechamentos saíram fora do fluxo de agendamento</p>
+                      </div>
+                    </div>
+                    {semAgendList.length > 0 && <ChevronRight className="h-4 w-4 shrink-0 transition-colors" style={{ color: 'rgba(245,158,11,0.4)' }} />}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="flex items-center gap-2 px-5 py-3 border-t border-border/40 bg-muted/[0.03]">
               <Info className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />
               <p className="text-[11px] text-muted-foreground/60">
@@ -1296,6 +1332,86 @@ export default function Dashboard() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Impacto nos Fechamentos — leads com IA que viraram clientes */}
+                    {(() => {
+                      const iaFechamentos     = (metrics as any).iaFechamentos ?? 0;
+                      const iaFechadosList    = (metrics as any).iaFechadosList ?? [];
+                      const iaTaxaConversaoIA = (metrics as any).iaTaxaConversaoIA ?? 0;
+                      const iaFaturamento     = (metrics as any).iaFaturamento ?? 0;
+                      const iaPctFaturamento  = (metrics as any).iaPctFaturamento ?? 0;
+                      if (iaFechamentos === 0) return null;
+                      const corConv = iaTaxaConversaoIA >= 15 ? '#10b981' : iaTaxaConversaoIA >= 5 ? '#f59e0b' : '#ef4444';
+                      const corPct  = iaPctFaturamento >= 50 ? '#10b981' : iaPctFaturamento >= 20 ? '#f59e0b' : '#6366f1';
+                      const fmtBRL  = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(v);
+                      return (
+                        <div className="border-t border-border/40">
+                          <div className="px-5 py-3 flex items-center gap-2 bg-muted/[0.02]">
+                            <TrendingUp className="h-3 w-3 text-muted-foreground/50" />
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Impacto nos Fechamentos</p>
+                            <span className="text-[10px] text-muted-foreground/30">· leads atendidos pela IA que viraram clientes</span>
+                          </div>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/30">
+                            {/* Card 1 — Fechamentos */}
+                            <div
+                              className="flex flex-col gap-3 px-5 py-4 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                              onClick={() => iaFechadosList.length > 0 && openLeadsModal('Fecharam via IA', iaFechadosList)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#10b98115' }}>
+                                  <BadgeCheck className="h-4 w-4" style={{ color: '#10b981' }} />
+                                </span>
+                                {iaFechadosList.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                              </div>
+                              <div>
+                                <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaFechamentos}</div>
+                                <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Fecharam via IA</div>
+                                <div className="text-[10px] text-muted-foreground/50 mt-0.5">leads que fecharam após interação com a IA</div>
+                              </div>
+                            </div>
+                            {/* Card 2 — Taxa de conversão IA */}
+                            <div className="flex flex-col gap-3 px-5 py-4 bg-card">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: corConv + '15' }}>
+                                <TrendingUp className="h-4 w-4" style={{ color: corConv }} />
+                              </span>
+                              <div>
+                                <div className="text-[28px] font-bold font-display leading-none" style={{ color: corConv }}>{iaTaxaConversaoIA}%</div>
+                                <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Conversão IA</div>
+                                <div className="text-[10px] text-muted-foreground/50 mt-0.5">dos leads com IA que viraram clientes</div>
+                                <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
+                                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(iaTaxaConversaoIA * 4, 100)}%`, backgroundColor: corConv }} />
+                                </div>
+                              </div>
+                            </div>
+                            {/* Card 3 — Faturamento via IA */}
+                            <div className="flex flex-col gap-3 px-5 py-4 bg-card">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#8b5cf615' }}>
+                                <DollarSign className="h-4 w-4" style={{ color: '#8b5cf6' }} />
+                              </span>
+                              <div>
+                                <div className="text-[22px] font-bold font-display leading-none text-foreground">{fmtBRL(iaFaturamento)}</div>
+                                <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Faturamento via IA</div>
+                                <div className="text-[10px] text-muted-foreground/50 mt-0.5">receita de fechamentos com interação da IA</div>
+                              </div>
+                            </div>
+                            {/* Card 4 — % do faturamento */}
+                            <div className="flex flex-col gap-3 px-5 py-4 bg-card">
+                              <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: corPct + '15' }}>
+                                <PieChart className="h-4 w-4" style={{ color: corPct }} />
+                              </span>
+                              <div>
+                                <div className="text-[28px] font-bold font-display leading-none" style={{ color: corPct }}>{iaPctFaturamento}%</div>
+                                <div className="text-[12px] font-medium text-foreground/70 mt-1.5">do Faturamento Total</div>
+                                <div className="text-[10px] text-muted-foreground/50 mt-0.5">receita que passou pela IA no período</div>
+                                <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
+                                  <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(iaPctFaturamento, 100)}%`, backgroundColor: corPct }} />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Tempo de Handoff — sub-seção integrada */}
                     {temHandoff && (

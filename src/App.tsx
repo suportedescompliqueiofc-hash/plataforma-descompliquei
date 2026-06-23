@@ -41,6 +41,7 @@ import { TutorialProvider } from "./components/tutorial/TutorialProvider";
 import { TutorialSpotlight } from "./components/tutorial/TutorialSpotlight";
 import { TutorialHelpCenter } from "./components/tutorial/TutorialHelpCenter";
 import { OnboardingModal } from "./components/onboarding/OnboardingModal";
+import { MemberWelcomeModal } from "./components/onboarding/MemberWelcomeModal";
 import { OnboardingPlataformaChecklist } from "./components/plataforma/OnboardingPlataformaChecklist";
 import OnboardingPlataformaModal from "./components/plataforma/OnboardingPlataformaModal";
 import CrmOnboarding from "./pages/CrmOnboarding";
@@ -324,6 +325,7 @@ const App = () => (
               <TutorialSpotlight />
               <TutorialHelpCenter />
               <OnboardingModal />
+              <MemberWelcomeModal />
               <OnboardingPlataformaModal />
               <OnboardingPlataformaChecklist />
               <Routes>

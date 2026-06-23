@@ -41,7 +41,7 @@ function generateWelcomeEmailHtml(opts: {
   const infoTitle = isCrmOnly ? 'O que você encontrará no CRM' : 'O que você encontrará na plataforma';
   const infoBody = isCrmOnly
     ? 'Gestão de leads &middot; Conversas WhatsApp &middot; Agendamentos &middot; Vendas e métricas comerciais.'
-    : 'Trilha de Aprendizado &middot; Cérebro Central &middot; IAs Comerciais &middot; Sessões Táticas e ferramentas para atrair, atender e fechar mais pacientes.';
+    : 'Arsenal de Ferramentas &middot; Athos GS &middot; Sessões Táticas &middot; Jornada Personalizada e materiais para atrair, atender e fechar mais pacientes.';
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -365,6 +365,15 @@ Deno.serve(async (req: Request) => {
 
     // 10. Criar platform_users
     step = 'upsert-platform-user';
+    // Verificar se já tinha registro em platform_users ANTES do upsert
+    // para decidir qual e-mail enviar (boas-vindas vs atualização de plano)
+    const { data: existingPU } = await supabaseAdmin
+      .from('platform_users')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+    const isExistingPlatformUser = !!existingPU;
+
     const { error: puError } = await supabaseAdmin
       .from('platform_users')
       .upsert({
@@ -463,7 +472,7 @@ Deno.serve(async (req: Request) => {
         planName: displayPlan,
         magicLink,
         email,
-        isExisting,
+        isExisting: isExistingPlatformUser,
         isCrmOnly: !hasPlataformaAccess,
         isResend: !!is_resend,
       });
@@ -477,7 +486,7 @@ Deno.serve(async (req: Request) => {
         body: JSON.stringify({
           from: fromEmail,
           to: [email],
-          subject: isExisting
+          subject: isExistingPlatformUser
             ? `Seu acesso foi atualizado — ${displayPlan}`
             : `Bem-vindo(a) à Plataforma Descompliquei — ${displayPlan}`,
           html: emailHtml,

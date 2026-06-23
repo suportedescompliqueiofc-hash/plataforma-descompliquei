@@ -10,6 +10,7 @@ export interface OnboardingStep {
   description: string;
   icon: string;
   mandatory: boolean;
+  optional?: boolean;       // exibe badge "(Opcional)" — passos não obrigatórios
   path?: string;            // rota de destino
   tutorialId?: string;      // id do tutorial que guia na página
   ctaLabel: string;
@@ -19,6 +20,15 @@ export interface OnboardingStep {
 // ─── Definição dos passos ─────────────────────────────────────────────────────
 
 export const ONBOARDING_STEPS: OnboardingStep[] = [
+  {
+    key: 'senha',
+    title: 'Crie sua senha de acesso',
+    description: 'Defina uma senha para acessar o CRM sem depender do link de e-mail.',
+    icon: 'KeyRound',
+    mandatory: true,
+    ctaLabel: 'Criar senha',
+    // Sem path/tutorialId — tratado inline no modal com formulário embutido
+  },
   {
     key: 'perfil',
     title: 'Complete o perfil da clínica',
@@ -39,6 +49,16 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     ctaLabel: 'Conectar WhatsApp',
   },
   {
+    key: 'ia',
+    title: 'Configure a Inteligência Artificial',
+    description: 'Defina a identidade do assistente, procedimentos e horários de atendimento automático.',
+    icon: 'Bot',
+    mandatory: true,
+    path: '/crm/ia',
+    tutorialId: 'ia',
+    ctaLabel: 'Configurar IA',
+  },
+  {
     key: 'etiquetas',
     title: 'Sincronize as etiquetas do WhatsApp',
     description: 'Importe suas etiquetas do WhatsApp Business para organizar os leads',
@@ -57,6 +77,26 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     path: '/crm/procedimentos',
     tutorialId: 'onboarding-procedimentos',
     ctaLabel: 'Cadastrar procedimentos',
+  },
+  {
+    key: 'equipe',
+    title: 'Adicione membros da equipe',
+    description: 'Convide colaboradores e defina as permissões de acesso de cada um.',
+    icon: 'Users',
+    mandatory: false,
+    optional: true,
+    path: '/crm/settings?section=team',
+    tutorialId: 'onboarding-equipe',
+    ctaLabel: 'Adicionar membros',
+  },
+  {
+    key: 'suporte',
+    title: 'Conheça a Central de Ajuda',
+    description: 'Tutoriais interativos para cada funcionalidade do CRM — disponíveis a qualquer momento pelo botão de ajuda na barra lateral.',
+    icon: 'HelpCircle',
+    mandatory: true,
+    ctaLabel: 'Abrir central de ajuda',
+    // Sem path/tutorialId — abre o HelpCenter inline via setHelpCenterOpen
   },
   {
     key: 'tutorial',

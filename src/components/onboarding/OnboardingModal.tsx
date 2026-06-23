@@ -2,17 +2,18 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone,
-  CheckCircle2, Circle, ArrowRight, Trophy, X,
+  CheckCircle2, Circle, ArrowRight, Trophy, X, KeyRound, Eye, EyeOff, Loader2, HelpCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useOnboarding, ONBOARDING_ALLOWED_PATHS, type OnboardingStep } from '@/hooks/useOnboarding';
 import { useTutorialContext } from '@/components/tutorial/TutorialProvider';
 import { useWhatsAppMonitor } from '@/hooks/useWhatsAppMonitor';
 import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone,
+  Building2, Bot, Stethoscope, Users, GraduationCap, Tag, Smartphone, KeyRound, HelpCircle,
 };
 
 // ─── Step Card ────────────────────────────────────────────────────────────────
@@ -55,13 +56,18 @@ function StepCard({
         </div>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
+          <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <p className={cn(
               'text-[13px] font-semibold',
               step.completed ? 'text-emerald-800 line-through' : 'text-foreground',
             )}>
               {step.title}
             </p>
+            {step.optional && !step.completed && (
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground/60 border border-border/40">
+                Opcional
+              </span>
+            )}
           </div>
           <p className="text-[11px] text-muted-foreground/70 leading-relaxed">{step.description}</p>
 
@@ -88,6 +94,122 @@ function StepCard({
 
         <div className={cn('shrink-0 p-2 rounded-lg', step.completed ? 'bg-emerald-100' : 'bg-muted')}>
           <Icon className={cn('h-4 w-4', step.completed ? 'text-emerald-600' : 'text-muted-foreground')} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PasswordStepCard ─────────────────────────────────────────────────────────
+
+function PasswordStepCard({
+  step,
+  index,
+  onComplete,
+  isCompleting,
+}: {
+  step: OnboardingStep & { completed?: boolean };
+  index: number;
+  onComplete: () => void;
+  isCompleting: boolean;
+}) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm]   = useState('');
+  const [showPwd, setShowPwd]   = useState(false);
+  const [saving, setSaving]     = useState(false);
+  const [error, setError]       = useState('');
+
+  if (step.completed) {
+    return (
+      <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/50 p-4">
+        <div className="flex items-start gap-3">
+          <div className="h-7 w-7 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold text-emerald-800 line-through">{step.title}</p>
+            <p className="text-[11px] text-muted-foreground/70 leading-relaxed">{step.description}</p>
+          </div>
+          <div className="p-2 rounded-lg bg-emerald-100 shrink-0">
+            <KeyRound className="h-4 w-4 text-emerald-600" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const handleSave = async () => {
+    setError('');
+    if (password.length < 6) { setError('A senha precisa ter pelo menos 6 caracteres.'); return; }
+    if (password !== confirm)  { setError('As senhas não coincidem.'); return; }
+    setSaving(true);
+    const { error: updateErr } = await supabase.auth.updateUser({ password });
+    setSaving(false);
+    if (updateErr) { setError(updateErr.message); return; }
+    onComplete();
+    toast.success('Senha criada com sucesso!', { duration: 2000 });
+  };
+
+  return (
+    <div className="rounded-xl border border-border/70 bg-card p-4">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold bg-foreground/10 text-foreground shrink-0 mt-0.5">
+          {index + 1}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[13px] font-semibold text-foreground">{step.title}</p>
+          <p className="text-[11px] text-muted-foreground/70 leading-relaxed mt-0.5">{step.description}</p>
+        </div>
+        <div className="p-2 rounded-lg bg-muted shrink-0">
+          <KeyRound className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="relative">
+          <input
+            type={showPwd ? 'text' : 'password'}
+            placeholder="Nova senha (mín. 6 caracteres)"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 pr-9 text-[12px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPwd(v => !v)}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors"
+          >
+            {showPwd ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          </button>
+        </div>
+        <input
+          type={showPwd ? 'text' : 'password'}
+          placeholder="Confirmar senha"
+          value={confirm}
+          onChange={e => setConfirm(e.target.value)}
+          className="w-full h-9 rounded-lg border border-border/60 bg-background px-3 text-[12px] text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-foreground/20"
+        />
+        {error && <p className="text-[11px] text-destructive">{error}</p>}
+
+        <div className="flex items-center gap-2 pt-0.5">
+          <button
+            onClick={handleSave}
+            disabled={saving || !password || !confirm}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-semibold bg-foreground text-background hover:bg-foreground/90 transition-colors disabled:opacity-40"
+          >
+            {saving
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <KeyRound className="h-3 w-3" />}
+            Criar senha
+          </button>
+          <button
+            onClick={onComplete}
+            disabled={isCompleting}
+            className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-[11px] font-medium border border-border/60 text-muted-foreground hover:text-foreground hover:border-border transition-colors disabled:opacity-40"
+          >
+            <CheckCircle2 className="h-3 w-3" />
+            Já tenho senha
+          </button>
         </div>
       </div>
     </div>
@@ -126,7 +248,7 @@ export function OnboardingModal() {
   const location = useLocation();
   const { steps, mandatoryComplete, shouldShowModal, completeStep, isLoading } = useOnboarding();
   const { profile } = useProfile();
-  const { startTutorial } = useTutorialContext();
+  const { startTutorial, setHelpCenterOpen } = useTutorialContext();
   const { status: waStatus } = useWhatsAppMonitor();
   const [celebrating, setCelebrating] = useState(false);
   const [wasModalVisible, setWasModalVisible] = useState(false);
@@ -184,10 +306,12 @@ export function OnboardingModal() {
   if (dismissed && !celebrating) return null;
 
   const handleStartGuide = (step: OnboardingStep) => {
-    // Navega para a página e depois inicia o tutorial
+    if (step.key === 'suporte') {
+      setHelpCenterOpen(true);
+      return;
+    }
     if (step.path) navigate(step.path);
     if (step.tutorialId) {
-      // Delay para a página renderizar antes do tutorial iniciar
       setTimeout(() => startTutorial(step.tutorialId!), 600);
     }
   };
@@ -253,16 +377,26 @@ export function OnboardingModal() {
               {/* Content */}
               <div className="flex-1 overflow-y-auto">
                 <div className="px-6 py-4 space-y-3">
-                  {steps.map((step, i) => (
-                    <StepCard
-                      key={step.key}
-                      step={step}
-                      index={i}
-                      onComplete={() => handleComplete(step.key)}
-                      onStartGuide={() => handleStartGuide(step)}
-                      isCompleting={completeStep.isPending}
-                    />
-                  ))}
+                  {steps.map((step, i) =>
+                    step.key === 'senha' ? (
+                      <PasswordStepCard
+                        key={step.key}
+                        step={step}
+                        index={i}
+                        onComplete={() => handleComplete(step.key)}
+                        isCompleting={completeStep.isPending}
+                      />
+                    ) : (
+                      <StepCard
+                        key={step.key}
+                        step={step}
+                        index={i}
+                        onComplete={() => handleComplete(step.key)}
+                        onStartGuide={() => handleStartGuide(step)}
+                        isCompleting={completeStep.isPending}
+                      />
+                    )
+                  )}
                 </div>
               </div>
             </div>

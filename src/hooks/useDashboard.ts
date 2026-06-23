@@ -430,6 +430,13 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           ? parseFloat(((iaDedicadaHandoff / iaDedicadaTotal) * 100).toFixed(1))
           : 0;
 
+        // Fechamentos via IA — leads que tiveram interação com bot E estão fechados
+        const iaLeadsFechadosIds = [...iaDedicadaLeadIds].filter(id => leadsById.get(id)?.is_closed);
+        const iaFechamentos = iaLeadsFechadosIds.length;
+        const iaTaxaConversaoIA = iaDedicadaTotal > 0
+          ? parseFloat(((iaFechamentos / iaDedicadaTotal) * 100).toFixed(1))
+          : 0;
+
         const trHumano = {
           tempoResposta: avgOf(primeiraRespostaValues),
           duracaoAtendimento: avgOf(duracaoHumValues),
@@ -549,6 +556,17 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           ? [...closedLeadIdsSet].filter(id => filteredLeadsIds.has(id)).length
           : closedLeadIdsSet.size;
 
+        // Breakdown: fechados com vs sem agendamento no sistema
+        const allClosedIds = responsavelId
+          ? [...closedLeadIdsSet].filter(id => filteredLeadsIds.has(id))
+          : [...closedLeadIdsSet];
+        const fechadosComAgendIds = allClosedIds.filter(id => scheduledLeadIdsSet.has(id));
+        const fechadosSemAgendIds = allClosedIds.filter(id => !scheduledLeadIdsSet.has(id));
+        const fechadosComAgend = fechadosComAgendIds.length;
+        const fechadosSemAgend = fechadosSemAgendIds.length;
+        const pctFechadosComAgend = closedCount > 0 ? parseFloat(((fechadosComAgend / closedCount) * 100).toFixed(1)) : 0;
+        const pctFechadosSemAgend = closedCount > 0 ? parseFloat(((fechadosSemAgend / closedCount) * 100).toFixed(1)) : 0;
+
         // --- Tempo de conversão (cadastro → fechamento) ---
         const temposFechamento: { dias: number; lead: any; venda: any }[] = [];
         for (const v of closedVendas) {
@@ -636,6 +654,14 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           : closedVendas;
         const faturamentoTotal = vendasFiltradas.reduce((sum, v) => sum + Number(v.valor_fechado || 0), 0);
         const vendasCount = vendasFiltradas.length;
+
+        // Faturamento gerado por leads que passaram pela IA
+        const faturamentoIA = vendasFiltradas
+          .filter((v: any) => iaDedicadaLeadIds.has(v.lead_id))
+          .reduce((sum: number, v: any) => sum + Number(v.valor_fechado || 0), 0);
+        const pctFaturamentoIA = faturamentoTotal > 0
+          ? parseFloat(((faturamentoIA / faturamentoTotal) * 100).toFixed(1))
+          : 0;
 
         // Taxa de conversão global: fechados / total de leads no período (respeita origem)
         const taxaConversaoGlobal = filteredAllLeads.length > 0
@@ -821,6 +847,11 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           iaPerdidosLeadsList: idsToLeads([...iaDedicadaLeadIds].filter(id => !iaDedicadaHandoffIds.has(id))),
           iaTaxaEfetividade,
           iaTempoHandoff,
+          iaFechamentos,
+          iaFechadosList: idsToLeads(iaLeadsFechadosIds),
+          iaTaxaConversaoIA,
+          iaFaturamento: faturamentoIA,
+          iaPctFaturamento: pctFaturamentoIA,
           tempoResposta: {
             humano: trHumano,
             geral: trGeral,
@@ -879,6 +910,12 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           mqlLeadsList: [...mqlLeadIdsSet].map(id => leadsById.get(id)).filter(Boolean),
           scheduledLeadsList: [...scheduledLeadIdsSet].map(id => leadsById.get(id)).filter(Boolean),
           closedLeadsList: [...closedLeadIdsSet].map(id => leadsById.get(id)).filter(Boolean),
+          fechadosComAgend,
+          fechadosComAgendList: idsToLeads(fechadosComAgendIds),
+          fechadosSemAgend,
+          fechadosSemAgendList: idsToLeads(fechadosSemAgendIds),
+          pctFechadosComAgend,
+          pctFechadosSemAgend,
           // Evolução no tempo para Descompliquei (3 séries: leads mkt, mqls, fechamentos)
           descompliqueiOverTime: eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(d => {
             const dayStart = startOfDay(d).toISOString();
