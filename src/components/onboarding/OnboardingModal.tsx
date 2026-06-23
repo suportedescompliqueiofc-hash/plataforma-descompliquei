@@ -307,6 +307,10 @@ export function OnboardingModal() {
 
   const handleStartGuide = (step: OnboardingStep) => {
     if (step.key === 'suporte') {
+      // Marca o passo como completo, esconde o modal temporariamente (sem localStorage)
+      // e abre o help center — evita conflito de z-index entre o modal e o Dialog
+      completeStep.mutate('suporte');
+      setDismissed(true);
       setHelpCenterOpen(true);
       return;
     }
