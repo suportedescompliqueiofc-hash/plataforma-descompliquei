@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Edit2, Check, X, Loader2, CalendarDays, Clock, MapPin, Link2, DollarSign, ChevronDown, Bell, BellOff, Stethoscope, Scissors, RotateCcw } from "lucide-react";
+import { Edit2, Check, X, Loader2, CalendarDays, MapPin, Link2, DollarSign, ChevronDown, Bell, BellOff, Stethoscope, Scissors, RotateCcw } from "lucide-react";
 import { useAgendamentoFinanceiroConfig } from "@/hooks/useAgendamentoFinanceiroConfig";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -18,6 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 import { supabase } from "@/integrations/supabase/client";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { TimeInput } from "@/components/ui/TimeInput";
 import { useProfile } from "@/hooks/useProfile";
 import { useAgendamentos, Agendamento, AgendamentoInput } from "@/hooks/useAgendamentos";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
@@ -610,30 +611,11 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                   </Popover>
 
                   {/* Hour : Minute */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <Select value={horaInicio} onValueChange={handleHoraChange}>
-                      <SelectTrigger className="h-10 w-[62px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[200px] rounded-xl border-border/60">
-                        {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(h => (
-                          <SelectItem key={h} value={h} className="text-sm tabular-nums">{h}h</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <span className="text-muted-foreground font-semibold text-sm">:</span>
-                    <Select value={minutoInicio} onValueChange={handleMinutoChange}>
-                      <SelectTrigger className="h-10 w-[60px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl border-border/60">
-                        {["00","05","10","15","20","25","30","35","40","45","50","55"].map(m => (
-                          <SelectItem key={m} value={m} className="text-sm tabular-nums">{m}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <TimeInput
+                    hora={horaInicio}
+                    minuto={minutoInicio}
+                    onChange={(h, m) => { handleHoraChange(h); handleMinutoChange(m); }}
+                  />
                 </div>
               </div>
               {form.tipo === "online" && (

@@ -80,7 +80,7 @@ async function fetchAllLeads(orgId: string, startDate: string, endDate: string) 
   return allLeads;
 }
 
-export function useDashboard(dateRange: DateRange | undefined, origemFilter: OrigemFilter = 'geral') {
+export function useDashboard(dateRange: DateRange | undefined, origemFilter: OrigemFilter = 'geral', responsavelId?: string) {
   const { user } = useAuth();
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
@@ -105,7 +105,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
   }, [orgId, queryClient]);
 
   const { data: metrics, isLoading, error, refetch } = useQuery({
-    queryKey: ['dashboard-metrics', orgId, dateRange, origemFilter],
+    queryKey: ['dashboard-metrics', orgId, dateRange, origemFilter, responsavelId],
     placeholderData: (prev) => prev,
     queryFn: async () => {
       if (!user || !orgId || !dateRange?.from || !dateRange?.to) return null;
@@ -176,10 +176,32 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           if (v.lead_id) leadsComAtividadeReal.add(v.lead_id);
         }
 
-        const filteredAllLeads = leads
+        let filteredAllLeads = leads
           .filter(filterByOrigem)
           .filter((l: any) => l.fonte !== 'importado')
           .filter((l: any) => leadsComAtividadeReal.has(l.id));
+        if (responsavelId) {
+          // Atribuição multi-camada: qualquer ação do membro no CRM vincula o lead a ele
+          const [msgsRes, atividadesRes, notasRes] = await Promise.all([
+            // 1. Mensagens enviadas pelo membro
+            supabase.from('mensagens').select('lead_id')
+              .eq('organization_id', orgId).eq('user_id', responsavelId),
+            // 2. Qualquer atividade no CRM (criação, etapa, responsável, etc.)
+            supabase.from('lead_atividades' as any).select('lead_id')
+              .eq('organization_id', orgId).eq('user_id', responsavelId),
+            // 3. Notas adicionadas (inclui qualificação MQL, scoring, notas manuais)
+            supabase.from('lead_notas').select('lead_id')
+              .eq('organization_id', orgId).eq('usuario_id', responsavelId),
+          ]);
+          const memberLeadIds = new Set<string>([
+            ...(msgsRes.data || []).map((m: any) => m.lead_id as string),
+            ...(atividadesRes.data || []).map((m: any) => m.lead_id as string),
+            ...(notasRes.data || []).map((m: any) => m.lead_id as string),
+          ]);
+          filteredAllLeads = filteredAllLeads.filter((l: any) =>
+            l.responsavel_id === responsavelId || memberLeadIds.has(l.id)
+          );
+        }
         const filteredLeadsIds = new Set(filteredAllLeads.map((l: any) => l.id as string));
 
         // --- Métricas de Tempo de Resposta (IA vs Humano) ---
@@ -467,7 +489,8 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           .filter(l => l.criado_em >= startDate && l.criado_em <= endDate)
           .filter(l => l.fonte !== 'importado');
 
-        const leadsCreatedInPeriod = allLeadsInPeriod.filter(filterByOrigem);
+        let leadsCreatedInPeriod = allLeadsInPeriod.filter(filterByOrigem);
+        if (responsavelId) leadsCreatedInPeriod = leadsCreatedInPeriod.filter((l: any) => l.responsavel_id === responsavelId);
         const importedLeadsInPeriodList = leads
           .filter(l => l.criado_em >= startDate && l.criado_em <= endDate)
           .filter(l => l.fonte === 'importado');
@@ -500,7 +523,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
               return !l || filterByOrigem(l);
             })
         );
-        const mqlCount = mqlLeadIdsSet.size;
+        const mqlCount = responsavelId
+          ? [...mqlLeadIdsSet].filter(id => filteredLeadsIds.has(id)).length
+          : mqlLeadIdsSet.size;
 
         // Agendamentos: leads únicos com agendamento realizado no período
         const scheduledRealizados = agendamentosData
@@ -508,7 +533,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const scheduledLeadIdsSet = new Set<string>(
           scheduledRealizados.map((a: any) => a.lead_id).filter(Boolean)
         );
-        const scheduledCount = scheduledLeadIdsSet.size;
+        const scheduledCount = responsavelId
+          ? [...scheduledLeadIdsSet].filter(id => filteredLeadsIds.has(id)).length
+          : scheduledLeadIdsSet.size;
 
         // Fechamentos: leads únicos com venda no período
         const closedVendas = vendas.filter((v: any) => {
@@ -518,7 +545,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const closedLeadIdsSet = new Set<string>(
           closedVendas.map((v: any) => v.lead_id).filter(Boolean)
         );
-        const closedCount = closedLeadIdsSet.size;
+        const closedCount = responsavelId
+          ? [...closedLeadIdsSet].filter(id => filteredLeadsIds.has(id)).length
+          : closedLeadIdsSet.size;
 
         // --- Tempo de conversão (cadastro → fechamento) ---
         const temposFechamento: { dias: number; lead: any; venda: any }[] = [];
@@ -602,7 +631,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           ? parseFloat(((closedCount / scheduledCount) * 100).toFixed(1))
           : 0;
         // Vendas filtradas por evento (data_fechamento no período) + origem — já computado acima em closedVendas
-        const vendasFiltradas = closedVendas;
+        const vendasFiltradas = responsavelId
+          ? closedVendas.filter((v: any) => filteredLeadsIds.has(v.lead_id))
+          : closedVendas;
         const faturamentoTotal = vendasFiltradas.reduce((sum, v) => sum + Number(v.valor_fechado || 0), 0);
         const vendasCount = vendasFiltradas.length;
 
@@ -675,25 +706,30 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         // --- Top procedimentos (baseado em vendas fechadas com procedimentos cadastrados) ---
         const procedimentoMap: Record<string, number> = {};
         const procedimentoLeadsMap: Record<string, any[]> = {};
+        const procedimentoRevenueMap: Record<string, number> = {};
         vendas.forEach((v: any) => {
           const proc = (v.produto_servico as string | undefined)?.trim();
           if (!proc) return;
           procedimentoMap[proc] = (procedimentoMap[proc] || 0) + 1;
+          procedimentoRevenueMap[proc] = (procedimentoRevenueMap[proc] || 0) + (v.valor_fechado ?? 0);
           const lead = leadsById.get(v.lead_id);
           if (lead) {
             if (!procedimentoLeadsMap[proc]) procedimentoLeadsMap[proc] = [];
-            // evitar duplicatas (mesmo lead em múltiplas vendas do mesmo procedimento)
             if (!procedimentoLeadsMap[proc].some((l: any) => l.id === lead.id)) {
               procedimentoLeadsMap[proc].push(lead);
             }
           }
         });
+        const totalVendasCount = vendas.filter((v: any) => (v.produto_servico as string | undefined)?.trim()).length || 1;
         const topProcedimentos = Object.entries(procedimentoMap)
           .sort((a, b) => b[1] - a[1])
           .slice(0, 8)
           .map(([name, count]) => ({
             name,
             count,
+            revenue: procedimentoRevenueMap[name] ?? 0,
+            share: Math.round((count / totalVendasCount) * 100),
+            avgTicket: count > 0 ? Math.round((procedimentoRevenueMap[name] ?? 0) / count) : 0,
             leads: procedimentoLeadsMap[name] ?? [],
           }));
 

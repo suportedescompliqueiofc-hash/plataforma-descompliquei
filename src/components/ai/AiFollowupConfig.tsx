@@ -1,24 +1,9 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  RefreshCw,
-  Plus,
-  Trash2,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Bot,
-  Clock,
-} from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { RefreshCw, Plus, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
@@ -36,17 +21,6 @@ interface FollowupConfig {
   sequencia: SequenciaItem[];
   apenas_marketing: boolean;
   respeitar_horario_atendimento: boolean;
-}
-
-interface FollowupLog {
-  id: string;
-  lead_id: string;
-  tentativa: number;
-  status: string;
-  mensagem_enviada: string | null;
-  motivo_ia: string | null;
-  enviado_em: string;
-  leads: { nome: string | null; telefone: string | null } | null;
 }
 
 const DEFAULT_SEQUENCIA: SequenciaItem[] = [
@@ -94,14 +68,6 @@ function formatMinutos(minutos: number): string {
   return h > 0 ? `${d}d ${h}h` : `${d}d`;
 }
 
-const STATUS_MAP: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
-  enviado: { label: "Enviado", icon: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />, color: "text-green-600" },
-  ignorado_ia: { label: "IA ignorou", icon: <Bot className="h-3.5 w-3.5 text-blue-500" />, color: "text-blue-600" },
-  fora_horario: { label: "Fora do horário", icon: <Clock className="h-3.5 w-3.5 text-amber-500" />, color: "text-amber-600" },
-  lead_respondeu: { label: "Lead respondeu", icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />, color: "text-emerald-600" },
-  erro: { label: "Erro", icon: <XCircle className="h-3.5 w-3.5 text-red-500" />, color: "text-red-600" },
-};
-
 export function AiFollowupConfig() {
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
@@ -122,22 +88,6 @@ export function AiFollowupConfig() {
         .maybeSingle();
       if (error) throw error;
       return data as FollowupConfig | null;
-    },
-    enabled: !!orgId,
-  });
-
-  const { data: logs } = useQuery({
-    queryKey: ["followup-logs", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data, error } = await supabase
-        .from("ia_followup_log")
-        .select("*, leads!lead_id(nome, telefone)")
-        .eq("organization_id", orgId)
-        .order("enviado_em", { ascending: false })
-        .limit(5);
-      if (error) throw error;
-      return (data || []) as FollowupLog[];
     },
     enabled: !!orgId,
   });
@@ -164,22 +114,24 @@ export function AiFollowupConfig() {
   const saveMutation = useMutation({
     mutationFn: async (newConfig: FollowupConfig) => {
       if (!orgId) throw new Error("Sem organização");
-      const payload = {
-        organization_id: orgId,
-        ativo: newConfig.ativo,
-        sequencia: newConfig.sequencia,
-        apenas_marketing: newConfig.apenas_marketing,
-        respeitar_horario_atendimento: newConfig.respeitar_horario_atendimento,
-        atualizado_em: new Date().toISOString(),
-      };
       const { error } = await supabase
         .from("ia_followup_config")
-        .upsert(payload, { onConflict: "organization_id" });
+        .upsert(
+          {
+            organization_id: orgId,
+            ativo: newConfig.ativo,
+            sequencia: newConfig.sequencia,
+            apenas_marketing: newConfig.apenas_marketing,
+            respeitar_horario_atendimento: newConfig.respeitar_horario_atendimento,
+            atualizado_em: new Date().toISOString(),
+          },
+          { onConflict: "organization_id" },
+        );
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["followup-config", orgId] });
-      toast.success("Follow-up salvo com sucesso");
+      toast.success("Configuração salva");
     },
     onError: () => {
       toast.error("Erro ao salvar configuração de follow-up");
@@ -228,10 +180,7 @@ export function AiFollowupConfig() {
       const novaOrdem = prev.sequencia.length + 1;
       return {
         ...prev,
-        sequencia: [
-          ...prev.sequencia,
-          { ordem: novaOrdem, minutos: 1440, ativo: true },
-        ],
+        sequencia: [...prev.sequencia, { ordem: novaOrdem, minutos: 1440, ativo: true }],
       };
     });
   }, [updateConfig]);
@@ -251,139 +200,191 @@ export function AiFollowupConfig() {
 
   if (!orgId || isLoading || !localConfig) {
     return (
-      <Card className="border-sidebar-border p-6 shadow-sm">
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      </Card>
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex items-center justify-center p-10">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
     );
   }
 
+  const ativosCount = localConfig.sequencia.filter((s) => s.ativo).length;
+
   return (
-    <Card data-tutorial="ia-followup-config" className="border-sidebar-border shadow-sm">
+    <div
+      data-tutorial="ia-followup-config"
+      className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between border-b p-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Follow-up Automatico com IA</h3>
-            {isSaving && (
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-            )}
+      <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span className="p-1.5 rounded-lg bg-muted">
+              <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  CONFIGURAÇÃO DO FOLLOW-UP
+                </p>
+                {isSaving && (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground/50" />
+                )}
+              </div>
+              <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                {ativosCount} tentativa{ativosCount !== 1 ? "s" : ""} ativa
+                {ativosCount !== 1 ? "s" : ""} na sequência
+              </p>
+            </div>
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            A IA analisa o contexto e envia follow-ups humanizados para leads que sumiram durante o atendimento
-          </p>
+          <div className="flex items-center gap-2.5">
+            <span
+              className={`text-[11px] font-medium transition-colors ${
+                localConfig.ativo ? "text-green-600" : "text-muted-foreground/50"
+              }`}
+            >
+              {localConfig.ativo ? "Ativo" : "Inativo"}
+            </span>
+            <Switch
+              checked={localConfig.ativo}
+              onCheckedChange={(checked) =>
+                updateConfig((prev) => ({ ...prev, ativo: checked }))
+              }
+            />
+          </div>
         </div>
-        <Switch
-          checked={localConfig.ativo}
-          onCheckedChange={(checked) =>
-            updateConfig((prev) => ({ ...prev, ativo: checked }))
-          }
-        />
       </div>
 
       {/* Body */}
-      <div className="space-y-4 p-4">
-        {/* Sequência */}
+      <div className="p-5 space-y-5">
+        {/* Sequence */}
         <div>
-          <Label className="text-xs font-semibold">Sequência de Follow-ups</Label>
-          <p className="mb-3 text-[11px] text-muted-foreground">
-            Configure quando cada follow-up será enviado
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
+            SEQUÊNCIA DE ENVIOS
           </p>
 
-          <div className="space-y-3">
-            {localConfig.sequencia.map((item) => (
-              <div
-                key={item.ordem}
-                className="rounded-lg border bg-muted/20 p-3"
-              >
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs font-semibold">
-                    {item.ordem}a tentativa
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {localConfig.sequencia.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                        onClick={() => removeTentativa(item.ordem)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    )}
-                    <Switch
-                      checked={item.ativo}
-                      onCheckedChange={(checked) =>
-                        updateSequenciaItem(item.ordem, { ativo: checked })
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
-                    Enviar apos:
-                  </span>
-                  <Input
-                    type="number"
-                    min={1}
-                    className="h-7 w-20 text-xs"
-                    value={item.minutos}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value, 10);
-                      if (!isNaN(val) && val >= 1) {
-                        updateSequenciaItem(item.ordem, { minutos: val });
-                      }
-                    }}
-                  />
-                  <span className="text-[11px] text-muted-foreground">
-                    minutos
-                  </span>
-                  <Badge variant="outline" className="ml-auto text-[10px] font-normal">
-                    {formatMinutos(item.minutos)}
-                  </Badge>
-                </div>
-
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {getPresetsForOrder(item.ordem).map((preset) => (
-                    <button
-                      key={preset.value}
-                      type="button"
-                      className={`rounded-full border px-2.5 py-0.5 text-[10px] transition-colors ${
-                        item.minutos === preset.value
-                          ? "border-primary bg-primary/10 text-primary font-medium"
-                          : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+          <div className="space-y-2">
+            {localConfig.sequencia.map((item, idx) => (
+              <div key={item.ordem} className="relative">
+                {idx < localConfig.sequencia.length - 1 && (
+                  <div className="absolute left-[19px] top-full w-px h-2 bg-border/50 z-0" />
+                )}
+                <div
+                  className={`rounded-xl border p-3.5 transition-colors ${
+                    item.ativo
+                      ? "border-border/60 bg-card"
+                      : "border-border/40 bg-muted/20"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Step badge */}
+                    <div
+                      className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-bold transition-colors ${
+                        item.ativo
+                          ? "bg-foreground text-background"
+                          : "bg-muted text-muted-foreground/40"
                       }`}
-                      onClick={() =>
-                        updateSequenciaItem(item.ordem, { minutos: preset.value })
-                      }
                     >
-                      {preset.label}
-                    </button>
-                  ))}
+                      {item.ordem}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-semibold">
+                            {item.ordem}ª tentativa
+                          </span>
+                          {!item.ativo && (
+                            <span className="text-[10px] text-muted-foreground/40">
+                              desativada
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {localConfig.sequencia.length > 1 && (
+                            <button
+                              onClick={() => removeTentativa(item.ordem)}
+                              className="h-6 w-6 flex items-center justify-center rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                          <Switch
+                            checked={item.ativo}
+                            onCheckedChange={(checked) =>
+                              updateSequenciaItem(item.ordem, { ativo: checked })
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      {/* Timer */}
+                      <div className="flex items-center gap-2 mb-2.5">
+                        <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                          {idx === 0 ? "Após" : "Depois de mais"}
+                        </span>
+                        <Input
+                          type="number"
+                          min={1}
+                          className="h-7 w-[68px] text-xs tabular-nums text-center rounded-lg border-border/60"
+                          value={item.minutos}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!isNaN(val) && val >= 1) {
+                              updateSequenciaItem(item.ordem, { minutos: val });
+                            }
+                          }}
+                        />
+                        <span className="text-[11px] text-muted-foreground">
+                          min sem resposta
+                        </span>
+                        <span className="ml-auto text-[11px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5 tabular-nums">
+                          {formatMinutos(item.minutos)}
+                        </span>
+                      </div>
+
+                      {/* Presets */}
+                      <div className="flex flex-wrap gap-1">
+                        {getPresetsForOrder(item.ordem).map((preset) => (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() =>
+                              updateSequenciaItem(item.ordem, { minutos: preset.value })
+                            }
+                            className={`rounded-lg px-2.5 py-1 text-[10px] font-medium transition-all ${
+                              item.minutos === preset.value
+                                ? "bg-foreground text-background"
+                                : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
           {localConfig.sequencia.length < 5 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-3 w-full gap-1.5 text-xs"
+            <button
               onClick={addTentativa}
+              className="mt-2.5 w-full h-9 rounded-xl border border-dashed border-border/60 text-[11px] font-medium text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20 transition-all flex items-center justify-center gap-1.5"
             >
               <Plus className="h-3.5 w-3.5" />
               Adicionar tentativa
-            </Button>
+            </button>
           )}
         </div>
 
-        {/* Opções */}
-        <div className="space-y-3 border-t pt-3">
-          <div className="flex items-center gap-2">
+        {/* Behavior options */}
+        <div className="pt-4 border-t border-border/40">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
+            COMPORTAMENTO
+          </p>
+          <label className="flex items-start gap-2.5 cursor-pointer">
             <Checkbox
               id="respeitar-horario"
               checked={localConfig.respeitar_horario_atendimento}
@@ -393,53 +394,19 @@ export function AiFollowupConfig() {
                   respeitar_horario_atendimento: checked === true,
                 }))
               }
+              className="mt-0.5"
             />
-            <Label htmlFor="respeitar-horario" className="text-xs">
-              Respeitar horário de atendimento configurado
-            </Label>
-          </div>
+            <div>
+              <p className="text-[12px] font-medium text-foreground leading-none mb-0.5">
+                Respeitar horário de atendimento
+              </p>
+              <p className="text-[10px] text-muted-foreground/60">
+                Não envia follow-ups fora do horário configurado na IA
+              </p>
+            </div>
+          </label>
         </div>
-
-        {/* Logs recentes */}
-        {logs && logs.length > 0 && (
-          <div className="border-t pt-3">
-            <div className="mb-2 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-xs font-semibold">Ultimos follow-ups</span>
-            </div>
-            <div className="space-y-1.5">
-              {logs.map((log) => {
-                const st = STATUS_MAP[log.status] || STATUS_MAP.erro;
-                const leadName =
-                  (log.leads as any)?.nome || (log.leads as any)?.telefone || "Lead";
-                return (
-                  <div
-                    key={log.id}
-                    className="flex items-center gap-2 rounded-md bg-muted/30 px-2.5 py-1.5 text-[11px]"
-                  >
-                    {st.icon}
-                    <span className="flex-1 truncate font-medium">
-                      {leadName}
-                    </span>
-                    <Badge variant="outline" className="text-[10px] font-normal">
-                      {log.tentativa}a
-                    </Badge>
-                    <span className={`${st.color} text-[10px]`}>
-                      {st.label}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {formatDistanceToNow(new Date(log.enviado_em), {
-                        addSuffix: true,
-                        locale: ptBR,
-                      })}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
-    </Card>
+    </div>
   );
 }

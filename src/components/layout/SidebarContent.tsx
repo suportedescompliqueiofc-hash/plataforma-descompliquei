@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, BarChart3, Settings, LogOut, ChevronLeft,
   MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, GitBranch, ShieldCheck,
   PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay, PenLine,
-  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Sparkles, Swords, Route
+  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Sparkles, Swords, Route, UsersRound
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -84,6 +84,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
     { title: "Procedimentos", icon: Stethoscope, path: "/crm/procedimentos" },
     { title: "Metas", icon: Target, path: "/crm/metas" },
+    { title: "Equipe", icon: UsersRound, path: "/crm/equipe" },
     { title: "Evolução", icon: TrendingUp, path: "/crm/evolucao" },
     { isSeparator: true, title: "Automação" },
     { title: "Msgs Rápidas", icon: Zap, path: "/crm/quick-messages" },
@@ -151,6 +152,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/vendas':             'vendas',
     '/crm/procedimentos':      'procedimentos',
     '/crm/metas':              'metas',
+    '/crm/equipe':             'equipe',
     '/crm/quick-messages':     'msgs_rapidas',
     '/crm/cadences':           'cadencias',
     '/crm/ia':                 'ia',

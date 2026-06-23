@@ -156,13 +156,10 @@ Deno.serve(async (req: Request) => {
         .eq("organization_id", orgId)
         .maybeSingle();
 
-      // Verificar horário se necessário
-      if (config.respeitar_horario_atendimento) {
-        if (!dentroDoHorario(aiPromptConfig?.horario_atendimento)) {
-          console.log(`[FOLLOWUP] Org ${orgId}: fora do horário de atendimento`);
-          fora_horario_total++;
-          continue;
-        }
+      // Verificar horário — se fora do horário, leads automáticos são pulados mas manuais continuam
+      const foraDoHorario = config.respeitar_horario_atendimento && !dentroDoHorario(aiPromptConfig?.horario_atendimento);
+      if (foraDoHorario) {
+        console.log(`[FOLLOWUP] Org ${orgId}: fora do horário de atendimento — apenas follow-ups manuais serão processados`);
       }
 
       // Buscar WhatsApp connection
@@ -186,23 +183,38 @@ Deno.serve(async (req: Request) => {
       {
         let resetSelectQuery = supabase
           .from("leads")
-          .select("id, ultimo_contato, followup_ultima_tentativa")
+          .select("id, ultimo_contato, followup_ultima_tentativa, followup_tentativas")
           .eq("organization_id", orgId)
           .eq("followup_pausado", true)
-          .eq("ia_ativa", true)
-          .lt("posicao_pipeline", 4)
           .not("followup_ultima_tentativa", "is", null)
           .not("ultimo_contato", "is", null);
 
-        if (config.apenas_marketing) {
-          resetSelectQuery = resetSelectQuery.eq("origem", "marketing");
-        }
+        // Buscar tanto ia_ativa quanto followup_manual (OR via duas queries)
+        const { data: leadsPausadosAuto } = await (() => {
+          let q = resetSelectQuery.eq("ia_ativa", true);
+          if (config.apenas_marketing) q = q.eq("origem", "marketing");
+          return q;
+        })();
 
-        const { data: leadsPausados } = await resetSelectQuery;
+        const { data: leadsPausadosManual } = await supabase
+          .from("leads")
+          .select("id, ultimo_contato, followup_ultima_tentativa, followup_tentativas")
+          .eq("organization_id", orgId)
+          .eq("followup_pausado", true)
+          .eq("followup_manual", true)
+          .not("followup_ultima_tentativa", "is", null)
+          .not("ultimo_contato", "is", null);
 
-        if (leadsPausados && leadsPausados.length > 0) {
+        const seenReset = new Set<string>();
+        const leadsPausados = [...(leadsPausadosAuto ?? []), ...(leadsPausadosManual ?? [])].filter(l => {
+          if (seenReset.has(l.id)) return false;
+          seenReset.add(l.id);
+          return true;
+        });
+
+        if (leadsPausados.length > 0) {
           const idsParaResetar = leadsPausados
-            .filter((l) => new Date(l.ultimo_contato) > new Date(l.followup_ultima_tentativa))
+            .filter((l) => new Date(l.ultimo_contato!) > new Date(l.followup_ultima_tentativa!))
             .map((l) => l.id);
 
           if (idsParaResetar.length > 0) {
@@ -212,29 +224,66 @@ Deno.serve(async (req: Request) => {
                 followup_tentativas: 0,
                 followup_ultima_tentativa: null,
                 followup_pausado: false,
+                followup_manual: false,
               })
               .in("id", idsParaResetar);
+
+            const recoveryLogs = leadsPausados
+              .filter((l) => idsParaResetar.includes(l.id))
+              .map((l) => ({
+                lead_id: l.id,
+                organization_id: orgId,
+                tentativa: (l as any).followup_tentativas ?? 0,
+                status: "lead_respondeu",
+                motivo_ia: "Lead respondeu após follow-up — ciclo reiniciado",
+                enviado_em: new Date().toISOString(),
+              }));
+            if (recoveryLogs.length > 0) {
+              await supabase.from("ia_followup_log").insert(recoveryLogs);
+            }
 
             console.log(`[FOLLOWUP] Org ${orgId}: ${idsParaResetar.length} lead(s) pausado(s) resetado(s) (responderam após follow-up)`);
           }
         }
       }
 
-      // Buscar leads elegíveis
-      let query = supabase
-        .from("leads")
-        .select("id, nome, telefone, resumo, procedimento_interesse, followup_tentativas, followup_ultima_tentativa, followup_pausado, ultimo_contato, posicao_pipeline, ia_paused_until, criado_em")
-        .eq("organization_id", orgId)
-        .eq("ia_ativa", true)
-        .lt("posicao_pipeline", 4);
+      // Buscar leads elegíveis — IA ativa (automático) — apenas dentro do horário
+      let leadsAuto: any[] = [];
+      if (!foraDoHorario) {
+        let query = supabase
+          .from("leads")
+          .select("id, nome, telefone, resumo, procedimento_interesse, followup_tentativas, followup_ultima_tentativa, followup_pausado, ultimo_contato, ia_paused_until, criado_em, followup_manual")
+          .eq("organization_id", orgId)
+          .eq("ia_ativa", true);
 
-      if (config.apenas_marketing) {
-        query = query.eq("origem", "marketing");
+        if (config.apenas_marketing) {
+          query = query.eq("origem", "marketing");
+        }
+
+        const { data } = await query;
+        leadsAuto = data ?? [];
+      } else {
+        fora_horario_total++;
       }
 
-      const { data: leads, error: leadsErr } = await query;
+      // Buscar leads com follow-up manual ativado (SEMPRE, independente do horário)
+      const { data: leadsManual } = await supabase
+        .from("leads")
+        .select("id, nome, telefone, resumo, procedimento_interesse, followup_tentativas, followup_ultima_tentativa, followup_pausado, ultimo_contato, ia_paused_until, criado_em, followup_manual")
+        .eq("organization_id", orgId)
+        .eq("followup_manual", true);
 
-      if (leadsErr || !leads || leads.length === 0) {
+      // Merge sem duplicatas (um lead pode ter ia_ativa=true E followup_manual=true)
+      const seenIds = new Set<string>();
+      const leads: typeof leadsAuto = [];
+      for (const l of [...leadsAuto, ...(leadsManual ?? [])]) {
+        if (!seenIds.has(l.id)) {
+          seenIds.add(l.id);
+          leads.push(l);
+        }
+      }
+
+      if (leads.length === 0) {
         console.log(`[FOLLOWUP] Org ${orgId}: nenhum lead elegível`);
         continue;
       }
@@ -251,7 +300,7 @@ Deno.serve(async (req: Request) => {
         continue;
       }
 
-      console.log(`[FOLLOWUP] Org ${orgId}: ${leadsElegiveis.length} leads elegíveis`);
+      console.log(`[FOLLOWUP] Org ${orgId}: ${leadsElegiveis.length} leads elegíveis (${(leadsManual ?? []).length} manuais)`);
 
       for (const lead of leadsElegiveis) {
         try {
@@ -275,7 +324,17 @@ Deno.serve(async (req: Request) => {
                 followup_tentativas: 0,
                 followup_ultima_tentativa: null,
                 followup_pausado: false,
+                followup_manual: false,
               }).eq("id", lead.id);
+
+              await supabase.from("ia_followup_log").insert({
+                lead_id: lead.id,
+                organization_id: orgId,
+                tentativa: lead.followup_tentativas ?? 0,
+                status: "lead_respondeu",
+                motivo_ia: "Lead respondeu após follow-up — ciclo reiniciado",
+                enviado_em: new Date().toISOString(),
+              });
 
               console.log(`[FOLLOWUP] Lead ${lead.id}: respondeu após follow-up, ciclo resetado — pulando nesta rodada`);
               continue; // Pular: próximo cron pega o lead com estado fresh
@@ -388,7 +447,8 @@ Deno.serve(async (req: Request) => {
             .join("\n");
 
           // Chamar GPT-4.1-mini para decidir
-          const systemPrompt = `Você analisa conversas de WhatsApp entre uma IA de atendimento de clínica de estética e um lead que parou de responder. Sua função é gerar UMA mensagem curtíssima para retomar o contato.
+          const isManual = lead.followup_manual === true;
+          const systemPrompt = `Você analisa conversas de WhatsApp entre ${isManual ? "a equipe de atendimento de uma clínica de estética" : "uma IA de atendimento de clínica de estética"} e um lead que parou de responder. Sua função é gerar UMA mensagem curtíssima para retomar o contato.
 
 LEIA TUDO ANTES DE ESCREVER:
 - Resumo do atendimento (o que o lead já contou sobre si)
@@ -585,13 +645,16 @@ Identifique onde a conversa parou e gere o follow-up mais humano e eficaz possí
           });
 
           // Salvar na memoria_agente para manter contexto da IA de pré-atendimento
-          // Marca como [follow-up] para que a IA principal saiba que ela mesma enviou como retomada
-          await supabase.from("memoria_agente").insert({
-            session_id: lead.id,
-            organization_id: orgId,
-            message: { role: "assistant", content: `[você enviou esta mensagem de follow-up porque o lead não respondeu] ${mensagem}` },
-          });
-          console.log(`[FOLLOWUP] Lead ${lead.id} - memoria_agente atualizada com follow-up`);
+          if (!isManual) {
+            await supabase.from("memoria_agente").insert({
+              session_id: lead.id,
+              organization_id: orgId,
+              message: { role: "assistant", content: `[você enviou esta mensagem de follow-up porque o lead não respondeu] ${mensagem}` },
+            });
+            console.log(`[FOLLOWUP] Lead ${lead.id} - memoria_agente atualizada com follow-up`);
+          } else {
+            console.log(`[FOLLOWUP] Lead ${lead.id} - follow-up manual, sem inserir na memoria_agente`);
+          }
 
           // Log de follow-up
           await supabase.from("ia_followup_log").insert({

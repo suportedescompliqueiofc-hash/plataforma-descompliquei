@@ -39,6 +39,7 @@ import { PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, BarChart, Bar, X
 import ConfigNotificacoes from "@/components/agendamentos/ConfigNotificacoes";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import AgendamentoFinanceiroConfig from "@/components/agendamentos/AgendamentoFinanceiroConfig";
+import { TimeInput } from "@/components/ui/TimeInput";
 import { useAgendamentoFinanceiroConfig } from "@/hooks/useAgendamentoFinanceiroConfig";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 
@@ -1832,30 +1833,11 @@ export default function Agendamentos() {
                     />
                   </PopoverContent>
                 </Popover>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <Select value={horaInicioForm} onValueChange={handleFormHoraChange}>
-                    <SelectTrigger className="h-10 w-[62px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[200px] rounded-xl border-border/60">
-                      {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")).map(h => (
-                        <SelectItem key={h} value={h} className="text-sm tabular-nums">{h}h</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground font-semibold text-sm">:</span>
-                  <Select value={minutoInicioForm} onValueChange={handleFormMinutoChange}>
-                    <SelectTrigger className="h-10 w-[60px] rounded-lg text-sm border-border/60 px-2.5 tabular-nums">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-border/60">
-                      {["00","05","10","15","20","25","30","35","40","45","50","55"].map(m => (
-                        <SelectItem key={m} value={m} className="text-sm tabular-nums">{m}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <TimeInput
+                  hora={horaInicioForm}
+                  minuto={minutoInicioForm}
+                  onChange={(h, m) => { handleFormHoraChange(h); handleFormMinutoChange(m); }}
+                />
               </div>
             </div>
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, EyeOff, X, ArrowLeft, ExternalLink } from 'lucide-react';
+import { MessageCircle, EyeOff, X, ArrowLeft, ExternalLink, Bot, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LeadModal } from '@/components/leads/LeadModal';
@@ -18,6 +18,8 @@ interface Lead {
   telefone?: string;
   criado_em: string;
   atualizado_em?: string;
+  followup_gap_motivo?: string;
+  horasSemContato?: number;
 }
 
 interface DashboardLeadsModalProps {
@@ -34,11 +36,40 @@ export function DashboardLeadsModal({ open, onClose, title, leads }: DashboardLe
   const [viewingLead, setViewingLead] = useState<Lead | null>(null);
   const [removing, setRemoving] = useState<string | null>(null);
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set());
+  const [activatingFollow, setActivatingFollow] = useState<string | null>(null);
+
+  const handleAtivarFollow = async (e: React.MouseEvent, lead: Lead) => {
+    e.stopPropagation();
+    setActivatingFollow(lead.id);
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          followup_manual: true,
+          followup_tentativas: 0,
+          followup_ultima_tentativa: null,
+          followup_pausado: false,
+        })
+        .eq('id', lead.id);
+      if (error) throw error;
+      toast.success(`Follow-up IA ativado para ${lead.nome || 'lead'}`);
+      queryClient.invalidateQueries({ queryKey: ['followup-gap'] });
+    } catch (err: any) {
+      toast.error('Erro ao ativar follow-up: ' + (err.message || String(err)));
+    } finally {
+      setActivatingFollow(null);
+    }
+  };
 
   // Deriva a lista local excluindo IDs removidos — sem sync logic quebrada
   const localLeads = leads.filter(l => !removedIds.has(l.id));
 
   const sortedLeads = [...localLeads].sort((a, b) => {
+    // Se ambos têm horasSemContato, ordenar do menor para o maior
+    if (a.horasSemContato != null && b.horasSemContato != null) {
+      return a.horasSemContato - b.horasSemContato;
+    }
+    // Fallback: mais recente primeiro
     const dateA = a.atualizado_em || a.criado_em;
     const dateB = b.atualizado_em || b.criado_em;
     return dateB.localeCompare(dateA);
@@ -97,10 +128,23 @@ export function DashboardLeadsModal({ open, onClose, title, leads }: DashboardLe
             {getInitials(lead.nome)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[12px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
-            <p className="text-[10px] text-muted-foreground truncate">
-              {format(new Date(lead.atualizado_em || lead.criado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-[12px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
+              {lead.horasSemContato != null && lead.horasSemContato > 0 && (
+                <span className="text-[9px] font-mono tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded px-1.5 py-0.5 shrink-0">
+                  {lead.horasSemContato < 24 ? `${lead.horasSemContato}h` : `${Math.floor(lead.horasSemContato / 24)}d ${lead.horasSemContato % 24}h`}
+                </span>
+              )}
+            </div>
+            {lead.followup_gap_motivo ? (
+              <p className="text-[10px] text-muted-foreground truncate">
+                {lead.followup_gap_motivo}
+              </p>
+            ) : (
+              <p className="text-[10px] text-muted-foreground truncate">
+                {format(new Date(lead.atualizado_em || lead.criado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
+              </p>
+            )}
             <p className="text-[10px] text-muted-foreground/50 truncate">
               Cad. {format(new Date(lead.criado_em), "dd/MM/yy", { locale: ptBR })}
             </p>
@@ -175,6 +219,21 @@ export function DashboardLeadsModal({ open, onClose, title, leads }: DashboardLe
                 <p className="text-[10px] text-muted-foreground">{viewingLead.telefone || '—'}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
+                {viewingLead.followup_gap_motivo && (
+                  <Button
+                    size="sm"
+                    className="h-7 text-[11px] gap-1.5 bg-foreground text-background hover:bg-foreground/90"
+                    disabled={activatingFollow === viewingLead.id}
+                    onClick={(e) => handleAtivarFollow(e, viewingLead)}
+                  >
+                    {activatingFollow === viewingLead.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Bot className="h-3 w-3" />
+                    )}
+                    Follow IA
+                  </Button>
+                )}
                 <Button
                   size="sm" variant="outline"
                   className="h-7 text-[11px] gap-1.5 border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
@@ -194,6 +253,34 @@ export function DashboardLeadsModal({ open, onClose, title, leads }: DashboardLe
                 </Button>
               </div>
             </div>
+
+            {/* Resumo IA — só aparece quando há análise de follow-up */}
+            {viewingLead.followup_gap_motivo && (
+              <div className="px-4 py-2.5 border-b border-amber-500/20 bg-amber-500/[0.04] shrink-0">
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 shrink-0">
+                    <div className="h-4 w-4 rounded-full bg-amber-500/15 flex items-center justify-center">
+                      <div className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-amber-700/70">Análise da IA</p>
+                      {viewingLead.horasSemContato != null && viewingLead.horasSemContato > 0 && (
+                        <span className="text-[9px] font-mono font-semibold text-amber-600 bg-amber-500/10 rounded px-1.5 py-0.5">
+                          {viewingLead.horasSemContato < 24
+                            ? `${viewingLead.horasSemContato}h sem resposta`
+                            : `${Math.floor(viewingLead.horasSemContato / 24)}d ${viewingLead.horasSemContato % 24}h sem resposta`}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-amber-900/70 dark:text-amber-200/70 leading-snug">
+                      {viewingLead.followup_gap_motivo}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Conversa */}
             <div className="flex-1 min-h-0 overflow-hidden">
@@ -247,8 +334,19 @@ export function DashboardLeadsModal({ open, onClose, title, leads }: DashboardLe
                     {getInitials(lead.nome)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{lead.telefone || '—'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[13px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
+                      {lead.horasSemContato != null && lead.horasSemContato > 0 && (
+                        <span className="text-[9px] font-mono tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded px-1.5 py-0.5 shrink-0">
+                          {lead.horasSemContato < 24 ? `${lead.horasSemContato}h` : `${Math.floor(lead.horasSemContato / 24)}d ${lead.horasSemContato % 24}h`}
+                        </span>
+                      )}
+                    </div>
+                    {lead.followup_gap_motivo ? (
+                      <p className="text-[11px] text-muted-foreground truncate">{lead.followup_gap_motivo}</p>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground truncate">{lead.telefone || '—'}</p>
+                    )}
                   </div>
                   <div className="text-right flex-shrink-0 mr-1">
                     <p className="text-[10px] text-muted-foreground">

@@ -10,14 +10,25 @@ const DIAS_SEMANA = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
 function formatDatePtBR(date: Date): string {
-  const diaSemana = DIAS_SEMANA[date.getDay()];
-  const dia = String(date.getDate()).padStart(2, '0');
-  const mes = MESES[date.getMonth()];
+  const parts = new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+  }).formatToParts(date);
+  const diaSemana = parts.find(p => p.type === 'weekday')?.value ?? '';
+  const dia = parts.find(p => p.type === 'day')?.value ?? '';
+  const mes = parts.find(p => p.type === 'month')?.value ?? '';
   return `${diaSemana}, ${dia} de ${mes}`;
 }
 
 function formatHora(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
 }
 
 function substituirVariaveis(template: string, vars: Record<string, string>): string {

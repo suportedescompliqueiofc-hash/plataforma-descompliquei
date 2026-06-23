@@ -125,8 +125,7 @@ serve(async (req) => {
                   if (segment === 'active') return lead.ultimo_contato && isAfter(new Date(lead.ultimo_contato), sixMonthsAgo);
                   if (segment === 'inactive') return !lead.ultimo_contato || isBefore(new Date(lead.ultimo_contato), sixMonthsAgo);
                   if (segment === 'new') return isAfter(new Date(lead.criado_em), threeMonthsAgo);
-                  // Verifica pela posição do pipeline
-                  if (segment === 'in_treatment') return !finalStagePositions.includes(lead.posicao_pipeline);
+                  if (segment === 'in_treatment') return true;
                   return false;
               });
           });

@@ -51,6 +51,9 @@ export interface Lead {
   excluir_metricas?: boolean;
   lead_scoring?: string | null;
   responsavel_id?: string | null;
+  followup_gap?: string | null;
+  followup_gap_motivo?: string | null;
+  followup_manual?: boolean;
 }
 
 export function useLeads(dateRange?: DateRange) {

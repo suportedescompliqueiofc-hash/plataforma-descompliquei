@@ -12,12 +12,13 @@ import {
 import { useDashboard, type OrigemFilter } from "@/hooks/useDashboard";
 import { usePerformanceBadge } from "@/hooks/usePerformance";
 import { useProfile } from "@/hooks/useProfile";
+import { FollowupGapWidget } from "@/components/dashboard/FollowupGapWidget";
 import { DESCOMPLIQUEI_ORG_ID, ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { startOfMonth, endOfMonth, format } from 'date-fns';
+import { startOfMonth, endOfMonth, format, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange } from "react-day-picker";
@@ -141,6 +142,7 @@ export default function Dashboard() {
   const [metricsMode, setMetricsMode] = useState<'geral' | 'cadastrados'>('geral');
   const [detalharBucket, setDetalharBucket] = useState<{ label: string; leads: any[]; items: Array<{ lead: any; dias: number }> } | null>(null);
   const { openModal: openLeadsModal } = useDashboardLeadsModal();
+  const [showTempoConversaoDetail, setShowTempoConversaoDetail] = useState(false);
   const [showTempoRespostaDetail, setShowTempoRespostaDetail] = useState(false);
   const [showSemRespostaDetail, setShowSemRespostaDetail] = useState(false);
   const [handoffDetalhesAberto, setHandoffDetalhesAberto] = useState(false);
@@ -688,37 +690,31 @@ export default function Dashboard() {
         }
 
         const diasRestantes = Math.max(Number(m.dias_restantes) || 0, 0);
-        const receitaTotal = Number(m.receita_total) || 0;
-        const metaReceita = Number(m.meta_receita) || 1;
-        const leadsTotal = Number(m.leads_total) || 0;
-        const metaLeads = Number(m.meta_leads) || 0;
-        const reunioesTotal = Number(m.reunioes_total) || 0;
-        const metaReunioes = Number(m.meta_reunioes) || 0;
-        const fechamentosTotal = Number(m.fechamentos_total) || 0;
-        const metaFechamentos = Number(m.meta_fechamentos) || 0;
-        const leadsHoje = Number(m.leads_hoje) || 0;
-        const leadsSemana = Number(m.leads_semana) || 0;
-        const metaLeadsDia = Number(m.meta_leads_dia) || 0;
-        const metaLeadsSemana = Number(m.meta_leads_semana) || 0;
-        const leadsNecessariosDia = Number(m.leads_necessarios_por_dia) || 0;
+        const metaReceitaTotal = Number(m.meta_receita) || 1;
+        const metaTotalDias = Math.max(Number(m.total_dias) || 30, 1);
 
-        const pctReceita = metaReceita > 0 ? Math.round((receitaTotal / metaReceita) * 100) : 0;
-        const pctLeads = metaLeads > 0 ? Math.round((leadsTotal / metaLeads) * 100) : 0;
-        const pctReunioes = metaReunioes > 0 ? Math.round((reunioesTotal / metaReunioes) * 100) : 0;
-        const pctFechamentos = metaFechamentos > 0 ? Math.round((fechamentosTotal / metaFechamentos) * 100) : 0;
+        // Período selecionado no filtro do Dashboard
+        const periodDays = dateRange?.from && dateRange?.to
+          ? Math.max(differenceInDays(dateRange.to, dateRange.from) + 1, 1)
+          : metaTotalDias;
 
+        // Meta prorateada para o período selecionado (cap no total da meta)
+        const metaPeriodo = Math.min(
+          Math.round((metaReceitaTotal / metaTotalDias) * periodDays),
+          metaReceitaTotal
+        );
+
+        // Receita e fechamentos já filtrados pelo período (vêm do useDashboard)
+        const receitaPeriodo = faturamento; // metrics.faturamentoTotal
+        const fechamentosPeriodo = closedCount; // metrics.closedCount
+        const ticketMedio = fechamentosPeriodo > 0 ? Math.round(receitaPeriodo / fechamentosPeriodo) : 0;
+        const receitaNecessariaDia = Number(m.receita_necessaria_por_dia) || 0;
+
+        const pctReceita = metaPeriodo > 0 ? Math.round((receitaPeriodo / metaPeriodo) * 100) : 0;
         const metaBatida = pctReceita >= 100;
-        const hojeBateu = leadsHoje >= metaLeadsDia;
-        const semanaBateu = leadsSemana >= metaLeadsSemana;
-
         const barColor = (pct: number) => pct >= 100 ? "#10b981" : pct >= 60 ? "#3b82f6" : pct >= 30 ? "#f59e0b" : "#ef4444";
-
-        const metricsList = [
-          { label: "Receita", real: `R$${fmtK(receitaTotal)}`, meta: `R$${fmtK(metaReceita)}`, pct: pctReceita },
-          { label: "Leads", real: String(leadsTotal), meta: String(metaLeads), pct: pctLeads },
-          { label: "Agendamentos", real: String(reunioesTotal), meta: String(metaReunioes), pct: pctReunioes },
-          { label: "Fechamentos", real: String(fechamentosTotal), meta: String(metaFechamentos), pct: pctFechamentos },
-        ];
+        const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        const isProrateado = periodDays < metaTotalDias;
 
         return (
           <div data-tutorial="dashboard-meta" className={cn("rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden", metaBatida && "ring-1 ring-emerald-500/20")}>
@@ -729,41 +725,40 @@ export default function Dashboard() {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-foreground">{m.nome}</p>
-                  <p className="text-[11px] text-muted-foreground">{diasRestantes > 0 ? `${diasRestantes} dias restantes` : "Encerrada"}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {isProrateado
+                      ? `Alvo do período: ${fmtBRL(metaPeriodo)}`
+                      : diasRestantes > 0 ? `${diasRestantes} dias restantes` : "Encerrada"
+                    }
+                  </p>
                 </div>
               </div>
               <Button size="sm" variant="ghost" onClick={() => navigate("/crm/metas")} className="gap-1 text-xs h-8 text-muted-foreground hover:text-foreground">
                 Detalhes <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-5 px-5 pb-4">
-              {metricsList.map((item) => (
-                <div key={item.label} className="space-y-2">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-[11px] font-medium text-muted-foreground">{item.label}</span>
-                    <span className="text-[11px] font-bold font-mono" style={{ color: barColor(item.pct) }}>{item.pct}%</span>
-                  </div>
-                  <div className="text-base font-bold font-display text-foreground">
-                    {item.real} <span className="text-muted-foreground font-normal text-xs font-sans">/ {item.meta}</span>
-                  </div>
-                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(item.pct, 100)}%`, backgroundColor: barColor(item.pct) }} />
-                  </div>
-                </div>
-              ))}
+            <div className="px-5 pb-4 space-y-2">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[11px] font-medium text-muted-foreground">Receita no período</span>
+                <span className="text-[11px] font-bold font-mono" style={{ color: barColor(pctReceita) }}>{pctReceita}%</span>
+              </div>
+              <div className="text-base font-bold font-display text-foreground">
+                {fmtBRL(receitaPeriodo)} <span className="text-muted-foreground font-normal text-xs font-sans">/ {fmtBRL(metaPeriodo)}</span>
+              </div>
+              <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pctReceita, 100)}%`, backgroundColor: barColor(pctReceita) }} />
+              </div>
             </div>
             <div className="border-t border-border/40 bg-muted/20 px-5 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                Hoje: <span className="font-mono font-semibold text-foreground">{leadsHoje}</span> leads
-                <span className={cn("h-1.5 w-1.5 rounded-full", hojeBateu ? "bg-emerald-500" : "bg-red-400")} />
-              </span>
-              <span className="h-3 w-px bg-border" />
-              <span className="flex items-center gap-1.5">
-                Semana: <span className="font-mono font-semibold text-foreground">{leadsSemana}</span> leads
-                <span className={cn("h-1.5 w-1.5 rounded-full", semanaBateu ? "bg-emerald-500" : "bg-red-400")} />
-              </span>
-              <span className="h-3 w-px bg-border" />
-              <span>Pace: <span className="font-mono font-semibold text-foreground">{leadsNecessariosDia}</span> leads/dia</span>
+              {!isProrateado && receitaNecessariaDia > 0 && <>
+                <span>Necessário: <span className="font-mono font-semibold text-foreground">{fmtBRL(receitaNecessariaDia)}/dia</span></span>
+                <span className="h-3 w-px bg-border" />
+              </>}
+              <span>Fechamentos: <span className="font-mono font-semibold text-foreground">{fechamentosPeriodo}</span></span>
+              {ticketMedio > 0 && <>
+                <span className="h-3 w-px bg-border" />
+                <span>Ticket: <span className="font-mono font-semibold text-foreground">{fmtBRL(ticketMedio)}</span></span>
+              </>}
             </div>
           </div>
         );
@@ -1196,7 +1191,7 @@ export default function Dashboard() {
             );
           })()}
 
-          {/* ⑥ EFETIVIDADE DA IA */}
+          {/* ⑥ EFETIVIDADE DA IA + TEMPO DE HANDOFF */}
           {(() => {
             const iaTotal          = metrics.iaConversasTotal ?? 0;
             const iaConversasLista = (metrics as any).iaConversasLeadsList ?? [];
@@ -1206,15 +1201,15 @@ export default function Dashboard() {
             const iaPerdidosLista  = (metrics as any).iaPerdidosLeadsList ?? [];
             const iaTaxa           = metrics.iaTaxaEfetividade ?? 0;
             const iaSemDados       = iaTotal === 0;
+            const ht               = (metrics as any).iaTempoHandoff;
+            const temHandoff       = ht && ht.total > 0;
 
-            const taxaColor = iaTaxa >= 60
-              ? '#10b981'
-              : iaTaxa >= 30
-              ? '#f59e0b'
-              : '#ef4444';
+            const taxaColor = iaTaxa >= 60 ? '#10b981' : iaTaxa >= 30 ? '#f59e0b' : '#ef4444';
+            const corTempo  = (min: number) => min <= 5 ? '#10b981' : min <= 30 ? '#f59e0b' : min <= 120 ? '#f97316' : '#ef4444';
 
             return (
               <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                {/* Header */}
                 <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
                   <div className="flex items-center gap-2">
                     <span className="p-1.5 rounded-lg bg-muted">
@@ -1236,217 +1231,161 @@ export default function Dashboard() {
                     <p className="text-[11px] text-muted-foreground/50 mt-0.5">Dados aparecem quando a IA envia mensagens para leads</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/40">
-                    {/* Conversas com IA */}
-                    <div
-                      className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
-                      onClick={() => iaConversasLista.length > 0 && openLeadsModal('Conversas com IA', iaConversasLista)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#6366f115' }}>
-                          <Bot className="h-4 w-4" style={{ color: '#6366f1' }} />
-                        </span>
-                        {iaConversasLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
-                      </div>
-                      <div>
-                        <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaTotal}</div>
-                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Conversas com IA</div>
-                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">leads únicos atendidos no período</div>
-                      </div>
-                    </div>
-
-                    {/* Passaram para Handoff */}
-                    <div
-                      className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
-                      onClick={() => iaHandoffLista.length > 0 && openLeadsModal('Passaram para Humano', iaHandoffLista)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#10b98115' }}>
-                          <UserCheck className="h-4 w-4" style={{ color: '#10b981' }} />
-                        </span>
-                        {iaHandoffLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
-                      </div>
-                      <div>
-                        <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaHandoff}</div>
-                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Passaram para Humano</div>
-                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">IA transferiu para atendente</div>
-                      </div>
-                    </div>
-
-                    {/* Perdidos no caminho */}
-                    <div
-                      className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
-                      onClick={() => iaPerdidosLista.length > 0 && openLeadsModal('Perdidos no Caminho — Só IA', iaPerdidosLista)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#ef444415' }}>
-                          <AlertTriangle className="h-4 w-4" style={{ color: '#ef4444' }} />
-                        </span>
-                        {iaPerdidosLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
-                      </div>
-                      <div>
-                        <div className="text-[28px] font-bold font-display leading-none" style={{ color: iaPerdidos > 0 ? '#ef4444' : 'hsl(var(--foreground))' }}>{iaPerdidos}</div>
-                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Perdidos no Caminho</div>
-                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">só IA, sem atendimento humano</div>
-                      </div>
-                    </div>
-
-                    {/* Taxa de Handoff */}
-                    <div className="flex flex-col gap-3 p-5 bg-card">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: taxaColor + '15' }}>
-                        <Gauge className="h-4 w-4" style={{ color: taxaColor }} />
-                      </span>
-                      <div>
-                        <div className="text-[28px] font-bold font-display leading-none" style={{ color: taxaColor }}>
-                          {iaTaxa}%
+                  <>
+                    {/* 4 KPIs */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/40">
+                      <div
+                        className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                        onClick={() => iaConversasLista.length > 0 && openLeadsModal('Conversas com IA', iaConversasLista)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#6366f115' }}>
+                            <Bot className="h-4 w-4" style={{ color: '#6366f1' }} />
+                          </span>
+                          {iaConversasLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
                         </div>
-                        <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Taxa de Handoff</div>
-                        <div className="text-[10px] text-muted-foreground/50 mt-0.5">conversas que chegaram ao humano</div>
-                        <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{ width: `${Math.min(iaTaxa, 100)}%`, backgroundColor: taxaColor }}
-                          />
+                        <div>
+                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaTotal}</div>
+                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Conversas com IA</div>
+                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">leads únicos atendidos no período</div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* ⑥.5 TEMPO DE HANDOFF — IA → HUMANO */}
-          {(() => {
-            const ht = (metrics as any).iaTempoHandoff;
-            if (!ht || ht.total === 0) return null;
-
-            const corTempo = (min: number) =>
-              min <= 5 ? '#10b981' : min <= 30 ? '#f59e0b' : min <= 120 ? '#f97316' : '#ef4444';
-
-            return (
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="p-1.5 rounded-lg bg-muted">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      </span>
-                      <div>
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TEMPO DE HANDOFF</p>
-                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">Tempo entre a última mensagem da IA e a primeira resposta humana</p>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-7 rounded-lg text-[10px] font-medium border-border/60 gap-1 px-2.5"
-                      onClick={() => setHandoffDetalhesAberto(prev => !prev)}
-                    >
-                      <BarChart3 className="h-3 w-3" />
-                      {handoffDetalhesAberto ? 'Fechar' : 'Ver detalhes'}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-px bg-border/40">
-                  <div className="flex flex-col gap-2 p-5 bg-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Média</p>
-                    <div className="text-[24px] font-bold font-display leading-none" style={{ color: corTempo(ht.media) }}>
-                      {fmtMinutes(ht.media)}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground/50">{ht.total} handoffs</p>
-                  </div>
-                  <div className="flex flex-col gap-2 p-5 bg-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais rápido</p>
-                    <div className="text-[24px] font-bold font-display leading-none" style={{ color: '#10b981' }}>
-                      {fmtMinutes(ht.minimo)}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground/50">menor tempo</p>
-                  </div>
-                  <div className="flex flex-col gap-2 p-5 bg-card">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais lento</p>
-                    <div className="text-[24px] font-bold font-display leading-none" style={{ color: corTempo(ht.maximo) }}>
-                      {fmtMinutes(ht.maximo)}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground/50">maior tempo</p>
-                  </div>
-                </div>
-
-                {handoffDetalhesAberto && (() => {
-                  const dist = ht.distribuicao || [];
-                  const detalhes = ht.detalhes || [];
-                  const maxCount = Math.max(...dist.map((d: any) => d.count), 1);
-
-                  return (
-                    <>
-                      <div className="px-5 py-4 border-t border-border/40">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Distribuição por faixa de tempo</p>
-                        <div className="space-y-2">
-                          {dist.map((d: any, i: number) => (
-                            <div
-                              key={i}
-                              className={`flex items-center gap-3 group ${d.leads?.length > 0 ? 'cursor-pointer hover:bg-muted/20 -mx-2 px-2 py-1 rounded-lg transition-colors' : 'py-1'}`}
-                              onClick={() => d.leads?.length > 0 && openLeadsModal(`Handoff ${d.label}`, d.leads)}
-                            >
-                              <div className="w-[90px] text-[11px] text-muted-foreground font-medium shrink-0">{d.label}</div>
-                              <div className="flex-1 h-5 bg-muted/30 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all duration-500"
-                                  style={{
-                                    width: `${Math.max((d.count / maxCount) * 100, d.count > 0 ? 4 : 0)}%`,
-                                    backgroundColor: corTempo(
-                                      i === 0 ? 0.5 : i === 1 ? 3 : i === 2 ? 10 : i === 3 ? 22 : i === 4 ? 45 : i === 5 ? 120 : i === 6 ? 360 : 720
-                                    ),
-                                  }}
-                                />
-                              </div>
-                              <div className="w-[32px] text-right text-[12px] font-bold font-mono tabular-nums text-foreground">{d.count}</div>
-                              <div className="w-[36px] text-right text-[10px] text-muted-foreground/50 font-mono tabular-nums">{d.pct}%</div>
-                              {d.leads?.length > 0 && (
-                                <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors shrink-0" />
-                              )}
-                            </div>
-                          ))}
+                      <div
+                        className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                        onClick={() => iaHandoffLista.length > 0 && openLeadsModal('Passaram para Humano', iaHandoffLista)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#10b98115' }}>
+                            <UserCheck className="h-4 w-4" style={{ color: '#10b981' }} />
+                          </span>
+                          {iaHandoffLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                        </div>
+                        <div>
+                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaHandoff}</div>
+                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Passaram para Humano</div>
+                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">IA transferiu para atendente</div>
                         </div>
                       </div>
-
-                      {detalhes.length > 0 && (
-                        <div className="px-5 py-4 border-t border-border/40">
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Detalhamento por lead ({detalhes.length})</p>
-                          <div className="space-y-1 max-h-[280px] overflow-y-auto">
-                            {detalhes.map((d: any, i: number) => (
-                              <div
-                                key={i}
-                                className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-muted/20 transition-colors cursor-pointer group"
-                                onClick={() => d.lead && openLeadsModal(d.lead.nome || 'Lead', [d.lead])}
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  <div className="h-7 w-7 rounded-full bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">
-                                    {i + 1}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-[12px] font-medium text-foreground truncate">{d.lead?.nome || 'Lead sem nome'}</p>
-                                    <p className="text-[10px] text-muted-foreground/50">{d.lead?.telefone || ''}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 shrink-0">
-                                  <div
-                                    className="text-[13px] font-bold font-mono tabular-nums px-2 py-0.5 rounded-md"
-                                    style={{ color: corTempo(d.minutos), backgroundColor: corTempo(d.minutos) + '10' }}
-                                  >
-                                    {fmtMinutes(d.minutos)}
-                                  </div>
-                                  <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors" />
-                                </div>
-                              </div>
-                            ))}
+                      <div
+                        className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                        onClick={() => iaPerdidosLista.length > 0 && openLeadsModal('Perdidos no Caminho — Só IA', iaPerdidosLista)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#ef444415' }}>
+                            <AlertTriangle className="h-4 w-4" style={{ color: '#ef4444' }} />
+                          </span>
+                          {iaPerdidosLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                        </div>
+                        <div>
+                          <div className="text-[28px] font-bold font-display leading-none" style={{ color: iaPerdidos > 0 ? '#ef4444' : 'hsl(var(--foreground))' }}>{iaPerdidos}</div>
+                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Perdidos no Caminho</div>
+                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">só IA, sem atendimento humano</div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-3 p-5 bg-card">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: taxaColor + '15' }}>
+                          <Gauge className="h-4 w-4" style={{ color: taxaColor }} />
+                        </span>
+                        <div>
+                          <div className="text-[28px] font-bold font-display leading-none" style={{ color: taxaColor }}>{iaTaxa}%</div>
+                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Taxa de Handoff</div>
+                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">conversas que chegaram ao humano</div>
+                          <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(iaTaxa, 100)}%`, backgroundColor: taxaColor }} />
                           </div>
                         </div>
-                      )}
-                    </>
-                  );
-                })()}
+                      </div>
+                    </div>
+
+                    {/* Tempo de Handoff — sub-seção integrada */}
+                    {temHandoff && (
+                      <div className="border-t border-border/40">
+                        <div className="px-5 py-3 flex items-center justify-between bg-muted/[0.02]">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-3 w-3 text-muted-foreground/50" />
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Tempo de Handoff</p>
+                            <span className="text-[10px] text-muted-foreground/30">· IA → Humano · {ht.total} handoffs</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2.5 text-[10px] gap-1 text-muted-foreground hover:text-foreground border border-border/60 rounded-lg"
+                            onClick={() => setHandoffDetalhesAberto(prev => !prev)}
+                          >
+                            <BarChart3 className="h-3 w-3" />
+                            {handoffDetalhesAberto ? 'Ocultar' : 'Ver detalhes'}
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-px bg-border/30">
+                          <div className="flex flex-col gap-1.5 px-5 py-4 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Média</p>
+                            <div className="text-[22px] font-bold font-display leading-none" style={{ color: corTempo(ht.media) }}>{fmtMinutes(ht.media)}</div>
+                          </div>
+                          <div className="flex flex-col gap-1.5 px-5 py-4 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais rápido</p>
+                            <div className="text-[22px] font-bold font-display leading-none" style={{ color: '#10b981' }}>{fmtMinutes(ht.minimo)}</div>
+                          </div>
+                          <div className="flex flex-col gap-1.5 px-5 py-4 bg-card">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais lento</p>
+                            <div className="text-[22px] font-bold font-display leading-none" style={{ color: corTempo(ht.maximo) }}>{fmtMinutes(ht.maximo)}</div>
+                          </div>
+                        </div>
+
+                        {handoffDetalhesAberto && (() => {
+                          const dist = ht.distribuicao || [];
+                          const detalhes = ht.detalhes || [];
+                          const maxCount = Math.max(...dist.map((d: any) => d.count), 1);
+                          return (
+                            <>
+                              <div className="px-5 py-4 border-t border-border/40">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Distribuição por faixa de tempo</p>
+                                <div className="space-y-2">
+                                  {dist.map((d: any, i: number) => (
+                                    <div
+                                      key={i}
+                                      className={`flex items-center gap-3 group ${d.leads?.length > 0 ? 'cursor-pointer hover:bg-muted/20 -mx-2 px-2 py-1 rounded-lg transition-colors' : 'py-1'}`}
+                                      onClick={() => d.leads?.length > 0 && openLeadsModal(`Handoff ${d.label}`, d.leads)}
+                                    >
+                                      <div className="w-[90px] text-[11px] text-muted-foreground font-medium shrink-0">{d.label}</div>
+                                      <div className="flex-1 h-5 bg-muted/30 rounded-full overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.max((d.count / maxCount) * 100, d.count > 0 ? 4 : 0)}%`, backgroundColor: corTempo(i === 0 ? 0.5 : i === 1 ? 3 : i === 2 ? 10 : i === 3 ? 22 : i === 4 ? 45 : i === 5 ? 120 : i === 6 ? 360 : 720) }} />
+                                      </div>
+                                      <div className="w-[32px] text-right text-[12px] font-bold font-mono tabular-nums text-foreground">{d.count}</div>
+                                      <div className="w-[36px] text-right text-[10px] text-muted-foreground/50 font-mono tabular-nums">{d.pct}%</div>
+                                      {d.leads?.length > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors shrink-0" />}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              {detalhes.length > 0 && (
+                                <div className="px-5 py-4 border-t border-border/40">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">Detalhamento por lead ({detalhes.length})</p>
+                                  <div className="space-y-1 max-h-[280px] overflow-y-auto">
+                                    {detalhes.map((d: any, i: number) => (
+                                      <div key={i} className="flex items-center justify-between py-2 px-2 -mx-2 rounded-lg hover:bg-muted/20 transition-colors cursor-pointer group" onClick={() => d.lead && openLeadsModal(d.lead.nome || 'Lead', [d.lead])}>
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <div className="h-7 w-7 rounded-full bg-muted/60 flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0">{i + 1}</div>
+                                          <div className="min-w-0">
+                                            <p className="text-[12px] font-medium text-foreground truncate">{d.lead?.nome || 'Lead sem nome'}</p>
+                                            <p className="text-[10px] text-muted-foreground/50">{d.lead?.telefone || ''}</p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                          <div className="text-[13px] font-bold font-mono tabular-nums px-2 py-0.5 rounded-md" style={{ color: corTempo(d.minutos), backgroundColor: corTempo(d.minutos) + '10' }}>{fmtMinutes(d.minutos)}</div>
+                                          <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors" />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
             );
           })()}
@@ -1562,26 +1501,35 @@ export default function Dashboard() {
               <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
                 {/* Header */}
                 <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-muted">
-                      <Timer className="h-3.5 w-3.5 text-muted-foreground" />
-                    </span>
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TEMPO DE CONVERSÃO</p>
-                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                        Do cadastro ao fechamento · {tf.total} venda{tf.total !== 1 ? 's' : ''} analisada{tf.total !== 1 ? 's' : ''}
-                      </p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-muted">
+                        <Timer className="h-3.5 w-3.5 text-muted-foreground" />
+                      </span>
+                      <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TEMPO DE CONVERSÃO</p>
+                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                          Do cadastro ao fechamento · {tf.total} venda{tf.total !== 1 ? 's' : ''} analisada{tf.total !== 1 ? 's' : ''}
+                        </p>
+                      </div>
                     </div>
+                    <Button
+                      size="sm" variant="ghost"
+                      className="h-7 px-3 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground border border-border/60 rounded-lg"
+                      onClick={() => setShowTempoConversaoDetail(v => !v)}
+                    >
+                      <ListChecks className="h-3 w-3" />
+                      {showTempoConversaoDetail ? 'Ocultar detalhes' : 'Ver detalhes'}
+                    </Button>
                   </div>
                 </div>
 
-                {/* 4 KPIs */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/40">
+                {/* 3 KPIs */}
+                <div className="grid grid-cols-3 gap-px bg-border/40">
                   {([
-                    { label: 'Tempo Médio',  value: fmtDias(tf.media),   sub: 'média de conversão',     color: '#6366f1', Icon: BarChart3 },
-                    { label: 'Mediana',      value: fmtDias(tf.mediana), sub: '50% fecham antes disso', color: '#8b5cf6', Icon: Gauge },
-                    { label: 'Mais rápido',  value: fmtDias(tf.minimo),  sub: 'conversão mais rápida',  color: '#10b981', Icon: Zap },
-                    { label: 'Mais lento',   value: fmtDias(tf.maximo),  sub: 'conversão mais lenta',   color: '#f59e0b', Icon: Clock },
+                    { label: 'Tempo Médio', value: fmtDias(tf.media),  sub: 'média de conversão',    color: '#6366f1', Icon: BarChart3 },
+                    { label: 'Mais rápido', value: fmtDias(tf.minimo), sub: 'conversão mais rápida', color: '#10b981', Icon: Zap },
+                    { label: 'Mais lento',  value: fmtDias(tf.maximo), sub: 'conversão mais lenta',  color: '#f59e0b', Icon: Clock },
                   ] as const).map(({ label, value, sub, color, Icon }) => (
                     <div key={label} className="flex flex-col gap-2 px-5 py-5 bg-card">
                       <div className="flex items-center gap-1.5">
@@ -1598,75 +1546,77 @@ export default function Dashboard() {
                   ))}
                 </div>
 
-                {/* Distribuição + Por origem */}
-                <div className={cn("grid gap-6 p-5", tf.porOrigem.length > 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1")}>
-                  {/* Distribuição por prazo */}
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">Distribuição por prazo</p>
-                    <div className="space-y-3">
-                      {tf.distribuicao.map((bucket: any) => (
-                        <div key={bucket.label} className="flex items-center gap-3 group">
-                          <span
-                            className={cn("text-[11px] text-muted-foreground w-28 shrink-0 transition-colors", bucket.count > 0 && "cursor-pointer group-hover:text-foreground")}
-                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads)}
-                          >{bucket.label}</span>
-                          <div
-                            className={cn("flex-1 bg-muted/40 rounded-full h-1.5 overflow-hidden", bucket.count > 0 && "cursor-pointer")}
-                            onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads)}
-                          >
-                            <div
-                              className="h-full rounded-full transition-all duration-500"
-                              style={{
-                                width: `${maxBucket > 0 ? (bucket.count / maxBucket) * 100 : 0}%`,
-                                backgroundColor: bucket.count === maxBucket && bucket.count > 0 ? '#6366f1' : '#94a3b8',
-                              }}
-                            />
-                          </div>
-                          <span className="text-[11px] font-semibold tabular-nums w-5 text-right">{bucket.count}</span>
-                          <span className="text-[10px] text-muted-foreground/50 w-9 text-right">{bucket.count > 0 ? `${bucket.pct}%` : ''}</span>
-                          {bucket.count > 0 ? (
-                            <Button
-                              size="sm" variant="ghost"
-                              className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                              onClick={(e) => { e.stopPropagation(); setDetalharBucket({ label: bucket.label, leads: bucket.leads, items: bucket.items ?? [] }); }}
-                            >
-                              <ListChecks className="h-3 w-3" />
-                              Detalhar
-                            </Button>
-                          ) : <span className="w-[68px] shrink-0" />}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Tempo médio por origem */}
-                  {tf.porOrigem.length > 1 && (
+                {/* Distribuição + Por origem — só aparece ao clicar em "Ver detalhes" */}
+                {showTempoConversaoDetail && (
+                  <div className={cn("grid gap-6 p-5 border-t border-border/40", tf.porOrigem.length > 1 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1")}>
+                    {/* Distribuição por prazo */}
                     <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">Tempo médio por origem</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">Distribuição por prazo</p>
                       <div className="space-y-3">
-                        {[...tf.porOrigem].sort((a: any, b: any) => a.media - b.media).map((o: any) => (
-                          <div
-                            key={o.origem}
-                            className={cn("flex items-center gap-3", o.leads?.length && "cursor-pointer group")}
-                            onClick={() => o.leads?.length && openLeadsModal(`Conversão · ${origemLabel[o.origem] ?? o.origem}`, o.leads)}
-                          >
-                            <span className="text-[11px] text-muted-foreground w-24 shrink-0 group-hover:text-foreground transition-colors">
-                              {origemLabel[o.origem] ?? o.origem}
-                            </span>
-                            <div className="flex-1 bg-muted/40 rounded-full h-1.5 overflow-hidden">
+                        {tf.distribuicao.map((bucket: any) => (
+                          <div key={bucket.label} className="flex items-center gap-3 group">
+                            <span
+                              className={cn("text-[11px] text-muted-foreground w-28 shrink-0 transition-colors", bucket.count > 0 && "cursor-pointer group-hover:text-foreground")}
+                              onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads)}
+                            >{bucket.label}</span>
+                            <div
+                              className={cn("flex-1 bg-muted/40 rounded-full h-1.5 overflow-hidden", bucket.count > 0 && "cursor-pointer")}
+                              onClick={() => bucket.leads?.length && openLeadsModal(`Conversão: ${bucket.label}`, bucket.leads)}
+                            >
                               <div
-                                className="h-full rounded-full bg-primary/60 transition-all duration-500"
-                                style={{ width: `${(o.media / maxMedia) * 100}%` }}
+                                className="h-full rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${maxBucket > 0 ? (bucket.count / maxBucket) * 100 : 0}%`,
+                                  backgroundColor: bucket.count === maxBucket && bucket.count > 0 ? '#6366f1' : '#94a3b8',
+                                }}
                               />
                             </div>
-                            <span className="text-[11px] font-semibold tabular-nums">{fmtDias(o.media)}</span>
-                            <span className="text-[10px] text-muted-foreground/50 w-14 text-right">{o.count} venda{o.count !== 1 ? 's' : ''}</span>
+                            <span className="text-[11px] font-semibold tabular-nums w-5 text-right">{bucket.count}</span>
+                            <span className="text-[10px] text-muted-foreground/50 w-9 text-right">{bucket.count > 0 ? `${bucket.pct}%` : ''}</span>
+                            {bucket.count > 0 ? (
+                              <Button
+                                size="sm" variant="ghost"
+                                className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                onClick={(e) => { e.stopPropagation(); setDetalharBucket({ label: bucket.label, leads: bucket.leads, items: bucket.items ?? [] }); }}
+                              >
+                                <ListChecks className="h-3 w-3" />
+                                Detalhar
+                              </Button>
+                            ) : <span className="w-[68px] shrink-0" />}
                           </div>
                         ))}
                       </div>
                     </div>
-                  )}
-                </div>
+
+                    {/* Tempo médio por origem */}
+                    {tf.porOrigem.length > 1 && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-4">Tempo médio por origem</p>
+                        <div className="space-y-3">
+                          {[...tf.porOrigem].sort((a: any, b: any) => a.media - b.media).map((o: any) => (
+                            <div
+                              key={o.origem}
+                              className={cn("flex items-center gap-3", o.leads?.length && "cursor-pointer group")}
+                              onClick={() => o.leads?.length && openLeadsModal(`Conversão · ${origemLabel[o.origem] ?? o.origem}`, o.leads)}
+                            >
+                              <span className="text-[11px] text-muted-foreground w-24 shrink-0 group-hover:text-foreground transition-colors">
+                                {origemLabel[o.origem] ?? o.origem}
+                              </span>
+                              <div className="flex-1 bg-muted/40 rounded-full h-1.5 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                                  style={{ width: `${(o.media / maxMedia) * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-semibold tabular-nums">{fmtDias(o.media)}</span>
+                              <span className="text-[10px] text-muted-foreground/50 w-14 text-right">{o.count} venda{o.count !== 1 ? 's' : ''}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -1741,122 +1691,94 @@ export default function Dashboard() {
             );
           })()}
 
-          {/* ⑧ TOP PROCEDIMENTOS */}
-          <div className="grid grid-cols-1 gap-5">
+          {/* ── FOLLOW-UP GAP ── */}
+          <FollowupGapWidget dateRange={dateRange} />
 
-            {/* Top Procedimentos */}
-            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-top-procedimentos">
-              <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+          {/* ⑧ TOP PROCEDIMENTOS */}
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-top-procedimentos">
+            <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="p-1.5 rounded-lg bg-muted">
                     <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
                   </span>
                   <div>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">TOP PROCEDIMENTOS</p>
-                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Procedimentos mais solicitados pelos leads no período</p>
+                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Ranking por vendas fechadas no período</p>
                   </div>
                 </div>
               </div>
-              <div className="p-5">
-                {topProcedimentos.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <div className="p-3 rounded-xl bg-muted/40 mb-3">
-                      <Stethoscope className="h-6 w-6 text-muted-foreground/40" />
-                    </div>
-                    <p className="text-sm font-medium text-muted-foreground">Sem dados de procedimentos</p>
-                    <p className="text-[11px] text-muted-foreground/50 mt-0.5">Cadastre o campo "Procedimento de Interesse" nos leads</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {topProcedimentos.map((proc, i) => {
-                      const maxCount = topProcedimentos[0]?.count || 1;
-                      const pct = Math.round((proc.count / maxCount) * 100);
-                      const PROC_COLORS = ['#6366f1', '#8b5cf6', '#3b82f6', '#0ea5e9', '#10b981', '#22c55e', '#f59e0b', '#ef4444'];
-                      const color = PROC_COLORS[i % PROC_COLORS.length];
-                      return (
-                        <div
-                          key={proc.name}
-                          className="group flex items-center gap-3 rounded-xl px-2 py-1.5 -mx-2 cursor-pointer hover:bg-muted/40 transition-colors"
-                          onClick={() => openLeadsModal(proc.name, proc.leads ?? [])}
-                        >
-                          <span
-                            className="flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-bold text-white shrink-0"
-                            style={{ backgroundColor: color }}
-                          >
-                            {i + 1}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-[13px] font-medium text-foreground truncate">{proc.name}</span>
-                              <span className="text-[12px] font-bold font-mono text-foreground ml-2 shrink-0">{proc.count}</span>
+            </div>
+
+            {topProcedimentos.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                  <Stethoscope className="h-6 w-6 text-muted-foreground/40" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">Sem dados de procedimentos</p>
+                <p className="text-[11px] text-muted-foreground/50 mt-0.5">Registre vendas com procedimentos para ver o ranking</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {topProcedimentos.map((proc: any, i: number) => {
+                  const maxRevenue = topProcedimentos[0]?.revenue || 1;
+                  const revPct = Math.max(Math.round((proc.revenue / maxRevenue) * 100), 3);
+                  return (
+                    <div
+                      key={proc.name}
+                      className="group px-5 py-3.5 cursor-pointer hover:bg-muted/30 transition-colors"
+                      onClick={() => openLeadsModal(proc.name, proc.leads ?? [])}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Posição */}
+                        <div className={cn(
+                          "flex h-7 w-7 items-center justify-center rounded-lg text-[11px] font-bold shrink-0 mt-0.5",
+                          i === 0 ? "bg-foreground text-background" : "bg-muted text-muted-foreground"
+                        )}>
+                          {i + 1}º
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[13px] font-semibold text-foreground truncate">{proc.name}</p>
+                            <div className="flex items-center gap-3 shrink-0 ml-3">
+                              <span className="text-[11px] font-mono tabular-nums font-semibold text-foreground">
+                                {proc.count} venda{proc.count !== 1 ? 's' : ''}
+                              </span>
+                              <span className="text-[11px] font-mono tabular-nums font-bold text-green-600">
+                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(proc.revenue)}
+                              </span>
                             </div>
-                            <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
+                          </div>
+
+                          {/* Barra de receita + métricas */}
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 h-1.5 bg-muted/40 rounded-full overflow-hidden">
                               <div
-                                className="h-full rounded-full transition-all duration-700 ease-out"
-                                style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: color, opacity: 0.8 }}
+                                className="h-full rounded-full bg-foreground/20 transition-all duration-700 ease-out"
+                                style={{ width: `${revPct}%` }}
                               />
+                            </div>
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <span className="text-[10px] text-muted-foreground/60">
+                                Ticket {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(proc.avgTicket)}
+                              </span>
+                              <span className="text-[10px] font-mono tabular-nums text-muted-foreground/40">
+                                {proc.share}%
+                              </span>
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
-
+            )}
           </div>
 
-          {/* ⑦ EVOLUÇÃO NO TEMPO — gráfico de barras */}
-          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-chart">
-            <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="p-1.5 rounded-lg bg-muted">
-                    <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">EVOLUÇÃO NO TEMPO</p>
-                    <p className="text-[10px] text-muted-foreground/50 mt-0.5">Volume de captação e conversão diária no período</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-sm bg-[#E85D24]" />
-                    <span className="text-[11px] text-muted-foreground font-medium">Captados</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="px-2 pb-4 pt-2">
-              <div className="h-[280px] [&_.recharts-bar-rectangle]:cursor-pointer [&_.recharts-bar-rectangle_path]:cursor-pointer">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={metrics.leadsOverTime ?? []}
-                    margin={{ top: 28, right: 16, left: 16, bottom: 0 }}
-                    barCategoryGap="30%"
-                    barGap={3}
-                  >
-                    <XAxis
-                      dataKey="day"
-                      fontSize={9}
-                      tickLine={false}
-                      axisLine={false}
-                      stroke="hsl(var(--muted-foreground))"
-                      dy={8}
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
-                      interval={Math.max(0, Math.floor((metrics.leadsOverTime?.length ?? 30) / 12) - 1)}
-                    />
-                    <YAxis hide />
-                    <Tooltip content={<BarChartTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3, radius: 4 }} />
-                    <Bar dataKey="captados" name="Captados" fill="#E85D24" shape={<RoundedBar />} label={<BarLabel />} cursor="pointer"
-                      onClick={(data: any) => data?.captadosList?.length && openLeadsModal(`Captados em ${data.day}`, data.captadosList)}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          </div>
+
         </>
       )}
 

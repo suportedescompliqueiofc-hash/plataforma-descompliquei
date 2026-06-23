@@ -71,7 +71,6 @@ Deno.serve(async (req) => {
       .from("leads")
       .select("id, nome, telefone, origem")
       .eq("organization_id", organization_id)
-      .lte("posicao_pipeline", 2)
       .neq("excluir_metricas", true);
 
     if (date_from) query = query.gte("criado_em", date_from);

@@ -115,16 +115,31 @@ Conversa:
 ${conversa}
 ---`;
 
-    // 3. Chamar DeepSeek V4 Flash via OpenRouter
-    const completion = await openrouter.chat.completions.create({
-      model: "deepseek/deepseek-v4-flash",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: 30,
-      temperature: 0,
-    });
+    // 3. Chamar DeepSeek V4 Flash via OpenRouter (timeout de 8s para não travar o banco)
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    let completion;
+    try {
+      completion = await openrouter.chat.completions.create({
+        model: "deepseek/deepseek-v4-flash",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: 30,
+        temperature: 0,
+      }, { signal: controller.signal });
+    } catch (abortErr: any) {
+      if (abortErr?.name === 'AbortError' || controller.signal.aborted) {
+        console.warn(`[detect-pipeline-stage] Timeout de 8s atingido para lead ${lead_id}. Abortando.`);
+        return new Response(JSON.stringify({ skipped: true, reason: "Timeout na chamada à IA" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw abortErr;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     const resposta = completion.choices[0]?.message?.content?.trim() ?? "";
     console.log(`[detect-pipeline-stage] Lead ${lead_id} | Etapa atual: ${posicaoAtual} | Resposta: ${resposta}`);

@@ -21,7 +21,7 @@ const MASTER_ORG_ID = "aa787cc8-787a-4774-bd80-ffbf78c0cf5f";
 // Operam sobre a org "em foco" (effectiveOrgId): o cliente travado no seletor
 // ou o cliente focado via focar_cliente durante a conversa.
 const ADMIN_READ_TOOLS = new Set<string>([
-  "buscar_leads", "obter_lead_completo", "obter_metricas_funil", "obter_pipeline",
+  "buscar_leads", "obter_lead_completo", "obter_metricas_funil",
   "obter_agendamentos", "obter_vendas_recentes", "obter_metas", "obter_procedimentos",
   "obter_tags", "obter_notificacoes", "analisar_leads_parados", "analisar_ranking_procedimentos",
   "obter_resumo_geral", "obter_metricas_receita", "obter_blacklist", "analisar_atendimento_ia",
@@ -234,7 +234,7 @@ async function calcularMetricasPainel(
   while (true) {
     const { data } = await supabase
       .from("leads")
-      .select("id, nome, telefone, origem, fonte, is_qualified, is_scheduled, is_closed, posicao_pipeline, criado_em, atualizado_em, excluir_metricas")
+      .select("id, nome, telefone, origem, fonte, is_qualified, is_scheduled, is_closed, criado_em, atualizado_em, excluir_metricas")
       .eq("organization_id", orgId)
       .or(`and(criado_em.gte.${startDate},criado_em.lte.${endDate}),and(atualizado_em.gte.${startDate},atualizado_em.lte.${endDate})`)
       .range(from, from + PAGE - 1);
@@ -330,7 +330,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         properties: {
           limite: { type: "number" }, busca: { type: "string" },
           is_qualified: { type: "boolean" }, is_scheduled: { type: "boolean" }, is_closed: { type: "boolean" },
-          origem: { type: "string" }, posicao_pipeline: { type: "number" }, etapa_nome: { type: "string" },
+          origem: { type: "string" },
           tag: { type: "string" }, dias_sem_atividade: { type: "number" },
         },
       },
@@ -364,22 +364,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           data_inicial: { type: "string", description: "YYYY-MM-DD" },
           data_final:   { type: "string", description: "YYYY-MM-DD" },
           apenas_marketing: { type: "boolean" },
-        },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "obter_pipeline",
-      description: "Etapas com contagem de leads. Sem período = estoque geral. Com período = leads criados no período por etapa.",
-      parameters: {
-        type: "object",
-        properties: {
-          periodo_nome: { type: "string", enum: ["hoje", "semana", "mes", "ano"] },
-          periodo_dias: { type: "number" },
-          data_inicial: { type: "string" },
-          data_final:   { type: "string" },
         },
       },
     },
@@ -449,11 +433,11 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "analisar_leads_parados",
-      description: "Identifica leads travados no pipeline sem atividade recente.",
+      description: "Identifica leads sem atividade recente.",
       parameters: {
         type: "object",
         properties: {
-          dias_sem_atividade: { type: "number" }, posicao_pipeline: { type: "number" },
+          dias_sem_atividade: { type: "number" },
         },
       },
     },
@@ -522,7 +506,7 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
         properties: {
           nome: { type: "string" }, telefone: { type: "string" }, email: { type: "string" },
           origem: { type: "string" }, fonte: { type: "string" },
-          procedimento_interesse: { type: "string" }, posicao_pipeline: { type: "number" },
+          procedimento_interesse: { type: "string" },
           observacoes: { type: "string" },
         },
         required: ["nome", "telefone"],
@@ -558,18 +542,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           lead_id: { type: "string" }, is_qualified: { type: "boolean" },
         },
         required: ["lead_id", "is_qualified"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "mover_etapa_pipeline",
-      description: "Move um lead para outra etapa do pipeline.",
-      parameters: {
-        type: "object",
-        properties: { lead_id: { type: "string" }, posicao_pipeline: { type: "number" } },
-        required: ["lead_id", "posicao_pipeline"],
       },
     },
   },
@@ -1558,7 +1530,7 @@ const ADMIN_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   { type: "function", function: { name: "obter_visao_geral_plataforma", description: "Panorama agregado de TODA a plataforma: total de clientes (ativos/bloqueados/expirados/vencendo), onboarding pendente e soma de leads, MQLs, agendamentos, vendas e receita de todos os clientes no período.", parameters: { type: "object", properties: { periodo_dias: { type: "number", description: "Janela em dias para os agregados (default 30)" } } } } },
   { type: "function", function: { name: "ranking_clientes", description: "Rankeia os clientes ativos por uma métrica no período. Use para responder 'quem está indo melhor/pior'. ordem='pior' traz os piores primeiro.", parameters: { type: "object", properties: { metrica: { type: "string", enum: ["receita", "vendas", "leads", "agendamentos", "conversao"], description: "Métrica de ordenação (default receita)" }, ordem: { type: "string", enum: ["melhor", "pior"], description: "melhor = decrescente; pior = crescente (default melhor)" }, periodo_dias: { type: "number", description: "Janela em dias (default 30)" }, limite: { type: "number", description: "Quantos clientes retornar (default 10)" } } } } },
   { type: "function", function: { name: "comparar_clientes", description: "Compara 2 ou mais clientes lado a lado nas métricas-chave (leads, MQL, agendamentos, vendas, receita, taxa de conversão) no período.", parameters: { type: "object", properties: { clientes: { type: "array", items: { type: "string" }, description: "Nomes dos clientes a comparar (mín. 2)" }, periodo_dias: { type: "number", description: "Janela em dias (default 30)" } }, required: ["clientes"] } } },
-  { type: "function", function: { name: "focar_cliente", description: "Define um cliente como FOCO da conversa. Depois de chamar isto, todas as tools de dados (buscar_leads, obter_metricas_funil, obter_pipeline, obter_vendas_recentes, etc.) passam a operar SOBRE ESSE CLIENTE. Use sempre que o usuário pedir uma análise profunda de um cliente específico.", parameters: { type: "object", properties: { cliente: { type: "string", description: "Nome ou email do cliente" } }, required: ["cliente"] } } },
+  { type: "function", function: { name: "focar_cliente", description: "Define um cliente como FOCO da conversa. Depois de chamar isto, todas as tools de dados (buscar_leads, obter_metricas_funil, obter_vendas_recentes, etc.) passam a operar SOBRE ESSE CLIENTE. Use sempre que o usuário pedir uma análise profunda de um cliente específico.", parameters: { type: "object", properties: { cliente: { type: "string", description: "Nome ou email do cliente" } }, required: ["cliente"] } } },
   { type: "function", function: { name: "obter_evolucao_cliente", description: "Evolução de um cliente: status/produto/vencimento, progresso da jornada de implementação, estado do onboarding e variação de leads e receita do período atual vs o período anterior (crescendo ou caindo).", parameters: { type: "object", properties: { cliente: { type: "string", description: "Nome ou email do cliente" }, periodo_dias: { type: "number", description: "Tamanho de cada janela comparada (default 30)" } }, required: ["cliente"] } } },
 ];
 
@@ -1581,10 +1553,10 @@ Você opera em DOIS modos:
    - \`comparar_clientes\` — dois ou mais clientes lado a lado
    - \`obter_evolucao_cliente\` — evolução de um cliente (atual vs período anterior)
 
-2. **Modo foco (um cliente)** — quando o usuário pede análise profunda de um cliente específico, chame \`focar_cliente\` com o nome dele. A partir daí, TODAS as ferramentas de dados (buscar_leads, obter_metricas_funil, obter_pipeline, obter_vendas_recentes, obter_agendamentos, analisar_leads_parados, analisar_atendimento_ia, etc.) passam a operar SOBRE ESSE CLIENTE — exatamente como o Athos opera dentro do CRM dele.
+2. **Modo foco (um cliente)** — quando o usuário pede análise profunda de um cliente específico, chame \`focar_cliente\` com o nome dele. A partir daí, TODAS as ferramentas de dados (buscar_leads, obter_metricas_funil, obter_vendas_recentes, obter_agendamentos, analisar_leads_parados, analisar_atendimento_ia, etc.) passam a operar SOBRE ESSE CLIENTE — exatamente como o Athos opera dentro do CRM dele.
 ${focoNome ? `\n>>> CLIENTE EM FOCO AGORA: **${focoNome}**. As ferramentas de dados já estão apontando para ele. Não precisa chamar focar_cliente de novo, a menos que o usuário troque de cliente.\n` : ""}
 ## Regras
-- Você é **somente leitura**: analisa, compara e recomenda, mas NUNCA altera dados de nenhum cliente (não cria leads, não move pipeline, não registra vendas). Se pedirem para alterar algo, explique que a ação deve ser feita pela equipe no CRM do cliente.
+- Você é **somente leitura**: analisa, compara e recomenda, mas NUNCA altera dados de nenhum cliente (não cria leads, não registra vendas). Se pedirem para alterar algo, explique que a ação deve ser feita pela equipe no CRM do cliente.
 - Se for analisar um cliente específico e ainda não estiver em foco, chame \`focar_cliente\` ANTES das ferramentas de dados detalhadas.
 - Para descobrir o nome exato de um cliente, use \`listar_clientes\`.
 - Seja objetivo: traga o número E a leitura ("caiu 30% vs mês anterior — vale investigar a origem dos leads").
@@ -1725,7 +1697,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         if (input.is_scheduled !== undefined) q = q.eq("is_scheduled", input.is_scheduled);
         if (input.is_closed !== undefined) q = q.eq("is_closed", input.is_closed);
         if (input.origem) q = q.eq("origem", input.origem);
-        if (input.posicao_pipeline !== undefined) q = q.eq("posicao_pipeline", input.posicao_pipeline);
         if (input.dias_sem_atividade) {
           const corte = new Date(); corte.setDate(corte.getDate() - input.dias_sem_atividade);
           q = q.lt("atualizado_em", corte.toISOString());
@@ -1737,10 +1708,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
             const ids = (ltIds || []).map((r: any) => r.lead_id);
             if (ids.length > 0) q = q.in("id", ids); else return JSON.stringify({ total: 0, leads: [] });
           }
-        }
-        if (input.etapa_nome) {
-          const { data: etapa } = await supabase.from("etapas").select("posicao_ordem").eq("organization_id", orgId).ilike("nome", `%${input.etapa_nome}%`).limit(1).maybeSingle();
-          if (etapa) q = q.eq("posicao_pipeline", etapa.posicao_ordem);
         }
         const { data, error } = await q;
         if (error) return JSON.stringify({ error: error.message });
@@ -1774,7 +1741,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         }
         if (!leadId) return JSON.stringify({ error: "Lead nao encontrado" });
         const [leadRes, notasRes, etapasRes, agRes, vendasRes, tagsRes, msgsRes, cadenciasAtivasRes] = await Promise.all([
-          supabase.from("leads").select("id, nome, telefone, email, origem, fonte, is_qualified, is_scheduled, is_closed, posicao_pipeline, procedimento_interesse, excluir_metricas, observacoes, lead_scoring, criado_em, atualizado_em").eq("id", leadId).eq("organization_id", orgId).single(),
+          supabase.from("leads").select("id, nome, telefone, email, origem, fonte, is_qualified, is_scheduled, is_closed, procedimento_interesse, excluir_metricas, observacoes, lead_scoring, criado_em, atualizado_em").eq("id", leadId).eq("organization_id", orgId).single(),
           supabase.from("lead_notas").select("id, conteudo, tipo, criado_em, metadados").eq("lead_id", leadId).order("criado_em", { ascending: false }).limit(10),
           supabase.from("lead_stage_history").select("stage_position, from_stage_position, entered_at").eq("lead_id", leadId).not("from_stage_position", "is", null).order("entered_at", { ascending: false }).limit(10),
           supabase.from("agendamentos").select("id, titulo, tipo, data_hora_inicio, data_hora_fim, status, descricao").eq("lead_id", leadId).order("data_hora_inicio", { ascending: false }).limit(5),
@@ -1853,44 +1820,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
             tx_mql: metricas.tx_mql + "%", tx_agendamento: metricas.tx_agendamento + "%",
             tx_fechamento: metricas.tx_fechamento + "%", tx_global: metricas.tx_global + "%",
           },
-        });
-      }
-
-      case "obter_pipeline": {
-        // Determinar filtro de período (opcional)
-        let pipelinePeriod: ReturnType<typeof buildPeriod> | null = null;
-        if (input.periodo_nome) {
-          pipelinePeriod = buildCalendarPeriod(input.periodo_nome);
-        } else if (input.data_inicial && input.data_final) {
-          pipelinePeriod = buildPeriod({ fromStr: input.data_inicial, toStr: input.data_final });
-        } else if (input.periodo_dias) {
-          pipelinePeriod = buildPeriod(input.periodo_dias);
-        }
-
-        let leadsQuery = supabase.from("leads").select("posicao_pipeline")
-          .eq("organization_id", orgId)
-          .not("status", "in", "(\"Inativo\",\"Excluido\")");
-
-        if (pipelinePeriod) {
-          // Leads criados no período (mesma lógica do funil)
-          leadsQuery = leadsQuery
-            .gte("criado_em", pipelinePeriod.startDate)
-            .lte("criado_em", pipelinePeriod.endDate);
-        } else {
-          // Estoque geral: apenas leads ativos (não fechados)
-          leadsQuery = leadsQuery.eq("is_closed", false);
-        }
-
-        const [{ data: etapas }, { data: leads }] = await Promise.all([
-          supabase.from("etapas").select("nome, posicao_ordem, cor").eq("organization_id", orgId).order("posicao_ordem"),
-          leadsQuery,
-        ]);
-        const countMap: Record<number, number> = {};
-        leads?.forEach((l: any) => { const p = l.posicao_pipeline ?? 0; countMap[p] = (countMap[p] ?? 0) + 1; });
-        return JSON.stringify({
-          tipo: pipelinePeriod ? `leads criados de ${pipelinePeriod.startDayStr} a ${pipelinePeriod.endDayStr}` : "estoque geral (todos ativos)",
-          total_leads: leads?.length ?? 0,
-          etapas: etapas?.map((e: any) => ({ nome: e.nome, posicao: e.posicao_ordem, cor: e.cor, total_leads: countMap[e.posicao_ordem] ?? 0 })) ?? [],
         });
       }
 
@@ -2099,7 +2028,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         const aguardandoIds = apenasIA.filter(id => leadMap[id].ultimaMsg?.remetente === "lead");
         let leadsAguardando: any[] = [];
         if (input.incluir_aguardando !== false && aguardandoIds.length > 0) {
-          const { data: ld } = await supabase.from("leads").select("id, nome, telefone, posicao_pipeline").in("id", aguardandoIds.slice(0, 20));
+          const { data: ld } = await supabase.from("leads").select("id, nome, telefone").in("id", aguardandoIds.slice(0, 20));
           leadsAguardando = (ld ?? []).map((l: any) => ({
             ...l,
             ultima_mensagem_em: toHoraBRT(leadMap[l.id]?.ultimaMsg?.criado_em),
@@ -2120,7 +2049,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           organization_id: orgId, nome: input.nome, telefone: input.telefone, email: input.email,
           origem: input.origem ?? "organico", fonte: input.fonte,
           procedimento_interesse: input.procedimento_interesse,
-          posicao_pipeline: input.posicao_pipeline ?? 0, observacoes: input.observacoes,
+          observacoes: input.observacoes,
         }).select("id, nome, telefone").single();
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ sucesso: true, lead: data });
@@ -2141,12 +2070,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           .update({ is_qualified: input.is_qualified }).eq("id", input.lead_id).eq("organization_id", orgId);
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ sucesso: true, lead_id: input.lead_id, acao: input.is_qualified ? "marcado como MQL" : "removido do MQL" });
-      }
-
-      case "mover_etapa_pipeline": {
-        const { error } = await supabase.from("leads").update({ posicao_pipeline: input.posicao_pipeline }).eq("id", input.lead_id).eq("organization_id", orgId);
-        if (error) return JSON.stringify({ error: error.message });
-        return JSON.stringify({ sucesso: true, lead_id: input.lead_id, nova_posicao: input.posicao_pipeline });
       }
 
       case "adicionar_nota": {
@@ -3455,9 +3378,8 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
   const cached = _promptCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.prompt;
 
-  const [puRes, etapasRes, procsRes, orgRes, diagRes] = await Promise.all([
+  const [puRes, procsRes, orgRes, diagRes] = await Promise.all([
     supabase.from("platform_users").select("clinic_name, specialty, whatsapp").eq("id", platformUserId).maybeSingle(),
-    supabase.from("etapas").select("nome, posicao_ordem").eq("organization_id", orgId).order("posicao_ordem"),
     supabase.from("procedimentos").select("nome, valor_base").eq("organization_id", orgId).eq("ativo", true).limit(10),
     supabase.from("organizations").select("nome").eq("id", orgId).maybeSingle(),
     supabase.from("meus_materiais" as any).select("conteudo, titulo").eq("user_id", platformUserId).eq("categoria", "diagnostico").maybeSingle(),
@@ -3470,7 +3392,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
   const nomeClinica = pu?.clinic_name || org?.nome || "Não informado";
   const especialidade = pu?.specialty || "Não informada";
 
-  const etapas = etapasRes.data ?? [];
   const procs  = procsRes.data  ?? [];
 
   const dataAtual = new Date().toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "America/Sao_Paulo" });
@@ -3480,10 +3401,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "Nome: " + nomeClinica,
     "Especialidade: " + especialidade,
   ].filter(Boolean).join("\n");
-
-  const pipelineInfo = etapas.length > 0
-    ? etapas.map((e: any) => "  Posição " + e.posicao_ordem + ": " + e.nome).join("\n")
-    : "  Nenhuma etapa configurada";
 
   const procsInfo = procs.length > 0
     ? procs.map((p: any) => "  - " + p.nome + (p.valor_base ? " (R$ " + p.valor_base + ")" : "")).join("\n")
@@ -3502,13 +3419,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "## CLÍNICA",
     clinicaInfo,
     "",
-    "## PIPELINE — REGRA ABSOLUTA",
-    "As etapas do pipeline são posições operacionais internas que NÃO refletem o momento real do lead. A clínica ajusta as etapas constantemente e elas estão frequentemente desatualizadas.",
-    "PROIBIDO: mencionar etapas, nomes de etapas (Handoff, Agendado, Qualificado, etc.) ou posição do pipeline em qualquer análise, diagnóstico, plano de ação ou recomendação.",
-    "PERMITIDO apenas: (1) responder se o usuário perguntar explicitamente 'em qual etapa está X', (2) mover um lead quando solicitado.",
-    "Se receber dados de etapa de uma ferramenta, IGNORE completamente para análise — não mencione, não cite, não use como critério.",
-    pipelineInfo,
-    "",
     "## FUNIL COMERCIAL (use ESTE para toda análise e diagnóstico)",
     "O funil real da clínica tem 4 marcos — use SEMPRE estes para análise, comparativo, taxa de conversão e diagnóstico:",
     "  1. LEADS — leads criados no período (origem marketing quando relevante)",
@@ -3516,7 +3426,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "  3. AGENDAMENTOS — agendamentos realizados (tabela agendamentos)",
     "  4. FECHAMENTOS — vendas registradas (tabela vendas)",
     "Taxas: tx_mql = MQL/Leads | tx_agendamento = Agend/MQL | tx_fechamento = Fech/Agend",
-    "Quando analisar performance, comparar períodos, ou fazer diagnóstico comercial: use SEMPRE o funil acima, nunca etapas de pipeline.",
+    "Quando analisar performance, comparar períodos, ou fazer diagnóstico comercial: use SEMPRE o funil acima.",
     "",
     "## PROCEDIMENTOS",
     procsInfo,
@@ -3557,10 +3467,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- 'Receita', 'faturamento', 'ticket médio' → obter_metricas_receita",
     "- 'Ranking de procedimentos', 'mais vendidos' → analisar_ranking_procedimentos",
     "- 'Análise da IA', 'como está o atendimento automático?', 'handoffs' → analisar_atendimento_ia",
-    "",
-    "### Consultas sobre PIPELINE",
-    "- 'Como está o pipeline?', 'etapas' → obter_pipeline",
-    "- 'Move o lead X para etapa Y' → obter_lead_completo → mover_etapa_pipeline",
     "",
     "### Ações sobre LEADS",
     "- 'Cria um lead' → criar_lead",
@@ -3620,7 +3526,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "",
     "## COMPORTAMENTO",
     "Antes de consulta ampla sem período definido, PERGUNTE: 'De qual período? Esta semana, este mês, últimos 30 dias?'",
-    "Pedido genérico (ex: 'diagnóstico'): pergunte o foco — funil, atendimento, pipeline ou receita?",
+    "Pedido genérico (ex: 'diagnóstico'): pergunte o foco — funil, atendimento ou receita?",
     "Pedido específico (ex: 'vendas deste mês'): execute direto.",
     "",
     "## FORMATAÇÃO (obrigatório em todas as respostas)",

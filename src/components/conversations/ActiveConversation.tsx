@@ -49,6 +49,7 @@ import { useLeadAgendamento } from "@/hooks/useLeadAgendamento";
 import { useLeadTriageLog, TriageLog } from "@/hooks/useTriageLogs";
 import AgendamentoLeadModal from "@/components/agendamentos/AgendamentoLeadModal";
 import { AiStatusBar } from "./AiStatusBar";
+import { FollowupStatusBar } from "./FollowupStatusBar";
 import { AudioRecorder } from "./AudioRecorder";
 import { MediaPreviewModal } from "./MediaPreviewModal";
 import { FullscreenMediaViewer } from "./FullscreenMediaViewer";
@@ -252,6 +253,34 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
   // Notas Panel
   const [showNotas, setShowNotas] = useState(false);
+
+  // Follow-up IA manual
+  const [isActivatingFollow, setIsActivatingFollow] = useState(false);
+
+  const handleAtivarFollow = async () => {
+    if (!lead) return;
+    setIsActivatingFollow(true);
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          followup_manual: true,
+          followup_tentativas: 0,
+          followup_ultima_tentativa: null,
+          followup_pausado: false,
+        })
+        .eq("id", lead.id);
+      if (error) throw error;
+      toast.success(`Follow-up IA ativado para ${lead.nome || "lead"}`);
+      queryClient.invalidateQueries({ queryKey: ["lead", lead.id] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["followup-gap"] });
+    } catch (err: any) {
+      toast.error("Erro ao ativar follow-up: " + (err.message || String(err)));
+    } finally {
+      setIsActivatingFollow(false);
+    }
+  };
 
   // Blacklist
   const [showBlacklistConfirm, setShowBlacklistConfirm] = useState(false);
@@ -608,51 +637,9 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
             </div>
             
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                {/* Botão Resumo IA com texto formatado */}
-                {lead?.resumo && (
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                data-tutorial="conversation-resumo-ia"
-                                variant="outline"
-                                size="sm"
-                                className="h-8 gap-1.5 bg-amber-50 border-amber-200/80 text-amber-700 hover:bg-amber-100/80 hover:text-amber-800 rounded-full px-2.5"
-                            >
-                                <Sparkles className="h-3.5 w-3.5" />
-                                <span className="hidden xl:inline text-xs font-semibold">Resumo IA</span>
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-80 p-4 shadow-xl border-primary/20 bg-background" align="end">
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2 border-b pb-2">
-                                    <Sparkles className="h-4 w-4 text-primary" />
-                                    <h4 className="font-bold text-sm text-foreground">Resumo do Atendimento</h4>
-                                </div>
-                                <div className="max-h-[300px] overflow-y-auto pr-1">
-                                    <FormattedText content={lead.resumo} className="text-xs" />
-                                </div>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-                )}
-
                 <div className="hidden lg:block">
                     {leadId && <CadenceLeadSelector leadId={leadId} />}
                 </div>
-
-                <Button
-                  data-tutorial="conversation-pdf"
-                  variant="outline"
-                  size="sm"
-                  className={cn(
-                    "h-8 gap-1.5 rounded-full px-2.5 text-xs font-semibold",
-                    isExportMode && "border-primary bg-primary/5 text-primary"
-                  )}
-                  onClick={isExportMode ? handleCancelExportSelection : handleStartExportSelection}
-                >
-                  {isExportMode ? <X className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
-                  <span className="hidden xl:inline">{isExportMode ? "Cancelar" : "PDF"}</span>
-                </Button>
 
                 <div className="flex items-center gap-1.5 pl-2 border-l border-border/40 ml-1" data-tutorial="conversation-ia-toggle">
                     <span className="text-[10px] font-medium text-muted-foreground hidden xl:inline">IA</span>
@@ -957,6 +944,20 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 )}
             </div>
 
+            {/* Follow IA — só para leads com gap detectado e sem follow já ativo */}
+            {lead && (lead as any).followup_gap === 'PRECISA_FOLLOW' && !(lead as any).followup_manual && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0 border-amber-500/40 bg-amber-500/[0.06] text-amber-700 hover:bg-amber-500/15 hover:border-amber-500/60"
+                disabled={isActivatingFollow}
+                onClick={handleAtivarFollow}
+              >
+                {isActivatingFollow ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
+                Follow IA
+              </Button>
+            )}
+
             {/* Separator */}
             {lead && <div className="h-4 w-px bg-border/40 shrink-0" />}
 
@@ -1106,6 +1107,14 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
       )}
 
       <AiStatusBar leadId={leadId} />
+      <FollowupStatusBar
+        leadId={leadId}
+        followupManual={(lead as any)?.followup_manual}
+        followupTentativas={(lead as any)?.followup_tentativas}
+        followupUltimaTentativa={(lead as any)?.followup_ultima_tentativa}
+        followupPausado={(lead as any)?.followup_pausado}
+        ultimoContato={(lead as any)?.ultimo_contato}
+      />
 
       <ScrollArea className="flex-1 bg-[hsl(var(--background))]">
         <div className="p-3 sm:p-4 space-y-1 max-w-4xl 2xl:max-w-5xl mx-auto min-h-full">

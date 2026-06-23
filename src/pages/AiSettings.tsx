@@ -1,47 +1,24 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useDeferredValue, useRef, useState } from "react";
 import {
   Activity,
-  AlertTriangle,
   Bell,
   Bot,
-  ChevronDown,
-  ChevronRight,
-  Clock,
   Database,
-  Check,
   History,
   Loader2,
-  Maximize2,
-  MessageSquare,
-  Plus,
   Power,
   Save,
   Sparkles,
-  Trash2,
   RefreshCw,
   Undo2,
   Wrench,
-  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { AiFollowupTab } from "@/components/ai/AiFollowupTab";
 import { AiExecutionLogsTab } from "@/components/ai/AiExecutionLogsTab";
 import { AiTriageLogsTab } from "@/components/ai/AiTriageLogsTab";
@@ -77,6 +54,12 @@ type AgentPromptFormData = {
   instagram: string;
   address: string;
   instructions: string;
+  customGreeting: string;
+  diagnosticQuestions: number;
+  customQuestions: string[];
+  sendInstagram: boolean;
+  presentationTone: "emocional" | "equilibrado" | "direto";
+  customHandoff: string;
 };
 
 type ParsedPromptResult =
@@ -172,6 +155,12 @@ function createEmptyFormData(): AgentPromptFormData {
     instagram: "",
     address: "",
     instructions: "",
+    customGreeting: "",
+    diagnosticQuestions: 3,
+    customQuestions: ["", "", ""],
+    sendInstagram: true,
+    presentationTone: "equilibrado",
+    customHandoff: "",
   };
 }
 
@@ -302,6 +291,17 @@ function buildPromptMarkdown(data: AgentPromptFormData): string {
     "",
     "## INSTRUÇÕES PONTUAIS",
     data.instructions.trim(),
+    "",
+    "## PERSONALIZAÇÃO DO FLUXO",
+    `Mensagem de boas-vindas personalizada: ${data.customGreeting.trim() || "(usar padrão)"}`,
+    `Número de perguntas no diagnóstico: ${data.diagnosticQuestions}`,
+    ...Array.from({ length: data.diagnosticQuestions }, (_, i) => {
+      const v = (data.customQuestions[i] ?? "").trim();
+      return `Pergunta ${i + 1} personalizada: ${v || "(usar padrão)"}`;
+    }),
+    `Enviar Instagram na apresentação: ${data.sendInstagram ? "Sim" : "Não"}`,
+    `Tom da apresentação: ${data.presentationTone}`,
+    `Frase de handoff personalizada: ${data.customHandoff.trim() || "(usar padrão)"}`,
   ];
 
   return sections.join("\n").trim();
@@ -336,6 +336,7 @@ function parsePromptMarkdown(markdown: string): ParsedPromptResult {
   const proceduresSection = extractSection(normalized, "PROCEDIMENTOS OFERECIDOS");
   const contactSection = extractSection(normalized, "REDES SOCIAIS E CONTATO");
   const instructionsSection = extractSection(normalized, "INSTRUÇÕES PONTUAIS");
+  const flowSection = extractSection(normalized, "PERSONALIZAÇÃO DO FLUXO");
 
   if (identitySection === null || proceduresSection === null || contactSection === null) {
     return { ok: false };
@@ -436,6 +437,25 @@ function parsePromptMarkdown(markdown: string): ParsedPromptResult {
       instagram,
       address,
       instructions: instructionsSection ?? "",
+      customGreeting: flowSection ? (extractLabeledValue(flowSection, "Mensagem de boas-vindas personalizada") ?? "").replace(/^\(usar padrão\)$/, "") : "",
+      diagnosticQuestions: (() => {
+        const raw = flowSection ? extractLabeledValue(flowSection, "Número de perguntas no diagnóstico") : null;
+        const n = raw ? parseInt(raw, 10) : NaN;
+        return Number.isFinite(n) && n > 0 ? n : 3;
+      })(),
+      customQuestions: (() => {
+        if (!flowSection) return ["", "", ""];
+        const raw = extractLabeledValue(flowSection, "Número de perguntas no diagnóstico");
+        const n = raw ? parseInt(raw, 10) : 3;
+        const count = Number.isFinite(n) && n > 0 ? n : 3;
+        return Array.from({ length: count }, (_, i) => {
+          const v = (extractLabeledValue(flowSection, `Pergunta ${i + 1} personalizada`) ?? "").replace(/^\(usar padrão\)$|^\(desativada\)$/, "");
+          return v;
+        });
+      })(),
+      sendInstagram: flowSection ? parseYesNo(extractLabeledValue(flowSection, "Enviar Instagram na apresentação")) : true,
+      presentationTone: (flowSection ? extractLabeledValue(flowSection, "Tom da apresentação") ?? "equilibrado" : "equilibrado") as "emocional" | "equilibrado" | "direto",
+      customHandoff: flowSection ? (extractLabeledValue(flowSection, "Frase de handoff personalizada") ?? "").replace(/^\(usar padrão\)$/, "") : "",
     },
   };
 }
@@ -483,653 +503,8 @@ type FormasPagamento = {
   observacoes: string;
 };
 
-type AgentPromptFormFieldsProps = {
-  data: AgentPromptFormData;
-  disabled: boolean;
-  warningMessage: string | null;
-  errors: FormErrors;
-  previewMarkdown: string;
-  previewOpen: boolean;
-  horarioAtendimento: HorarioAtendimento;
-  formasPagamento: FormasPagamento;
-  contraindicacoes: string;
-  palavrasProibidas: string[];
-  onFieldChange: <K extends keyof AgentPromptFormData>(
-    field: K,
-    value: AgentPromptFormData[K],
-  ) => void;
-  onHorarioChange: (horario: HorarioAtendimento) => void;
-  onFormasChange: (formas: FormasPagamento) => void;
-  onContraindicacoesChange: (value: string) => void;
-  onPalavrasProibidasChange: (value: string[]) => void;
-  crmProcedimentos: Procedimento[];
-  onProcedureChange: (
-    id: string,
-    field: keyof Omit<ProcedureItem, "id">,
-    value: string,
-  ) => void;
-  onAddProcedure: () => void;
-  onRemoveProcedure: (id: string) => void;
-  onFaqChange: (
-    id: string,
-    field: keyof Omit<FaqItem, "id">,
-    value: string,
-  ) => void;
-  onAddFaq: () => void;
-  onRemoveFaq: (id: string) => void;
-  onResetToStructuredForm: () => void;
-  onPreviewOpenChange: (open: boolean) => void;
-};
-
-function AgentPromptFormFields({
-  data,
-  disabled,
-  warningMessage,
-  errors,
-  previewMarkdown,
-  previewOpen,
-  horarioAtendimento,
-  formasPagamento,
-  contraindicacoes,
-  palavrasProibidas,
-  onFieldChange,
-  onHorarioChange,
-  onFormasChange,
-  crmProcedimentos,
-  onContraindicacoesChange,
-  onPalavrasProibidasChange,
-  onProcedureChange,
-  onAddProcedure,
-  onRemoveProcedure,
-  onFaqChange,
-  onAddFaq,
-  onRemoveFaq,
-  onResetToStructuredForm,
-  onPreviewOpenChange,
-}: AgentPromptFormFieldsProps) {
-  const [palavraInput, setPalavraInput] = useState("");
-  const fieldInputClass =
-    "h-10 text-sm rounded-lg border-border/60 bg-background placeholder:text-muted-foreground/40 focus-visible:border-foreground/30 focus-visible:ring-foreground/10";
-  const fieldTextareaClass =
-    "text-sm rounded-lg border-border/60 bg-background placeholder:text-muted-foreground/40 focus-visible:border-foreground/30 focus-visible:ring-foreground/10";
-
-  return (
-    <div className="flex h-full flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-6">
-          {warningMessage && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-800">
-                    Prompt fora do padrão do formulário
-                  </p>
-                  <p className="mt-1 text-sm leading-relaxed text-amber-700">
-                    {warningMessage}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="mt-3 border-amber-300 bg-white text-amber-800 hover:bg-amber-100"
-                    onClick={onResetToStructuredForm}
-                  >
-                    Resetar para formulário padrão
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div data-tutorial="ia-field-identity" className="space-y-2">
-            <Label htmlFor="agent-name">Como seu agente vai se chamar?</Label>
-            <Input
-              id="agent-name"
-              value={data.agentName}
-              onChange={(event) => onFieldChange("agentName", event.target.value)}
-              disabled={disabled}
-              className={`${fieldInputClass} ${
-                errors.agentName ? "border-destructive focus-visible:ring-destructive" : ""
-              }`}
-            />
-            {errors.agentName && (
-              <p className="text-xs text-destructive">{errors.agentName}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="clinic-name">Qual o nome da sua clínica?</Label>
-            <Input
-              id="clinic-name"
-              value={data.clinicName}
-              onChange={(event) => onFieldChange("clinicName", event.target.value)}
-              disabled={disabled}
-              className={
-                `${fieldInputClass} ${
-                  errors.clinicName
-                    ? "border-destructive focus-visible:ring-destructive"
-                    : ""
-                }`
-              }
-            />
-            {errors.clinicName && (
-              <p className="text-xs text-destructive">{errors.clinicName}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="professional-name">
-              Qual o nome do profissional responsável?
-            </Label>
-            <Input
-              id="professional-name"
-              value={data.professionalName}
-              onChange={(event) =>
-                onFieldChange("professionalName", event.target.value)
-              }
-              disabled={disabled}
-              className={fieldInputClass}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="specialty">Qual a especialidade da clínica?</Label>
-            <Input
-              id="specialty"
-              value={data.specialty}
-              onChange={(event) => onFieldChange("specialty", event.target.value)}
-              disabled={disabled}
-              className={fieldInputClass}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-3">
-              <Label htmlFor="use-emojis">A IA deve usar emojis?</Label>
-              <Switch
-                id="use-emojis"
-                checked={data.useEmojis}
-                onCheckedChange={(checked) => onFieldChange("useEmojis", checked === true)}
-                disabled={disabled}
-              />
-            </div>
-            {data.useEmojis && (
-              <div className="space-y-2">
-                <Label htmlFor="emojis">Quais emojis a IA pode usar?</Label>
-                <Textarea
-                  id="emojis"
-                  value={data.emojis}
-                  onChange={(event) => onFieldChange("emojis", event.target.value)}
-                  className={`${fieldTextareaClass} min-h-[90px] resize-y`}
-                  disabled={disabled}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="call-target">Quem a IA deve chamar?</Label>
-            <Select
-              value={data.callTarget}
-              onValueChange={(value) =>
-                onFieldChange("callTarget", value as "equipe" | "secretaria" | "doutor")
-              }
-              disabled={disabled}
-            >
-              <SelectTrigger id="call-target" className={fieldInputClass}>
-                <SelectValue placeholder="Selecione..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="equipe">Equipe</SelectItem>
-                <SelectItem value="secretaria">Secretária</SelectItem>
-                <SelectItem value="doutor">Doutor(a)</SelectItem>
-              </SelectContent>
-            </Select>
-            {(data.callTarget === "secretaria" || data.callTarget === "doutor") && (
-              <div className="space-y-2">
-                <Label htmlFor="call-person-name">
-                  Nome da {data.callTarget === "secretaria" ? "secretária" : "doutor(a)"}
-                </Label>
-                <Input
-                  id="call-person-name"
-                  value={data.callPersonName}
-                  onChange={(event) => onFieldChange("callPersonName", event.target.value)}
-                  disabled={disabled}
-                  className={fieldInputClass}
-                />
-              </div>
-            )}
-          </div>
-
-          <div data-tutorial="ia-field-voice" className="space-y-2">
-            <Label htmlFor="voice-tone">Tom de voz e personalidade do agente</Label>
-            <Textarea
-              id="voice-tone"
-              value={data.voiceTone}
-              onChange={(event) => onFieldChange("voiceTone", event.target.value)}
-              className={`${fieldTextareaClass} min-h-[120px] resize-y`}
-              disabled={disabled}
-            />
-          </div>
-
-          <div data-tutorial="ia-field-procedures" className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <Label>Procedimentos da clínica</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={onAddProcedure}
-                disabled={disabled}
-              >
-                <Plus className="h-4 w-4" />
-                Adicionar procedimento
-              </Button>
-            </div>
-
-            <p className="text-[11px] text-muted-foreground/70">
-              {crmProcedimentos.length > 0
-                ? "Nomes importados automaticamente da sua lista de procedimentos. Você pode remover ou adicionar procedimentos extras aqui."
-                : "Cadastre os procedimentos na página de Procedimentos para sincronização automática."}
-            </p>
-
-            {data.procedures.every(p => !p.name) ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center rounded-lg border border-dashed border-border/60">
-                <p className="text-sm text-muted-foreground">Nenhum procedimento cadastrado</p>
-                <p className="text-[11px] text-muted-foreground/50 mt-0.5">Acesse Procedimentos no menu lateral para cadastrar</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {data.procedures.map((procedure, index) => {
-                  const isFromCrm = crmProcedimentos.some(
-                    p => p.nome.toLowerCase().trim() === procedure.name.toLowerCase().trim()
-                  );
-                  return (
-                    <div
-                      key={procedure.id}
-                      className="rounded-lg border border-border bg-muted/20 p-3"
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-3">
-                        {isFromCrm ? (
-                          <span className="text-sm font-medium text-foreground">
-                            {procedure.name}
-                          </span>
-                        ) : (
-                          <Input
-                            value={procedure.name}
-                            onChange={(event) =>
-                              onProcedureChange(procedure.id, "name", event.target.value)
-                            }
-                            placeholder={`Procedimento ${index + 1}`}
-                            disabled={disabled}
-                            className={`${fieldInputClass} flex-1`}
-                          />
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => onRemoveProcedure(procedure.id)}
-                          disabled={disabled || data.procedures.length === 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      <Textarea
-                        placeholder="Descrição para a IA (opcional) — ex: procedimento minimamente invasivo, sem dor, resultado em 1 sessão"
-                        value={procedure.description}
-                        onChange={(event) =>
-                          onProcedureChange(
-                            procedure.id,
-                            "description",
-                            event.target.value,
-                          )
-                        }
-                        className={`${fieldTextareaClass} min-h-[80px] resize-y`}
-                        disabled={disabled}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            {errors.procedures && (
-              <p className="text-xs text-destructive">{errors.procedures}</p>
-            )}
-          </div>
-
-          <div data-tutorial="ia-field-faq" className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <Label>FAQ da clínica</Label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={onAddFaq}
-                disabled={disabled}
-              >
-                <Plus className="h-4 w-4" />
-                Adicionar FAQ
-              </Button>
-            </div>
-
-            <div className="space-y-3">
-              {data.faqs.map((faq, index) => (
-                <div
-                  key={faq.id}
-                  className="rounded-lg border border-border bg-muted/20 p-3"
-                >
-                  <div className="mb-3 flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium text-foreground">
-                      FAQ {index + 1}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => onRemoveFaq(faq.id)}
-                      disabled={disabled || data.faqs.length === 1}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Input
-                      value={faq.question}
-                      onChange={(event) =>
-                        onFaqChange(faq.id, "question", event.target.value)
-                      }
-                      disabled={disabled}
-                      className={fieldInputClass}
-                    />
-                    <Textarea
-                      value={faq.answer}
-                      onChange={(event) =>
-                        onFaqChange(faq.id, "answer", event.target.value)
-                      }
-                      className={`${fieldTextareaClass} min-h-[100px] resize-y`}
-                      disabled={disabled}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="instagram">Qual o link do seu Instagram?</Label>
-            <Input
-              id="instagram"
-              value={data.instagram}
-              onChange={(event) => onFieldChange("instagram", event.target.value)}
-              disabled={disabled}
-              className={`${fieldInputClass} ${
-                errors.instagram ? "border-destructive focus-visible:ring-destructive" : ""
-              }`}
-            />
-            {errors.instagram && (
-              <p className="text-xs text-destructive">{errors.instagram}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="address">Qual o endereço da clínica?</Label>
-            <Input
-              id="address"
-              value={data.address}
-              onChange={(event) => onFieldChange("address", event.target.value)}
-              disabled={disabled}
-              className={fieldInputClass}
-            />
-          </div>
-
-          {/* HORÁRIO DE ATENDIMENTO HUMANO */}
-          <div data-tutorial="ia-field-horario" className="space-y-3">
-            <div className="space-y-1">
-              <Label>Horário de atendimento humano</Label>
-              <p className="text-xs text-muted-foreground">
-                A IA usa para informar ao lead quando a equipe humana estará disponível.
-              </p>
-            </div>
-
-            <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
-              <div className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-sm font-medium text-foreground">Segunda a Sexta</span>
-                <Input
-                  type="time"
-                  value={horarioAtendimento.weekday_open}
-                  onChange={(e) => onHorarioChange({ ...horarioAtendimento, weekday_open: e.target.value })}
-                  disabled={disabled}
-                  className={`${fieldInputClass} w-32`}
-                />
-                <span className="text-xs text-muted-foreground">até</span>
-                <Input
-                  type="time"
-                  value={horarioAtendimento.weekday_close}
-                  onChange={(e) => onHorarioChange({ ...horarioAtendimento, weekday_close: e.target.value })}
-                  disabled={disabled}
-                  className={`${fieldInputClass} w-32`}
-                />
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-sm font-medium text-foreground">Sábado</span>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={horarioAtendimento.saturday_closed}
-                    onCheckedChange={(checked) => onHorarioChange({ ...horarioAtendimento, saturday_closed: checked === true })}
-                    disabled={disabled}
-                  />
-                  <span className="text-xs text-muted-foreground">Fechado</span>
-                </div>
-                {!horarioAtendimento.saturday_closed && (
-                  <>
-                    <Input
-                      type="time"
-                      value={horarioAtendimento.saturday_open}
-                      onChange={(e) => onHorarioChange({ ...horarioAtendimento, saturday_open: e.target.value })}
-                      disabled={disabled}
-                      className={`${fieldInputClass} w-32`}
-                    />
-                    <span className="text-xs text-muted-foreground">até</span>
-                    <Input
-                      type="time"
-                      value={horarioAtendimento.saturday_close}
-                      onChange={(e) => onHorarioChange({ ...horarioAtendimento, saturday_close: e.target.value })}
-                      disabled={disabled}
-                      className={`${fieldInputClass} w-32`}
-                    />
-                  </>
-                )}
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="w-28 shrink-0 text-sm font-medium text-foreground">Domingo</span>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={horarioAtendimento.sunday_closed}
-                    onCheckedChange={(checked) => onHorarioChange({ ...horarioAtendimento, sunday_closed: checked === true })}
-                    disabled={disabled}
-                  />
-                  <span className="text-xs text-muted-foreground">Fechado</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* FORMAS DE PAGAMENTO */}
-          <div data-tutorial="ia-field-pagamento" className="space-y-3">
-            <Label>Quais formas de pagamento a clínica aceita?</Label>
-
-            <div className="flex flex-wrap items-center gap-4">
-              {(["pix", "dinheiro", "credito", "debito"] as const).map((key) => (
-                <div key={key} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`pagamento-${key}`}
-                    checked={formasPagamento[key]}
-                    onCheckedChange={(checked) => onFormasChange({ ...formasPagamento, [key]: checked === true })}
-                    disabled={disabled}
-                  />
-                  <Label htmlFor={`pagamento-${key}`} className="cursor-pointer text-sm font-normal">
-                    {key === "pix" ? "Pix" : key === "dinheiro" ? "Dinheiro" : key === "credito" ? "Crédito" : "Débito"}
-                  </Label>
-                </div>
-              ))}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="parcelamento" className="text-xs font-normal text-muted-foreground">
-                Condições de parcelamento (opcional)
-              </Label>
-              <Input
-                id="parcelamento"
-                value={formasPagamento.parcelamento}
-                onChange={(e) => onFormasChange({ ...formasPagamento, parcelamento: e.target.value })}
-                placeholder="Ex: Até 10x com juros no cartão"
-                disabled={disabled}
-                className={fieldInputClass}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="obs-pagamento" className="text-xs font-normal text-muted-foreground">
-                Observações sobre pagamento (opcional)
-              </Label>
-              <Input
-                id="obs-pagamento"
-                value={formasPagamento.observacoes}
-                onChange={(e) => onFormasChange({ ...formasPagamento, observacoes: e.target.value })}
-                placeholder="Ex: 5% desconto para pagamento à vista"
-                disabled={disabled}
-                className={fieldInputClass}
-              />
-            </div>
-          </div>
-
-          {/* CONTRAINDICAÇÕES */}
-          <div className="space-y-2">
-            <div className="space-y-1">
-              <Label htmlFor="contraindicacoes">
-                Contraindicações ou situações em que a IA não deve prosseguir
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                A IA passará para a equipe humana.
-              </p>
-            </div>
-            <Textarea
-              id="contraindicacoes"
-              value={contraindicacoes}
-              onChange={(e) => onContraindicacoesChange(e.target.value)}
-              className={`${fieldTextareaClass} min-h-[80px] resize-y`}
-              disabled={disabled}
-              rows={3}
-              placeholder="Ex: Gestantes, lactantes, menores sem responsável, doenças autoimunes descompensadas"
-            />
-          </div>
-
-          {/* PALAVRAS PROIBIDAS */}
-          <div className="space-y-2">
-            <div className="space-y-1">
-              <Label>Palavras ou expressões que a IA nunca deve usar</Label>
-              <p className="text-xs text-muted-foreground">
-                Digite e pressione Enter para adicionar.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {palavrasProibidas.map((palavra, idx) => (
-                <Badge
-                  key={idx}
-                  variant="secondary"
-                  className="gap-1 pl-2.5 pr-1 py-1 text-xs"
-                >
-                  {palavra}
-                  <button
-                    type="button"
-                    onClick={() => onPalavrasProibidasChange(palavrasProibidas.filter((_, i) => i !== idx))}
-                    disabled={disabled}
-                    className="ml-0.5 rounded-full p-0.5 hover:bg-muted-foreground/20"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
-            <Input
-              value={palavraInput}
-              onChange={(e) => setPalavraInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  const trimmed = palavraInput.trim();
-                  if (trimmed && !palavrasProibidas.includes(trimmed)) {
-                    onPalavrasProibidasChange([...palavrasProibidas, trimmed]);
-                  }
-                  setPalavraInput("");
-                }
-              }}
-              placeholder="Ex: baratinho, desconto, amiga"
-              disabled={disabled}
-              className={fieldInputClass}
-            />
-          </div>
-
-          <div data-tutorial="ia-field-instructions" className="space-y-2">
-            <div className="space-y-1">
-              <Label htmlFor="instructions">
-                Tem alguma instrução específica para o agente?
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Use este campo para regras específicas da sua clínica. Não adicione
-                regras de comportamento geral — elas já estão configuradas no
-                sistema.
-              </p>
-            </div>
-            <Textarea
-              id="instructions"
-              value={data.instructions}
-              onChange={(event) => onFieldChange("instructions", event.target.value)}
-              className={`${fieldTextareaClass} min-h-[140px] resize-y`}
-              disabled={disabled}
-            />
-          </div>
-
-          <Collapsible open={previewOpen} onOpenChange={onPreviewOpenChange}>
-            <div className="rounded-lg border border-border bg-muted/10">
-              <CollapsibleTrigger asChild>
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                >
-                  <span className="text-sm font-medium text-foreground">
-                    Ver como o agente vai receber essas informações
-                  </span>
-                  {previewOpen ? (
-                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                  ) : (
-                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                  )}
-                </button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="border-t border-border px-4 py-3">
-                  <pre className="whitespace-pre-wrap break-words rounded-md bg-background p-4 font-mono text-xs leading-6 text-foreground">
-                    {previewMarkdown}
-                  </pre>
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Builder stepper replaces the old inline form
+import { AiBuilderStepper } from "@/components/ai/AiBuilderStepper";
 
 export default function AiSettings() {
   const {
@@ -1168,7 +543,6 @@ export default function AiSettings() {
     buildPromptMarkdown(createEmptyFormData()),
   );
   const [pageTab, setPageTab] = useState("config");
-  const [activeTab, setActiveTab] = useState("base");
   const [parseWarning, setParseWarning] = useState<string | null>(null);
   const [originalParseWarning, setOriginalParseWarning] = useState<string | null>(
     null,
@@ -1287,7 +661,8 @@ export default function AiSettings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prompt, acumuloMensagens, isLoading, modeloIaBanco, JSON.stringify(horarioAtendimentoBanco), JSON.stringify(formasPagamentoBanco), contraindicacoesBanco, JSON.stringify(palavrasProibidasBanco), JSON.stringify(procedimentos), branding?.brand_name ?? '']);
 
-  const currentPrompt = buildPromptMarkdown(localForm);
+  const deferredForm = useDeferredValue(localForm);
+  const currentPrompt = buildPromptMarkdown(deferredForm);
   const hasChanges =
     !requiresReset &&
     (currentPrompt !== originalPrompt ||
@@ -1459,8 +834,8 @@ export default function AiSettings() {
     );
   };
 
-  const formContent = (
-    <AgentPromptFormFields
+  const builderContent = (
+    <AiBuilderStepper
       data={localForm}
       disabled={formDisabled}
       warningMessage={parseWarning}
@@ -1566,149 +941,56 @@ export default function AiSettings() {
       {/* Tab: Logs */}
       {pageTab === "logs" && <div data-tutorial="ia-logs"><AiExecutionLogsTab /></div>}
 
-      {/* Tab: Configurações — existing content */}
+      {/* Tab: Configurações */}
       {pageTab === "config" && (
-      <>
-      <div className="flex gap-4" style={{ minHeight: "520px" }}>
-        <div className="flex flex-1 flex-col" style={{ minHeight: "520px" }}>
-          <Tabs
-            defaultValue="base"
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="flex flex-1 flex-col"
-          >
-            <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit mb-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab("base")}
-                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
-                  activeTab === "base"
-                    ? "bg-foreground text-background shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                }`}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Prompt Agente Base
-              </button>
-            </div>
-
-            <div className="flex-1" style={{ minHeight: "460px" }}>
-              {activeTab === "base" && (
-                <div
-                  className="flex h-full flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-                  style={{ height: "460px" }}
-                  data-tutorial="ia-prompt"
-                >
-                  {/* Info banner */}
-                  <div className="mx-4 mt-4 rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-3">
-                    <p className="text-[11px] font-semibold text-amber-700">
-                      Como funciona o Agente
-                    </p>
-                    <p className="mt-0.5 text-[11px] leading-relaxed text-amber-600/80">
-                      Comportamento e regras já estão configurados automaticamente. Preencha apenas as informações específicas da clínica.
-                    </p>
-                  </div>
-                  {/* Sub-header */}
-                  <div className="flex flex-row items-center justify-between border-b border-border/40 bg-muted/[0.03] px-4 py-2.5 mt-2">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      Dados da Clinica
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-medium text-muted-foreground/40 bg-muted/50 px-2 py-0.5 rounded-md font-mono">
-                        system.prompt.md
-                      </span>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-6 w-6 text-muted-foreground/40 hover:text-foreground rounded-md"
-                          >
-                            <Maximize2 className="h-3 w-3" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="flex h-[85vh] w-[95vw] max-w-5xl flex-col overflow-hidden bg-background p-0 rounded-2xl border-border/60">
-                          <div className="flex flex-row items-center justify-between border-b border-border/40 px-5 py-3.5">
-                            <div className="flex items-center gap-2.5">
-                              <div className="p-1.5 rounded-lg bg-muted">
-                                <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-                              </div>
-                              <span className="text-sm font-semibold text-foreground">
-                                Dados da Clinica — Tela Cheia
-                              </span>
-                            </div>
-                            <span className="text-[9px] font-medium text-muted-foreground/40 bg-muted/50 px-2 py-0.5 rounded-md font-mono">
-                              system.prompt.md
-                            </span>
-                          </div>
-                          <div className="min-h-0 flex-1 overflow-hidden bg-background">
-                            {isLoading ? (
-                              <div className="flex h-full items-center justify-center">
-                                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/30" />
-                              </div>
-                            ) : (
-                              formContent
-                            )}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                  <div className="min-h-0 flex-1 overflow-hidden">
-                    {isLoading ? (
-                      <div className="flex h-full items-center justify-center">
-                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/30" />
-                      </div>
-                    ) : (
-                      formContent
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Tabs>
-        </div>
-
-        <div className="flex w-72 flex-shrink-0 flex-col gap-3 pb-4 pr-1">
-          {/* Status da IA */}
-          <div data-tutorial="ia-status" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className={`p-1.5 rounded-lg ${iaAtiva ? "bg-emerald-50" : "bg-muted"}`}>
-                  <Power className={`h-3.5 w-3.5 ${iaAtiva ? "text-emerald-600" : "text-muted-foreground"}`} />
-                </div>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Status</span>
+        <div className="flex gap-4">
+          <div className="flex-1 min-w-0">
+            {isLoading ? (
+              <div className="flex h-60 items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/30" />
               </div>
-              <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
-                iaAtiva
-                  ? "bg-emerald-50 text-emerald-600 border-emerald-200/60"
-                  : "bg-muted text-muted-foreground border-border/60"
-              }`}>
-                {iaAtiva ? "Ativa" : "Inativa"}
-              </span>
-            </div>
-            <p className="mb-4 text-[11px] text-muted-foreground/60 leading-relaxed">
-              {iaAtiva
-                ? "A IA responde automaticamente às mensagens dos leads."
-                : "A IA está desativada. Mensagens não serão respondidas."}
-            </p>
-            <div className="flex items-center gap-3" data-tutorial="ia-toggle">
-              <Switch
-                checked={iaAtiva}
-                onCheckedChange={toggleIa}
-                disabled={isTogglingIa || isLoading}
-                id="toggle-ia"
-              />
-              <Label htmlFor="toggle-ia" className="cursor-pointer text-xs font-medium text-muted-foreground">
-                {iaAtiva ? "Desativar IA" : "Ativar IA"}
-              </Label>
-            </div>
+            ) : (
+              builderContent
+            )}
           </div>
 
-
+          <div className="flex w-72 flex-shrink-0 flex-col gap-3 pb-4 pr-1">
+            {/* Status da IA */}
+            <div data-tutorial="ia-status" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-lg ${iaAtiva ? "bg-emerald-50" : "bg-muted"}`}>
+                    <Power className={`h-3.5 w-3.5 ${iaAtiva ? "text-emerald-600" : "text-muted-foreground"}`} />
+                  </div>
+                  <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Status</span>
+                </div>
+                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                  iaAtiva
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-200/60"
+                    : "bg-muted text-muted-foreground border-border/60"
+                }`}>
+                  {iaAtiva ? "Ativa" : "Inativa"}
+                </span>
+              </div>
+              <p className="mb-4 text-[11px] text-muted-foreground/60 leading-relaxed">
+                {iaAtiva
+                  ? "A IA responde automaticamente às mensagens dos leads."
+                  : "A IA está desativada. Mensagens não serão respondidas."}
+              </p>
+              <div className="flex items-center gap-3" data-tutorial="ia-toggle">
+                <Switch
+                  checked={iaAtiva}
+                  onCheckedChange={toggleIa}
+                  disabled={isTogglingIa || isLoading}
+                  id="toggle-ia"
+                />
+                <Label htmlFor="toggle-ia" className="cursor-pointer text-xs font-medium text-muted-foreground">
+                  {iaAtiva ? "Desativar IA" : "Ativar IA"}
+                </Label>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      </>
       )}
     </div>
   );

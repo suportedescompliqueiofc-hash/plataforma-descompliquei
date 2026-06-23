@@ -772,7 +772,7 @@ async function saveMemory(sessionId: string, orgId: string, role: string, conten
 
 function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
   const baseDescription =
-    "Gerencia o CRM: salva resumo da conversa, atualiza informações do lead (nome, procedimento de interesse, queixa) e move a fase do pipeline. Use quando o cliente confirmar interesse, informar dados pessoais, ou avançar na qualificação.";
+    "Gerencia o CRM: salva resumo da conversa e atualiza informações do lead (nome, procedimento de interesse, queixa). Use quando o cliente confirmar interesse, informar dados pessoais, ou avançar na qualificação.";
   const crmDescription = promptCrm
     ? `${baseDescription}\n\nRegras adicionais: ${promptCrm}`
     : baseDescription;
@@ -789,10 +789,6 @@ function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
             resumo: { type: "string", description: "Resumo completo da conversa para a equipe comercial." },
             nome_lead: { type: "string", description: "Nome do lead, se informado na conversa." },
             procedimento_interesse: { type: "string", description: "Procedimento ou serviço de interesse identificado." },
-            nova_posicao_pipeline: {
-              type: "number",
-              description: "Número da nova posição no pipeline (1=Novo, 2=Em Atendimento, 3=Qualificado, 4=Proposta, 5=Fechado).",
-            },
           },
           required: ["resumo"],
         },
@@ -823,8 +819,6 @@ async function executeCrm(args: any, leadId: string): Promise<string> {
   if (args.resumo) updates.resumo = args.resumo;
   if (args.nome_lead) updates.nome = args.nome_lead;
   if (args.procedimento_interesse) updates.procedimento_interesse = args.procedimento_interesse;
-  if (typeof args.nova_posicao_pipeline === "number") updates.posicao_pipeline = args.nova_posicao_pipeline;
-
   const { error } = await supabase.from("leads").update(updates).eq("id", leadId);
   if (error) {
     console.error("[AI-Agent] Erro CRM update:", error.message);
@@ -936,7 +930,7 @@ Deno.serve(async (req: Request) => {
     // 1. Lead
     const { data: lead, error: leadErr } = await supabase
       .from("leads")
-      .select("id, nome, telefone, ia_ativa, ia_paused_until, ai_pending_since, posicao_pipeline, origem")
+      .select("id, nome, telefone, ia_ativa, ia_paused_until, ai_pending_since, origem")
       .eq("id", lead_id)
       .single();
 

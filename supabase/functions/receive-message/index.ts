@@ -409,7 +409,6 @@ serve(async (req) => {
           organization_id: orgId,
           usuario_id: userId,
           status: 'Ativo',
-          posicao_pipeline: 1,
           origem: detectedOrigem,
           ia_ativa: detectedOrigem === 'marketing' ? true : null,
           ...(detectedFonte ? { fonte: detectedFonte, meta_ad_platform: detectedFonte } : {}),
@@ -620,7 +619,40 @@ serve(async (req) => {
       lead = { ...lead, ia_ativa: false } as any; // Atualiza objeto local para evitar disparo da IA nesta mesma execução
       console.log(`[TRANSBORDO] ia_ativa desativada para lead ${lead.id} — mensagem humana detectada (fromMe=true)`);
     }
-    
+
+    // ── Insere Mensagem IMEDIATAMENTE (antes de processamentos secundários) ─
+    // Garante que a mensagem é salva mesmo que tag sync, media upload ou IA falhem/timeout
+    let insertedMsgId: string | null = null;
+    {
+      const msgToInsert: Record<string, any> = {
+        lead_id: lead.id,
+        organization_id: lead.organization_id,
+        conteudo: text || '',
+        direcao,
+        remetente,
+        tipo_conteudo: (mediaPath && tipoConteudo !== 'texto') ? tipoConteudo : 'texto',
+        media_path: null,
+        id_mensagem: externalId,
+      };
+
+      const { data: insertedMsg, error: earlyInsertError } = await supabaseAdmin
+        .from('mensagens')
+        .insert(msgToInsert)
+        .select('id')
+        .maybeSingle();
+
+      if (earlyInsertError) {
+        if (earlyInsertError.code === '23505') {
+          console.log(`[receive-message] Mensagem (ID ${externalId}) ignorada: duplicata concorrente.`);
+        } else {
+          console.error("[receive-message] Erro ao inserir mensagem:", earlyInsertError);
+        }
+      } else {
+        insertedMsgId = insertedMsg?.id || null;
+        console.log(`[receive-message] Mensagem (ID ${externalId}) de ${remetente} salva com sucesso.`);
+      }
+    }
+
     // ── Sincronização de Etiquetas (Tags) ──────────────────────────────────
     // Se o webhook trouxer wa_label, atribuímos ao lead
     let waLabels = rawPayloadData?.chat?.wa_label || payload?.chat?.wa_label || null;
@@ -741,28 +773,19 @@ serve(async (req) => {
       }
     }
 
-    // ── Insere Mensagem ───────────────────────────────────────────────────────
-    const { error: msgInsertError } = await supabaseAdmin.from('mensagens').insert({
-      lead_id: lead.id,
-      organization_id: lead.organization_id,
-      conteudo: text || '',
-      direcao: direcao,
-      remetente: remetente,
-      tipo_conteudo: uploadedFilePath ? tipoConteudo : 'texto',
-      media_path: uploadedFilePath,
-      id_mensagem: externalId,
-    });
-
-    if (msgInsertError) {
-        // Erro 23505 = duplicate key (violação unique constraint). 
-        // Acontece quando o UaZapi manda 2 requisições no mesmo milissegundo. A 1ª salva com sucesso e a 2ª cai aqui.
-        if (msgInsertError.code === '23505') {
-             console.log(`[receive-message] Mensagem (ID ${externalId}) ignorada: já foi inserida pela requisição concorrente.`);
-        } else {
-             console.error("[receive-message] Erro ao inserir mensagem no BD:", msgInsertError);
-        }
-    } else {
-        console.log(`[receive-message] Mensagem (ID ${externalId}) de ${remetente} salva com sucesso no BD.`);
+    // ── Atualiza mensagem com mídia (se upload foi bem-sucedido) ──────────────
+    // A mensagem já foi inserida logo após a criação/busca do lead (insert antecipado).
+    // Aqui só atualizamos com o media_path após o upload completar.
+    if (uploadedFilePath && insertedMsgId) {
+      const { error: mediaUpdateErr } = await supabaseAdmin
+        .from('mensagens')
+        .update({ tipo_conteudo: tipoConteudo, media_path: uploadedFilePath })
+        .eq('id', insertedMsgId);
+      if (mediaUpdateErr) {
+        console.error('[receive-message] Erro ao atualizar mídia na mensagem:', mediaUpdateErr);
+      } else {
+        console.log(`[receive-message] Mídia atualizada na mensagem ${insertedMsgId}: ${tipoConteudo}`);
+      }
     }
 
     // ── Pausa cadência ativa quando lead responde ─────────────────────────────
@@ -877,19 +900,7 @@ serve(async (req) => {
             }
           }
 
-          // Detectar etapa do pipeline automaticamente para leads atendidos por humanos
-          // Fire-and-forget: não bloqueia a resposta ao webhook
-          const detectRequest = supabaseAdmin.functions.invoke('detect-pipeline-stage', {
-            body: { lead_id: lead.id, organization_id: lead.organization_id },
-          }).catch((err: any) => {
-            console.warn('[DETECT-STAGE] Erro ao invocar detect-pipeline-stage:', err);
-          });
-
-          // @ts-ignore
-          if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
-            // @ts-ignore
-            EdgeRuntime.waitUntil(detectRequest);
-          }
+          // Pipeline foi removido do CRM — detect-pipeline-stage desativado
         }
     }
 

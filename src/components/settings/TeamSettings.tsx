@@ -21,7 +21,7 @@ import { ptBR } from "date-fns/locale";
 
 const PAGE_KEYS = [
   'painel', 'conversas', 'notificacoes', 'leads', 'pipeline',
-  'agendamentos', 'vendas', 'procedimentos', 'metas',
+  'agendamentos', 'vendas', 'procedimentos', 'metas', 'equipe',
   'msgs_rapidas', 'cadencias', 'ia', 'configuracoes', 'plataforma',
 ] as const;
 

@@ -29,6 +29,7 @@ import Cadences from "./pages/Cadences";
 import MarketingTrafego from "./pages/MarketingTrafego";
 import Agendamentos from "./pages/Agendamentos";
 import Metas from "./pages/Metas";
+import Equipe from "./pages/Equipe";
 import Performance from "./pages/Performance";
 import Procedimentos from "./pages/Procedimentos";
 import JornadaPaciente from "./pages/JornadaPaciente";
@@ -343,6 +344,7 @@ const App = () => (
                 <Route path="/crm/notificacoes" element={<Notifications />} />
                 <Route path="/crm/vendas" element={<Vendas />} />
                 <Route path="/crm/metas" element={<Metas />} />
+                <Route path="/crm/equipe" element={<Equipe />} />
                 <Route path="/crm/evolucao" element={<Evolucao />} />
                 <Route path="/crm/performance" element={<Performance />} />
                 <Route path="/crm/onboarding" element={<CrmOnboarding />} />

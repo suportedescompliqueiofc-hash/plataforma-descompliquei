@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye, Sparkles, Leaf, HeartPulse, Building2, RotateCcw } from "lucide-react";
+import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye, Sparkles, Leaf, HeartPulse, Building2, RotateCcw, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -66,10 +66,11 @@ const formatLastMessageTime = (timestamp?: string | null) => {
 const MessagePreview = ({ content, type, sender }: { content?: string, type?: string, sender?: string }) => {
   if (!content && !type) return <span className="italic text-muted-foreground/60">Nenhuma mensagem</span>;
   const isOutgoing = sender === 'agente' || sender === 'bot' || sender === 'agente_crm';
+  const isAi = sender === 'bot';
 
   return (
     <div className="flex items-center gap-1 w-full overflow-hidden text-muted-foreground/80">
-      {isOutgoing && <span className="font-medium text-primary shrink-0">Você:</span>}
+      {isOutgoing && <span className="font-medium text-primary shrink-0">{isAi ? "IA:" : "Você:"}</span>}
       {type === 'audio' && <Mic className="h-3 w-3 shrink-0" />}
       {type === 'imagem' && <ImageIcon className="h-3 w-3 shrink-0" />}
       {type === 'video' && <Video className="h-3 w-3 shrink-0" />}
@@ -179,7 +180,11 @@ const ConversationItem = ({
                 <Zap className="h-3 w-3 text-orange-500 fill-orange-500/20 shrink-0" title="Em Cadência" />
               )}
 
-
+              {(conversation as any).followup_gap === 'PRECISA_FOLLOW' && !(conversation as any).followup_manual && (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-amber-500/15 shrink-0" title="Lead sem retorno — precisa de follow-up">
+                  <AlertTriangle className="h-2.5 w-2.5 text-amber-600" />
+                </span>
+              )}
 
               {conversation.lead_scoring && (
                 <span

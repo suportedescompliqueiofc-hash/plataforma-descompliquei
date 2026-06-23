@@ -94,22 +94,22 @@ function generateInviteEmailHtml(opts: {
 
 const DEFAULT_PAGES: Record<string, Record<string, boolean>> = {
   admin: {
-    painel: true, conversas: true, notificacoes: true, leads: true, pipeline: true,
+    painel: true, conversas: true, notificacoes: true, leads: true,
     agendamentos: true, vendas: true, procedimentos: true, metas: true,
     msgs_rapidas: true, cadencias: true, ia: true, configuracoes: false,
   },
   comercial: {
-    painel: true, conversas: true, notificacoes: true, leads: true, pipeline: true,
+    painel: true, conversas: true, notificacoes: true, leads: true,
     agendamentos: true, vendas: true, procedimentos: false, metas: true,
     msgs_rapidas: false, cadencias: false, ia: false, configuracoes: false,
   },
   atendente: {
-    painel: false, conversas: true, notificacoes: true, leads: false, pipeline: false,
+    painel: false, conversas: true, notificacoes: true, leads: false,
     agendamentos: false, vendas: false, procedimentos: false, metas: false,
     msgs_rapidas: true, cadencias: false, ia: false, configuracoes: false,
   },
   custom: {
-    painel: false, conversas: true, notificacoes: true, leads: false, pipeline: false,
+    painel: false, conversas: true, notificacoes: true, leads: false,
     agendamentos: false, vendas: false, procedimentos: false, metas: false,
     msgs_rapidas: false, cadencias: false, ia: false, configuracoes: false,
   },

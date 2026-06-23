@@ -26,8 +26,6 @@ interface ConfigData {
   notif_ativa: boolean;
   lembretes: Lembrete[];
   mensagem_lembrete: string;
-  notif_confirmacao_ativa: boolean;
-  mensagem_confirmacao: string;
   notif_interna_ativa: boolean;
   notif_interna_minutos_antes: number;
 }
@@ -85,8 +83,6 @@ const DEFAULT_CONFIG: Omit<ConfigData, "organization_id"> = {
     { ativo: true, minutos_antes: 60 },
   ],
   mensagem_lembrete: "Olá {nome}! Lembramos que você tem um atendimento agendado para {data} às {hora} na nossa clínica. Confirme sua presença respondendo SIM.",
-  notif_confirmacao_ativa: true,
-  mensagem_confirmacao: 'Olá {nome}! Seu atendimento "{titulo}" foi confirmado para {data} às {hora}. Estamos te esperando na clínica!',
   notif_interna_ativa: true,
   notif_interna_minutos_antes: 30,
 };
@@ -97,7 +93,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<ConfigData | null>(null);
-  const [activeTextarea, setActiveTextarea] = useState<"lembrete" | "confirmacao" | null>(null);
+  const [activeTextarea, setActiveTextarea] = useState<"lembrete" | null>(null);
   const [cancelandoKey, setCancelandoKey] = useState<string | null>(null);
 
   const { data: configDb, isLoading } = useQuery({
@@ -176,8 +172,6 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
         notif_ativa: configDb.notif_ativa ?? true,
         lembretes: lembretes as Lembrete[],
         mensagem_lembrete: configDb.mensagem_lembrete || DEFAULT_CONFIG.mensagem_lembrete,
-        notif_confirmacao_ativa: configDb.notif_confirmacao_ativa ?? true,
-        mensagem_confirmacao: configDb.mensagem_confirmacao || DEFAULT_CONFIG.mensagem_confirmacao,
         notif_interna_ativa: configDb.notif_interna_ativa ?? true,
         notif_interna_minutos_antes: configDb.notif_interna_minutos_antes ?? 30,
       });
@@ -205,8 +199,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
 
   function insertVariable(varKey: string) {
     if (!config || !activeTextarea) return;
-    const field = activeTextarea === "lembrete" ? "mensagem_lembrete" : "mensagem_confirmacao";
-    setConfig({ ...config, [field]: config[field] + varKey });
+    setConfig({ ...config, mensagem_lembrete: config.mensagem_lembrete + varKey });
   }
 
   async function handleSalvar() {
@@ -218,8 +211,6 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
         notif_ativa: config.notif_ativa,
         lembretes: config.lembretes,
         mensagem_lembrete: config.mensagem_lembrete,
-        notif_confirmacao_ativa: config.notif_confirmacao_ativa,
-        mensagem_confirmacao: config.mensagem_confirmacao,
         notif_interna_ativa: config.notif_interna_ativa,
         notif_interna_minutos_antes: config.notif_interna_minutos_antes,
         atualizado_em: new Date().toISOString(),
@@ -487,55 +478,6 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
                     <p className="text-[13px] text-emerald-900/80 leading-relaxed">{previewLembrete}</p>
                   </div>
                 </div>
-              </div>
-
-              {/* ━━━ CONFIRMAÇÃO IMEDIATA ━━━ */}
-              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-                <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03] flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="p-1.5 rounded-lg bg-muted">
-                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
-                    </span>
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Confirmação Imediata</p>
-                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">Mensagem enviada ao criar o agendamento</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={config.notif_confirmacao_ativa}
-                    onCheckedChange={(v) => setConfig({ ...config, notif_confirmacao_ativa: v })}
-                  />
-                </div>
-
-                {config.notif_confirmacao_ativa && (
-                  <div className="px-5 py-4 space-y-3">
-                    <Textarea
-                      value={config.mensagem_confirmacao}
-                      onChange={(e) => setConfig({ ...config, mensagem_confirmacao: e.target.value })}
-                      onFocus={() => setActiveTextarea("confirmacao")}
-                      rows={3}
-                      placeholder="Mensagem enviada ao confirmar agendamento..."
-                      className="rounded-xl text-sm border-border/60 resize-none"
-                    />
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mr-0.5">Variáveis:</span>
-                      {VARIAVEIS.map((v) => (
-                        <button
-                          key={v.key}
-                          onClick={() => insertVariable(v.key)}
-                          title={v.desc}
-                          className="font-mono text-[10px] px-1.5 py-0.5 rounded-md bg-muted/60 border border-border/40 text-muted-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all"
-                        >
-                          {v.key}
-                        </button>
-                      ))}
-                    </div>
-                    <div className="rounded-xl bg-emerald-50/60 border border-emerald-200/50 px-4 py-3">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/50 mb-1.5">Preview</p>
-                      <p className="text-[13px] text-emerald-900/80 leading-relaxed">{previewConfirmacao}</p>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {/* ━━━ NOTIFICAÇÃO INTERNA ━━━ */}
