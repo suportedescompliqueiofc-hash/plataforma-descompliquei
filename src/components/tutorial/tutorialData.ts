@@ -1289,7 +1289,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'ia-field-procedures',
         title: 'Procedimentos Oferecidos',
-        description: 'Liste **todos os procedimentos** da sua clínica:\n\n• Clique em **"Adicionar procedimento"** para cada serviço\n• Preencha o **nome** e uma **descrição** clara\n• A IA usa essas informações para tirar dúvidas e qualificar o interesse do lead\n\n**Exemplos:**\n• Botox — suaviza linhas de expressão, duração 30min\n• Harmonização Facial — equilíbrio do rosto\n\n**Quanto mais detalhado, melhor a IA responde sobre preços e indicações.**',
+        description: 'Liste **todos os procedimentos** da sua clínica:\n\n• Clique em **"Adicionar"** para cada serviço\n• Preencha o **nome** e uma **descrição** clara\n• Os procedimentos cadastrados na página de Procedimentos já são **importados automaticamente**\n• A IA usa essas informações para tirar dúvidas e qualificar o interesse do lead\n\n**Quanto mais detalhado, melhor a IA responde sobre indicações e o que esperar.**',
         position: 'bottom',
         action: { type: 'click', selector: '[data-tutorial="ia-subtab-conhecimento"]', delay: 400 },
       },
@@ -1297,7 +1297,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'ia-field-faq',
         title: 'FAQ — Perguntas Frequentes',
-        description: 'Cadastre as **dúvidas mais comuns** com respostas prontas:\n\n• Clique em **"Adicionar FAQ"** para cada pergunta\n• Preencha a **pergunta** e a **resposta** completa\n• A IA consulta esta base antes de gerar respostas\n\n**Exemplos úteis:**\n• "Qual o preço?" → "Os valores variam conforme a avaliação. Agende uma consulta gratuita!"\n• "Aceita convênio?" → "Não, mas temos condições facilitadas"',
+        description: 'Cadastre as **dúvidas mais comuns** com respostas prontas:\n\n• Clique em **"Adicionar"** para cada pergunta\n• Preencha a **pergunta** e a **resposta** completa\n• A IA consulta esta base antes de gerar respostas\n\n**Exemplos úteis:**\n• "Qual o preço?" → "Os valores variam conforme a avaliação. Agende uma consulta gratuita!"\n• "Aceita convênio?" → "Não, mas temos condições facilitadas"',
         position: 'bottom',
       },
       // ── 9. Horário ──
@@ -1318,7 +1318,7 @@ export const tutorials: Tutorial[] = [
       {
         target: 'ia-field-fluxo',
         title: 'Fluxo de Atendimento',
-        description: 'A metodologia de atendimento já vem pré-configurada em **4 passos**. Aqui você personaliza os detalhes de cada etapa:\n\n• **Saudação** — como a IA inicia a conversa\n• **Qualificação** — quais dados ela coleta\n• **Apresentação** — como apresenta os procedimentos\n• **Handoff** — quando e como passa para atendimento humano\n\n**Dica:** Personalize apenas o que foge do padrão da sua clínica. As configurações padrão já funcionam muito bem.',
+        description: 'A metodologia de atendimento já vem pré-configurada em **4 passos**. Aqui você personaliza os detalhes de cada etapa:\n\n• **Abertura** — IA dá boas-vindas e coleta o nome. Você pode personalizar a mensagem.\n• **Diagnóstico** — IA faz perguntas para entender a dor do lead. Configure quantas e quais perguntas.\n• **Apresentação** — IA apresenta a solução. Escolha o tom: Emocional, Equilibrado ou Direto.\n• **Handoff** — IA passa para a equipe. Personalize a frase de transição.\n\n**Dica:** As configurações padrão já funcionam muito bem. Personalize apenas o que foge do padrão da sua clínica.',
         position: 'right',
         action: { type: 'click', selector: '[data-tutorial="ia-subtab-fluxo"]', delay: 400 },
       },
