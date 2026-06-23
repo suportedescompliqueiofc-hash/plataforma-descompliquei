@@ -1240,14 +1240,14 @@ export const tutorials: Tutorial[] = [
     icon: 'Bot',
     category: 'automacao',
     steps: [
-      // ── 1. Visão geral ──
+      // ── 1. Visão geral das abas ──
       {
         target: 'ia-tabs',
         title: 'Bem-vindo à IA',
-        description: 'A **Inteligência Artificial** é a assistente que atende seus leads automaticamente via WhatsApp.\n\nA página é dividida em **3 abas**:\n\n• **Configurações** — monte o perfil e prompt da IA\n• **Follow-up** — mensagens automáticas de acompanhamento\n• **Logs** — histórico de todas as conversas da IA\n\nVamos percorrer cada seção em detalhe.',
+        description: 'A **Inteligência Artificial** é a assistente que atende seus leads automaticamente via WhatsApp.\n\nA página é dividida em **4 abas**:\n\n• **Configurações** — monte o perfil e prompt da IA\n• **Follow-up** — mensagens automáticas de acompanhamento\n• **Triagem** — veja como a IA classifica os leads\n• **Logs** — histórico detalhado de cada interação\n\nVamos percorrer cada seção em detalhe.',
         position: 'bottom',
       },
-      // ── 2. Navegar para aba Config ──
+      // ── 2. Status ──
       {
         target: 'ia-status',
         title: 'Painel de Status',
@@ -1262,91 +1262,112 @@ export const tutorials: Tutorial[] = [
         description: 'Este é o **interruptor principal** da sua IA.\n\n• **Ligado** — a IA intercepta novas conversas, qualifica leads, coleta dados e só passa para a equipe quando necessário\n• **Desligado** — todas as mensagens vão direto para o atendimento humano\n\n**Dicas de uso:**\n• Desative temporariamente durante horários de pico com equipe completa\n• Ative fora do expediente para não perder leads que chegam à noite\n• A IA é desativada **por lead** quando o atendimento humano assume',
         position: 'left',
       },
-      // ── 4. Prompt: visão geral ──
+      // ── 4. Visão geral do stepper ──
       {
         target: 'ia-prompt',
-        title: 'Dados da Clínica — O Prompt',
-        description: 'Este é o **formulário principal** que alimenta o cérebro da IA. Ele é dividido em seções:\n\n• **Identidade** — nome do agente, clínica e profissional\n• **Tom de voz** — personalidade e estilo de comunicação\n• **Procedimentos** — o que sua clínica oferece\n• **FAQ** — perguntas frequentes com respostas prontas\n• **Contato** — Instagram, endereço, horários\n• **Pagamentos** — formas aceitas e condições\n• **Instruções extras** — regras específicas da sua operação\n\nVamos explorar cada campo.',
-        position: 'left',
+        title: 'Configuração da IA — 5 Etapas',
+        description: 'O formulário de configuração é dividido em **5 sub-abas**:\n\n• **Identidade** — nome do agente, clínica e profissional\n• **Personalidade** — tom de voz e estilo de comunicação\n• **Conhecimento** — procedimentos, FAQ, horários e pagamentos\n• **Fluxo** — como a IA conduz cada etapa da conversa\n• **Ajustes** — instruções e regras específicas da sua operação\n\nVamos explorar cada uma.',
+        position: 'right',
       },
-      // ── 5. Campo: Identidade ──
+      // ── 5. Sub-aba: Identidade ──
       {
         target: 'ia-field-identity',
         title: 'Identidade do Agente',
-        description: 'Comece definindo **quem é sua IA**:\n\n• **Nome do agente** — como ela se apresenta (ex: "Ana", "Assistente da Clínica Belle")\n• **Nome da clínica** — usado nas respostas para contextualizar\n• **Nome do profissional** — o doutor(a) responsável\n• **Especialidade** — área de atuação da clínica\n\n**Dica:** Escolha um nome humanizado para o agente. Leads respondem melhor quando sentem que conversam com uma "pessoa".',
+        description: 'Comece definindo **quem é sua IA**:\n\n• **Nome do agente** — como ela se apresenta (ex: "Ana", "Sofia")\n• **Nome da clínica** — usado nas respostas para contextualizar\n• **Nome do profissional** — o doutor(a) responsável\n• **Especialidade** — área de atuação da clínica\n\n**Dica:** Escolha um nome humanizado. Leads respondem melhor quando sentem que conversam com uma "pessoa".',
         position: 'bottom',
+        action: { type: 'click', selector: '[data-tutorial="ia-subtab-identidade"]', delay: 400 },
       },
-      // ── 6. Campo: Tom de voz ──
+      // ── 6. Sub-aba: Personalidade ──
       {
         target: 'ia-field-voice',
         title: 'Tom de Voz e Personalidade',
         description: 'Defina **como a IA se comunica**:\n\n• Descreva o tom desejado (ex: "profissional mas acolhedor", "amigável e consultivo")\n• Configure se deve usar **emojis** e quais\n• Escolha quem a IA deve "chamar" (equipe, secretária ou doutor)\n\n**Exemplo de tom:**\n"Seja gentil e profissional. Use linguagem simples, evite termos técnicos. Sempre pergunte o nome do lead e trate pelo primeiro nome."',
         position: 'bottom',
+        action: { type: 'click', selector: '[data-tutorial="ia-subtab-personalidade"]', delay: 400 },
       },
-      // ── 7. Campo: Procedimentos ──
+      // ── 7. Sub-aba: Conhecimento — Procedimentos ──
       {
         target: 'ia-field-procedures',
         title: 'Procedimentos Oferecidos',
-        description: 'Liste **todos os procedimentos** da sua clínica:\n\n• Clique em **"Adicionar procedimento"** para cada serviço\n• Preencha o **nome** e uma **descrição** clara\n• A IA usa essas informações para tirar dúvidas e qualificar o interesse do lead\n\n**Exemplos:**\n• Botox — Aplicação para suavizar linhas de expressão, duração 30min\n• Harmonização Facial — Conjunto de procedimentos para equilíbrio do rosto\n\n**Quanto mais detalhado, melhor a IA responde perguntas sobre preços e indicações.**',
+        description: 'Liste **todos os procedimentos** da sua clínica:\n\n• Clique em **"Adicionar procedimento"** para cada serviço\n• Preencha o **nome** e uma **descrição** clara\n• A IA usa essas informações para tirar dúvidas e qualificar o interesse do lead\n\n**Exemplos:**\n• Botox — suaviza linhas de expressão, duração 30min\n• Harmonização Facial — equilíbrio do rosto\n\n**Quanto mais detalhado, melhor a IA responde sobre preços e indicações.**',
         position: 'bottom',
+        action: { type: 'click', selector: '[data-tutorial="ia-subtab-conhecimento"]', delay: 400 },
       },
-      // ── 8. Campo: FAQ ──
+      // ── 8. FAQ ──
       {
         target: 'ia-field-faq',
         title: 'FAQ — Perguntas Frequentes',
-        description: 'Cadastre as **dúvidas mais comuns** com respostas prontas:\n\n• Clique em **"Adicionar FAQ"** para cada pergunta\n• Preencha a **pergunta** e a **resposta** completa\n• A IA consulta esta base antes de gerar respostas\n\n**Exemplos úteis:**\n• "Qual o preço?" → "Os valores variam conforme a avaliação. Agende uma consulta gratuita!"\n• "Tem estacionamento?" → "Sim, estacionamento gratuito no local"\n• "Aceita convênio?" → "Não trabalhamos com convênios, mas temos condições facilitadas"',
+        description: 'Cadastre as **dúvidas mais comuns** com respostas prontas:\n\n• Clique em **"Adicionar FAQ"** para cada pergunta\n• Preencha a **pergunta** e a **resposta** completa\n• A IA consulta esta base antes de gerar respostas\n\n**Exemplos úteis:**\n• "Qual o preço?" → "Os valores variam conforme a avaliação. Agende uma consulta gratuita!"\n• "Aceita convênio?" → "Não, mas temos condições facilitadas"',
         position: 'bottom',
       },
-      // ── 9. Campo: Horário ──
+      // ── 9. Horário ──
       {
         target: 'ia-field-horario',
-        title: 'Horário de Atendimento Humano',
-        description: 'Configure os **horários** em que sua equipe humana está disponível:\n\n• **Segunda a Sexta** — horário de abertura e fechamento\n• **Sábado** — marque como "Fechado" ou defina horário\n• **Domingo** — marque como "Fechado"\n\nA IA usa estas informações para:\n• Informar ao lead quando a equipe estará disponível\n• Ajustar expectativas de tempo de resposta\n• Decidir se transfere imediatamente ou agenda retorno',
+        title: 'Horário de Atendimento',
+        description: 'Configure os **horários** em que sua equipe humana está disponível:\n\n• **Segunda a Sexta** — horário de abertura e fechamento\n• **Sábado / Domingo** — marque como "Fechado" ou defina horário\n\nA IA usa estas informações para:\n• Informar ao lead quando a equipe estará disponível\n• Decidir se transfere imediatamente ou agenda retorno',
         position: 'top',
       },
-      // ── 10. Campo: Pagamento ──
+      // ── 10. Pagamento ──
       {
         target: 'ia-field-pagamento',
         title: 'Formas de Pagamento',
         description: 'Informe as **formas de pagamento** aceitas pela clínica:\n\n• Marque: **Pix, Dinheiro, Crédito, Débito**\n• Configure **condições de parcelamento** (ex: "Até 10x com juros")\n• Adicione **observações** (ex: "5% desconto à vista")\n\nA IA responde automaticamente quando o lead pergunta sobre preços e condições de pagamento.',
         position: 'top',
       },
-      // ── 11. Campo: Instruções ──
+      // ── 11. Sub-aba: Fluxo ──
+      {
+        target: 'ia-field-fluxo',
+        title: 'Fluxo de Atendimento',
+        description: 'A metodologia de atendimento já vem pré-configurada em **4 passos**. Aqui você personaliza os detalhes de cada etapa:\n\n• **Saudação** — como a IA inicia a conversa\n• **Qualificação** — quais dados ela coleta\n• **Apresentação** — como apresenta os procedimentos\n• **Handoff** — quando e como passa para atendimento humano\n\n**Dica:** Personalize apenas o que foge do padrão da sua clínica. As configurações padrão já funcionam muito bem.',
+        position: 'right',
+        action: { type: 'click', selector: '[data-tutorial="ia-subtab-fluxo"]', delay: 400 },
+      },
+      // ── 12. Sub-aba: Ajustes ──
       {
         target: 'ia-field-instructions',
         title: 'Instruções Específicas',
-        description: 'Este é o campo para **regras personalizadas** da sua operação:\n\n• Defina comportamentos específicos que a IA deve seguir\n• Adicione restrições ou exceções\n• Configure fluxos especiais\n\n**Exemplos:**\n• "Nunca mencione valores de procedimentos, apenas diga que será avaliado na consulta"\n• "Se o lead perguntar sobre Botox, mencione também o Preenchimento Labial"\n• "Sempre ofereça agendamento de avaliação gratuita"\n\n**Não é necessário** adicionar regras de comportamento geral — elas já vêm configuradas.',
-        position: 'top',
+        description: 'Este é o campo para **regras personalizadas** da sua operação:\n\n• Defina comportamentos específicos que a IA deve seguir\n• Adicione restrições ou exceções\n\n**Exemplos:**\n• "Nunca mencione valores, diga que será avaliado na consulta"\n• "Se o lead perguntar sobre Botox, mencione também o Preenchimento Labial"\n• "Sempre ofereça avaliação gratuita"\n\n**Não é necessário** adicionar regras gerais — elas já vêm configuradas.',
+        position: 'right',
+        action: { type: 'click', selector: '[data-tutorial="ia-subtab-ajustes"]', delay: 400 },
       },
-      // ── 12. Botão Salvar ──
+      // ── 13. Salvar ──
       {
         target: 'ia-save',
         title: 'Salvar Configurações',
-        description: 'Após preencher todos os campos, clique em **"Salvar"** para aplicar as mudanças.\n\n• O botão fica **desabilitado** quando não há alterações\n• Um **indicador vermelho** aparece quando há mudanças não salvas\n• Use **"Descartar"** para reverter todas as alterações ao último estado salvo\n\n**Importante:** As mudanças só entram em vigor após salvar. A IA continua usando a configuração anterior até você salvar.',
+        description: 'Após preencher todos os campos, clique em **"Salvar"** para aplicar as mudanças.\n\n• O botão fica **desabilitado** quando não há alterações\n• Um **indicador vermelho** aparece quando há mudanças não salvas\n• Use **"Descartar"** para reverter ao último estado salvo\n\n**Importante:** As mudanças só entram em vigor após salvar.',
         position: 'bottom',
+        action: { type: 'click', selector: '[data-tutorial="ia-subtab-identidade"]', delay: 300 },
       },
-      // ── 13. Aba Follow-up ──
+      // ── 14. Aba Follow-up: config ──
       {
         target: 'ia-followup-config',
         title: 'Configuração de Follow-up',
-        description: 'O follow-up automático com IA envia **mensagens humanizadas** para leads que sumiram durante o atendimento.\n\n• **Ative/desative** o follow-up com o interruptor\n• Configure a **sequência de tentativas** (até 5)\n• Defina o **intervalo** entre cada follow-up:\n  - 1ª tentativa: 15min a 2h (rápido, enquanto o lead está quente)\n  - 2ª tentativa: 1h a 8h (reforço)\n  - 3ª tentativa: 12h a 3 dias (última chance)\n• Marque se deseja follow-up **apenas para leads de marketing**\n• Configure se deve **respeitar horário de atendimento**\n\nA IA **para automaticamente** quando o lead responde.',
+        description: 'O follow-up automático envia **mensagens humanizadas** para leads que sumiram durante o atendimento.\n\n• **Ative/desative** o follow-up com o interruptor\n• Configure a **sequência de tentativas** (até 5)\n• Defina o **intervalo** entre cada mensagem:\n  - 1ª tentativa: 15min a 2h (lead ainda está quente)\n  - 2ª tentativa: 1h a 8h (reforço)\n  - 3ª tentativa: 12h a 3 dias (última chance)\n• Configure se deve **respeitar horário de atendimento**\n\nA IA **para automaticamente** quando o lead responde.',
         position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(2)', delay: 400 },
+        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(2)', delay: 500 },
       },
-      // ── 14. Aba Follow-up: Histórico ──
+      // ── 15. Follow-up: histórico ──
       {
         target: 'ia-followup-history',
         title: 'Histórico de Follow-ups',
-        description: 'Logo abaixo da configuração, você encontra o **histórico completo** de todos os follow-ups:\n\n• **Enviado** — mensagem entregue com sucesso\n• **IA ignorou** — a IA decidiu que não fazia sentido enviar\n• **Fora do horário** — bloqueado pela regra de horário\n• **Lead respondeu** — follow-up cancelado porque o lead voltou\n• **Erro** — falha no envio\n\nUse este histórico para **ajustar os intervalos** e verificar se a IA está tomando boas decisões.',
+        description: 'Logo abaixo da configuração está o **histórico completo** de todos os follow-ups enviados:\n\n• **Enviado** — mensagem entregue com sucesso\n• **IA ignorou** — a IA decidiu que não fazia sentido enviar\n• **Fora do horário** — bloqueado pela regra de horário\n• **Lead respondeu** — follow-up cancelado porque o lead voltou\n• **Erro** — falha no envio\n\nUse este histórico para **ajustar os intervalos** e verificar se a IA está tomando boas decisões.',
         position: 'top',
       },
-      // ── 15. Aba Logs ──
+      // ── 16. Aba Triagem ──
+      {
+        target: 'ia-triage',
+        title: 'Triagem de Leads',
+        description: 'A aba de **Triagem** mostra como a IA está classificando cada lead em tempo real:\n\n• Veja o **score de qualificação** atribuído pela IA a cada conversa\n• Entenda o **motivo** da classificação — o que fez a IA considerar o lead quente ou frio\n• Filtre por **período** para analisar tendências\n\n**Use a triagem para:**\n• Calibrar o prompt da IA quando ela classificar errado\n• Identificar padrões nos leads mais qualificados\n• Priorizar o follow-up manual nos leads com maior potencial',
+        position: 'top',
+        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(3)', delay: 500 },
+      },
+      // ── 17. Aba Logs ──
       {
         target: 'ia-logs',
         title: 'Logs de Execução da IA',
-        description: 'A aba de **Logs** mostra o **registro detalhado** de cada interação da IA:\n\n• **Conversa completa** — veja o que o lead perguntou e o que a IA respondeu\n• **Ferramentas utilizadas** — quais ações a IA executou (atualizar CRM, notificar equipe)\n• **Tempo de resposta** — quanto demorou para responder\n• **Tokens consumidos** — custo de cada interação\n\n**Boas práticas:**\n• Revise os logs **semanalmente** para encontrar respostas que podem melhorar\n• Identifique perguntas recorrentes e adicione ao **FAQ**\n• Se a IA errar em algo, ajuste o **prompt** ou as **instruções específicas**',
+        description: 'A aba de **Logs** mostra o **registro detalhado** de cada interação da IA:\n\n• **Conversa completa** — o que o lead perguntou e o que a IA respondeu\n• **Ferramentas utilizadas** — quais ações a IA executou (atualizar CRM, notificar equipe)\n• **Tempo de resposta** — quanto demorou para responder\n• **Tokens consumidos** — custo de cada interação\n\n**Boas práticas:**\n• Revise os logs **semanalmente** para encontrar respostas que podem melhorar\n• Identifique perguntas recorrentes e adicione ao **FAQ**\n• Se a IA errar em algo, ajuste o **prompt** ou as **instruções específicas**',
         position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(3)', delay: 400 },
+        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(4)', delay: 500 },
       },
     ],
   },

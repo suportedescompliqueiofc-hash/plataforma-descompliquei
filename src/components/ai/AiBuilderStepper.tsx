@@ -267,6 +267,7 @@ export function AiBuilderStepper({
           <button
             key={s.key}
             type="button"
+            data-tutorial={`ia-subtab-${s.key}`}
             onClick={() => setStep(i)}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all whitespace-nowrap ${
               step === i
@@ -507,7 +508,7 @@ export function AiBuilderStepper({
 
           {/* ── Step 3: Fluxo de Atendimento ── */}
           {step === 3 && (
-            <>
+            <div data-tutorial="ia-field-fluxo">
               <div className="rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-3">
                 <p className="text-sm leading-relaxed text-amber-600/80">
                   A metodologia de atendimento (4 passos) já está configurada. Aqui você personaliza detalhes de cada etapa sem alterar o processo.
@@ -677,7 +678,7 @@ export function AiBuilderStepper({
                 </div>
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {/* ── Step 4: Ajustes ── */}
