@@ -32,6 +32,7 @@ const ALLOWED_MODELS = new Set([
   "deepseek/deepseek-v4-pro",
   // Qwen 2026
   "qwen/qwen3.7-max",
+  "qwen/qwen3.7-plus",
   // Mistral 2026
   "mistralai/mistral-medium-3-5",
 ]);
@@ -408,10 +409,15 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "obter_metricas_receita",
-      description: "Analise de receita: total, ticket medio, evolucao diaria, projecao do mes.",
+      description: "Analise de receita: total, ticket medio, evolucao diaria, projecao do mes. Use periodo_nome para calendário ('hoje'/'semana'/'mes'/'ano'), data_inicial+data_final para períodos passados, periodo_dias para 'últimos X dias'.",
       parameters: {
         type: "object",
-        properties: { periodo_dias: { type: "number" } },
+        properties: {
+          periodo_nome: { type: "string", enum: ["hoje", "semana", "mes", "ano"] },
+          periodo_dias: { type: "number" },
+          data_inicial: { type: "string", description: "YYYY-MM-DD" },
+          data_final:   { type: "string", description: "YYYY-MM-DD" },
+        },
       },
     },
   },
@@ -1372,6 +1378,115 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+  // ── MEMÓRIA PERSISTENTE ──────────────────────────────────────────────────────
+  {
+    type: "function",
+    function: {
+      name: "salvar_memoria",
+      description: "Salva um fato, preferência, decisão ou instrução na memória persistente. Use quando o usuário disser 'lembre que...', 'anota isso', ou quando identificar informação relevante para futuras conversas (ex: 'meu principal procedimento é botox', 'prefiro análises curtas').",
+      parameters: {
+        type: "object",
+        properties: {
+          conteudo: { type: "string", description: "O fato/preferência/instrução a memorizar. Seja conciso e objetivo." },
+          tipo: { type: "string", enum: ["preferencia", "fato", "decisao", "instrucao", "contexto"], description: "preferencia=como o usuário gosta de trabalhar. fato=dado sobre a clínica/negócio. decisao=escolha estratégica feita. instrucao=regra para o Athos seguir. contexto=informação situacional." },
+          tags: { type: "array", items: { type: "string" }, description: "Tags opcionais para categorizar (ex: 'marketing', 'equipe', 'financeiro')." },
+        },
+        required: ["conteudo", "tipo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "buscar_memorias",
+      description: "Busca nas memórias persistentes. Use quando o usuário perguntar 'o que você sabe sobre mim?', 'o que você lembra?', ou quando precisar recuperar contexto de conversas anteriores.",
+      parameters: {
+        type: "object",
+        properties: {
+          busca: { type: "string", description: "Texto para buscar nas memórias." },
+          tipo: { type: "string", enum: ["preferencia", "fato", "decisao", "instrucao", "contexto"], description: "Filtrar por tipo." },
+          limite: { type: "number", description: "Máximo de resultados (padrão 20)." },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "apagar_memoria",
+      description: "Remove uma memória específica. Use quando o usuário disser 'esquece isso', 'apaga aquela memória', 'isso não é mais verdade'.",
+      parameters: {
+        type: "object",
+        properties: {
+          memoria_id: { type: "string", description: "UUID da memória a apagar." },
+        },
+        required: ["memoria_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "atualizar_memoria",
+      description: "Atualiza o conteúdo de uma memória existente. Use quando uma informação mudou (ex: 'agora meu ticket médio é R$3.000, não R$2.000').",
+      parameters: {
+        type: "object",
+        properties: {
+          memoria_id: { type: "string", description: "UUID da memória a atualizar." },
+          conteudo: { type: "string", description: "Novo conteúdo." },
+          tipo: { type: "string", enum: ["preferencia", "fato", "decisao", "instrucao", "contexto"] },
+          tags: { type: "array", items: { type: "string" } },
+        },
+        required: ["memoria_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "obter_clube_one",
+      description: "Busca dados do Clube One: ranking de membros por pontos, nível de cada um (Membro/Destaque/Elite/Fundador One) e histórico de registros de um membro específico. Use para responder sobre desempenho, quem está no topo, pontuação, evolução de membros.",
+      parameters: {
+        type: "object",
+        properties: {
+          membro_id: { type: "string", description: "UUID do membro para ver histórico detalhado de registros desse membro." },
+          produto: { type: "string", enum: ["PCA", "GCA"], description: "Filtrar por produto." },
+          apenas_ativos: { type: "boolean", description: "Se false, inclui membros inativos. Default: true." },
+          limite: { type: "number", description: "Máx. membros no ranking. Default: 20." },
+        },
+        required: [],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "obter_historico_agendamento",
+      description: "Retorna o histórico de mudanças de status de um agendamento (ex: agendado → confirmado → realizado → faltou). Use para entender a jornada de um agendamento específico.",
+      parameters: {
+        type: "object",
+        properties: {
+          agendamento_id: { type: "string", description: "UUID do agendamento." },
+        },
+        required: ["agendamento_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "obter_leads_followup",
+      description: "Lista leads que estão com follow-up em aberto. followup_gap='PENDENTE' = aguardando análise automática (equipe enviou, lead ainda não respondeu); 'PRECISA_FOLLOW' = IA confirmou que precisa de contato ativo. Use para identificar quem está sem resposta e priorizar abordagens.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["PENDENTE", "PRECISA_FOLLOW", "todos"], description: "Filtrar por status. Default: todos." },
+          limite: { type: "number", description: "Máx. de leads. Default: 20." },
+        },
+        required: [],
+      },
+    },
+  },
 ];
 
 async function executeTool(name: string, input: any, orgId: string, platformUserId: string): Promise<string> {
@@ -1429,12 +1544,22 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           leadId = l?.id;
         }
         if (!leadId && input.nome) {
-          const { data: l } = await supabase.from("leads").select("id").eq("organization_id", orgId).ilike("nome", `%${input.nome}%`).limit(1).maybeSingle();
-          leadId = l?.id;
+          // Priorizar match exato, depois parcial
+          const { data: exato } = await supabase.from("leads").select("id").eq("organization_id", orgId).ilike("nome", input.nome).limit(1).maybeSingle();
+          if (exato) {
+            leadId = exato.id;
+          } else {
+            const { data: parciais } = await supabase.from("leads").select("id, nome, telefone").eq("organization_id", orgId).ilike("nome", `%${input.nome}%`).order("atualizado_em", { ascending: false }).limit(5);
+            if (parciais?.length === 1) {
+              leadId = parciais[0].id;
+            } else if (parciais && parciais.length > 1) {
+              return JSON.stringify({ erro: "Multiplos leads encontrados com esse nome. Especifique qual:", leads: parciais.map((l: any) => ({ id: l.id, nome: l.nome, telefone: l.telefone })) });
+            }
+          }
         }
         if (!leadId) return JSON.stringify({ error: "Lead nao encontrado" });
         const [leadRes, notasRes, etapasRes, agRes, vendasRes, tagsRes, msgsRes, cadenciasAtivasRes] = await Promise.all([
-          supabase.from("leads").select("id, nome, telefone, email, origem, fonte, is_qualified, is_scheduled, is_closed, procedimento_interesse, excluir_metricas, observacoes, lead_scoring, criado_em, atualizado_em").eq("id", leadId).eq("organization_id", orgId).single(),
+          supabase.from("leads").select("id, nome, telefone, email, origem, fonte, is_qualified, is_scheduled, is_closed, procedimento_interesse, excluir_metricas, lead_scoring, criado_em, atualizado_em").eq("id", leadId).eq("organization_id", orgId).single(),
           supabase.from("lead_notas").select("id, conteudo, tipo, criado_em, metadados").eq("lead_id", leadId).order("criado_em", { ascending: false }).limit(10),
           supabase.from("lead_stage_history").select("stage_position, from_stage_position, entered_at").eq("lead_id", leadId).not("from_stage_position", "is", null).order("entered_at", { ascending: false }).limit(10),
           supabase.from("agendamentos").select("id, titulo, tipo, data_hora_inicio, data_hora_fim, status, descricao").eq("lead_id", leadId).order("data_hora_inicio", { ascending: false }).limit(5),
@@ -1539,7 +1664,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         const desde = new Date(); desde.setDate(desde.getDate() - (input.periodo_dias ?? 30));
         // FIX v10: valor_fechado (não existe coluna "valor" na tabela vendas)
         const { data, error } = await supabase.from("vendas")
-          .select("id, produto_servico, valor_fechado, data_fechamento, forma_pagamento, observacoes, lead:leads(nome, telefone)")
+          .select("id, lead_id, produto_servico, valor_fechado, data_fechamento, forma_pagamento, lead:leads(nome, telefone)")
           .eq("organization_id", orgId).gte("data_fechamento", desde.toISOString().slice(0, 10))
           .order("data_fechamento", { ascending: false }).limit(input.limite ?? 10);
         if (error) return JSON.stringify({ error: error.message });
@@ -1661,19 +1786,41 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
       }
 
       case "obter_metricas_receita": {
-        const dias = input.periodo_dias ?? 30;
-        const desde = new Date(); desde.setDate(desde.getDate() - dias);
-        // FIX v10: valor_fechado (não existe coluna "valor" na tabela vendas)
+        let startDayStr: string, endDayStr: string, periodoLabel: string;
+        if (input.periodo_nome) {
+          const cal = buildCalendarPeriod(input.periodo_nome);
+          startDayStr = cal.startDayStr;
+          endDayStr = cal.endDayStr;
+          periodoLabel = input.periodo_nome;
+        } else if (input.data_inicial && input.data_final) {
+          startDayStr = input.data_inicial;
+          endDayStr = input.data_final;
+          periodoLabel = `${input.data_inicial} a ${input.data_final}`;
+        } else {
+          const dias = input.periodo_dias ?? 30;
+          const desde = new Date(); desde.setDate(desde.getDate() - dias);
+          startDayStr = desde.toISOString().slice(0, 10);
+          endDayStr = new Date().toISOString().slice(0, 10);
+          periodoLabel = `últimos ${dias} dias`;
+        }
         const { data } = await supabase.from("vendas").select("valor_fechado, data_fechamento, produto_servico")
-          .eq("organization_id", orgId).gte("data_fechamento", desde.toISOString().slice(0, 10)).order("data_fechamento");
+          .eq("organization_id", orgId).gte("data_fechamento", startDayStr).lte("data_fechamento", endDayStr).order("data_fechamento");
+        const DIAS_PT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
         const total = data?.reduce((s: number, v: any) => s + (v.valor_fechado ?? 0), 0) ?? 0;
         const porDia: Record<string, number> = {};
         data?.forEach((v: any) => { const d = v.data_fechamento.slice(0, 10); porDia[d] = (porDia[d] ?? 0) + (v.valor_fechado ?? 0); });
+        const diasNoPeriodo = Math.max(1, Math.ceil((new Date(endDayStr).getTime() - new Date(startDayStr).getTime()) / 86400000) + 1);
+        // Dia da semana calculado server-side — modelo não precisa inferir calendário de datas futuras
+        const evolucaoDiaria = Object.entries(porDia).sort(([a], [b]) => a.localeCompare(b)).map(([data, receita]) => {
+          const [yr, mo, dy] = data.split("-").map(Number);
+          return { data, dia_semana: DIAS_PT[new Date(Date.UTC(yr, mo - 1, dy)).getUTCDay()], receita };
+        });
         return JSON.stringify({
-          periodo_dias: dias, total_vendas: data?.length ?? 0,
+          periodo: periodoLabel, data_inicial: startDayStr, data_final: endDayStr,
+          total_vendas: data?.length ?? 0,
           receita_total: total, ticket_medio: data?.length ? total / data.length : 0,
-          projecao_mes: dias > 0 ? (total / dias) * 30 : 0,
-          evolucao_diaria: porDia,
+          projecao_mes: diasNoPeriodo > 0 ? (total / diasNoPeriodo) * 30 : 0,
+          evolucao_diaria: evolucaoDiaria,
         });
       }
 
@@ -1743,7 +1890,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           organization_id: orgId, nome: input.nome, telefone: input.telefone, email: input.email,
           origem: input.origem ?? "organico", fonte: input.fonte,
           procedimento_interesse: input.procedimento_interesse,
-          observacoes: input.observacoes,
         }).select("id, nome, telefone").single();
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ sucesso: true, lead: data });
@@ -1751,7 +1897,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
 
       case "atualizar_lead": {
         const updates: Record<string, unknown> = {};
-        ["nome","telefone","email","procedimento_interesse","origem","fonte","observacoes","is_closed","is_scheduled","lead_scoring"]
+        ["nome","telefone","email","procedimento_interesse","origem","fonte","is_closed","is_scheduled","lead_scoring"]
           .forEach(f => { if (input[f] !== undefined) updates[f] = input[f]; });
         if (!Object.keys(updates).length) return JSON.stringify({ error: "Nenhum campo para atualizar" });
         const { error } = await supabase.from("leads").update(updates).eq("id", input.lead_id).eq("organization_id", orgId);
@@ -1806,7 +1952,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           organization_id: orgId, lead_id: input.lead_id, produto_servico: input.produto_servico,
           valor_fechado: input.valor,
           data_fechamento: input.data_fechamento ?? hoje,
-          forma_pagamento: input.forma_pagamento, observacoes: input.observacoes,
+          forma_pagamento: input.forma_pagamento,
         }).select("id, produto_servico, valor_fechado").single();
         if (error) return JSON.stringify({ error: error.message });
         await supabase.from("leads").update({ is_closed: true }).eq("id", input.lead_id).eq("organization_id", orgId);
@@ -2347,7 +2493,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         if (input.valor !== undefined) updates.valor_fechado = input.valor;
         if (input.data_fechamento !== undefined) updates.data_fechamento = input.data_fechamento;
         if (input.forma_pagamento !== undefined) updates.forma_pagamento = input.forma_pagamento;
-        if (input.observacoes !== undefined) updates.observacoes = input.observacoes;
         if (Object.keys(updates).length === 0) return JSON.stringify({ error: "Nenhum campo para atualizar." });
         const { data, error } = await supabase.from("vendas")
           .update(updates).eq("id", input.venda_id).eq("organization_id", orgId)
@@ -2824,6 +2969,133 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         });
       }
 
+      // ── MEMÓRIA PERSISTENTE ────────────────────────────────────────────────
+      case "salvar_memoria": {
+        _promptCache.delete(`${orgId}:${platformUserId}`);
+        const { data: existing } = await supabase
+          .from("os_memories")
+          .select("id, conteudo")
+          .eq("user_id", platformUserId)
+          .eq("organization_id", orgId)
+          .ilike("conteudo", `%${(input.conteudo ?? "").slice(0, 50)}%`)
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          await supabase.from("os_memories")
+            .update({ conteudo: input.conteudo, tipo: input.tipo, tags: input.tags ?? [], atualizado_em: new Date().toISOString() })
+            .eq("id", existing.id);
+          return JSON.stringify({ ok: true, acao: "atualizada", memoria_id: existing.id, mensagem: "Memória atualizada (já existia similar)." });
+        }
+        const { data: mem, error: memErr } = await supabase
+          .from("os_memories")
+          .insert({ user_id: platformUserId, organization_id: orgId, conteudo: input.conteudo, tipo: input.tipo, tags: input.tags ?? [] })
+          .select("id")
+          .single();
+        if (memErr) return JSON.stringify({ error: "Erro ao salvar: " + memErr.message });
+        return JSON.stringify({ ok: true, acao: "criada", memoria_id: mem.id, mensagem: "Memorizado com sucesso." });
+      }
+
+      case "buscar_memorias": {
+        let q = supabase
+          .from("os_memories")
+          .select("id, conteudo, tipo, tags, criado_em, atualizado_em")
+          .eq("user_id", platformUserId)
+          .eq("organization_id", orgId)
+          .order("atualizado_em", { ascending: false })
+          .limit(Math.min(input.limite ?? 20, 50));
+        if (input.tipo) q = q.eq("tipo", input.tipo);
+        if (input.busca) q = q.ilike("conteudo", `%${input.busca}%`);
+        const { data, error: qErr } = await q;
+        if (qErr) return JSON.stringify({ error: qErr.message });
+        return JSON.stringify({ memorias: data ?? [], total: (data ?? []).length });
+      }
+
+      case "apagar_memoria": {
+        _promptCache.delete(`${orgId}:${platformUserId}`);
+        const { error: delErr } = await supabase
+          .from("os_memories")
+          .delete()
+          .eq("id", input.memoria_id)
+          .eq("user_id", platformUserId);
+        if (delErr) return JSON.stringify({ error: delErr.message });
+        return JSON.stringify({ ok: true, mensagem: "Memória apagada." });
+      }
+
+      case "atualizar_memoria": {
+        _promptCache.delete(`${orgId}:${platformUserId}`);
+        const updates: any = { atualizado_em: new Date().toISOString() };
+        if (input.conteudo) updates.conteudo = input.conteudo;
+        if (input.tipo) updates.tipo = input.tipo;
+        if (input.tags) updates.tags = input.tags;
+        const { error: updErr } = await supabase
+          .from("os_memories")
+          .update(updates)
+          .eq("id", input.memoria_id)
+          .eq("user_id", platformUserId);
+        if (updErr) return JSON.stringify({ error: updErr.message });
+        return JSON.stringify({ ok: true, mensagem: "Memória atualizada." });
+      }
+
+      case "obter_clube_one": {
+        const apenasAtivos = input.apenas_ativos !== false;
+        let q = (supabase as any)
+          .from("clube_membros")
+          .select("id, nome, foto_url, produto, pontos_total, nivel, ativo, created_at")
+          .order("pontos_total", { ascending: false })
+          .limit(input.limite ?? 20);
+        if (apenasAtivos) q = q.eq("ativo", true);
+        if (input.produto) q = q.eq("produto", input.produto);
+        const { data: membros } = await q;
+
+        const { data: niveis } = await (supabase as any)
+          .from("clube_niveis")
+          .select("nome, pontos_minimo, pontos_maximo, selo")
+          .order("pontos_minimo");
+
+        let clubeRegistros = null;
+        if (input.membro_id) {
+          const { data: regs } = await (supabase as any)
+            .from("clube_registros")
+            .select("pontos, tipo, observacao, created_at, clube_atividades(nome, categoria)")
+            .eq("membro_id", input.membro_id)
+            .order("created_at", { ascending: false })
+            .limit(20);
+          clubeRegistros = regs;
+        }
+
+        return JSON.stringify({
+          total_membros: membros?.length ?? 0,
+          ranking: membros ?? [],
+          niveis: niveis ?? [],
+          ...(clubeRegistros ? { historico_registros: clubeRegistros } : {}),
+        });
+      }
+
+      case "obter_historico_agendamento": {
+        const { data: histAgend } = await supabase
+          .from("agendamento_status_history")
+          .select("status_anterior, status_novo, alterado_em")
+          .eq("agendamento_id", input.agendamento_id)
+          .eq("organization_id", orgId)
+          .order("alterado_em");
+        return JSON.stringify({ historico: histAgend ?? [] });
+      }
+
+      case "obter_leads_followup": {
+        let fq = supabase
+          .from("leads")
+          .select("id, nome, telefone, followup_gap, ultimo_contato, is_qualified, is_scheduled, is_closed, atualizado_em")
+          .eq("organization_id", orgId)
+          .not("followup_gap", "is", null)
+          .order("ultimo_contato", { ascending: true })
+          .limit(input.limite ?? 20);
+        if (input.status && input.status !== "todos") {
+          fq = fq.eq("followup_gap", input.status);
+        }
+        const { data: flLeads } = await fq;
+        return JSON.stringify({ total: flLeads?.length ?? 0, leads: flLeads ?? [] });
+      }
+
       default:
         return JSON.stringify({ error: "Ferramenta desconhecida: " + name });
     }
@@ -3073,11 +3345,12 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
   const cached = _promptCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.prompt;
 
-  const [puRes, procsRes, orgRes, diagRes] = await Promise.all([
+  const [puRes, procsRes, orgRes, diagRes, memoriesRes] = await Promise.all([
     supabase.from("platform_users").select("clinic_name, specialty, whatsapp").eq("id", platformUserId).maybeSingle(),
     supabase.from("procedimentos").select("nome, valor_base").eq("organization_id", orgId).eq("ativo", true).limit(10),
     supabase.from("organizations").select("nome").eq("id", orgId).maybeSingle(),
     supabase.from("meus_materiais" as any).select("conteudo, titulo").eq("user_id", platformUserId).eq("categoria", "diagnostico").maybeSingle(),
+    supabase.from("os_memories").select("conteudo, tipo, tags").eq("user_id", platformUserId).eq("organization_id", orgId).order("atualizado_em", { ascending: false }).limit(10),
   ]);
 
   const pu   = puRes.data;
@@ -3088,6 +3361,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
   const especialidade = pu?.specialty || "Não informada";
 
   const procs  = procsRes.data  ?? [];
+  const memories = memoriesRes.data ?? [];
 
   const dataAtual = new Date().toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "America/Sao_Paulo" });
   const horaAtual = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -3214,6 +3488,17 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- 'Meus materiais' → listar_meus_materiais | 'Criar material' → criar_material",
     "- 'Criar jornada' → criar_jornada",
     "",
+    "### MEMÓRIA PERSISTENTE",
+    "- 'Lembre que...', 'anota isso', 'memoriza' → salvar_memoria",
+    "- 'O que você sabe sobre mim?', 'o que lembra?', 'suas memórias' → buscar_memorias",
+    "- 'Esquece isso', 'apaga aquela memória' → apagar_memoria",
+    "- 'Atualiza a memória', 'agora mudou para...' → atualizar_memoria",
+    "",
+    "### REGRA DE CONTEXTO ENTRE MENSAGENS",
+    "O histórico entre mensagens NÃO preserva resultados de tools — apenas o texto da sua resposta. Por isso:",
+    "- Quando sua resposta mencionar um lead, INCLUA o lead_id no texto (ex: 'Lead: João (id: abc-123)'). Assim você consegue usar o ID diretamente no próximo turno.",
+    "- Se o usuário pedir detalhes de um lead que você já mencionou, use obter_lead_completo com o lead_id que você incluiu na resposta anterior — NÃO busque por nome.",
+    "",
     "### REGRA DE ENCADEAMENTO",
     "Quando o usuário menciona um lead por NOME ou TELEFONE (não por ID), SEMPRE chame obter_lead_completo primeiro para resolver o lead_id, depois chame a ferramenta de ação.",
     "Exemplo: 'Envia mensagem pro João' → obter_lead_completo(nome='João') → enviar_mensagem(lead_id=resultado, mensagem=...)",
@@ -3238,6 +3523,19 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- Direto e estratégico — diagnósticos + ações concretas",
     "- Use 'clínica', nunca 'organização'",
     "- NUNCA reproduza a linha do tempo da conversa nem liste as mensagens em sequência cronológica. O usuário já conhece o conteúdo. Ao analisar um atendimento ou conversa, vá direto para o diagnóstico, pontos de melhoria e ações — sem transcrever ou resumir o histórico de mensagens.",
+    "",
+    "## MEMÓRIA PERSISTENTE (entre conversas)",
+    "Você tem memória entre conversas. As memórias ativas estão listadas abaixo — use-as para personalizar respostas.",
+    "Use salvar_memoria para fatos novos da clínica, preferências do usuário ou decisões estratégicas. Não salve pedidos efêmeros nem o que já está no diagnóstico.",
+    "",
+    ...(memories.length > 0 ? [
+      "### Memórias ativas deste cliente:",
+      ...memories.map((m: any) => `  - [${m.tipo}] ${m.conteudo}${m.tags?.length ? ` (tags: ${m.tags.join(", ")})` : ""}`),
+      "",
+    ] : [
+      "### Memórias ativas: nenhuma ainda — construa ao longo das conversas.",
+      "",
+    ]),
     ...(diag?.conteudo ? [
       "",
       "## DIAGNÓSTICO ESTRATÉGICO DO CLIENTE (base de conhecimento permanente)",
@@ -3248,6 +3546,239 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
 
   _promptCache.set(cacheKey, { prompt, expiresAt: Date.now() + 5 * 60 * 1000 });
   return prompt;
+}
+
+// ── Tool filtering dinâmico ────────────────────────────────────────────────
+// Classifica a intenção do usuário por keywords e retorna apenas as tools relevantes.
+// Reduz ~50-70% dos tokens de input na maioria das chamadas.
+
+const TOOL_CATEGORIES: Record<string, { tools: string[]; keywords: RegExp }> = {
+  leads: {
+    tools: [
+      "buscar_leads", "obter_lead_completo", "criar_lead", "atualizar_lead",
+      "qualificar_lead", "adicionar_nota", "editar_nota", "excluir_nota",
+      "gerenciar_tags_lead", "excluir_lead_permanente", "excluir_lote",
+      "analisar_leads_parados", "analisar_nao_leads",
+      "bloquear_numero", "desbloquear_numero", "obter_blacklist",
+      "obter_leads_followup",
+    ],
+    keywords: /lead|contato|telefone|qualific|mql|nota|tag|bloquei|blacklist|spam|limpeza|exclu|apag|followup|follow.?up|sem resposta|sem retorno/i,
+  },
+  conversas: {
+    tools: [
+      "buscar_conversas_lead", "enviar_mensagem", "agendar_mensagem",
+    ],
+    keywords: /conversa|mensag|whatsapp|envi|mand|falou|disse|escrev|respond|agenda.*mensag/i,
+  },
+  metricas: {
+    tools: [
+      "obter_metricas_funil", "obter_resumo_geral", "obter_metricas_receita",
+      "analisar_ranking_procedimentos", "analisar_atendimento_ia",
+    ],
+    keywords: /métric|metrica|funil|taxa|conversão|conversao|resumo|overview|diagnóstic|diagnostico|receita|faturamento|ticket|ranking|procedimento.*vend|atendimento.*ia|handoff|cpl|cpmql|cpa|roas/i,
+  },
+  agendamentos: {
+    tools: [
+      "obter_agendamentos", "criar_agendamento", "atualizar_agendamento", "excluir_agendamento",
+      "obter_historico_agendamento",
+    ],
+    keywords: /agendament|agenda|consulta|remarc|horário|horario|histórico.*agend|status.*agend/i,
+  },
+  vendas: {
+    tools: [
+      "obter_vendas_recentes", "registrar_venda", "atualizar_venda", "excluir_venda",
+    ],
+    keywords: /venda|fechament|faturou|vendeu|registr.*venda/i,
+  },
+  cadencias: {
+    tools: [
+      "listar_cadencias", "obter_cadencia_detalhes", "criar_cadencia",
+      "atualizar_cadencia", "excluir_cadencia", "disparar_cadencia", "cancelar_cadencia_lead",
+    ],
+    keywords: /cadência|cadencia|sequência|sequencia|automaç|automac|dispar/i,
+  },
+  metas: {
+    tools: [
+      "obter_metas", "criar_meta", "atualizar_meta", "excluir_meta",
+    ],
+    keywords: /meta|objetivo|progresso.*meta/i,
+  },
+  config: {
+    tools: [
+      "obter_config_ia", "atualizar_prompt_base_ia", "configurar_dados_clinica_ia",
+      "obter_procedimentos", "criar_procedimento", "atualizar_procedimento", "excluir_procedimento",
+      "obter_tags", "criar_tag", "excluir_tag",
+      "obter_notificacoes", "marcar_notificacao_lida",
+    ],
+    keywords: /config.*ia|prompt.*ia|ia.*config|ia.*prompt|procedimento|notificaç|notificac|tag.*disponív|criar.*tag|exclu.*tag|ativar.*ia|desativar.*ia|agente.*ia|horário.*atend|pagamento/i,
+  },
+  plataforma: {
+    tools: [
+      "obter_minha_jornada", "marcar_passo_jornada", "criar_jornada",
+      "listar_arsenal", "obter_arsenal_ferramenta",
+      "listar_materiais_complementares", "ler_material_complementar",
+      "listar_meus_materiais", "criar_material", "atualizar_material", "excluir_material",
+      "atualizar_progresso_arsenal", "salvar_construcao_ferramenta",
+    ],
+    keywords: /jornada|arsenal|ferramenta|material|trilha|aula|passo.*conclu/i,
+  },
+  memoria: {
+    tools: [
+      "salvar_memoria", "buscar_memorias", "apagar_memoria", "atualizar_memoria",
+    ],
+    keywords: /lembr|memória|memoria|memoriz|anota|esquec|apag.*memória|o que.*sab.*sobre/i,
+  },
+  clube: {
+    tools: ["obter_clube_one"],
+    keywords: /clube|clube.?one|ranking.*membro|pontos.*clube|nível.*clube|nivel.*clube|membro.*clube|destaque|elite|fundador.?one|pca|gca/i,
+  },
+};
+
+// Tools que sempre estão disponíveis (baixo custo, alta utilidade cross-domain)
+const ALWAYS_INCLUDE_TOOLS = new Set([
+  "obter_lead_completo",
+  "buscar_leads",
+  "salvar_memoria",
+  "buscar_memorias",
+  "apagar_memoria",
+  "atualizar_memoria",
+]);
+
+function selectToolsForMessage(
+  userMessage: string,
+  recentHistory: Array<{ role: string; content: string }>,
+): OpenAI.Chat.ChatCompletionTool[] {
+  const contextText = [
+    userMessage,
+    ...recentHistory.slice(-4).map(m => m.content ?? ""),
+  ].join(" ");
+
+  const matchedCategories = new Set<string>();
+  for (const [cat, { keywords }] of Object.entries(TOOL_CATEGORIES)) {
+    if (keywords.test(contextText)) {
+      matchedCategories.add(cat);
+    }
+  }
+
+  // Leads + conversas andam juntos (encadeamento obter_lead → buscar_conversas)
+  if (matchedCategories.has("conversas")) matchedCategories.add("leads");
+  // Agendamentos e vendas frequentemente precisam de leads
+  if (matchedCategories.has("agendamentos") || matchedCategories.has("vendas")) matchedCategories.add("leads");
+  // Cadências precisam de leads
+  if (matchedCategories.has("cadencias")) matchedCategories.add("leads");
+
+  // Se nenhuma categoria bateu, envia TODAS as tools (fallback seguro — evita deixar o modelo cego)
+  if (matchedCategories.size === 0) {
+    console.log(`[tool-filter] fallback: nenhuma categoria — enviando todas as tools`);
+    return TOOLS;
+  }
+
+  // Coleta tools das categorias matched
+  const selectedToolNames = new Set<string>(ALWAYS_INCLUDE_TOOLS);
+  for (const cat of matchedCategories) {
+    const catDef = TOOL_CATEGORIES[cat];
+    if (catDef) {
+      for (const t of catDef.tools) selectedToolNames.add(t);
+    }
+  }
+
+  const selectedTools = TOOLS.filter(t => selectedToolNames.has(t.function.name));
+  console.log(`[tool-filter] "${userMessage.slice(0, 60)}" → categories: [${[...matchedCategories].join(",")}] → ${selectedTools.length}/${TOOLS.length} tools`);
+  return selectedTools;
+}
+
+// ── Auto-extração de memórias ──────────────────────────────────────────────
+// Chamada fire-and-forget após cada resposta do Athos.
+// Analisa a conversa e salva fatos/preferências/decisões relevantes.
+const EXTRACT_MODEL = "openai/gpt-5.4-nano";
+const EXTRACT_TIMEOUT_MS = 15_000;
+
+async function extractMemories(
+  userMessage: string,
+  assistantResponse: string,
+  history: any[],
+  orgId: string,
+  platformUserId: string,
+  conversationId: string | null,
+) {
+  const { data: existingMems } = await supabase
+    .from("os_memories")
+    .select("conteudo")
+    .eq("user_id", platformUserId)
+    .eq("organization_id", orgId)
+    .limit(30);
+  const existingList = (existingMems ?? []).map((m: any) => m.conteudo).join("\n");
+
+  const extractPrompt = [
+    "Analise esta troca de mensagens e extraia APENAS informações que valem ser lembradas em conversas FUTURAS.",
+    "",
+    "Tipos válidos: preferencia, fato, decisao, instrucao, contexto",
+    "",
+    "Regras:",
+    "- Extraia APENAS fatos novos, preferências, decisões estratégicas ou instruções recorrentes",
+    "- NÃO extraia pedidos efêmeros ('me mostra os leads', 'qual o funil')",
+    "- NÃO extraia informações que já existem nas memórias atuais",
+    "- Cada memória deve ser 1-2 frases concisas e autocontidas",
+    "- Se não houver nada relevante para memorizar, retorne um array vazio",
+    "- Máximo 3 memórias por conversa",
+    "",
+    "Memórias já existentes (NÃO duplicar):",
+    existingList || "(nenhuma)",
+    "",
+    "Retorne APENAS um JSON válido no formato:",
+    '[{"conteudo": "...", "tipo": "fato|preferencia|decisao|instrucao|contexto", "tags": ["tag1"]}]',
+    "Se nada relevante, retorne: []",
+  ].join("\n");
+
+  const recentHistory = history.slice(-4).map((m: any) => `${m.role}: ${(m.content ?? "").slice(0, 300)}`).join("\n");
+
+  const abortCtrl = new AbortController();
+  const timeout = setTimeout(() => abortCtrl.abort(), EXTRACT_TIMEOUT_MS);
+
+  try {
+    const completion = await openrouter.chat.completions.create(
+      {
+        model: EXTRACT_MODEL,
+        messages: [
+          { role: "system", content: extractPrompt },
+          { role: "user", content: `Contexto recente:\n${recentHistory}\n\nÚltima mensagem do usuário:\n${userMessage.slice(0, 500)}\n\nResposta do assistente:\n${assistantResponse.slice(0, 1000)}` },
+        ],
+        max_tokens: 512,
+        temperature: 0.3,
+      },
+      { signal: abortCtrl.signal },
+    );
+
+    const raw = completion.choices?.[0]?.message?.content ?? "[]";
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return;
+
+    const items = JSON.parse(jsonMatch[0]);
+    if (!Array.isArray(items) || items.length === 0) return;
+
+    const inserts = items.slice(0, 3).filter((item: any) =>
+      item.conteudo && typeof item.conteudo === "string" && item.conteudo.length > 5
+    ).map((item: any) => ({
+      user_id: platformUserId,
+      organization_id: orgId,
+      conteudo: item.conteudo.slice(0, 500),
+      tipo: ["preferencia", "fato", "decisao", "instrucao", "contexto"].includes(item.tipo) ? item.tipo : "contexto",
+      tags: Array.isArray(item.tags) ? item.tags.slice(0, 5) : [],
+      fonte_conversation_id: conversationId,
+    }));
+
+    if (inserts.length > 0) {
+      await supabase.from("os_memories").insert(inserts);
+      _promptCache.delete(`${orgId}:${platformUserId}`);
+      console.log(`[descompliquei-os] auto-extracted ${inserts.length} memories`);
+    }
+  } catch (err) {
+    if ((err as Error)?.name !== "AbortError") {
+      console.error("[descompliquei-os] memory extraction failed:", err);
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -3265,7 +3796,8 @@ Deno.serve(async (req) => {
   let body: any;
   try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: "Body invalido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
   const { message, conversation_id, history = [], model: requestedModel, attachments = [], system_prompt_override, tools_override } = body;
-  const model = (requestedModel && typeof requestedModel === "string" && requestedModel.trim()) ? requestedModel.trim() : DEFAULT_MODEL;
+  const rawModel = (requestedModel && typeof requestedModel === "string" && requestedModel.trim()) ? requestedModel.trim() : DEFAULT_MODEL;
+  const model = ALLOWED_MODELS.has(rawModel) ? rawModel : DEFAULT_MODEL;
   if (!message?.trim() && !attachments?.length) return new Response(JSON.stringify({ error: "Mensagem vazia" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
   const stream = new ReadableStream({
@@ -3315,9 +3847,13 @@ Deno.serve(async (req) => {
           send({ type: "attachments_done" });
         }
         const userContent = [message?.trim(), attachmentContext, "\n[LEMBRETE: (1) Zero emojis. (2) Nunca use 'Agente' para o humano — use 'atendente' ou 'você'. (3) Escreva SEMPRE em português correto com todos os acentos — médio, catálogo, período, gráfico, etc. Nunca omita acentuação.]"].filter(Boolean).join("\n\n");
+        const recentMsgs = history.slice(-10).map((m: any) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        }));
         const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
           { role: "system", content: systemPrompt },
-          ...history.slice(-10).map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          ...recentMsgs,
           { role: "user", content: userContent },
         ];
         let finalText = "";
@@ -3363,16 +3899,16 @@ Deno.serve(async (req) => {
         const filteredTools = Array.isArray(tools_override) && tools_override.length > 0
           ? TOOLS.filter(t => tools_override.includes(t.function.name))
           : null;
+        // Tool filtering dinâmico: seleciona apenas tools relevantes para a intenção
+        const dynamicTools = (!system_prompt_override && !filteredTools)
+          ? selectToolsForMessage(message.trim(), history)
+          : null;
         const baseLLMParams: any = {
           model,
           messages,
-          // Se system_prompt_override presente sem tools_override, é modo agente puro sem ferramentas
-          // Se tools_override presente, envia apenas as ferramentas filtradas
           ...(system_prompt_override
             ? (filteredTools?.length ? { tools: filteredTools, tool_choice: "auto" } : {})
-            : { tools: TOOLS, tool_choice: "auto" }),
-          // Limite generoso para respostas longas estruturadas (análises, relatórios).
-          // Continuação automática cobre o caso de a saída atingir o teto.
+            : { tools: dynamicTools ?? TOOLS, tool_choice: "auto" }),
           max_tokens: 16384,
           temperature: 0.7,
         };
@@ -3464,6 +4000,16 @@ Deno.serve(async (req) => {
           }
         }
         send({ type: "done", conversation_id: savedConvId, model });
+
+        // ── Auto-extração de memórias (fire-and-forget) ──────────────────────
+        // Roda no background após enviar "done" ao frontend — não bloqueia a UX.
+        // Usa modelo barato e rápido para identificar fatos memoráveis.
+        if (!system_prompt_override && finalText.length > 50) {
+          extractMemories(
+            message.trim(), finalText, history,
+            orgId, platformUserId, savedConvId
+          ).catch(err => console.error("[descompliquei-os] memory extraction error:", err));
+        }
       } catch (err) {
         console.error("[descompliquei-os] ERROR:", err);
         send({ type: "error", message: String(err) });

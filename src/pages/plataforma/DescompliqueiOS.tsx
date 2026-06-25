@@ -53,6 +53,7 @@ const CUSTOM_SENTINEL  = "__custom__";
 const DEFAULT_MODEL    = MODELS[0].id;
 const LS_MODEL_KEY     = "descompliquei_os_model";
 const LS_CUSTOM_KEY    = "descompliquei_os_custom_model";
+const LS_CONV_KEY      = (agentSlug: string | null) => `descompliquei_os_conv_${agentSlug ?? "default"}`;
 
 // ── Model context windows (tokens) ───────────────────────────────────────────
 
@@ -500,6 +501,17 @@ export default function DescompliqueiOS() {
       .then(({ data }: any) => { if (data) setAgentes(data); });
   }, [user?.id]);
 
+  const loadMessages = useCallback(async (convId: string) => {
+    setLoadingConv(true);
+    const { data } = await supabase
+      .from("os_messages" as any)
+      .select("id, role, content, tool_calls, criado_em")
+      .eq("conversation_id", convId)
+      .order("criado_em", { ascending: true });
+    if (data) setMessages((data as any[]).map(m => ({ ...m, tool_calls: m.tool_calls ?? undefined })));
+    setLoadingConv(false);
+  }, []);
+
   const loadConversations = useCallback(async () => {
     if (!user) return;
     let q = (supabase as any)
@@ -512,9 +524,17 @@ export default function DescompliqueiOS() {
       q = q.is("agente_slug", null);
     }
     const { data } = await q.order("atualizado_em", { ascending: false }).limit(50);
-    if (data) setConversations(data as any);
+    if (data) {
+      setConversations(data as any);
+      // Auto-restaura a última conversa aberta (se ainda existir na lista)
+      const savedId = localStorage.getItem(LS_CONV_KEY(selectedAgentSlug));
+      if (savedId && (data as any[]).some((c: any) => c.id === savedId)) {
+        setCurrentConversationId(savedId);
+        loadMessages(savedId);
+      }
+    }
     conversationsLoadedRef.current = true;
-  }, [user, selectedAgentSlug]);
+  }, [user, selectedAgentSlug, loadMessages]);
 
   // Reset dos refs de auto-start quando o agente muda
   useEffect(() => {
@@ -556,24 +576,17 @@ export default function DescompliqueiOS() {
     el.style.height = Math.min(el.scrollHeight, 160) + "px";
   }, [input]);
 
-  const loadMessages = async (convId: string) => {
-    setLoadingConv(true);
-    const { data } = await supabase
-      .from("os_messages" as any)
-      .select("id, role, content, tool_calls, criado_em")
-      .eq("conversation_id", convId)
-      .order("criado_em", { ascending: true });
-    if (data) setMessages((data as any[]).map(m => ({ ...m, tool_calls: m.tool_calls ?? undefined })));
-    setLoadingConv(false);
-  };
+
 
   const selectConversation = (conv: OSConversation) => {
     setCurrentConversationId(conv.id);
+    localStorage.setItem(LS_CONV_KEY(selectedAgentSlug), conv.id);
     loadMessages(conv.id);
   };
 
   const newConversation = () => {
     setCurrentConversationId(null);
+    localStorage.removeItem(LS_CONV_KEY(selectedAgentSlug));
     setMessages([]);
     jornadaSalvaRef.current = false;
     setTimeout(() => textareaRef.current?.focus(), 50);
@@ -722,7 +735,7 @@ export default function DescompliqueiOS() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Sessão expirada");
 
-      const history = messages.filter(m => !m.isStreaming).slice(-20)
+      const history = messages.filter(m => !m.isStreaming).slice(-10)
         .map(m => ({ role: m.role, content: m.content }));
 
       // Monta o system_prompt_override do agente selecionado
@@ -841,6 +854,7 @@ export default function DescompliqueiOS() {
             flushText();
             if (ev.conversation_id && !currentConversationId) {
               setCurrentConversationId(ev.conversation_id);
+              localStorage.setItem(LS_CONV_KEY(selectedAgentSlug), ev.conversation_id);
               if (selectedAgentSlug) {
                 await (supabase as any).from("os_conversations")
                   .update({ agente_slug: selectedAgentSlug })
