@@ -957,13 +957,23 @@ Deno.serve(async (req: Request) => {
     // 2. Config IA
     const { data: aiConfig } = await supabase
       .from("organization_ai_prompts")
-      .select("prompt, prompt_crm, ia_ativa, modelo_ia, delay_entre_mensagens, acumulo_mensagens, horario_atendimento, formas_pagamento, contraindicacoes, palavras_proibidas")
+      .select("prompt, prompt_crm, ia_ativa, modelo_ia, delay_entre_mensagens, acumulo_mensagens, horario_atendimento, formas_pagamento, contraindicacoes, palavras_proibidas, numeros_teste")
       .eq("organization_id", orgId)
       .maybeSingle();
 
     if (!aiConfig?.ia_ativa || !aiConfig?.prompt) {
       if (execLogId) await updateLog(execLogId, { status: "error", etapa: "erro_config", erro_detalhe: "IA não configurada para esta organização.", duracao_ms: Date.now() - globalStart });
       return jsonResponse({ ok: false, reason: "ia_nao_configurada" });
+    }
+
+    // Whitelist de números para testes — se preenchida, só responde os números listados
+    if (aiConfig.numeros_teste && aiConfig.numeros_teste.length > 0) {
+      const digitos = (lead.telefone ?? "").replace(/\D/g, "");
+      const telefonePadrao = digitos.startsWith("55") ? digitos : `55${digitos}`;
+      if (!aiConfig.numeros_teste.includes(telefonePadrao)) {
+        if (execLogId) await updateLog(execLogId, { status: "skipped", etapa: "numero_fora_da_lista_teste", detalhe: `Número ${telefonePadrao} não está na lista de teste.`, duracao_ms: Date.now() - globalStart });
+        return jsonResponse({ ok: false, reason: "numero_fora_da_lista_teste" });
+      }
     }
 
     const modeloRaw = aiConfig.modelo_ia || "openrouter/deepseek/deepseek-v4-flash";
