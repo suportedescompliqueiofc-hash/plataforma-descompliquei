@@ -957,7 +957,7 @@ Deno.serve(async (req: Request) => {
     // 2. Config IA
     const { data: aiConfig } = await supabase
       .from("organization_ai_prompts")
-      .select("prompt, prompt_crm, ia_ativa, modelo_ia, delay_entre_mensagens, acumulo_mensagens, horario_atendimento, formas_pagamento, contraindicacoes, palavras_proibidas, numeros_teste")
+      .select("prompt, prompt_crm, ia_ativa, modelo_ia, delay_entre_mensagens, acumulo_mensagens, horario_atendimento, formas_pagamento, contraindicacoes, palavras_proibidas, numeros_teste, origens_permitidas")
       .eq("organization_id", orgId)
       .maybeSingle();
 
@@ -973,6 +973,16 @@ Deno.serve(async (req: Request) => {
       if (!aiConfig.numeros_teste.includes(telefonePadrao)) {
         if (execLogId) await updateLog(execLogId, { status: "skipped", etapa: "numero_fora_da_lista_teste", detalhe: `Número ${telefonePadrao} não está na lista de teste.`, duracao_ms: Date.now() - globalStart });
         return jsonResponse({ ok: false, reason: "numero_fora_da_lista_teste" });
+      }
+    }
+
+    // Filtro de origem — se preenchido, só responde leads com a origem permitida
+    if (aiConfig.origens_permitidas && aiConfig.origens_permitidas.length > 0) {
+      const origemLead = (lead.origem ?? "").trim().toLowerCase();
+      const permitidas = aiConfig.origens_permitidas.map((o: string) => o.trim().toLowerCase());
+      if (!permitidas.includes(origemLead)) {
+        if (execLogId) await updateLog(execLogId, { status: "skipped", etapa: "origem_nao_permitida", detalhe: `Origem "${lead.origem}" não está na lista de origens permitidas.`, duracao_ms: Date.now() - globalStart });
+        return jsonResponse({ ok: false, reason: "origem_nao_permitida" });
       }
     }
 
