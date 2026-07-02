@@ -53,35 +53,42 @@ export default function PasswordChangeCard() {
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Flag explícito definido ao salvar senha por este formulário
-      if (user.user_metadata?.password_set === true) {
-        setIsFirstAccess(false);
-        return;
-      }
-
-      // Fallback: verifica AMR (Authentication Method Reference) do JWT.
-      // Se o método da sessão atual for "password", o usuário já tem senha —
-      // independente do flag nos metadados (cobre usuários criados antes do flag existir).
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        try {
-          const payload = JSON.parse(atob(session.access_token.split('.')[1]));
-          const authenticatedWithPassword = payload.amr?.some((a: any) => a.method === 'password');
-          if (authenticatedWithPassword) {
-            setIsFirstAccess(false);
-            return;
-          }
-        } catch { /* JWT malformado — ignora */ }
-      }
-
+    // Supabase processa o hash da URL antes do React montar, então o evento
+    // PASSWORD_RECOVERY já disparou. Verificar o hash diretamente é mais confiável.
+    if (window.location.hash.includes('type=recovery')) {
       setIsFirstAccess(true);
-    })();
+      setIsRecoveryMode(true);
+    } else {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-    // Detecta retorno pelo link de redefinição enviado por e-mail
+        // Flag explícito definido ao salvar senha por este formulário
+        if (user.user_metadata?.password_set === true) {
+          setIsFirstAccess(false);
+          return;
+        }
+
+        // Fallback: verifica AMR (Authentication Method Reference) do JWT.
+        // Se o método da sessão atual for "password", o usuário já tem senha —
+        // independente do flag nos metadados (cobre usuários criados antes do flag existir).
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          try {
+            const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+            const authenticatedWithPassword = payload.amr?.some((a: any) => a.method === 'password');
+            if (authenticatedWithPassword) {
+              setIsFirstAccess(false);
+              return;
+            }
+          } catch { /* JWT malformado — ignora */ }
+        }
+
+        setIsFirstAccess(true);
+      })();
+    }
+
+    // Cobre o caso dinâmico (ex: token processado após montagem)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsFirstAccess(true);
