@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Loader2, ArrowLeft, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const MENSAGENS: Record<string, string> = {
@@ -21,6 +22,10 @@ export default function PlataformaLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isForgotMode, setIsForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
   const { signIn, user } = useAuth();
   const [searchParams] = useSearchParams();
 
@@ -32,6 +37,21 @@ export default function PlataformaLogin() {
       window.location.href = '/';
     }
   }, [user, msgKey]);
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      await supabase.functions.invoke('send-password-reset-public', {
+        body: { email: forgotEmail },
+      });
+      setForgotSent(true);
+    } catch {
+      toast.error('Não foi possível enviar o e-mail. Tente novamente.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +155,7 @@ export default function PlataformaLogin() {
         </div>
       </div>
 
-      {/* ═══ RIGHT PANEL — Login form ═══ */}
+      {/* ═══ RIGHT PANEL ═══ */}
       <div className="w-full lg:w-[48%] flex items-center justify-center p-8 lg:p-16">
         <div className="w-full max-w-[400px]">
           {/* Mobile logo */}
@@ -156,93 +176,181 @@ export default function PlataformaLogin() {
             </div>
           </div>
 
-          {/* Header */}
-          <div className="mb-8">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2">
-              Bem-vindo de volta
-            </p>
-            <h2 className="text-[28px] font-extrabold tracking-tight text-foreground font-display leading-tight">
-              Acesse sua conta
-            </h2>
-            <p className="text-[13px] text-muted-foreground mt-1.5">
-              Digite suas credenciais para continuar
-            </p>
-          </div>
+          {isForgotMode ? (
+            /* ── Modo recuperação de senha ── */
+            <>
+              <button
+                type="button"
+                onClick={() => { setIsForgotMode(false); setForgotSent(false); setForgotEmail(""); }}
+                className="flex items-center gap-1.5 text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors mb-8"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Voltar ao login
+              </button>
 
-          {/* Error message */}
-          {errorMsg && (
-            <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-[13px] text-destructive font-medium">
-              {errorMsg}
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                E-mail
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu.email@empresa.com"
-                className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Senha
-              </Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Digite sua senha"
-                  className="h-11 text-sm rounded-xl border-border/60 bg-background pr-10 transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              className="w-full h-11 text-sm font-bold rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
-              style={{
-                background: '#E85D24',
-                color: '#ffffff',
-                boxShadow: '0 2px 8px rgba(232,93,36,0.25)',
-              }}
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Entrando...</>
+              {forgotSent ? (
+                /* Estado de sucesso */
+                <div className="text-center py-4">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
+                    style={{ background: 'rgba(232,93,36,0.08)', border: '1px solid rgba(232,93,36,0.15)' }}
+                  >
+                    <MailCheck className="h-7 w-7" style={{ color: '#E85D24' }} />
+                  </div>
+                  <h2 className="text-[22px] font-extrabold tracking-tight text-foreground font-display mb-2">
+                    Verifique seu e-mail
+                  </h2>
+                  <p className="text-[13px] text-muted-foreground leading-relaxed">
+                    Se o endereço <strong>{forgotEmail}</strong> estiver cadastrado, você receberá um link para redefinir sua senha em instantes.
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/40 mt-4">
+                    Não recebeu? Verifique a pasta de spam.
+                  </p>
+                </div>
               ) : (
-                <>Entrar <ArrowRight className="h-4 w-4" /></>
-              )}
-            </Button>
-          </form>
+                /* Formulário de recuperação */
+                <>
+                  <div className="mb-8">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2">
+                      Recuperar acesso
+                    </p>
+                    <h2 className="text-[28px] font-extrabold tracking-tight text-foreground font-display leading-tight">
+                      Esqueceu a senha?
+                    </h2>
+                    <p className="text-[13px] text-muted-foreground mt-1.5">
+                      Digite seu e-mail e enviaremos um link de redefinição.
+                    </p>
+                  </div>
 
-          {/* Footer */}
-          <div className="mt-8 pt-6" style={{ borderTop: '1px solid hsl(var(--border) / 0.4)' }}>
-            <p className="text-center text-[11px] text-muted-foreground/40">
-              Para solicitar acesso, entre em contato com a equipe da Descompliquei.
-            </p>
-          </div>
+                  <form onSubmit={handleForgotSubmit} className="space-y-5">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="forgot-email" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        E-mail
+                      </Label>
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="seu.email@empresa.com"
+                        className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <Button
+                      className="w-full h-11 text-sm font-bold rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
+                      style={{ background: '#E85D24', color: '#ffffff', boxShadow: '0 2px 8px rgba(232,93,36,0.25)' }}
+                      type="submit"
+                      disabled={forgotLoading}
+                    >
+                      {forgotLoading ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Enviando...</>
+                      ) : (
+                        <>Enviar link de redefinição <ArrowRight className="h-4 w-4" /></>
+                      )}
+                    </Button>
+                  </form>
+                </>
+              )}
+            </>
+          ) : (
+            /* ── Modo login normal ── */
+            <>
+              {/* Header */}
+              <div className="mb-8">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground/50 mb-2">
+                  Bem-vindo de volta
+                </p>
+                <h2 className="text-[28px] font-extrabold tracking-tight text-foreground font-display leading-tight">
+                  Acesse sua conta
+                </h2>
+                <p className="text-[13px] text-muted-foreground mt-1.5">
+                  Digite suas credenciais para continuar
+                </p>
+              </div>
+
+              {/* Error message */}
+              {errorMsg && (
+                <div className="mb-6 rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-[13px] text-destructive font-medium">
+                  {errorMsg}
+                </div>
+              )}
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    E-mail
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu.email@empresa.com"
+                    className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="password" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Senha
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Digite sua senha"
+                      className="h-11 text-sm rounded-xl border-border/60 bg-background pr-10 transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+                      tabIndex={-1}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => { setIsForgotMode(true); setForgotEmail(email); }}
+                      className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors mt-1"
+                    >
+                      Esqueci a senha
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full h-11 text-sm font-bold rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
+                  style={{ background: '#E85D24', color: '#ffffff', boxShadow: '0 2px 8px rgba(232,93,36,0.25)' }}
+                  type="submit"
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Entrando...</>
+                  ) : (
+                    <>Entrar <ArrowRight className="h-4 w-4" /></>
+                  )}
+                </Button>
+              </form>
+
+              {/* Footer */}
+              <div className="mt-8 pt-6" style={{ borderTop: '1px solid hsl(var(--border) / 0.4)' }}>
+                <p className="text-center text-[11px] text-muted-foreground/40">
+                  Para solicitar acesso, entre em contato com a equipe da Descompliquei.
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
