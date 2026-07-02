@@ -53,9 +53,10 @@ export default function PasswordChangeCard() {
   const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   useEffect(() => {
-    // Supabase processa o hash da URL antes do React montar, então o evento
-    // PASSWORD_RECOVERY já disparou. Verificar o hash diretamente é mais confiável.
-    if (window.location.hash.includes('type=recovery')) {
+    // Supabase consome e limpa o hash antes do componente montar.
+    // O query param &recovery=true é preservado e pode ser lido com segurança.
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('recovery') === 'true') {
       setIsFirstAccess(true);
       setIsRecoveryMode(true);
     } else {

@@ -141,7 +141,8 @@ Deno.serve(async (req: Request) => {
 
     // 2. Gerar link de recuperação via Admin API
     const platformUrl = Deno.env.get('PLATFORM_URL') || 'https://plataforma.descompliqueiofc.com';
-    const redirectTo = `${platformUrl}/crm/settings?section=security`;
+    // &recovery=true persiste na query string após o Supabase limpar o hash
+    const redirectTo = `${platformUrl}/crm/settings?section=security&recovery=true`;
 
     const { data: linkData, error: linkErr } = await supabaseAdmin.auth.admin.generateLink({
       type: 'recovery',
