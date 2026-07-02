@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { KeyRound, Eye, EyeOff, Loader2, Save, ShieldCheck, Sparkles } from 'lucide-react';
+import { KeyRound, Eye, EyeOff, Loader2, Save, ShieldCheck, Sparkles, Mail, RotateCcw } from 'lucide-react';
 
 function PasswordInput({
   id, label, value, onChange, show, onToggle, placeholder, autoComplete,
@@ -48,13 +48,63 @@ export default function PasswordChangeCard() {
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const [isFirstAccess, setIsFirstAccess] = useState<boolean | null>(null);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setIsFirstAccess(!user?.user_metadata?.password_set);
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Flag explícito definido ao salvar senha por este formulário
+      if (user.user_metadata?.password_set === true) {
+        setIsFirstAccess(false);
+        return;
+      }
+
+      // Fallback: verifica AMR (Authentication Method Reference) do JWT.
+      // Se o método da sessão atual for "password", o usuário já tem senha —
+      // independente do flag nos metadados (cobre usuários criados antes do flag existir).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        try {
+          const payload = JSON.parse(atob(session.access_token.split('.')[1]));
+          const authenticatedWithPassword = payload.amr?.some((a: any) => a.method === 'password');
+          if (authenticatedWithPassword) {
+            setIsFirstAccess(false);
+            return;
+          }
+        } catch { /* JWT malformado — ignora */ }
+      }
+
+      setIsFirstAccess(true);
+    })();
+
+    // Detecta retorno pelo link de redefinição enviado por e-mail
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsFirstAccess(true);
+        setIsRecoveryMode(true);
+      }
     });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  const handleForgotPassword = async () => {
+    setIsSendingReset(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-password-reset');
+      if (error) throw error;
+      const { data: { user } } = await supabase.auth.getUser();
+      toast.success(`Link de redefinição enviado para ${user?.email}`);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao enviar e-mail de redefinição.');
+    } finally {
+      setIsSendingReset(false);
+    }
+  };
 
   const reset = () => {
     setCurrentPassword('');
@@ -173,7 +223,15 @@ export default function PasswordChangeCard() {
 
       {/* Body */}
       <div className="p-5 space-y-4">
-        {isFirstAccess ? (
+        {isFirstAccess && isRecoveryMode ? (
+          /* Banner modo recovery — retornou pelo link do e-mail */
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50/60 border border-amber-200/50">
+            <RotateCcw className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-700 leading-relaxed">
+              Você acessou pelo link de redefinição. Defina sua nova senha abaixo.
+            </p>
+          </div>
+        ) : isFirstAccess ? (
           /* Banner primeiro acesso */
           <div className="flex items-start gap-2.5 p-3 rounded-lg bg-blue-50/60 border border-blue-200/50">
             <Sparkles className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
@@ -193,16 +251,28 @@ export default function PasswordChangeCard() {
 
         {/* Campo senha atual — só aparece quando não é primeiro acesso */}
         {!isFirstAccess && (
-          <PasswordInput
-            id="current-password"
-            label="Senha Atual"
-            value={currentPassword}
-            onChange={setCurrentPassword}
-            show={showCurrent}
-            onToggle={() => setShowCurrent(v => !v)}
-            placeholder="Digite sua senha atual"
-            autoComplete="current-password"
-          />
+          <div className="space-y-1.5">
+            <PasswordInput
+              id="current-password"
+              label="Senha Atual"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              show={showCurrent}
+              onToggle={() => setShowCurrent(v => !v)}
+              placeholder="Digite sua senha atual"
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={isSendingReset}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground/70 hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              {isSendingReset
+                ? <><Loader2 className="h-3 w-3 animate-spin" /> Enviando link...</>
+                : <><Mail className="h-3 w-3" /> Esqueci a senha</>}
+            </button>
+          </div>
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
