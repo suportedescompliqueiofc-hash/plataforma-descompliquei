@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Bot, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Clock, CheckCircle2, Loader2, UserCheck, Square } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
-import { formatDistanceToNow, addMinutes, isPast, format } from "date-fns";
+import { formatDistanceToNow, addMinutes, isPast } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface FollowupStatusBarProps {
@@ -13,6 +14,7 @@ interface FollowupStatusBarProps {
   followupUltimaTentativa?: string | null;
   followupPausado?: boolean;
   ultimoContato?: string | null;
+  iaAtiva?: boolean;
 }
 
 function CountdownToNext({ targetDate }: { targetDate: Date }) {
@@ -39,9 +41,55 @@ export function FollowupStatusBar({
   followupUltimaTentativa,
   followupPausado,
   ultimoContato,
+  iaAtiva,
 }: FollowupStatusBarProps) {
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
+  const queryClient = useQueryClient();
+  const [isStopping, setIsStopping] = useState(false);
+
+  // A barra aparece tanto no follow MANUAL quanto no follow AUTOMÁTICO em execução
+  // (IA ativa e já com ao menos 1 tentativa disparada).
+  const isManualFollow = !!followupManual;
+  const isAutoFollow = !!iaAtiva && !isManualFollow && (followupTentativas ?? 0) > 0;
+  const showBar = isManualFollow || isAutoFollow;
+
+  // Parar o follow-up: encerra o ciclo de disparos SEM desligar o atendimento da IA.
+  const handleStop = async () => {
+    setIsStopping(true);
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          followup_manual: false,
+          followup_pausado: true,
+          followup_tentativas: 0,
+          followup_ultima_tentativa: null,
+        })
+        .eq("id", leadId);
+      if (error) throw error;
+      toast.success("Follow-up interrompido");
+      queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      queryClient.invalidateQueries({ queryKey: ["followup-gap"] });
+    } catch (err: any) {
+      toast.error("Erro ao parar follow-up: " + (err.message || String(err)));
+    } finally {
+      setIsStopping(false);
+    }
+  };
+
+  const StopButton = () => (
+    <button
+      onClick={handleStop}
+      disabled={isStopping}
+      title="Parar follow-up"
+      className="shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full border border-red-500/30 bg-red-500/[0.06] text-red-600 hover:bg-red-500/15 transition-colors text-[9px] font-bold uppercase tracking-widest disabled:opacity-50"
+    >
+      {isStopping ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Square className="h-2.5 w-2.5" fill="currentColor" />}
+      Parar
+    </button>
+  );
 
   const { data: config } = useQuery({
     queryKey: ["followup-config-bar", orgId],
@@ -70,11 +118,29 @@ export function FollowupStatusBar({
         .maybeSingle();
       return data;
     },
-    enabled: !!leadId && !!followupManual,
+    enabled: !!leadId && showBar,
     refetchInterval: 30000,
   });
 
-  if (!followupManual) return null;
+  const { data: lastOutbound } = useQuery({
+    queryKey: ["followup-last-outbound", leadId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("mensagens")
+        .select("remetente")
+        .eq("lead_id", leadId)
+        .eq("direcao", "saida")
+        .not("remetente", "eq", "ia")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!leadId && showBar && !followupPausado,
+    refetchInterval: 30000,
+  });
+
+  if (!showBar) return null;
 
   const tentativas = followupTentativas ?? 0;
   const seqArray: Array<{ ordem: number; minutos: number; ativo: boolean }> = Array.isArray(config?.sequencia) ? config.sequencia : [];
@@ -89,10 +155,24 @@ export function FollowupStatusBar({
           Follow-up concluído — {tentativas}/{totalTentativas} tentativas enviadas
         </span>
         <span className="text-[11px] text-muted-foreground/50 ml-auto">aguardando resposta do lead</span>
-        <div className="shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-          <Bot className="h-2.5 w-2.5 text-amber-500/50" />
-          <span className="text-[9px] font-bold uppercase tracking-widest text-amber-500/50">FOLLOW</span>
-        </div>
+        <StopButton />
+      </div>
+    );
+  }
+
+  const humanManaging = !followupPausado && !!lastOutbound && lastOutbound.remetente !== "bot";
+
+  if (humanManaging) {
+    return (
+      <div className="border-b border-indigo-500/30 bg-indigo-500/[0.04] px-4 py-1.5 flex items-center gap-2 flex-shrink-0">
+        <UserCheck className="h-3 w-3 text-indigo-500 shrink-0" />
+        <span className="text-[11px] font-semibold text-indigo-600">
+          Em atendimento humano — follow-up suspenso
+        </span>
+        <span className="text-[11px] text-muted-foreground/50 ml-auto hidden sm:block">
+          retoma quando o lead responder
+        </span>
+        <StopButton />
       </div>
     );
   }
@@ -113,8 +193,6 @@ export function FollowupStatusBar({
   const statusColor = overdue ? "text-amber-600" : "text-blue-600";
   const borderColor = overdue ? "border-amber-500/30" : "border-blue-500/30";
   const bgColor = overdue ? "bg-amber-500/[0.04]" : "bg-blue-500/[0.04]";
-  const badgeBg = overdue ? "bg-amber-500/10 border-amber-500/20" : "bg-blue-500/10 border-blue-500/20";
-  const badgeText = overdue ? "text-amber-500/50" : "text-blue-500/50";
 
   return (
     <div className={`border-b ${borderColor} ${bgColor} px-4 py-1.5 flex items-center gap-2 flex-shrink-0`}>
@@ -145,10 +223,7 @@ export function FollowupStatusBar({
         )}
       </span>
 
-      <div className={`shrink-0 flex items-center gap-1 px-1.5 py-0.5 rounded-full ${badgeBg} border`}>
-        <Bot className={`h-2.5 w-2.5 ${badgeText}`} />
-        <span className={`text-[9px] font-bold uppercase tracking-widest ${badgeText}`}>FOLLOW</span>
-      </div>
+      <StopButton />
     </div>
   );
 }

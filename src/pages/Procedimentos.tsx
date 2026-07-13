@@ -12,6 +12,7 @@ import { useVendas } from "@/hooks/useVendas";
 import { ProcedimentoModal } from "@/components/procedimentos/ProcedimentoModal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { PageHero } from "@/components/PageHero";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -128,29 +129,22 @@ export default function Procedimentos() {
     <div className="space-y-6 pb-10">
 
       {/* ═══ PAGE HEADER ═══ */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4" data-tutorial="procedimentos-header">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-muted">
-              <Stethoscope className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
-              Procedimentos
-            </h1>
-          </div>
-          <p className="text-[13px] text-muted-foreground ml-10">
-            Gerencie seu catalogo de procedimentos e acompanhe a performance de cada um
-          </p>
-        </div>
-        <Button
-          onClick={handleNew}
-          data-tutorial="procedimentos-add"
-          className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 w-full sm:w-auto shrink-0"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          Novo Procedimento
-        </Button>
-      </div>
+      <PageHero
+        dataTutorial="procedimentos-header"
+        icon={Stethoscope}
+        title="Procedimentos"
+        subtitle="Gerencie seu catálogo de procedimentos e acompanhe a performance de cada um"
+        right={
+          <Button
+            onClick={handleNew}
+            data-tutorial="procedimentos-add"
+            className="h-9 rounded-lg text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 px-5 gap-1.5 shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Novo Procedimento
+          </Button>
+        }
+      />
 
       {/* ═══ METRICS ═══ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-tutorial="procedimentos-metrics">

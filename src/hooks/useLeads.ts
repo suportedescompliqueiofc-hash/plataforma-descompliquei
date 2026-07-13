@@ -94,7 +94,6 @@ export function useLeads(dateRange?: DateRange) {
       supabase.from('notificacoes').delete().eq('lead_id', id),
       supabase.from('vendas').delete().eq('lead_id', id),
       supabase.from('atividades').delete().eq('lead_id', id),
-      supabase.from('scheduled_quick_messages').delete().eq('lead_id', id),
       supabase.from('lead_cadencias').delete().eq('lead_id', id),
       supabase.from('cadencia_logs').delete().eq('lead_id', id),
     ]);
@@ -273,6 +272,22 @@ export function useLeads(dateRange?: DateRange) {
         cleanUpdates.is_qualified = true;
       }
 
+      // Captura o estado ANTES de salvar, para só registrar nota/atividade quando houver
+      // mudança real (o formulário sempre reenvia esses campos, mesmo sem alteração)
+      let previousResponsavelId: string | null | undefined;
+      let previousIsQualified: boolean | null | undefined;
+      let previousLeadScoring: string | null | undefined;
+      if ('responsavel_id' in cleanUpdates || 'is_qualified' in cleanUpdates || 'lead_scoring' in cleanUpdates) {
+        const { data: currentLead } = await supabase
+          .from('leads')
+          .select('responsavel_id, is_qualified, lead_scoring')
+          .eq('id', id)
+          .maybeSingle();
+        previousResponsavelId = currentLead?.responsavel_id ?? null;
+        previousIsQualified = currentLead?.is_qualified ?? false;
+        previousLeadScoring = currentLead?.lead_scoring ?? null;
+      }
+
       console.log('[updateLead] Atualizando lead:', id, 'com:', cleanUpdates);
       const { error } = await supabase
         .from('leads')
@@ -284,9 +299,10 @@ export function useLeads(dateRange?: DateRange) {
         throw new Error(`Erro ao atualizar lead: ${error.message} (código: ${error.code})`);
       }
 
-      // Registrar nota do sistema quando is_qualified muda para true
-      // (para ter timestamp exato na Jornada do Paciente)
-      if (cleanUpdates.is_qualified === true) {
+      // Registrar nota do sistema quando is_qualified muda de fato para true
+      // (para ter timestamp exato na Jornada do Paciente) — evita duplicar a nota
+      // quando o lead já estava qualificado e o formulário reenvia o mesmo valor
+      if (cleanUpdates.is_qualified === true && previousIsQualified !== true) {
         await supabase.from('lead_notas').insert({
           lead_id: id,
           organization_id: orgId,
@@ -296,8 +312,8 @@ export function useLeads(dateRange?: DateRange) {
         });
       }
 
-      // Registrar nota do sistema quando lead_scoring é definido/alterado
-      if (cleanUpdates.lead_scoring) {
+      // Registrar nota do sistema quando lead_scoring é definido/alterado de fato
+      if (cleanUpdates.lead_scoring && cleanUpdates.lead_scoring !== previousLeadScoring) {
         const labels: Record<string, string> = {
           A: 'Lead dos Sonhos',
           B: 'Qualificado com Ressalva',
@@ -313,18 +329,21 @@ export function useLeads(dateRange?: DateRange) {
         });
       }
 
-      // Registrar atividade quando responsavel_id é atribuído/alterado
+      // Registrar atividade só quando um responsável é de fato atribuído.
+      // Remoção de responsável não é registrada (decisão de produto: não é
+      // informação relevante para a timeline do lead).
       if ('responsavel_id' in cleanUpdates) {
-        await supabase.from('lead_atividades' as any).insert({
-          lead_id: id,
-          organization_id: orgId,
-          user_id: user?.id,
-          tipo: 'responsavel',
-          descricao: cleanUpdates.responsavel_id
-            ? 'Responsável atribuído ao lead'
-            : 'Responsável removido do lead',
-          metadados: { responsavel_id: cleanUpdates.responsavel_id },
-        });
+        const newResponsavelId = (cleanUpdates.responsavel_id as string | null) ?? null;
+        if (newResponsavelId && newResponsavelId !== previousResponsavelId) {
+          await supabase.from('lead_atividades' as any).insert({
+            lead_id: id,
+            organization_id: orgId,
+            user_id: user?.id,
+            tipo: 'responsavel',
+            descricao: 'Responsável atribuído ao lead',
+            metadados: { responsavel_id: newResponsavelId },
+          });
+        }
       }
 
       return { id, ...cleanUpdates } as Lead;

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Plus, X, Check, Hash } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,12 +25,14 @@ interface TagManagerProps {
   leadId: string;
   /** When true, tags display in a single row with overflow hidden (for compact headers) */
   compact?: boolean;
+  /** When true, renders as a dedicated full-tab layout — tags maiores, uma por linha */
+  fullPage?: boolean;
 }
 
-export function TagManager({ leadId, compact = false }: TagManagerProps) {
+export function TagManager({ leadId, compact = false, fullPage = false }: TagManagerProps) {
   const { availableTags, createTag } = useTags();
   const { leadTags, addTagToLead, removeTagFromLead } = useLeadTags(leadId);
-  
+
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -47,7 +51,7 @@ export function TagManager({ leadId, compact = false }: TagManagerProps) {
 
   const handleCreateTag = () => {
     if (!searchValue.trim()) return;
-    
+
     // Usa o hex customizado se houver, senão usa a cor selecionada
     const colorToSave = customHex && /^#[0-9A-F]{6}$/i.test(customHex) ? customHex : selectedColor;
 
@@ -67,6 +71,173 @@ export function TagManager({ leadId, compact = false }: TagManagerProps) {
       }
     );
   };
+
+  const commandContent = (
+    <Command>
+      <CommandInput
+        placeholder="Buscar ou criar..."
+        value={searchValue}
+        onValueChange={setSearchValue}
+      />
+      <CommandList>
+        <CommandEmpty className="p-2">
+          <div className="flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">Nenhuma etiqueta encontrada.</p>
+            {searchValue && (
+              <div className="space-y-3 pt-2 border-t">
+                <p className="text-xs font-medium">Criar "{searchValue}"</p>
+
+                {/* Seletor de Cores Presets */}
+                <div className="flex flex-wrap gap-1.5">
+                  {TAG_COLORS.map(color => (
+                    <button
+                      key={color.name}
+                      onClick={() => {
+                        setSelectedColor(color.hex);
+                        setCustomHex(""); // Limpa hex customizado ao selecionar preset
+                      }}
+                      className={cn(
+                        "w-5 h-5 rounded-full border flex items-center justify-center transition-transform hover:scale-110",
+                        color.selector,
+                        (selectedColor === color.hex && !customHex) ? "ring-2 ring-offset-1 ring-primary" : ""
+                      )}
+                      title={color.label}
+                    >
+                      {(selectedColor === color.hex && !customHex) && <Check className="h-3 w-3 text-white" />}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Input Hex Customizado */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Hash className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                    <Input
+                      placeholder="Hex (ex: #9568CF)"
+                      value={customHex}
+                      onChange={(e) => {
+                        setCustomHex(e.target.value);
+                        // Se for um hex válido, atualiza o preview
+                        if (/^#[0-9A-F]{6}$/i.test(e.target.value)) {
+                          setSelectedColor(e.target.value);
+                        }
+                      }}
+                      className="h-7 text-xs pl-6"
+                      maxLength={7}
+                    />
+                  </div>
+                  <div
+                    className="w-7 h-7 rounded border flex-shrink-0"
+                    style={{ backgroundColor: customHex && /^#[0-9A-F]{6}$/i.test(customHex) ? customHex : selectedColor }}
+                  />
+                </div>
+
+                <Button
+                  size="sm"
+                  className="w-full h-7 text-xs mt-1"
+                  onClick={handleCreateTag}
+                  disabled={isCreating}
+                >
+                  {isCreating ? 'Criando...' : 'Criar e Adicionar'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </CommandEmpty>
+
+        <CommandGroup heading="Disponíveis">
+          {availableTags.map(tag => {
+            const isSelected = assignedTagIds.has(tag.id);
+
+            return (
+              <CommandItem
+                key={tag.id}
+                value={tag.name}
+                onSelect={() => handleSelectTag(tag.id)}
+                className="flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn("w-2 h-2 rounded-full border", tag.color.startsWith('#') ? "" : TAG_COLORS.find(c => c.name === tag.color)?.selector)}
+                    style={{ backgroundColor: tag.color.startsWith('#') ? tag.color : undefined }}
+                  />
+                  <span>{tag.name}</span>
+                </div>
+                {isSelected && <Check className="h-4 w-4 text-primary" />}
+              </CommandItem>
+            );
+          })}
+        </CommandGroup>
+      </CommandList>
+    </Command>
+  );
+
+  if (fullPage) {
+    return (
+      <div className="space-y-1.5">
+        {leadTags.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="p-3 rounded-xl bg-muted/40 mb-3">
+              <Hash className="h-6 w-6 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Nenhuma etiqueta ainda</p>
+            <p className="text-[11px] text-muted-foreground/50 mt-0.5">Adicione etiquetas para organizar e filtrar este lead</p>
+          </div>
+        ) : (
+          leadTags.map(tag => {
+            const styles = getTagColorStyles(tag.color);
+            let assignedLabel: string | null = null;
+            if (tag.assigned_at) {
+              try {
+                assignedLabel = formatDistanceToNow(new Date(tag.assigned_at), { addSuffix: true, locale: ptBR });
+              } catch { /* data inválida */ }
+            }
+            return (
+              <div
+                key={tag.id}
+                className={cn(
+                  "group flex items-center justify-between gap-2.5 rounded-lg border px-3 py-2 transition-colors",
+                  styles.className
+                )}
+                style={styles.style}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[12.5px] font-semibold truncate">{tag.name}</span>
+                  {assignedLabel && (
+                    <span className="text-[10.5px] font-medium opacity-60 shrink-0">
+                      • adicionada {assignedLabel}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => removeTagFromLead.mutate(tag.id)}
+                  className="p-1 rounded-md hover:bg-black/10 transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                  title="Remover etiqueta"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            );
+          })
+        )}
+
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full h-9 rounded-lg text-[12.5px] font-semibold gap-1.5 border-dashed border-border/60 hover:border-solid hover:bg-muted/40 mt-1"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nova Etiqueta
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="p-0 w-[280px]" align="start">
+            {commandContent}
+          </PopoverContent>
+        </Popover>
+      </div>
+    );
+  }
 
   // In compact mode, show only first tag (truncated) + overflow count
   const visibleTags = compact ? leadTags.slice(0, 1) : leadTags;

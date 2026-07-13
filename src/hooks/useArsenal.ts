@@ -23,6 +23,7 @@ export interface ArsenalFerramenta {
   slug: string;
   ordem: number;
   video_url: string | null;
+  diagrama_json: Record<string, unknown> | null;
   texto_aprenda: string | null;
   template_construa: string | null;
   ativo: boolean;

@@ -20,6 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
+import { PageHero } from "@/components/PageHero";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -118,33 +119,32 @@ export default function Vendas() {
   return (
     <div className="space-y-6 pb-10">
       {/* ═══ PAGE HEADER ═══ */}
-      <div className="flex flex-col gap-5" data-tutorial="vendas-header">
-        {/* Title row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">
-              Vendas
-            </h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5">
-              Acompanhe o faturamento e gerencie as vendas do período
-            </p>
-          </div>
-          <div className="flex items-center gap-2.5 flex-wrap" data-tutorial="vendas-filters">
-            <DateRangePicker
-              date={dateRange}
-              setDate={setDateRange}
-              className="[&>button]:h-9 [&>button]:text-xs [&>button]:rounded-lg"
-            />
-            <ExportVendasButton vendas={vendas} dateRange={dateRange} />
-            <Button
-              onClick={() => handleCloseModal(true)}
-              className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 shadow-none w-full sm:w-auto"
-              data-tutorial="vendas-new"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Registrar Venda
-            </Button>
-          </div>
+      <PageHero
+        dataTutorial="vendas-header"
+        icon={DollarSign}
+        title="Vendas"
+        subtitle="Acompanhe o faturamento e gerencie as vendas do período"
+        right={
+          <Button
+            onClick={() => handleCloseModal(true)}
+            className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 px-4 shadow-none"
+            data-tutorial="vendas-new"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Registrar Venda
+          </Button>
+        }
+      />
+
+      <div className="flex flex-col gap-5">
+        {/* Toolbar: filtros */}
+        <div className="flex items-center gap-2.5 flex-wrap" data-tutorial="vendas-filters">
+          <DateRangePicker
+            date={dateRange}
+            setDate={setDateRange}
+            className="[&>button]:h-9 [&>button]:text-xs [&>button]:rounded-lg"
+          />
+          <ExportVendasButton vendas={vendas} dateRange={dateRange} />
         </div>
 
         {/* Metrics row */}

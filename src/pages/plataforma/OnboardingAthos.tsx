@@ -589,7 +589,7 @@ export default function OnboardingAthos() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-[14px] font-bold text-foreground leading-none">Athos GS</p>
+              <p className="text-[14px] font-bold text-foreground leading-none">Athos</p>
               <span className="px-2 py-0.5 rounded-full bg-foreground/8 border border-border/50 text-[10px] font-semibold text-muted-foreground">
                 Inteligência Descompliquei
               </span>

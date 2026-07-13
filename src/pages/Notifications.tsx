@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { NotificationMessage } from "@/components/conversations/NotificationMessage";
+import { PageHero } from "@/components/PageHero";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -139,15 +140,11 @@ export default function Notifications() {
   return (
     <div className="space-y-6 pb-10 max-w-full overflow-hidden">
       {/* Page Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 rounded-lg bg-muted">
-            <Bell className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Notificações</h1>
-        </div>
-        <p className="text-[13px] text-muted-foreground ml-10">Alertas de atendimento e cadências</p>
-      </div>
+      <PageHero
+        icon={Bell}
+        title="Notificações"
+        subtitle="Alertas de atendimento e cadências"
+      />
 
       {/* Toolbar: Tabs + Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">

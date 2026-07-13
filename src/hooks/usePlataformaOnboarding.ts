@@ -44,7 +44,6 @@ export const PLATFORM_ONBOARDING_STEPS: PlataformaOnboardingStep[] = [
 
 // Páginas onde o modal NÃO bloqueia (usuário está configurando algo)
 export const PLATFORM_ONBOARDING_ALLOWED_PATHS = [
-  '/plataforma/trilha',
   '/plataforma/ia-comercial',
   '/plataforma/sessoes-taticas',
   '/plataforma/onboarding',

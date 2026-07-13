@@ -1165,23 +1165,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   },
 
   // ── MENSAGENS — Agendamento ───────────────────────────────────────────────────
-  {
-    type: "function",
-    function: {
-      name: "agendar_mensagem",
-      description: "Agenda uma mensagem WhatsApp para ser enviada em um horário futuro específico.",
-      parameters: {
-        type: "object",
-        properties: {
-          lead_id: { type: "string" },
-          mensagem: { type: "string" },
-          data_hora_envio: { type: "string" },
-        },
-        required: ["lead_id", "mensagem", "data_hora_envio"],
-      },
-    },
-  },
-
   // ── CADÊNCIAS — Cancelar de lead ────────────────────────────────────────────
   {
     type: "function",
@@ -2746,21 +2729,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         return JSON.stringify({ sucesso: true, mensagem: "Meta excluída." });
       }
 
-      case "agendar_mensagem": {
-        const { data: lead } = await supabase.from("leads").select("telefone").eq("id", input.lead_id).eq("organization_id", orgId).single();
-        if (!lead) return JSON.stringify({ error: "Lead não encontrado." });
-        const { data, error } = await supabase.from("scheduled_quick_messages").insert({
-          organization_id: orgId,
-          lead_id: input.lead_id,
-          mensagem_rapida_id: null,
-          conteudo_override: input.mensagem,
-          scheduled_for: input.data_hora_envio,
-          status: "pending",
-        }).select("id, scheduled_for, status").single();
-        if (error) return JSON.stringify({ error: error.message });
-        return JSON.stringify({ sucesso: true, mensagem_agendada: { ...data, scheduled_for: toHoraBRT(data?.scheduled_for) } });
-      }
-
       case "cancelar_cadencia_lead": {
         let q = supabase.from("lead_cadencias")
           .update({ status: "cancelado" })
@@ -3459,7 +3427,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- 'O que o lead falou?', 'conversa do lead', 'mensagens de X', 'analisa a conversa', 'o que foi conversado' → buscar_conversas_lead (precisa de lead_id — use obter_lead_completo antes se só tiver nome/telefone)",
     "- REGRA AUTOMÁTICA: se obter_lead_completo retornar aviso_mensagens não-nulo (mensagens_exibidas >= 30), chame IMEDIATAMENTE buscar_conversas_lead(lead_id, limite=100) antes de analisar qualquer coisa da conversa. Não mencione isso ao usuário — apenas execute.",
     "- 'Envia mensagem para X' → obter_lead_completo(nome/telefone) → enviar_mensagem(lead_id, mensagem)",
-    "- 'Agenda mensagem para X' → obter_lead_completo → agendar_mensagem",
     "",
     "### Consultas sobre MÉTRICAS e FUNIL",
     "- 'Como está o funil?', 'métricas', 'taxa de conversão', 'quantos MQLs?' → obter_metricas_funil",

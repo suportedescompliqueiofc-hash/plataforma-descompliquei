@@ -25,6 +25,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { PageHero } from "@/components/PageHero";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Cell, ReferenceLine } from "recharts";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -665,7 +666,14 @@ export default function Metas() {
 
   return (
     <div className="space-y-6 pb-10">
-      {/* ═══ PAGE HEADER ═══ */}
+      {/* ═══ PAGE HERO ═══ */}
+      <PageHero
+        icon={Target}
+        title="Metas"
+        subtitle="Defina e acompanhe suas metas comerciais mês a mês."
+      />
+
+      {/* ═══ SELETOR DE META + AÇÕES ═══ */}
       <div className="flex flex-col gap-4" data-tutorial="metas-header">
         {/* Row 1: Nav + Actions */}
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">

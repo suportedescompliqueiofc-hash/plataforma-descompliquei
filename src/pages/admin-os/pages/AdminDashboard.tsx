@@ -226,7 +226,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { icon: Users, label: 'Clientes Ativos', value: totalUsers, sub: `${comAtividade} ativos (7d)`, subColor: 'text-emerald-600 bg-emerald-500/10 border-emerald-500/20' },
-          { icon: BookOpen, label: 'Progresso Médio', value: `${progressAvg}%`, bar: progressAvg, sub: 'Média da Trilha de Aprendizado', subColor: '' },
+          { icon: BookOpen, label: 'Progresso Médio', value: `${progressAvg}%`, bar: progressAvg, sub: 'Conclusão média dos clientes', subColor: '' },
           { icon: Bot, label: 'IAs Usadas Hoje', value: iaToday, sub: 'consultas realizadas hoje', subColor: '' },
           { icon: BrainCircuit, label: 'Cérebros Config.', value: cerebrosConfig, sub: `de ${totalUsers} clientes (${totalUsers > 0 ? Math.round((cerebrosConfig / totalUsers) * 100) : 0}%)`, subColor: '' },
         ].map((m, i) => (

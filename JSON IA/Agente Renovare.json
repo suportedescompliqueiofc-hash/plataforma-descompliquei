@@ -1,0 +1,466 @@
+{
+  "clinicName": "Clínica Renovare ",
+  "responsibleName": "Dra.Marcelly Trigoli ",
+  "email": "admin.renovare@gmail.com",
+  "phone": "(__) _____-____",
+  "website": "",
+  "instagram": "@dra.marcellytrigoli",
+  "fullAddress": "Rua Professora Venina Corrêa Torres, n 230 - sala 508 \nLocalizada no antigo prédio da Unimed ",
+  "city": "Nova Iguaçu",
+  "state": "RJ",
+  "marketTime": "3-5",
+  "mission": "Cuidar de cada paciente de forma única, valorizando sua beleza natural e respeitando sua essência.\nNosso propósito vai além da estética: queremos elevar a autoestima, promover bem-estar e proporcionar confiança em cada sorriso e em cada olhar.\nAcreditamos que pequenos detalhes fazem grandes transformações — sempre com segurança, ética e um olhar humanizado.\nAqui, você não é apenas um paciente… é alguém especial que merece se sentir bem consigo mesmo todos os dias.",
+  "vision": "Ser referência em harmonização facial e estética avançada, reconhecida não apenas pelos resultados, mas pelo cuidado, confiança e experiência que proporcionamos a cada paciente.\nBuscamos transformar vidas através da autoestima, elevando o padrão de atendimento com excelência, inovação e um olhar sempre humano.\nQueremos ser lembrados como um espaço onde beleza, segurança e acolhimento caminham juntos — e onde cada paciente se sente único, valorizado e confiante.",
+  "values": [
+    "Acolhimento e humanização Cada paciente é único. Valorizamos a escuta, o cuidado e o respeito em cada atendimento.",
+    "Beleza natural Realçamos a essência de cada pessoa, buscando resultados harmônicos e sutis.",
+    "Segurança em primeiro lugar Trabalhamos com responsabilidade, técnica e produtos de alta qualidade, priorizando sempre a saúde do paciente.",
+    "Excelência e atualização constante Estamos sempre em evolução, buscando conhecimento e inovação para oferecer o melhor."
+  ],
+  "differentials": "- Método exclusivo com foco em naturalidade (Triglow)\n- Planejamento facial completo e estratégico\n- Experiência premium e atendimento humanizado",
+  "targetAudience": [
+    "women-20-30",
+    "women-30-40",
+    "women-40-50"
+  ],
+  "detailedDescription": "Na nossa clínica, cada detalhe foi pensado para proporcionar conforto, exclusividade e bem-estar. Contamos com uma recepcionista extremamente simpática e preparada para te acolher desde o primeiro contato.\n\nNosso ambiente é limpo, elegante e acolhedor, com um café especial que torna sua experiência ainda mais agradável. Trabalhamos com atendimentos pontuais, respeitando seu tempo e garantindo mais comodidade.\n\nAlém disso, oferecemos um espaço instagramável para registrar sua transformação, com poltronas sofisticadas e extremamente confortáveis.\n\nE, claro, contamos com uma equipe de especialistas altamente qualificados em diversas áreas da odontologia, como harmonização orofacial, estética dental, ortodontia, implantodontia, endodontia, periodontia, prótese dentária, odontopediatria e clínica geral — sempre prontos para entregar resultados com excelência, segurança e naturalidade.",
+  "professionals": [
+    {
+      "id": "i0728jkta",
+      "bio": "O que realmente diferencia a Dra. Vilma em endodontia é o olhar humano. É entender que, muitas vezes, o paciente chega com medo, ansiedade ou dor — e saber acolher, explicar cada etapa e transmitir confiança faz toda a diferença. Ela sempre teve esse diferencial ",
+      "name": "Dra.Vilma ",
+      "photo": "",
+      "education": "Cirurgiã-Dentista ",
+      "specialty": "Endodontia ",
+      "experience": 7,
+      "socialMedia": "",
+      "certifications": "Capacitação em Endodontia \nEspecialização em Endodontia "
+    },
+    {
+      "id": "5hc3qkn9g",
+      "bio": "A Dra. Fayla escolheu a odontopediatria por amor ao cuidado e à delicadeza que esse universo exige. Com um olhar atento e carinhoso, ela entende que cada criança é única, respeitando seu tempo, suas emoções e tornando cada atendimento acolhedor e tranquilo.\n\n",
+      "name": "Dra.Fayla ",
+      "photo": "",
+      "education": "Cirurgiã-Dentista ",
+      "specialty": "Odontopediatria ",
+      "experience": 7,
+      "socialMedia": "@drafaylanog",
+      "certifications": "Capacitação em Odontopediatria \nPós graduação em odontologia legal \nCapacitação em PNE\nPós graduação em Odontopediatria "
+    },
+    {
+      "id": "ehryfttli",
+      "bio": "Com um olhar técnico apurado e ao mesmo tempo humano, ele entende que cada paciente carrega uma história — muitas vezes marcada por inseguranças ou limitações ao sorrir e se alimentar. Por isso, seu atendimento vai além do procedimento: é sobre acolher, explicar, tranquilizar e cuidar.",
+      "name": "Dr.Leonardo ",
+      "photo": "",
+      "education": "Cirurgião-Dentista e Professor Universitário ",
+      "specialty": "Implantodontista ",
+      "experience": 10,
+      "socialMedia": "",
+      "certifications": "Professor de Física \nPós graduação em implantodontista \nPós graduação em bucomaxilo facial "
+    },
+    {
+      "id": "ofyhulflb",
+      "bio": "Com anos de estudo, prática e constante aperfeiçoamento, desenvolveu o seu próprio protocolo exclusivo: o Método Triglow — uma abordagem estratégica que une técnica, proporção e naturalidade para resultados sofisticados e equilibrados.Seu diferencial está no olhar clínico detalhado e no planejamento",
+      "name": "Dra.Marcelly Trigoli ",
+      "photo": "",
+      "education": "Cirurgiã-Dentista ",
+      "specialty": "Harmonização Orofacial ",
+      "experience": 5,
+      "socialMedia": "@dramarcellytrigoli",
+      "certifications": "Capacitação em HOF\nCapacitação em preenchimento labial \nCapacitação em Fios de PDO\nAtualização em odontologia em meio a pandemia \nAtualização em saúde pública \nAtualização em odontologia hospitalar \n"
+    },
+    {
+      "id": "xgwd4m4e8",
+      "bio": "",
+      "name": "Dr.Fabio ",
+      "photo": "",
+      "education": "Cirurgião-Dentista ",
+      "specialty": "Ortodontia ",
+      "experience": 10,
+      "socialMedia": "",
+      "certifications": "Pós graduação em ortodontia \n"
+    }
+  ],
+  "procedures": [
+    {
+      "id": "n415sqar6",
+      "name": "Preenchimento com ácido hialurônico ",
+      "benefits": "O principal benefício do preenchimento é entregar o rejuvenescimento trazendo volume, melhora o contorno e suaviza marcas, sempre mantendo naturalidade. Além disso, a pele fica mais hidratada e com aspecto mais jovem.\n",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O preenchimento com ácido hialurônico é um procedimento que usamos para devolver volume, melhorar o contorno e suavizar marcas do rosto. É uma substância que já existe no nosso corpo, então é segura, e os resultados ficam naturais. Com o tempo, o organismo absorve, então não é definitivo.",
+      "indications": "- Apresentam perda de volume no rosto (comum com o envelhecimento)\n\t• Têm linhas ou sulcos marcados, como o bigode chinês\n\t• Desejam realçar ou definir contornos faciais (lábios, mandíbula, queixo, malar)\n\t•\tBuscam harmonização facial sem cirurgia\n\t•\t Querem melhorar a simetria do rosto\n\t-  Sentem que o rosto está com aspecto cansado ou envelhecido\n\t• Desejam hidratação profunda da pele ",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Olá, seja bem-vinda 🤎\nAqui é da equipe da Dra. Marcelly Trigoli.\n\nMe conta, você tem interesse em preenchimento em qual região? lábios, olheira, bigode chinês, contorno facial, ou melhor rejuvenescer por completo?\n\n\nPerfeito 😍\nE o que mais te incomoda nessa região hoje?\nAssim consigo te orientar da melhor forma possível \n\n\nO ácido hialurônico é uma substância que já existe no nosso corpo, então é seguro e biocompatível. \n\n\nO mais importante pra gente não é mudar seu rosto, e sim valorizar sua beleza 🤎\n\nA ideia é você se olhar no espelho e se sentir mais confiante, sem ninguém perceber exatamente o que foi feito ✨\n\n\nSe sua dúvida for medo de ficar artificial, pode ficar tranquila 💕\n\nA Dra. preza MUITO por naturalidade e segurança. Tudo é feito com planejamento, nada exagerado.\n\n\nO valor varia porque depende da quantidade e da região que vamos tratar ☺️\n\nPor isso a avaliação é tão importante, pra indicar exatamente o que você precisa — sem exageros e com resultado bonito.\n\n\n\nVamos agendar sua avaliação? 💉✨\n\nNesse dia a Dra. te avalia com calma, monta seu planejamento e já te orienta sobre tudo certinho.\n\nQual dia fica melhor pra você? 😊\n\n\n\n",
+      "contraindications": "",
+      "specificQuestions": [
+        "Você sente que o tempo passou e não se cuidou como deveria?",
+        "Cuidou por anos do marido e dos filhos e esqueceu de você né? ",
+        "Há quanto tempo tem desejo de realizar o preenchimento e não faz por medo?",
+        "Vê as mulheres com peles jovens e nunca soube o que elas faziam ?",
+        "Você precisar agarrar essa oportunidade e pensar um pouco em você "
+      ],
+      "specificObjections": [
+        {
+          "id": "ajlhz55tr",
+          "response": "Eu super entendo esse medo 🤎\nIsso é muito comum, principalmente por causa de alguns resultados exagerados que a gente vê por aí.\nMas o que deixa a boca artificial não é o ácido hialurônico em si…\né o excesso de produto ou falta de planejamento.\n\n\nAqui o foco é totalmente em naturalidade \n\nA gente respeita o formato da sua boca, suas proporções e faz algo equilibrado com o seu rosto.\n\nA ideia é que as pessoas percebam que você está mais bonita…\nnão que você fez preenchimento 🫦\n",
+          "objection": "Ficar com a boca muito grande "
+        },
+        {
+          "id": "k7nlsv8de",
+          "response": "Fica tranquila quanto a isso 🤎\n\nUsamos anestésico, e o procedimento é bem tolerável.\n\nA maioria das pacientes fala que é muito mais tranquilo do que imaginava 😊",
+          "objection": "Medo da dor "
+        },
+        {
+          "id": "pnl1ckt4j",
+          "response": "Eu entendo você 🤎\n\nMas nesse tipo de procedimento, é muito importante prezar por segurança, técnica e qualidade do produto.\n\nAqui a gente não trabalha com exageros, e sim com resultado bem feito e natural ",
+          "objection": "Tá caro "
+        },
+        {
+          "id": "v2a9hafv2",
+          "response": "Claro, é importante se sentir segura 🤎\n\nSó não deixa pra depois algo que pode te fazer se sentir ainda melhor com você mesma ✨\n\nSe precisar, estou aqui pra te ajudar 😊",
+          "objection": "Vou pensar "
+        },
+        {
+          "id": "izr0ppyma",
+          "response": "É super válido pensar nisso 🤎\n\nPor isso é essencial fazer com uma profissional capacitada.\n\nO ácido hialurônico é seguro, biocompatível e ainda temos formas de reverter, se necessário.\n\nAqui tudo é feito com muita responsabilidade e cuidado ✨",
+          "objection": "Medo de dar errado igual vejo na tv "
+        },
+        {
+          "id": "esfe661vm",
+          "response": "Eu entendo 🤎\n\nMas quando você decidir, vou estar aqui pra te atender com todo cuidado ✨\n\nE se quiser, posso te avisar quando tiver uma agenda mais tranquila ou condição especial 😊",
+          "objection": "Agora não posso "
+        },
+        {
+          "id": "q9fj203nj",
+          "response": "Super entendo 🤎\n\nMas aqui o resultado é bem natural, nada exagerado.\n\nMuitas pacientes fazem e ninguém nem percebe, só comentam que estão mais bonitas",
+          "objection": "Meu marido reclama se ficar diferente "
+        }
+      ]
+    },
+    {
+      "id": "sci8a2hun",
+      "name": "Botox ",
+      "benefits": "    •   Suaviza linhas de expressão\n\t•\tPrevine o envelhecimento\n\t•\tDeixa o rosto mais leve e descansado\n\t•\tMantém a naturalidade\n\t•\tMelhora a autoestima\n\t•\tResultado rápido e sem cirurgia\n",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "Botox é perfeito para quem quer se olhar no espelho e ver um rosto mais leve, descansado e sem aquelas marquinhas que incomodam 🤎\n\nE o melhor: tudo de forma natural sem fiar artificial. ",
+      "indications": "O Botox é indicado pra suavizar linhas de expressão e também prevenir que elas fiquem mais marcadas com o tempo.\n\nEle é ideal tanto pra quem já tem rugas quanto pra quem quer manter a pele mais leve e jovem por mais tempo.",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Olá, seja bem-vinda 🤎\nAqui é da equipe da Dra. Marcelly Trigoli.\n\nMe conta, você está pensando em Botox para qual região? Testa, pé de galinha, glabela, ou rejuvenescer por completo?\n\n\nPerfeito 😍\nE o que mais te incomoda nessa região hoje?\nAssim consigo te orientar da melhor forma possível \n\n\nO ácido hialurônico é uma substância que já existe no nosso corpo, então é seguro e biocompatível. \n\n\nO mais importante pra gente não é mudar seu rosto, e sim valorizar sua beleza 🤎\n\nA ideia é você se olhar no espelho e se sentir mais confiante, sem ninguém perceber exatamente o que foi feito ✨\n\n\nSe sua dúvida for medo de ficar artificial, pode ficar tranquila 💕\n\nA Dra. preza MUITO por naturalidade e segurança. Tudo é feito com planejamento, nada exagerado.\n\n\nO valor varia porque depende da quantidade e da região que vamos tratar ☺️\n\nPor isso a avaliação é tão importante, pra indicar exatamente o que você precisa — sem exageros e com resultado bonito.\n\n\n\nVamos agendar sua avaliação? 💉✨\n\nNesse dia a Dra. te avalia com calma, monta seu planejamento e já te orienta sobre tudo certinho.\n\nQual dia fica melhor pra você? 😊\n\n",
+      "contraindications": "",
+      "specificQuestions": [
+        "Meu rosto tem muita marca ",
+        "Tenho mais de 40 anos ",
+        "Meu sonho é fazer botox ",
+        "Me sinto feia ao olhar no espelho ",
+        "Meu rosto derreteu ",
+        "Quero cuidar da pele "
+      ],
+      "specificObjections": [
+        {
+          "id": "lu4v0kw53",
+          "response": "Pode ficar tranquila 🤎\n\nHoje a técnica é feita pra suavizar, não pra congelar.\n\nVocê continua com expressão, só que mais leve ✨",
+          "objection": "Vou ficar com o rosto travado ?"
+        },
+        {
+          "id": "xt7d1s8s9",
+          "response": "Super comum esse medo 🤎\n\nMas o Botox bem aplicado fica natural.\n\nAs pessoas percebem que você está mais bonita, não que fez procedimento ✨",
+          "objection": "Tenho medo de ficar artificial"
+        },
+        {
+          "id": "u2zxyh4jh",
+          "response": "É bem tranquilo 😊\n\nSão aplicações rápidas e com desconforto mínimo.\n\nA maioria das pacientes acha mais fácil do que imaginava 💖",
+          "objection": "Dói ?"
+        },
+        {
+          "id": "0dyyhim5g",
+          "response": "Em média de 3 a 6 meses 😊\n\nDepois disso, o efeito vai saindo aos poucos, de forma natural ",
+          "objection": "Quanto tempo dura?"
+        },
+        {
+          "id": "pmdx9o60j",
+          "response": "O valor depende da quantidade de unidades que você precisa 💖\n\nPor isso a avaliação é importante, pra fazer algo personalizado e sem exageros ✨",
+          "objection": "É caro?"
+        },
+        {
+          "id": "vg3u2akua",
+          "response": "É super válido pensar nisso 💕\n\nPor isso é importante fazer com uma profissional capacitada.\n\nAqui tudo é feito com técnica, planejamento e segurança",
+          "objection": "Tenho medo de dar errado "
+        }
+      ]
+    },
+    {
+      "id": "ge4z98exe",
+      "name": "Clareamento dentário ",
+      "benefits": "    •   Dentes mais brancos\n\t•\tSorriso mais bonito e iluminado\n\t•\tMelhora da autoestima\n\t•\tProcedimento seguro quando bem indicado",
+      "category": "outros",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O clareamento dentário é um procedimento que tem como objetivo deixar os dentes mais claros e com aspecto mais branco, de forma segura e controlada.\n\nEle é feito com um gel específico que age nos pigmentos escuros dos dentes, sem desgastar a estrutura dental.\n",
+      "indications": "Dentes amarelados ou escurecidos\n\t•\tManchas causadas por café, vinho, cigarro ou alimentos\n\t•\tQuem deseja um sorriso mais bonito e harmônico\n\t•\tPacientes que buscam melhorar a estética do sorriso\n\t•\tQuem vai realizar eventos (casamento, fotos, etc.)",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Olá, seja bem vindo\nAqui é da equipe da Dra. Marcelly Trigoli \n\nVocê te interesse em deixar seu sorriso mais branco ?\n\n\nPerfeito ☺️\nO que mais te incomoda hoje: cor amarelada, manchas ou quer só deixar mais branco mesmo?\n\n\n\n\n\n\n",
+      "contraindications": "",
+      "specificQuestions": [
+        "Meus dentes são muito amarelos ",
+        "Tenho muitas manchas ",
+        "Preciso clarear meus dentes ",
+        ""
+      ],
+      "specificObjections": [
+        {
+          "id": "i6uvrk31q",
+          "response": "É normal ter esse medo, pode até acontecer uma sensibilidade leve e temporária, mas usamos técnicas e produtos que minimizam isso.",
+          "objection": "Fica muito sensível?"
+        }
+      ]
+    },
+    {
+      "id": "v437dg4zw",
+      "name": "Canal",
+      "benefits": "Tirar a dor ",
+      "category": "outros",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O tratamento de canal é um procedimento feito para remover a infecção ou inflamação dentro do dente, aliviando a dor e preservando o dente.",
+      "indications": "    • Sentem dor de dente intensa ou latejante\n\t•\tTêm cárie profunda\n\t•\tApresentam infecção ou inflamação no dente\n\t•\tTiveram trauma (batida) no dente\n\t•\tSentem dor ao mastigar ou sensibilidade forte",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Olá, seja bem vindo\nAqui é da equipe da Dra. Marcelly Trigoli \n\nVocê tem sentido dores constantes?\n\n\nPerfeito ☺️\nPrecisamos resolver sua dor o mais rápido possível  \n\nPodemos agendar sua consulta com nosso endodontista?\n\n\n\n\n\n",
+      "contraindications": "",
+      "specificQuestions": [],
+      "specificObjections": []
+    }
+  ],
+  "pricingApproach": "approximate",
+  "pricingJustification": "Na nossa clínica, os valores dos procedimentos de Harmonização Orofacial não são baseados apenas no produto utilizado, mas sim em um conjunto de fatores que garantem segurança, naturalidade e excelência no resultado.",
+  "procedurePricing": [
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "n415sqar6",
+      "priceFactors": "Quantidade de 1ML, indicação para estruturação da face entre outros..",
+      "paymentMethods": [
+        "pix",
+        "credit",
+        "debit",
+        "cash"
+      ],
+      "investmentRange": "1000_2000",
+      "promotionalDetails": "Para paciente modelo apenas o custo do produto ",
+      "installmentAvailable": true,
+      "installmentConditions": "Até 10x com juros ",
+      "hasPromotionalPackages": true
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "sci8a2hun",
+      "priceFactors": "Quantidade de pontos e quantidade de regiões ",
+      "paymentMethods": [
+        "cash",
+        "pix",
+        "credit",
+        "debit"
+      ],
+      "investmentRange": "1000_2000",
+      "promotionalDetails": "Paciente modelo apenas custo do produto ",
+      "installmentAvailable": true,
+      "installmentConditions": "Até 10x com juros ",
+      "hasPromotionalPackages": true
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "ge4z98exe",
+      "priceFactors": "Quantidade de sessões ",
+      "paymentMethods": [
+        "pix",
+        "cash",
+        "credit",
+        "debit"
+      ],
+      "investmentRange": "1000_2000",
+      "promotionalDetails": "3 sessões por 1.200,00",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": true
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "v437dg4zw",
+      "priceFactors": "Pino, bloco ou coroa ou dentes posteriores e anteriores ",
+      "paymentMethods": [
+        "cash",
+        "pix",
+        "credit",
+        "debit"
+      ],
+      "investmentRange": "500_1000",
+      "promotionalDetails": "",
+      "installmentAvailable": true,
+      "installmentConditions": "Até 5 x sem juros ",
+      "hasPromotionalPackages": false
+    }
+  ],
+  "idealLeadProfile": "Mulheres 20 à 50 anos, que são vaidosas, gostam de frequentar bares e andam maquiadas, que estejam dispostas a gastar com a estética, mulheres com e 50 anos que são elegantes, homens com dor de dente, mulheres com dor de dente, homens com dentes amarelo, mulheres com dentes amarelos, crianças com PNE, crianças apartir de 2 anos ",
+  "qualificationQuestions": [],
+  "disqualificationCriteria": "Gestantes, fumantes, que só querem saber preço e vão embora ",
+  "outOfProfileHandling": "suggest_alternative",
+  "minInfoToQualify": [],
+  "weekdayOpen": "08:00",
+  "weekdayClose": "18:00",
+  "saturdayOpen": "08:00",
+  "saturdayClose": "13:00",
+  "saturdayClosed": false,
+  "sundayOpen": "",
+  "sundayClose": "",
+  "sundayClosed": true,
+  "holidayPolicy": "closed",
+  "evaluationDuration": "60",
+  "minAdvanceEvaluation": "1_day",
+  "preferredEvaluationTimes": [],
+  "evaluationPolicy": "",
+  "schedulingInfoRequired": [],
+  "evaluationCancellationPolicy": "",
+  "welcomeMessage": "Olá! Seja muito bem-vindo(a) 🤍✨\nVocê acaba de dar o primeiro passo para realçar ainda mais a sua beleza!\n\nAqui é a equipe da Dra. Marcelly Trigoli, especialista em harmonização facial e odontologia integrada.\n\nMe conta: o que você gostaria de melhorar hoje? Tenho certeza que podemos criar um resultado incrível para você 😍",
+  "needsIdentificationScript": "",
+  "clinicPresentationScript": "",
+  "procedureEducationScript": "",
+  "evaluationSchedulingScript": "",
+  "escalationTriggers": [
+    "technical_doubt",
+    "specific_pricing",
+    "negative_sentiment",
+    "human_request"
+  ],
+  "escalationMessageLimit": 3,
+  "escalationOther": "",
+  "customerJourneyDescription": "",
+  "hasMandatoryEvaluation": true,
+  "evaluationCostDetails": "Para harmonização a avaliação custa 100,00\nPara parte dentária zero custo \nPara a avaliação custa 90,00 ",
+  "evaluationProcessFlow": "Para te indicar o melhor tratamento e garantir um resultado qualificado, é essencial uma avaliação presencial 🤍\n\nCada caso é único — analisamos proporções, estrutura e suas queixas com precisão, para montar um plano totalmente personalizado para você.\n\nAssim, conseguimos te orientar com segurança, evitar excessos e alcançar um resultado harmônico e sofisticado ✨\n\nQuer agendar sua avaliação? Vai ser um prazer te receber!",
+  "proceduresRequiringEvaluation": [
+    "ge4z98exe",
+    "sci8a2hun",
+    "v437dg4zw",
+    "n415sqar6"
+  ],
+  "proceduresAllowingDirectBooking": [],
+  "communicationTone": "friendly",
+  "formalityLevel": 3,
+  "emojiUsage": "",
+  "customerTreatment": "formal",
+  "personalities": [
+    "caring",
+    "consultive",
+    "empathetic",
+    "technical"
+  ],
+  "wordsToAvoid": [
+    "Baratinho",
+    "Promoçãozinha",
+    "Só hoje",
+    "É simples, rapidinho",
+    "Qualquer coisa agnt faz",
+    "Acho que dá certo",
+    "Talvez funcione",
+    "Vamos tentar",
+    "Mais ou menos isso",
+    "Amiga",
+    "Lindaaaa",
+    "Miga",
+    "Ooie",
+    "Custa x de cara",
+    "É esse valor mesmo"
+  ],
+  "preferredWords": [
+    "Condição especial",
+    "Investimento",
+    "Protocolo personalizado",
+    "Procedimento seguro e planejado",
+    "O mais indicado para o seu caso é…",
+    "Com base na avaliação..",
+    "Esse protocolo entrega excelente resultados",
+    "Olá, tudo bem?",
+    "Seja bem-vinda"
+  ],
+  "faqs": [
+    {
+      "id": "1775692551015",
+      "answer": "O desconforto é mínimo. Utilizamos anestésico local e técnicas que tornam o procedimento bem tranquilo. A maioria dos pacientes relata sentir apenas leve incômodo.",
+      "category": "procedures",
+      "priority": "high",
+      "question": "Dói muito?"
+    },
+    {
+      "id": "1775692918053",
+      "answer": "Depende da região e do produto utilizado, mas em média dura de 12 a 18 meses. Com o tempo, o organismo absorve o produto de forma natural.",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "Quanto tempo dura?"
+    },
+    {
+      "id": "1775692957960",
+      "answer": "O valor depende do que será feito. Mas sempre priorizamos um planejamento individualizado, focado no que realmente vai trazer resultado para você.\n",
+      "category": "pricing",
+      "priority": "medium",
+      "question": "Qual valor do investimento?"
+    },
+    {
+      "id": "1775692996948",
+      "answer": "Melhora da autoestima, valorização da beleza natural e um aspecto mais descansado e harmonioso.",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "Qual o principal benefício?"
+    },
+    {
+      "id": "1775693066820",
+      "answer": "Quando feito sem técnica ou por profissionais não qualificados, sim. Por isso é fundamental escolher um profissional experiente, que conheça bem a anatomia facial.",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "Pode dar errado?"
+    },
+    {
+      "id": "1775693086948",
+      "answer": "Pode haver um leve inchaço ou pequeno roxo, que são efeitos normais e temporários. Geralmente desaparecem em poucos dias.",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "Fica inchado ou roxo ?"
+    }
+  ],
+  "technicalInfo": "Nem sempre o que te incomoda no espelho é exatamente o que precisa ser tratado.\nE é por isso que nem todo resultado fica natural.\nA harmonização facial não é sobre preencher um ponto isolado.\nÉ sobre entender o seu rosto como um todo — suas proporções, sua expressão, sua identidade.\nAqui, cada paciente é avaliado de forma individual.\nNada é feito por impulso, nada é feito em excesso.\nAntes de qualquer procedimento, existe um olhar clínico e estético que busca equilíbrio, leveza e naturalidade.\nPorque o objetivo não é mudar quem você é…\né fazer você se reconhecer ainda mais bonita.\nMuitas vezes, o que você acha que precisa, na verdade, não é o que vai te trazer o melhor resultado.\nE ter alguém que te diga isso com segurança faz toda a diferença.\nEu não trabalho com exageros.\nNão sigo padrões prontos.\nE não faço mais do que o necessário.\nCada decisão é pensada para valorizar o seu rosto, respeitando seus traços e o seu tempo.\nPorque, no final, não se trata apenas de estética.\nSe trata de confiança.\nE quando você sente que está nas mãos certas…\nvocê simplesmente sabe.",
+  "internalProtocols": "Não passar orçamento sem avaliação prévia \nMenores de idade apenas com responsável \nAgendamento com hora marcada mediante a agenda \nAvaliação infantil somente pagando o valor determinado \nAvaliação de HOF apenas mediante a agenda da Dra Marcelly Trigoli \n",
+  "specialCases": [
+    {
+      "id": "1775693597758",
+      "procedure": "Só um momento que irei passar para alguém que possa está lhe ajudando da melhor forma ",
+      "situation": "Você não sabe responder o que pergunto "
+    }
+  ],
+  "agentSchedule": "clinic_hours",
+  "customAgentScheduleStart": "09:00",
+  "customAgentScheduleEnd": "18:00",
+  "offHoursMessage": "",
+  "contactAttemptLimit": 3,
+  "escalationSituations": [],
+  "escalationMessageCount": 5,
+  "notificationTriggers": [],
+  "supportedLanguages": [
+    "portuguese"
+  ],
+  "additionalNotes": "",
+  "agentPriorities": "",
+  "termsAccepted": false
+}

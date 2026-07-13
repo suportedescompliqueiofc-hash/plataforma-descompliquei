@@ -11,6 +11,8 @@ export interface Tag {
   color: string;
   organization_id: string;
   label_lid?: string | null;
+  /** Preenchido apenas quando a tag vem de useLeadTags (data em que foi associada a este lead) */
+  assigned_at?: string | null;
 }
 
 export const TAG_COLORS = [
@@ -189,6 +191,7 @@ export function useLeadTags(leadId: string | undefined) {
         .from('leads_tags')
         .select(`
           tag_id,
+          assigned_at,
           tags (
             id,
             name,
@@ -196,11 +199,12 @@ export function useLeadTags(leadId: string | undefined) {
             label_lid
           )
         `)
-        .eq('lead_id', leadId);
+        .eq('lead_id', leadId)
+        .order('assigned_at', { ascending: true });
 
       if (error) throw error;
-      
-      return data.map((item: any) => item.tags) as Tag[];
+
+      return data.map((item: any) => ({ ...item.tags, assigned_at: item.assigned_at })) as Tag[];
     },
     enabled: !!leadId
   });

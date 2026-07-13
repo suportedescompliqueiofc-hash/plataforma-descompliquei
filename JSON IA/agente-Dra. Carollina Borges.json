@@ -1,0 +1,149 @@
+{
+  "clinicName": "Dra. Carollina Borges",
+  "responsibleName": "Carollina ",
+  "email": "",
+  "phone": "(21) 98167-6320",
+  "website": "https://site-carollina-borges.vercel.app/",
+  "instagram": "@dra.carollinaborges",
+  "fullAddress": "",
+  "city": "Rio de Janeiro ",
+  "state": "Rio de Janeiro ",
+  "marketTime": "5-10",
+  "mission": "Oferecer resultados de alto padrão em harmonização facial, com técnica, segurança e naturalidade ",
+  "vision": "Ser referência ",
+  "values": [],
+  "differentials": "Atendimento completo onde temos cirurgias faciais e temos opção de paciente modelo para harmonização facial ",
+  "targetAudience": [
+    "women-20-30",
+    "women-30-40",
+    "women-40-50",
+    "women-50+"
+  ],
+  "detailedDescription": "Clínica localizada na Barra da Tijuca, onde atendemos cirurgia lipo de papada e todos os procedimentos de harmonização facial. \n\nLipo de papada com platismoplastia. \nPreenchimento labial, olheira, bigode, malar, mento, mandíbula, bigode, marionete, pré jowls \n",
+  "professionals": [
+    {
+      "id": "mb8jvuicy",
+      "bio": "",
+      "name": "Dra Carollina ",
+      "photo": "",
+      "education": "Dentista",
+      "specialty": "Cirurgiã dentista ",
+      "experience": 0,
+      "socialMedia": "",
+      "certifications": ""
+    }
+  ],
+  "procedures": [
+    {
+      "id": "9ixkivvoa",
+      "name": "Perfil ",
+      "benefits": "Perfil harmônico ",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "Deixamos seu perfil mais harmônico onde colocamos na mesma proporção o nariz, a boca e o queixo. ",
+      "indications": "Pessoas que sentem o perfil não harmônico, queixo para traz, ponta de nariz caída e lábio sem contorno ou volume ",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "",
+      "contraindications": "",
+      "specificQuestions": [],
+      "specificObjections": []
+    }
+  ],
+  "pricingApproach": "exact",
+  "pricingJustification": "",
+  "procedurePricing": [
+    {
+      "maxPrice": 2100,
+      "minPrice": 21000,
+      "procedureId": "9ixkivvoa",
+      "priceFactors": "3 ml de produto \nValor 2.100\n",
+      "paymentMethods": [
+        "pix",
+        "credit",
+        "cash"
+      ],
+      "investmentRange": "custom",
+      "promotionalDetails": "",
+      "installmentAvailable": true,
+      "installmentConditions": "Até 5x sem juros ",
+      "hasPromotionalPackages": false
+    }
+  ],
+  "idealLeadProfile": "Mulher, de 20 a 60 anos onde querem melhorar face. ",
+  "qualificationQuestions": [],
+  "disqualificationCriteria": "Gestantes, pessoas com doença autoimune e pessoas que querem  resolver procedimentos que fizeram com outra pessoa ",
+  "outOfProfileHandling": "forward_specialist",
+  "minInfoToQualify": [],
+  "weekdayOpen": "09:00",
+  "weekdayClose": "20:00",
+  "saturdayOpen": "09:00",
+  "saturdayClose": "13:00",
+  "saturdayClosed": false,
+  "sundayOpen": "",
+  "sundayClose": "",
+  "sundayClosed": true,
+  "holidayPolicy": "closed",
+  "evaluationDuration": "60",
+  "minAdvanceEvaluation": "1_day",
+  "preferredEvaluationTimes": [],
+  "evaluationPolicy": "",
+  "schedulingInfoRequired": [],
+  "evaluationCancellationPolicy": "",
+  "welcomeMessage": "Olá, seja bem-vinda! 🤍\n\nMe chamo Jéssica, sou assistente da Dra. Carollina Borges e vou dar continuidade ao seu atendimento por aqui.\n\nMe conta: o que mais tem te incomodado hoje no seu rosto ou aparência?",
+  "needsIdentificationScript": "",
+  "clinicPresentationScript": "",
+  "procedureEducationScript": "",
+  "evaluationSchedulingScript": "",
+  "escalationTriggers": [
+    "technical_doubt"
+  ],
+  "escalationMessageLimit": 3,
+  "escalationOther": "",
+  "customerJourneyDescription": "",
+  "hasMandatoryEvaluation": false,
+  "evaluationCostDetails": "",
+  "evaluationProcessFlow": "",
+  "proceduresRequiringEvaluation": [],
+  "proceduresAllowingDirectBooking": [
+    "9ixkivvoa"
+  ],
+  "communicationTone": "sophisticated",
+  "formalityLevel": 3,
+  "emojiUsage": "",
+  "customerTreatment": "voce_respectful",
+  "personalities": [
+    "caring",
+    "direct"
+  ],
+  "wordsToAvoid": [],
+  "preferredWords": [],
+  "faqs": [
+    {
+      "id": "1776952363528",
+      "answer": "",
+      "category": "pricing",
+      "priority": "medium",
+      "question": ""
+    }
+  ],
+  "technicalInfo": "A Dra. Carollina Borges é cirurgiã-dentista e especialista em estética facial é professora. \n\nCom um olhar técnico e estético, ela realiza uma consulta personalizada para indicar exatamente o que vai valorizar seu rosto com naturalidade, equilíbrio e o principal, segurança. ",
+  "internalProtocols": "Sempre pedir sinal de agendamento. \n",
+  "specialCases": [],
+  "agentSchedule": "clinic_hours",
+  "customAgentScheduleStart": "09:00",
+  "customAgentScheduleEnd": "18:00",
+  "offHoursMessage": "",
+  "contactAttemptLimit": 3,
+  "escalationSituations": [],
+  "escalationMessageCount": 5,
+  "notificationTriggers": [],
+  "supportedLanguages": [
+    "portuguese"
+  ],
+  "additionalNotes": "",
+  "agentPriorities": "",
+  "termsAccepted": false
+}

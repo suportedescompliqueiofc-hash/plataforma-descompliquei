@@ -28,3 +28,6 @@ dist-ssr
 # Windows reserved device names (created by accident)
 nul
 
+# Empresa — pastas privadas (nunca versionar dados sensíveis internos)
+empresa/**/_privado/
+

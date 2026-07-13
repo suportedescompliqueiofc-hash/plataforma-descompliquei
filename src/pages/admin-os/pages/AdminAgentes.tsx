@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Bot, Plus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Bot, Plus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, ChevronDown, ChevronUp, Cpu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { MODELS } from '@/lib/athosModels';
 
 interface Agente {
   id: string;
@@ -23,6 +25,7 @@ interface Agente {
 }
 
 const TABLE = 'athos_agentes' as any;
+const CONFIG_TABLE = 'athos_config' as any;
 
 function useAgentes() {
   return useQuery({
@@ -33,6 +36,93 @@ function useAgentes() {
       return (data ?? []) as Agente[];
     },
   });
+}
+
+// Modelo padrão de IA usado em TODO chat voltado a clientes (DescompliqueiOS,
+// painéis embutidos como o de Notas) — cliente não escolhe, só o Admin aqui.
+function useAthosConfig() {
+  return useQuery({
+    queryKey: ['athos-config'],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from(CONFIG_TABLE)
+        .select('modelo_padrao, atualizado_em')
+        .eq('id', 'default')
+        .single();
+      if (error) throw error;
+      return data as { modelo_padrao: string; atualizado_em: string };
+    },
+  });
+}
+
+function useAtualizarModeloPadrao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (modelo_padrao: string) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from(CONFIG_TABLE)
+        .update({ modelo_padrao, atualizado_em: new Date().toISOString(), atualizado_por: user?.id })
+        .eq('id', 'default');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['athos-config'] });
+      toast.success('Modelo padrão atualizado.');
+    },
+    onError: (e: any) => toast.error(e?.message ?? 'Erro ao atualizar — só superadmin pode alterar.'),
+  });
+}
+
+function ModeloPadraoCard() {
+  const { data: config, isLoading } = useAthosConfig();
+  const atualizar = useAtualizarModeloPadrao();
+
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+        <div className="flex items-center gap-2">
+          <span className="p-1.5 rounded-lg bg-muted">
+            <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
+          </span>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">MODELO PADRÃO</p>
+            <p className="text-[10px] text-muted-foreground/50 mt-0.5">Usado em todo chat do Athos GS voltado a clientes — eles não escolhem</p>
+          </div>
+        </div>
+      </div>
+      <div className="px-5 py-4 flex items-center gap-3">
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : (
+          <>
+            <Select
+              value={config?.modelo_padrao}
+              onValueChange={(v) => atualizar.mutate(v)}
+              disabled={atualizar.isPending}
+            >
+              <SelectTrigger className="h-9 w-64 text-sm rounded-lg border-border/60">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODELS.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {atualizar.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            {config?.atualizado_em && (
+              <span className="text-[10px] text-muted-foreground/50">
+                Atualizado {format(new Date(config.atualizado_em), "d 'de' MMM 'às' HH:mm", { locale: ptBR })}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 const EMPTY_FORM = { nome: '', slug: '', descricao: '', system_prompt: '', ativo: true };
@@ -123,6 +213,8 @@ export default function AdminAgentes() {
         </div>
         <p className="text-[13px] text-muted-foreground ml-10">Gerencie os agentes do Athos GS — system prompts, slugs e status</p>
       </div>
+
+      <ModeloPadraoCard />
 
       {/* List card */}
       <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">

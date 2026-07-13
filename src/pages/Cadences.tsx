@@ -18,6 +18,7 @@ import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { CadenceMonitoringTab } from "@/components/cadences/CadenceMonitoringTab";
 import { CadenceDispatchReportTab } from "@/components/cadences/CadenceDispatchReportTab";
+import { PageHero } from "@/components/PageHero";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -59,27 +60,23 @@ export default function Cadences() {
   return (
     <div className="space-y-6 pb-10">
       {/* ═══ PAGE HEADER ═══ */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Cadências</h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5">Crie fluxos automáticos de follow-up para nutrir seus leads</p>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {activeTab === "monitoramento" && (
-              <DateRangePicker date={dateRange} setDate={setDateRange} />
-            )}
-            <Button
-              onClick={handleOpenCreate}
-              className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4"
-              data-tutorial="cadences-create"
-            >
-              <Plus className="h-3.5 w-3.5" /> Nova Cadência
-            </Button>
-          </div>
-        </div>
+      <PageHero
+        icon={GitMerge}
+        title="Cadências"
+        subtitle="Crie fluxos automáticos de follow-up para nutrir seus leads"
+        right={
+          <Button
+            onClick={handleOpenCreate}
+            className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 px-4"
+            data-tutorial="cadences-create"
+          >
+            <Plus className="h-3.5 w-3.5" /> Nova Cadência
+          </Button>
+        }
+      />
 
-        {/* Stats */}
+      {/* ═══ TOOLBAR (stats + filtros) ═══ */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <GitMerge className="h-3 w-3" />
@@ -93,6 +90,9 @@ export default function Cadences() {
             </span>
           </div>
         </div>
+        {activeTab === "monitoramento" && (
+          <DateRangePicker date={dateRange} setDate={setDateRange} />
+        )}
       </div>
 
       {/* ═══ TABS ═══ */}

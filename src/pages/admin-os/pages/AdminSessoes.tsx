@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { cn } from '@/lib/utils';
 import {
   Calendar as CalendarIcon, Clock, Link as LinkIcon, Video, Plus, Edit3,
-  Loader2, Trash2, ChevronLeft, ChevronRight, Youtube, PlayCircle, FileVideo
+  Loader2, Trash2, ChevronLeft, ChevronRight, Youtube, PlayCircle, FileVideo,
+  Repeat, RefreshCw
 } from 'lucide-react';
 import {
   format, isAfter, isBefore, startOfToday, addDays,
@@ -32,6 +33,19 @@ interface Sessao {
   active: boolean;
 }
 
+interface SessaoRecorrente {
+  id: string;
+  title: string;
+  description?: string;
+  day_of_week: number; // 0=domingo ... 6=sábado (Date.getDay())
+  time_of_day: string; // "HH:MM" ou "HH:MM:SS"
+  meet_link?: string;
+  weeks_ahead: number;
+  active: boolean;
+}
+
+const DIAS_SEMANA = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
 interface CalEvent {
   id: string;
   title: string;
@@ -47,7 +61,7 @@ interface CalEvent {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function AdminSessoes() {
 
-  const [activeTab, setActiveTab] = useState<'sessoes' | 'calendario' | 'gravacoes'>('sessoes');
+  const [activeTab, setActiveTab] = useState<'sessoes' | 'calendario' | 'gravacoes' | 'recorrencia'>('sessoes');
 
   // ── Sessões state ──────────────────────────────────────────────────────────
   const [loading, setLoading] = useState(true);
@@ -55,7 +69,7 @@ export default function AdminSessoes() {
   const [filterTime, setFilterTime] = useState('todas');
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<Partial<Sessao>>({
-    title: '', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true
+    title: '', type: 'comercial', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true
   });
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Sessao | null>(null);
@@ -77,10 +91,22 @@ export default function AdminSessoes() {
   const [recForm, setRecForm] = useState<{ id: string; title: string; recording_url: string }>({ id: '', title: '', recording_url: '' });
   const [recSaving, setRecSaving] = useState(false);
 
+  // ── Recorrência (sessão padronizada semanal) state ─────────────────────────
+  const [recorrencias, setRecorrencias] = useState<SessaoRecorrente[]>([]);
+  const [recLoading, setRecLoading] = useState(true);
+  const [showRecRuleModal, setShowRecRuleModal] = useState(false);
+  const [recRuleForm, setRecRuleForm] = useState<Partial<SessaoRecorrente>>({
+    title: '', description: '', day_of_week: 1, time_of_day: '09:00', meet_link: '', weeks_ahead: 12, active: true
+  });
+  const [recRuleSaving, setRecRuleSaving] = useState(false);
+  const [recRuleDeleteTarget, setRecRuleDeleteTarget] = useState<SessaoRecorrente | null>(null);
+  const [gerandoId, setGerandoId] = useState<string | null>(null);
+
   useEffect(() => {
     document.title = 'Sessões Táticas · Admin OS | Descompliquei';
     loadSessoes();
     loadClients();
+    loadRecorrencias();
   }, []);
 
   useEffect(() => {
@@ -154,7 +180,7 @@ export default function AdminSessoes() {
   }
 
   function openNew() {
-    setFormData({ title: '', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true });
+    setFormData({ title: '', type: 'comercial', scheduled_at: '', meet_link: '', recording_url: '', description: '', active: true });
     setShowModal(true);
   }
 
@@ -281,6 +307,138 @@ export default function AdminSessoes() {
     loadSessoes();
   }
 
+  // ── Recorrência functions ──────────────────────────────────────────────────
+  async function loadRecorrencias() {
+    setRecLoading(true);
+    try {
+      const { data, error } = await supabase.from('platform_sessoes_recorrentes').select('*').order('day_of_week');
+      if (error) throw error;
+      const regras = data || [];
+      setRecorrencias(regras);
+      // Rola o horizonte de ocorrências futuras toda vez que a página é aberta
+      for (const regra of regras.filter((r: SessaoRecorrente) => r.active)) {
+        await gerarOcorrencias(regra);
+      }
+      loadSessoes();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setRecLoading(false);
+    }
+  }
+
+  async function gerarOcorrencias(regra: SessaoRecorrente): Promise<number> {
+    const [hh, mm] = (regra.time_of_day || '09:00').split(':').map(Number);
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    const diff = ((regra.day_of_week - cursor.getDay()) + 7) % 7;
+    cursor.setDate(cursor.getDate() + diff);
+
+    const candidatas: Date[] = [];
+    for (let i = 0; i < (regra.weeks_ahead || 12); i++) {
+      const d = new Date(cursor);
+      d.setDate(cursor.getDate() + i * 7);
+      d.setHours(hh || 9, mm || 0, 0, 0);
+      if (d.getTime() > Date.now()) candidatas.push(d);
+    }
+    if (candidatas.length === 0) return 0;
+
+    const { data: existentes, error: selError } = await supabase
+      .from('platform_sessoes_taticas')
+      .select('scheduled_at')
+      .eq('recorrencia_id', regra.id);
+    if (selError) throw selError;
+
+    const existentesSet = new Set((existentes || []).map((e: any) => new Date(e.scheduled_at).getTime()));
+    const novas = candidatas.filter(d => !existentesSet.has(d.getTime()));
+    if (novas.length === 0) return 0;
+
+    const payload = novas.map(d => ({
+      title: regra.title,
+      description: regra.description || null,
+      type: 'comercial',
+      scheduled_at: d.toISOString(),
+      meet_link: regra.meet_link || null,
+      active: true,
+      recorrencia_id: regra.id,
+    }));
+
+    const { error } = await supabase.from('platform_sessoes_taticas').insert(payload);
+    if (error) throw error;
+    return novas.length;
+  }
+
+  function openNewRecRule() {
+    setRecRuleForm({ title: '', description: '', type: 'comercial', day_of_week: 1, time_of_day: '09:00', meet_link: '', weeks_ahead: 12, active: true });
+    setShowRecRuleModal(true);
+  }
+
+  async function saveRecRule() {
+    if (!recRuleForm.title || recRuleForm.day_of_week === undefined || !recRuleForm.time_of_day) {
+      return toast.error('Título, dia da semana e horário são obrigatórios');
+    }
+    setRecRuleSaving(true);
+    try {
+      const payload = {
+        title: recRuleForm.title,
+        description: recRuleForm.description || null,
+        day_of_week: Number(recRuleForm.day_of_week),
+        time_of_day: recRuleForm.time_of_day,
+        meet_link: recRuleForm.meet_link || null,
+        weeks_ahead: Number(recRuleForm.weeks_ahead) || 12,
+        active: recRuleForm.active !== false,
+      };
+      let regraId = recRuleForm.id;
+      if (regraId) {
+        const { error } = await supabase.from('platform_sessoes_recorrentes').update(payload).eq('id', regraId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from('platform_sessoes_recorrentes').insert([payload]).select().single();
+        if (error) throw error;
+        regraId = data.id;
+      }
+      let geradas = 0;
+      if (payload.active && regraId) {
+        geradas = await gerarOcorrencias({ ...payload, id: regraId });
+      }
+      toast.success(geradas > 0 ? `Recorrência salva! ${geradas} sessão(ões) geradas no calendário.` : 'Recorrência salva!');
+      setShowRecRuleModal(false);
+      loadRecorrencias();
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setRecRuleSaving(false);
+    }
+  }
+
+  async function toggleRecRuleActive(regra: SessaoRecorrente) {
+    try {
+      const { error } = await supabase.from('platform_sessoes_recorrentes').update({ active: !regra.active }).eq('id', regra.id);
+      if (error) throw error;
+      const atualizada = { ...regra, active: !regra.active };
+      setRecorrencias(prev => prev.map(r => r.id === regra.id ? atualizada : r));
+      if (atualizada.active) {
+        const geradas = await gerarOcorrencias(atualizada);
+        if (geradas > 0) { toast.success(`${geradas} sessão(ões) geradas`); loadSessoes(); }
+      }
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  }
+
+  async function deleteRecRule() {
+    if (!recRuleDeleteTarget) return;
+    try {
+      const { error } = await supabase.from('platform_sessoes_recorrentes').delete().eq('id', recRuleDeleteTarget.id);
+      if (error) throw error;
+      toast.success('Recorrência removida. Sessões já geradas continuam no calendário.');
+      setRecRuleDeleteTarget(null);
+      loadRecorrencias();
+    } catch (err: any) {
+      toast.error(err.message);
+    }
+  }
+
   const renderCalHeader = () => {
     let startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
     return (
@@ -376,9 +534,14 @@ export default function AdminSessoes() {
           </div>
           <p className="text-[13px] text-muted-foreground ml-10">Gerencie os encontros ao vivo com seus clientes</p>
         </div>
-        {activeTab !== 'calendario' && (
+        {(activeTab === 'sessoes' || activeTab === 'gravacoes') && (
           <Button onClick={openNew} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 shrink-0">
             <Plus className="h-3.5 w-3.5" /> Nova Sessão
+          </Button>
+        )}
+        {activeTab === 'recorrencia' && (
+          <Button onClick={openNewRecRule} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5 shrink-0">
+            <Plus className="h-3.5 w-3.5" /> Nova Recorrência
           </Button>
         )}
       </div>
@@ -398,6 +561,7 @@ export default function AdminSessoes() {
       <div className="inline-flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
         {([
           { id: 'sessoes', label: 'Sessões' },
+          { id: 'recorrencia', label: 'Recorrência' },
           { id: 'gravacoes', label: 'Gravações' },
           { id: 'calendario', label: 'Calendário' },
         ] as const).map(t => (
@@ -565,7 +729,7 @@ export default function AdminSessoes() {
                         <Switch checked={s.active} onCheckedChange={() => toggleActive(s.id, s.active)} />
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                            onClick={() => { setFormData(s); setShowModal(true); }}>
+                            onClick={() => { setFormData({ ...s, type: s.type || 'comercial' }); setShowModal(true); }}>
                             <Edit3 className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10"
@@ -577,6 +741,100 @@ export default function AdminSessoes() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── ABA RECORRÊNCIA ────────────────────────────────────────────────── */}
+      {activeTab === 'recorrencia' && (
+        <div className="space-y-5">
+          <div className="rounded-2xl border border-border/60 bg-muted/[0.02] px-5 py-4 text-[12px] text-muted-foreground leading-relaxed">
+            Configure um dia da semana e horário fixos (ex: toda Segunda às 09:00) para gerar automaticamente sessões de mentoria no calendário dos clientes — sem precisar cadastrar uma por uma. As próximas semanas são geradas sempre que esta página é aberta, ou na hora pelo botão "Gerar agora".
+          </div>
+
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03] flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Sessões Padronizadas</p>
+            </div>
+
+            {recLoading ? (
+              <div className="flex items-center justify-center py-16 gap-2 text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <span className="text-sm">Carregando...</span>
+              </div>
+            ) : recorrencias.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-14 text-center">
+                <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                  <Repeat className="h-5 w-5 text-muted-foreground/30" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">Nenhuma recorrência configurada</p>
+                <p className="text-[11px] text-muted-foreground/40 mt-0.5">Crie uma para gerar sessões automaticamente toda semana</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border/30">
+                {recorrencias.map(r => (
+                  <div key={r.id} className="flex items-center gap-4 px-5 py-4 hover:bg-muted/20 transition-colors group">
+                    <div className={cn(
+                      'shrink-0 flex flex-col items-center justify-center w-16 h-14 rounded-xl border text-center',
+                      r.active ? 'border-foreground/15 bg-foreground/[0.05]' : 'border-border/40 bg-muted/20'
+                    )}>
+                      <span className="text-[9px] font-bold uppercase text-muted-foreground leading-none">{DIAS_SEMANA[r.day_of_week]?.slice(0, 3)}</span>
+                      <span className={cn('text-sm font-bold tabular-nums leading-tight mt-0.5', r.active ? 'text-foreground' : 'text-muted-foreground')}>
+                        {(r.time_of_day || '').slice(0, 5)}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className={cn('text-[13px] font-semibold truncate', !r.active && 'text-muted-foreground line-through')}>{r.title}</p>
+                        {!r.active && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground/60 border border-border/40">Pausada</span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                        Toda {DIAS_SEMANA[r.day_of_week]} · próximas {r.weeks_ahead} semanas geradas automaticamente
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 flex items-center gap-2">
+                      <Button
+                        size="sm" variant="outline"
+                        className="h-7 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 opacity-0 group-hover:opacity-100 transition-opacity"
+                        disabled={gerandoId === r.id}
+                        onClick={async () => {
+                          setGerandoId(r.id);
+                          try {
+                            const n = await gerarOcorrencias(r);
+                            toast.success(n > 0 ? `${n} sessão(ões) geradas` : 'Calendário já está em dia');
+                            if (n > 0) loadSessoes();
+                          } catch (err: any) {
+                            toast.error(err.message);
+                          } finally {
+                            setGerandoId(null);
+                          }
+                        }}
+                      >
+                        {gerandoId === r.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Gerar agora
+                      </Button>
+                      <Switch checked={r.active} onCheckedChange={() => toggleRecRuleActive(r)} />
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                          onClick={() => { setRecRuleForm(r); setShowRecRuleModal(true); }}>
+                          <Edit3 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10"
+                          onClick={() => setRecRuleDeleteTarget(r)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -741,9 +999,21 @@ export default function AdminSessoes() {
               <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título</label>
               <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={formData.title} onChange={e => setFormData({ ...formData, title: e.target.value })} placeholder="Ex: Sessão Tática #12 - Fechamento" />
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data e Hora</label>
-              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="datetime-local" value={formData.scheduled_at ? new Date(new Date(formData.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setFormData({ ...formData, scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Data e Hora</label>
+                <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="datetime-local" value={formData.scheduled_at ? new Date(new Date(formData.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ''} onChange={e => setFormData({ ...formData, scheduled_at: e.target.value ? new Date(e.target.value).toISOString() : '' })} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Foco da Sessão</label>
+                <Select value={formData.type || 'comercial'} onValueChange={v => setFormData({ ...formData, type: v })}>
+                  <SelectTrigger className="h-10 rounded-lg border-border/60 focus:ring-1 focus:ring-border/60"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="comercial">Comercial</SelectItem>
+                    <SelectItem value="demanda">Geração de Demanda</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1.5">
               <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Link da Reunião (Meet/Zoom)</label>
@@ -901,6 +1171,72 @@ export default function AdminSessoes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ── MODAL RECORRÊNCIA ────────────────────────────────────────────────── */}
+      <Dialog open={showRecRuleModal} onOpenChange={setShowRecRuleModal}>
+        <DialogContent className="max-w-xl flex flex-col max-h-[90vh]">
+          <DialogHeader className="shrink-0"><DialogTitle>{recRuleForm.id ? 'Editar Recorrência' : 'Nova Sessão Recorrente'}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4 overflow-y-auto flex-1 pr-1">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título</label>
+              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={recRuleForm.title || ''} onChange={e => setRecRuleForm({ ...recRuleForm, title: e.target.value })} placeholder="Ex: Sessão Tática Semanal" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Dia da Semana</label>
+                <Select value={String(recRuleForm.day_of_week ?? 1)} onValueChange={v => setRecRuleForm({ ...recRuleForm, day_of_week: Number(v) })}>
+                  <SelectTrigger className="h-10 rounded-lg border-border/60 focus:ring-1 focus:ring-border/60"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DIAS_SEMANA.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Horário</label>
+                <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="time" value={recRuleForm.time_of_day || '09:00'} onChange={e => setRecRuleForm({ ...recRuleForm, time_of_day: e.target.value })} />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Gerar quantas semanas à frente</label>
+              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" type="number" min={1} max={52} value={recRuleForm.weeks_ahead ?? 12} onChange={e => setRecRuleForm({ ...recRuleForm, weeks_ahead: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Link da Reunião (Meet/Zoom)</label>
+              <Input className="h-10 rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={recRuleForm.meet_link || ''} onChange={e => setRecRuleForm({ ...recRuleForm, meet_link: e.target.value })} placeholder="Link fixo usado toda semana" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Descrição</label>
+              <Textarea className="rounded-lg border-border/60 focus-visible:ring-1 focus-visible:ring-border/60" value={recRuleForm.description || ''} onChange={e => setRecRuleForm({ ...recRuleForm, description: e.target.value })} rows={3} />
+            </div>
+            <div className="flex items-center gap-2 pt-2">
+              <Switch checked={recRuleForm.active !== false} onCheckedChange={c => setRecRuleForm({ ...recRuleForm, active: !!c })} />
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Recorrência ativa</label>
+            </div>
+          </div>
+          <DialogFooter className="shrink-0">
+            <Button variant="outline" className="h-9 rounded-lg text-xs" onClick={() => setShowRecRuleModal(false)}>Cancelar</Button>
+            <Button onClick={saveRecRule} disabled={recRuleSaving} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5">
+              {recRuleSaving ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : null} Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── CONFIRM DELETE RECORRÊNCIA ───────────────────────────────────────── */}
+      <AlertDialog open={!!recRuleDeleteTarget} onOpenChange={open => !open && setRecRuleDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir recorrência?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A regra <strong>"{recRuleDeleteTarget?.title}"</strong> deixará de gerar novas sessões. As sessões já criadas no calendário continuam existindo — remova-as manualmente na aba Sessões, se necessário.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteRecRule} className="bg-red-600 hover:bg-red-700 text-white">Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ── CONFIRM DELETE SESSÃO ────────────────────────────────────────────── */}
       <AlertDialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>

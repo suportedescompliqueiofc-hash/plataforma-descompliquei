@@ -761,9 +761,16 @@ export default function Agendamentos() {
     <div className="space-y-6 max-w-full overflow-hidden">
 
       {/* ═══════════════ HERO HEADER ═══════════════ */}
-      <div className="relative overflow-hidden rounded-2xl bg-[#1a1a1a] p-6 md:p-8" data-tutorial="agendamentos-header">
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] via-transparent to-white/[0.01]" />
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-6 py-8 md:px-12 md:py-10" data-tutorial="agendamentos-header">
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+        }} />
+        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full opacity-55 blur-[100px]"
+          style={{ background: 'radial-gradient(circle, #ea580c, transparent 65%)' }} />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-35 blur-[80px]"
+          style={{ background: 'radial-gradient(circle, #d97706, transparent 65%)' }} />
 
         <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -797,7 +804,7 @@ export default function Agendamentos() {
             </button>
             <button
               onClick={() => openCriar()}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white text-[#1a1a1a] hover:bg-white/90 transition-all shadow-[0_2px_8px_rgba(255,255,255,0.1)]"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 transition-all shadow-[0_2px_8px_rgba(255,255,255,0.1)]"
               data-tutorial="agendamentos-new"
             >
               <Plus className="h-3.5 w-3.5" />

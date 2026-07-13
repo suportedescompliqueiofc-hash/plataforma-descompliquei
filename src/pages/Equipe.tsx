@@ -10,6 +10,7 @@ import { useDashboard } from "@/hooks/useDashboard";
 import { useTeamMembersForSelect } from "@/hooks/useTeamMembersForSelect";
 import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
+import { PageHero } from "@/components/PageHero";
 import { useState } from "react";
 import {
   startOfDay, endOfDay, startOfWeek, endOfWeek,
@@ -138,20 +139,15 @@ export default function Equipe() {
     <div className="p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
 
       {/* ── Page Header ── */}
-      <div data-tutorial="equipe-header" className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="p-1.5 rounded-lg bg-muted">
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-display">Equipe</h1>
-          </div>
-          <p className="text-[13px] text-muted-foreground ml-10">
-            Desempenho individual e comparativo da equipe comercial
-          </p>
-        </div>
+      <PageHero
+        dataTutorial="equipe-header"
+        icon={Users}
+        title="Equipe"
+        subtitle="Desempenho individual e comparativo da equipe comercial"
+      />
 
-        {/* Período */}
+      {/* ── Toolbar: período ── */}
+      <div className="flex justify-end">
         <div data-tutorial="equipe-period" className="flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
           {PERIODS.map(p => (
             <button

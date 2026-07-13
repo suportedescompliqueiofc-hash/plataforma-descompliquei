@@ -1,0 +1,210 @@
+{
+  "clinicName": "Clínica Metabole",
+  "responsibleName": "Dr. Lucas Seabra",
+  "email": "clinicametabole@gmail.com",
+  "phone": "(21) 99427-4481",
+  "website": "",
+  "instagram": "@clinicametabole",
+  "fullAddress": "Avenida das Américas, 12.600 - Sala 208 - Bloco 03, Recreio dos Bandeirantes, Rio de Janeiro - RJ, 22790-701",
+  "city": "Rio de Janeiro",
+  "state": "RJ",
+  "marketTime": "less-1",
+  "mission": "Emagrecimento estético com saúde, hipertrofia e bem-estar.",
+  "vision": "Ser referência na nossa área de atuação.",
+  "values": [
+    "Ética",
+    "Excelência"
+  ],
+  "differentials": "Atendimento personalizado, ambiente sofisticado, equipamento de última geração e profissionais qualificados e atulizados.",
+  "targetAudience": [
+    "men",
+    "women-20-30",
+    "women-30-40"
+  ],
+  "detailedDescription": "Um ambiente de alto padrão que oferecer conforto, segurança e uma experiência diferenciada aos pacientes. Arquitetura impecável e tecnológica, com sala especiais para procedimentos e medicação.",
+  "professionals": [
+    {
+      "id": "8eh73cuad",
+      "bio": "Responsável pelo planejamento alimentar individualizado e avaliação corporal.",
+      "name": "Victoria Favorito",
+      "photo": "",
+      "education": "Nutrição - Unirio",
+      "specialty": "Nutricionista",
+      "experience": 3,
+      "socialMedia": "@nutri.favorito",
+      "certifications": ""
+    },
+    {
+      "id": "9rg2jhxyw",
+      "bio": "Responsável pela avaliação hormonal e metabólica dos pacientes.",
+      "name": "Lucas Seabra",
+      "photo": "",
+      "education": "Medicina - Unigranrio",
+      "specialty": "Endocrinologista",
+      "experience": 1,
+      "socialMedia": "@drlucasseabra",
+      "certifications": ""
+    },
+    {
+      "id": "88dm9euat",
+      "bio": "Profissional responsável pelo acolhimento inicial dos pacientes, gestão de agendas, organização dos atendimentos e suporte administrativo da clínica. ",
+      "name": "Stefenea Favorito",
+      "photo": "",
+      "education": "",
+      "specialty": "Comercial e vendas",
+      "experience": 0,
+      "socialMedia": "@stefaneafavorito",
+      "certifications": ""
+    }
+  ],
+  "procedures": [
+    {
+      "id": "rvab9qqzd",
+      "name": "Protocolo de emagrecimento",
+      "benefits": "Emagrecimento saudável e acompanhado por profissionais",
+      "category": "outros",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "Protocolo desenvolvido para pacientes que buscam emagrecimento de forma estratégica, saudável e acompanhada de perto por uma equipe multiprofissional.\n\nCom duração de 3 meses, o programa une acompanhamento nutricional contínuo, suporte metabólico e recursos injetáveis como aliados no processo de redução de peso, melhora da composição corporal e otimização de resultados.\n\nO que inclui: Avaliação inicial completa, planejamento alimentar personalizado, acompanhamento mensal (3 consultas inclusas), ajustes de estratégia conforme evolução, avaliação de composição corporal, protocolo de injetáveis (conforme prescrição e necessidade individual).",
+      "indications": "Sobrepeso e Obesidade",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Atendimento inicial via WhatsApp ou Instagram com marcação de consulta presencial. Durante a consulta, apresentação do protocolo e explicação de como funciona o acompanhamento trimestral. Informação de valores, formas de pagamento e o que está incluso.",
+      "contraindications": "",
+      "specificQuestions": [
+        "Qual seu principal objetivo?",
+        "O quanto você almeja atingir seu objetivo?",
+        ""
+      ],
+      "specificObjections": [
+        {
+          "id": "5qslydlit",
+          "response": "O protocolo inclui educação alimentar, com foco em mudança de hábitos e ajustes metabólicos progressivos.\n",
+          "objection": "Medo de efeito rebote"
+        },
+        {
+          "id": "vaw3ig6y4",
+          "response": "É um acompanhamento completo por 3 meses com equipe multiprofissional. O investimento é em saúde, não apenas estética. Evita gastos futuros com tentativas sem acompanhamento.",
+          "objection": "Medo de ser muito caro"
+        },
+        {
+          "id": "hm5kpgdta",
+          "response": "",
+          "objection": ""
+        }
+      ]
+    }
+  ],
+  "pricingApproach": "ranges",
+  "pricingJustification": "",
+  "procedurePricing": [
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "rvab9qqzd",
+      "priceFactors": "Qualidade do serviço com acompanhamento completo por 3 meses, uso de medicacações e injetáveis.",
+      "paymentMethods": [
+        "pix",
+        "credit"
+      ],
+      "investmentRange": "acima_5000",
+      "promotionalDetails": "",
+      "installmentAvailable": true,
+      "installmentConditions": "Até 6 vezes com juros ",
+      "hasPromotionalPackages": false
+    }
+  ],
+  "idealLeadProfile": "Mulheres e homens de 25-30 anos que buscam emagrecimento ou hipertrofia.",
+  "qualificationQuestions": [],
+  "disqualificationCriteria": "Crianças, gestantes e pessoas buscando preço muito baixo.",
+  "outOfProfileHandling": "schedule_anyway",
+  "minInfoToQualify": [],
+  "weekdayOpen": "09:00",
+  "weekdayClose": "17:00",
+  "saturdayOpen": "09:00",
+  "saturdayClose": "14:00",
+  "saturdayClosed": false,
+  "sundayOpen": "",
+  "sundayClose": "",
+  "sundayClosed": true,
+  "holidayPolicy": "closed",
+  "evaluationDuration": "60",
+  "minAdvanceEvaluation": "1_day",
+  "preferredEvaluationTimes": [],
+  "evaluationPolicy": "",
+  "schedulingInfoRequired": [],
+  "evaluationCancellationPolicy": "",
+  "welcomeMessage": "Olá! Seja muito bem-vindo à Clínica Metabole. \n\nSou a Maria, assistente virtual do Dr. Lucas e da nutricionista Victoria. Como posso te ajudar?",
+  "needsIdentificationScript": "",
+  "clinicPresentationScript": "",
+  "procedureEducationScript": "",
+  "evaluationSchedulingScript": "",
+  "escalationTriggers": [
+    "technical_doubt",
+    "human_request"
+  ],
+  "escalationMessageLimit": 3,
+  "escalationOther": "",
+  "customerJourneyDescription": "",
+  "hasMandatoryEvaluation": true,
+  "evaluationCostDetails": "",
+  "evaluationProcessFlow": "Perguntar se tem exame de sangue recente. Caso não tenha, já é feito o pedido.",
+  "proceduresRequiringEvaluation": [
+    "rvab9qqzd"
+  ],
+  "proceduresAllowingDirectBooking": [
+    "rvab9qqzd"
+  ],
+  "communicationTone": "sophisticated",
+  "formalityLevel": 3,
+  "emojiUsage": "",
+  "customerTreatment": "voce_respectful",
+  "personalities": [
+    "caring",
+    "empathetic"
+  ],
+  "wordsToAvoid": [
+    "Talvez"
+  ],
+  "preferredWords": [],
+  "faqs": [
+    {
+      "id": "17703248448910",
+      "answer": "No momento não aceitamos plano de saúde.",
+      "category": "scheduling",
+      "priority": "high",
+      "question": "Aceita plano de saúde?"
+    },
+    {
+      "id": "17703248449881",
+      "answer": "A consulta avulsa, fora dos protocolos, é R$500,00.",
+      "category": "pricing",
+      "priority": "high",
+      "question": "Qual valor da consulta?"
+    }
+  ],
+  "technicalInfo": "Atendimento individualizado, com ética e profissionais com conhecimento técnico-científico baseado em evidências. Espaço acolhedor e aconchegante.",
+  "internalProtocols": "Nunca passar valores exatos sem avaliação. Pedir nome completo, data de nascimento e CPF. Menores de idade somento acompanhados.",
+  "specialCases": [
+    {
+      "id": "1770325143048",
+      "procedure": "",
+      "situation": ""
+    }
+  ],
+  "agentSchedule": "clinic_hours",
+  "customAgentScheduleStart": "09:00",
+  "customAgentScheduleEnd": "18:00",
+  "offHoursMessage": "",
+  "contactAttemptLimit": 3,
+  "escalationSituations": [],
+  "escalationMessageCount": 5,
+  "notificationTriggers": [],
+  "supportedLanguages": [
+    "portuguese"
+  ],
+  "additionalNotes": "",
+  "agentPriorities": "",
+  "termsAccepted": false
+}

@@ -22,7 +22,6 @@ const PAGE_ICONS: Record<string, React.ElementType> = {
   agendamentos: CalendarDays,
   vendas:       DollarSign,
   metas:        Target,
-  msgs_rapidas: Zap,
   notificacoes: Bell,
   painel:       BarChart3,
   ia:           Bot,
@@ -48,7 +47,7 @@ const ROLE_SUGGESTION: Record<string, { tutorialId: string; path: string; label:
     tutorialId: 'conversas',
     path: '/crm/conversas',
     label: 'Tour pelo módulo Conversas',
-    description: 'Como atendente, você vai trabalhar principalmente respondendo leads pelo chat. O tour mostra como filtrar, responder e usar mensagens rápidas.',
+    description: 'Como atendente, você vai trabalhar principalmente respondendo leads pelo chat. O tour mostra como filtrar e responder.',
   },
   comercial: {
     tutorialId: 'leads',

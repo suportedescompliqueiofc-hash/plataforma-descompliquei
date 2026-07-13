@@ -112,11 +112,23 @@ export function useOnboardingDiagnostico() {
         { onConflict: "user_id" }
       ),
       supabase.from("onboarding_progresso" as any).upsert(
-        { user_id: user.id, bloco_atual: 8, etapa: "athos" },
+        { user_id: user.id, bloco_atual: 8, etapa: "concluido" },
         { onConflict: "user_id" }
       ),
     ]);
-    setEtapa("athos");
+    // Athos deixa de gerar a jornada no onboarding. Em vez disso, clona a jornada de
+    // onboarding PADRÃO (14 dias — idempotente) e marca o onboarding concluído. A
+    // consultoria mensal personalizada passa a ser montada pelo CS.
+    try {
+      await supabase.functions.invoke("ensure-onboarding-jornada");
+    } catch (e) {
+      console.error("ensure-onboarding-jornada", e);
+    }
+    await supabase
+      .from("platform_users" as any)
+      .update({ onboarding_concluido: true, onboarding_concluido_em: new Date().toISOString() })
+      .eq("id", user.id);
+    setEtapa("concluido");
   }, [user?.id, respostas]);
 
   const concluirOnboarding = useCallback(async () => {

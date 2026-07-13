@@ -63,10 +63,31 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: 'WhatsApp não conectado. Configure a integração UAZAPI.' }, 400);
     }
 
-    // Quando o agente humano envia uma mensagem, pausa a IA
+    // Quando o agente humano envia uma mensagem, pausa a IA e garante que o lead tenha um responsável
     const rem = remetente || 'bot';
     if (rem === 'agente' && lead_id) {
       await supabaseAdmin.from('leads').update({ ia_ativa: false } as any).eq('id', lead_id);
+
+      // Responsável = primeiro humano a atender ou quem assumiu por último.
+      // Mensagens de IA/bot/cadência (remetente 'bot') nunca alteram o responsável.
+      const { data: leadRow } = await supabaseAdmin
+        .from('leads')
+        .select('responsavel_id')
+        .eq('id', lead_id)
+        .maybeSingle();
+
+      const currentResponsavel = (leadRow as any)?.responsavel_id ?? null;
+      if (currentResponsavel !== user_id) {
+        await supabaseAdmin.from('leads').update({ responsavel_id: user_id } as any).eq('id', lead_id);
+        await supabaseAdmin.from('lead_atividades').insert({
+          lead_id,
+          organization_id: profile.organization_id,
+          user_id,
+          tipo: 'responsavel',
+          descricao: currentResponsavel ? 'Atendimento assumido' : 'Responsável atribuído ao lead (primeiro atendimento)',
+          metadados: { responsavel_id: user_id },
+        } as any);
+      }
     }
 
     // Salva no banco (a não ser que skip_db seja true)

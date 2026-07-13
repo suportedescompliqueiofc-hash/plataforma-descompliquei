@@ -16,7 +16,7 @@ export type FollowupGapLead = {
   horasSemContato: number;
 };
 
-export function useFollowupGap(dateRange?: DateRange) {
+export function useFollowupGap(dateRange?: DateRange, origem?: string) {
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
 
@@ -24,19 +24,20 @@ export function useFollowupGap(dateRange?: DateRange) {
   const to = dateRange?.to;
 
   const { data: gapLeads, isLoading } = useQuery({
-    queryKey: ["followup-gap", orgId, from?.toISOString(), to?.toISOString()],
+    queryKey: ["followup-gap", orgId, from?.toISOString(), to?.toISOString(), origem],
     queryFn: async () => {
       if (!orgId) return [];
 
       let query = supabase
         .from("leads")
-        .select("id, nome, telefone, criado_em, atualizado_em, followup_gap_motivo, followup_gap_analisado_em, ultimo_contato")
+        .select("id, nome, telefone, criado_em, atualizado_em, followup_gap_motivo, followup_gap_analisado_em, ultimo_contato, origem")
         .eq("organization_id", orgId)
         .eq("followup_gap", "PRECISA_FOLLOW")
         .order("ultimo_contato", { ascending: false, nullsFirst: false });
 
       if (from) query = query.gte("ultimo_contato", startOfDay(from).toISOString());
       if (to) query = query.lte("ultimo_contato", endOfDay(to).toISOString());
+      if (origem && origem !== 'geral') query = query.eq("origem", origem);
 
       const { data } = await query;
       return data ?? [];

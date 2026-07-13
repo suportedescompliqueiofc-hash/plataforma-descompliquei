@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar as UICalendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { PageHero } from '@/components/PageHero';
 import {
   TrendingUp, Users, Target, Calendar, DollarSign,
   MessageSquare, Bot, Activity, ArrowUp, ArrowDown, Minus,
@@ -361,17 +362,12 @@ export default function Evolucao() {
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-12">
       {/* Header */}
-      <div data-tutorial="evolucao-header">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 rounded-lg bg-muted">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Evolução</h1>
-        </div>
-        <p className="text-[13px] text-muted-foreground ml-10">
-          Acompanhe a evolução completa da sua operação e compare períodos.
-        </p>
-      </div>
+      <PageHero
+        dataTutorial="evolucao-header"
+        icon={TrendingUp}
+        title="Evolução"
+        subtitle="Acompanhe a evolução completa da sua operação e compare períodos."
+      />
 
       {/* Period selector */}
       <div data-tutorial="evolucao-period" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5 space-y-4">

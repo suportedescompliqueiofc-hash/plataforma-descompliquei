@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import OpenAI from "npm:openai@4";
+import { COMMERCIAL_KNOWLEDGE_BASE } from "../_shared/athos-comercial.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -18,6 +19,7 @@ const ALLOWED_MODELS = new Set([
   "openai/gpt-5.4-mini",
   "openai/gpt-5.4",
   "openai/gpt-5.5",
+  "openai/gpt-5.6-luna-pro",
   // Anthropic 2026
   "anthropic/claude-fable-5",
   "anthropic/claude-opus-4.8",
@@ -261,6 +263,81 @@ async function calcularMetricasPainel(
     tx_fechamento:  pct(closedCount, scheduledCount),
     tx_global:      pct(closedCount, _t),
   };
+}
+
+// Categorias fixas de "Meus Materiais" — organizam a UI, mas o Athos pode usar 'outro'
+// quando o pedido não se encaixa em nenhuma delas. Mantida em sincronia manual com
+// src/lib/materiaisComerciais.ts (frontend) — runtimes diferentes, não dá para compartilhar módulo.
+const MATERIAL_CATEGORIAS = [
+  "script_atendimento",
+  "estrutura_processo",
+  "quebra_objecao",
+  "oferta",
+  "followup_reativacao",
+  "otimizacao_comercial",
+  "outro",
+] as const;
+
+// Alguns modelos (ex: Qwen) ocasionalmente vazam tokens de script asiático em texto PT-BR.
+// Detecta CJK (chinês/japonês/coreano) para rejeitar o material antes de salvar sujo no banco.
+const CJK_REGEX = /[一-鿿぀-ヿ가-힣]/;
+function containsCJK(text: string): boolean {
+  return CJK_REGEX.test(text);
+}
+
+// ── HTML (TipTap) → JSON (ProseMirror doc) ──────────────────────────────────
+// O Athos continua gerando HTML (mesmo vocabulário de sempre: h2/h3/p/ul/ol/li/
+// strong/em/code/hr — ver descrição da tool criar_pagina). `paginas.conteudo` é
+// jsonb (doc do editor de blocos), então convertemos aqui — parser dedicado
+// pro vocabulário fixo do prompt, não um parser HTML genérico.
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, " ");
+}
+
+function parseInline(html: string): any[] {
+  const nodes: any[] = [];
+  const re = /<(strong|em|code)>([\s\S]*?)<\/\1>|([^<]+)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    if (m[1]) {
+      const text = decodeEntities(m[2]).trim();
+      if (text) nodes.push({ type: "text", text, marks: [{ type: m[1] === "strong" ? "bold" : m[1] === "em" ? "italic" : "code" }] });
+    } else if (m[3]) {
+      const text = decodeEntities(m[3]);
+      if (text.trim() || nodes.length) nodes.push({ type: "text", text });
+    }
+  }
+  return nodes.length ? nodes : [];
+}
+
+function htmlToPaginaDoc(html: string): any {
+  const content: any[] = [];
+  const blockRe = /<h([23])>([\s\S]*?)<\/h\1>|<p>([\s\S]*?)<\/p>|<(ul|ol)>([\s\S]*?)<\/\4>|<hr\s*\/?>/gi;
+  let m: RegExpExecArray | null;
+  while ((m = blockRe.exec(html))) {
+    if (m[1]) {
+      const inline = parseInline(m[2].trim());
+      if (inline.length) content.push({ type: "heading", attrs: { level: Number(m[1]) }, content: inline });
+    } else if (m[3] !== undefined) {
+      const inline = parseInline(m[3].trim());
+      content.push({ type: "paragraph", content: inline.length ? inline : undefined });
+    } else if (m[4]) {
+      const isOrdered = m[4].toLowerCase() === "ol";
+      const items: any[] = [];
+      const liRe = /<li>([\s\S]*?)<\/li>/gi;
+      let li: RegExpExecArray | null;
+      while ((li = liRe.exec(m[5]))) {
+        const inline = parseInline(li[1].trim());
+        items.push({ type: "listItem", content: [{ type: "paragraph", content: inline.length ? inline : undefined }] });
+      }
+      if (items.length) content.push({ type: isOrdered ? "orderedList" : "bulletList", content: items });
+    } else {
+      content.push({ type: "horizontalRule" });
+    }
+  }
+  return { type: "doc", content: content.length ? content : [{ type: "paragraph" }] };
 }
 
 const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
@@ -853,16 +930,18 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "criar_material",
-      description: "Cria material em Meus Materiais. Conteúdo DEVE ser HTML (TipTap).",
+      description: "Cria material comercial em Meus Materiais. Conteúdo DEVE ser HTML (TipTap). Busque dado real da clínica antes de criar (ver BASE DE CONHECIMENTO COMERCIAL / CRIAÇÃO DE MATERIAIS COMERCIAIS no system prompt). NÃO precisa de nenhuma ferramenta do Arsenal nem de listar_arsenal antes — titulo, conteudo e categoria já bastam para salvar.",
       parameters: {
         type: "object",
         properties: {
           titulo: { type: "string" },
-          conteudo: { type: "string", description: "HTML rico: <h2>, <p>, <strong>, <ul><li>, <ol><li>, <hr>." },
-          categoria_arsenal_id: { type: "string" },
-          ferramenta_id: { type: "string" },
+          conteudo: {
+            type: "string",
+            description: "HTML estruturado (TipTap). <h2> = título único no topo. <h3> = cada seção/objeção/passo principal (NUNCA numeração manual tipo '1)' ou 'Objeção A:' dentro de <p> — cada uma é um <h3> próprio). <p> = só texto corrido dentro da seção. <ul><li>/<ol><li> = 2+ itens paralelos do mesmo tipo (cada exemplo, cada objeção, cada passo) SEMPRE em UMA lista — nunca uma sequência de <p><strong>rótulo:</strong> texto</p> repetidos. <strong> = 1-3 palavras-chave por parágrafo, nunca o parágrafo todo. <hr> = separador entre seções. Estrutura mínima esperada: <h2>título</h2><p>contexto</p><hr><h3>seção 1</h3><p>...</p><ul><li><strong>item:</strong> texto</li></ul><hr><h3>seção 2</h3>...",
+          },
+          categoria: { type: "string", enum: [...MATERIAL_CATEGORIAS], description: "Categoria fixa do material — escolha a mais específica, use 'outro' só se nenhuma se aplicar." },
         },
-        required: ["titulo", "conteudo"],
+        required: ["titulo", "conteudo", "categoria"],
       },
     },
   },
@@ -870,13 +949,14 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "atualizar_material",
-      description: "Atualiza título, conteúdo HTML ou associação de ferramenta de um material.",
+      description: "Atualiza título, conteúdo HTML, categoria ou associação de ferramenta de um material.",
       parameters: {
         type: "object",
         properties: {
           material_id: { type: "string" },
           titulo: { type: "string" },
-          conteudo: { type: "string", description: "HTML rico (TipTap)." },
+          conteudo: { type: "string", description: "HTML estruturado (TipTap): <h2> título único, <h3> cada seção/objeção/passo (nunca numeração manual em <p>), <p> só texto corrido, <ul><li>/<ol><li> para listas/passos, <strong> pontual, <hr> entre seções." },
+          categoria: { type: "string", enum: [...MATERIAL_CATEGORIAS] },
           ferramenta_id: { type: "string" },
           categoria_arsenal_id: { type: "string" },
         },
@@ -898,6 +978,85 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
       },
     },
   },
+
+  // ── NOTAS (páginas) — substitui Meus Materiais como destino padrão ─────────
+  {
+    type: "function",
+    function: {
+      name: "criar_pagina",
+      description: "Cria uma página em Notas — o sistema de páginas hierárquico do cliente (substituiu Meus Materiais). Conteúdo DEVE ser HTML (TipTap). Use tanto para material comercial (script de atendimento, quebra de objeção, oferta etc — mesma lógica de sempre, ver BASE DE CONHECIMENTO COMERCIAL no system prompt) quanto para qualquer outra página que o usuário peça (anotação, planejamento, processo interno). Use parent_id para criar como sub-página de uma pasta/página existente — chame listar_paginas antes se precisar decidir onde encaixar.",
+      parameters: {
+        type: "object",
+        properties: {
+          titulo: { type: "string" },
+          conteudo: {
+            type: "string",
+            description: "HTML estruturado (TipTap). <h2> = título único no topo. <h3> = cada seção/objeção/passo principal (NUNCA numeração manual tipo '1)' ou 'Objeção A:' dentro de <p> — cada uma é um <h3> próprio). <p> = só texto corrido dentro da seção. <ul><li>/<ol><li> = 2+ itens paralelos do mesmo tipo (cada exemplo, cada objeção, cada passo) SEMPRE em UMA lista — nunca uma sequência de <p><strong>rótulo:</strong> texto</p> repetidos. <strong> = 1-3 palavras-chave por parágrafo, nunca o parágrafo todo. <hr> = separador entre seções.",
+          },
+          categoria: { type: "string", enum: [...MATERIAL_CATEGORIAS], description: "Categoria comercial — só quando a página for material comercial. Omita para páginas gerais." },
+          parent_id: { type: "string", description: "UUID da página-pai, se esta deve ser uma sub-página. Omita para criar na raiz." },
+          icone: { type: "string", description: "Um emoji único representando o conteúdo da página (opcional)." },
+        },
+        required: ["titulo", "conteudo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "atualizar_pagina",
+      description: "Atualiza título, conteúdo HTML, categoria ou ícone de uma página existente em Notas.",
+      parameters: {
+        type: "object",
+        properties: {
+          pagina_id: { type: "string" },
+          titulo: { type: "string" },
+          conteudo: { type: "string", description: "HTML estruturado (TipTap): <h2> título único, <h3> cada seção/objeção/passo (nunca numeração manual em <p>), <p> só texto corrido, <ul><li>/<ol><li> para listas/passos, <strong> pontual, <hr> entre seções." },
+          categoria: { type: "string", enum: [...MATERIAL_CATEGORIAS] },
+          icone: { type: "string" },
+        },
+        required: ["pagina_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "mover_pagina",
+      description: "Move uma página de Notas para dentro de outra (sub-página) ou para a raiz, reorganizando a hierarquia.",
+      parameters: {
+        type: "object",
+        properties: {
+          pagina_id: { type: "string" },
+          novo_parent_id: { type: "string", description: "UUID da nova página-pai. Omita ou envie vazio para mover para a raiz." },
+        },
+        required: ["pagina_id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_paginas",
+      description: "Lista as páginas de Notas do cliente (id, título, ícone, página-pai, categoria) — use antes de criar, mover ou atualizar algo para entender a estrutura atual.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "excluir_pagina",
+      description: "Exclui permanentemente uma página de Notas — sub-páginas dela são excluídas junto (cascata). Ação irreversível — confirme com o usuário antes.",
+      parameters: {
+        type: "object",
+        properties: {
+          pagina_id: { type: "string", description: "UUID da página a excluir." },
+        },
+        required: ["pagina_id"],
+      },
+    },
+  },
+
   {
     type: "function",
     function: {
@@ -1113,24 +1272,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
     },
   },
 
-  // ── MENSAGENS — Agendamento ───────────────────────────────────────────────────
-  {
-    type: "function",
-    function: {
-      name: "agendar_mensagem",
-      description: "Agenda uma mensagem WhatsApp para ser enviada em um horário futuro específico.",
-      parameters: {
-        type: "object",
-        properties: {
-          lead_id: { type: "string" },
-          mensagem: { type: "string" },
-          data_hora_envio: { type: "string" },
-        },
-        required: ["lead_id", "mensagem", "data_hora_envio"],
-      },
-    },
-  },
-
   // ── CADÊNCIAS — Cancelar de lead ────────────────────────────────────────────
   {
     type: "function",
@@ -1333,48 +1474,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
           },
         },
         required: ["nome_agente", "nome_clinica", "nome_profissional", "especialidade"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "criar_jornada",
-      description: "Cria a jornada personalizada do cliente na plataforma. Use quando precisar salvar a jornada com estágios e passos. Retorna o ID da jornada criada.",
-      parameters: {
-        type: "object",
-        properties: {
-          titulo: { type: "string", description: "Título da jornada (ex: 'Jornada Estratégica — Clínica Bella')" },
-          estagios: {
-            type: "array",
-            description: "Lista de estágios da jornada (3 a 8 estágios recomendados)",
-            items: {
-              type: "object",
-              properties: {
-                titulo: { type: "string", description: "Nome do estágio" },
-                descricao: { type: "string", description: "Descrição curta do objetivo do estágio" },
-                prazo_dias: { type: "number", description: "Duração em dias (padrão: 7)" },
-                passos: {
-                  type: "array",
-                  description: "Passos dentro deste estágio",
-                  items: {
-                    type: "object",
-                    properties: {
-                      titulo: { type: "string", description: "Nome do passo" },
-                      descricao: { type: "string", description: "O que o cliente deve fazer neste passo" },
-                      tipo: { type: "string", enum: ["acao_livre", "ferramenta_arsenal"], description: "Tipo do passo. Use 'ferramenta_arsenal' tanto para ferramentas quanto para aulas do arsenal." },
-                      ferramenta_slug: { type: "string", description: "Slug da ferramenta OU da aula do arsenal (se tipo=ferramenta_arsenal). O sistema resolve automaticamente se é ferramenta ou aula." },
-                      obrigatorio: { type: "boolean", description: "Se o passo é obrigatório (padrão: true)" },
-                    },
-                    required: ["titulo"],
-                  },
-                },
-              },
-              required: ["titulo"],
-            },
-          },
-        },
-        required: ["titulo", "estagios"],
       },
     },
   },
@@ -2343,7 +2442,7 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
       case "listar_meus_materiais": {
         let q = (supabase as any)
           .from("meus_materiais")
-          .select("id, titulo, conteudo, categoria_arsenal_id, ferramenta_id, criado_manualmente, created_at, updated_at, arsenal_categorias(nome, slug), arsenal_ferramentas(nome)")
+          .select("id, titulo, conteudo, categoria, categoria_arsenal_id, ferramenta_id, criado_manualmente, created_at, updated_at, arsenal_categorias(nome, slug), arsenal_ferramentas(nome)")
           .eq("user_id", platformUserId)
           .order("updated_at", { ascending: false })
           .limit(Math.min(input.limite ?? 30, 100));
@@ -2354,26 +2453,32 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
       }
 
       case "criar_material": {
+        if (containsCJK(input.titulo) || containsCJK(input.conteudo)) {
+          return JSON.stringify({ error: "conteudo/titulo contém caracteres de script asiático (chinês/japonês/coreano) — isso é um vazamento de token indevido. Regenere o texto inteiramente em português, sem nenhum caractere fora do alfabeto latino, e chame criar_material de novo." });
+        }
         const { data, error } = await (supabase as any)
           .from("meus_materiais")
           .insert({
             user_id: platformUserId,
             titulo: input.titulo,
             conteudo: input.conteudo,
-            categoria_arsenal_id: input.categoria_arsenal_id ?? null,
-            ferramenta_id: input.ferramenta_id ?? null,
+            categoria: MATERIAL_CATEGORIAS.includes(input.categoria) ? input.categoria : "outro",
             criado_manualmente: true,
           })
-          .select("id, titulo, created_at")
+          .select("id, titulo, categoria, created_at")
           .single();
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ sucesso: true, material: data });
       }
 
       case "atualizar_material": {
+        if ((input.titulo !== undefined && containsCJK(input.titulo)) || (input.conteudo !== undefined && containsCJK(input.conteudo))) {
+          return JSON.stringify({ error: "conteudo/titulo contém caracteres de script asiático (chinês/japonês/coreano) — isso é um vazamento de token indevido. Regenere o texto inteiramente em português, sem nenhum caractere fora do alfabeto latino, e chame atualizar_material de novo." });
+        }
         const updates: Record<string, any> = { updated_at: new Date().toISOString() };
         if (input.titulo !== undefined) updates.titulo = input.titulo;
         if (input.conteudo !== undefined) updates.conteudo = input.conteudo;
+        if (input.categoria !== undefined) updates.categoria = MATERIAL_CATEGORIAS.includes(input.categoria) ? input.categoria : "outro";
         if (input.ferramenta_id !== undefined) updates.ferramenta_id = input.ferramenta_id;
         if (input.categoria_arsenal_id !== undefined) updates.categoria_arsenal_id = input.categoria_arsenal_id;
         if (Object.keys(updates).length === 1) return JSON.stringify({ error: "Nenhum campo para atualizar." });
@@ -2394,6 +2499,73 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           .eq("user_id", platformUserId);
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ sucesso: true, material_id: input.material_id });
+      }
+
+      case "criar_pagina": {
+        if (containsCJK(input.titulo) || containsCJK(input.conteudo)) {
+          return JSON.stringify({ error: "conteudo/titulo contém caracteres de script asiático (chinês/japonês/coreano) — isso é um vazamento de token indevido. Regenere o texto inteiramente em português, sem nenhum caractere fora do alfabeto latino, e chame criar_pagina de novo." });
+        }
+        const { data, error } = await (supabase as any)
+          .from("paginas")
+          .insert({
+            organization_id: orgId,
+            criado_por: platformUserId,
+            parent_id: input.parent_id || null,
+            titulo: input.titulo,
+            conteudo: htmlToPaginaDoc(input.conteudo),
+            categoria: input.categoria && (MATERIAL_CATEGORIAS as readonly string[]).includes(input.categoria) ? input.categoria : null,
+            icone: input.icone || null,
+          })
+          .select("id, titulo, categoria, parent_id, criado_em")
+          .single();
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify({ sucesso: true, pagina: data });
+      }
+
+      case "atualizar_pagina": {
+        if ((input.titulo !== undefined && containsCJK(input.titulo)) || (input.conteudo !== undefined && containsCJK(input.conteudo))) {
+          return JSON.stringify({ error: "conteudo/titulo contém caracteres de script asiático (chinês/japonês/coreano) — isso é um vazamento de token indevido. Regenere o texto inteiramente em português, sem nenhum caractere fora do alfabeto latino, e chame atualizar_pagina de novo." });
+        }
+        const updates: Record<string, any> = { atualizado_em: new Date().toISOString() };
+        if (input.titulo !== undefined) updates.titulo = input.titulo;
+        if (input.conteudo !== undefined) updates.conteudo = htmlToPaginaDoc(input.conteudo);
+        if (input.categoria !== undefined) updates.categoria = (MATERIAL_CATEGORIAS as readonly string[]).includes(input.categoria) ? input.categoria : null;
+        if (input.icone !== undefined) updates.icone = input.icone;
+        if (Object.keys(updates).length === 1) return JSON.stringify({ error: "Nenhum campo para atualizar." });
+        const { error } = await (supabase as any)
+          .from("paginas")
+          .update(updates)
+          .eq("id", input.pagina_id);
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify({ sucesso: true, pagina_id: input.pagina_id, campos_atualizados: Object.keys(updates).filter((k) => k !== "atualizado_em") });
+      }
+
+      case "mover_pagina": {
+        const { error } = await (supabase as any)
+          .from("paginas")
+          .update({ parent_id: input.novo_parent_id || null, atualizado_em: new Date().toISOString() })
+          .eq("id", input.pagina_id);
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify({ sucesso: true, pagina_id: input.pagina_id, novo_parent_id: input.novo_parent_id || null });
+      }
+
+      case "listar_paginas": {
+        const { data, error } = await (supabase as any)
+          .from("paginas")
+          .select("id, titulo, icone, parent_id, categoria")
+          .eq("organization_id", orgId)
+          .order("ordem_index", { ascending: true });
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify({ total: (data ?? []).length, paginas: data ?? [] });
+      }
+
+      case "excluir_pagina": {
+        const { error } = await (supabase as any)
+          .from("paginas")
+          .delete()
+          .eq("id", input.pagina_id);
+        if (error) return JSON.stringify({ error: error.message });
+        return JSON.stringify({ sucesso: true, pagina_id: input.pagina_id });
       }
 
       case "atualizar_progresso_arsenal": {
@@ -2586,21 +2758,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         return JSON.stringify({ sucesso: true, mensagem: "Meta excluída." });
       }
 
-      case "agendar_mensagem": {
-        const { data: lead } = await supabase.from("leads").select("telefone").eq("id", input.lead_id).eq("organization_id", orgId).single();
-        if (!lead) return JSON.stringify({ error: "Lead não encontrado." });
-        const { data, error } = await supabase.from("scheduled_quick_messages").insert({
-          organization_id: orgId,
-          lead_id: input.lead_id,
-          mensagem_rapida_id: null,
-          conteudo_override: input.mensagem,
-          scheduled_for: input.data_hora_envio,
-          status: "pending",
-        }).select("id, scheduled_for, status").single();
-        if (error) return JSON.stringify({ error: error.message });
-        return JSON.stringify({ sucesso: true, mensagem_agendada: { ...data, scheduled_for: toHoraBRT(data?.scheduled_for) } });
-      }
-
       case "cancelar_cadencia_lead": {
         let q = supabase.from("lead_cadencias")
           .update({ status: "cancelado" })
@@ -2664,97 +2821,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
           .delete().eq("id", input.nota_id).eq("organization_id", orgId).in("tipo", ["manual", "os"]);
         if (error) return JSON.stringify({ error: error.message });
         return JSON.stringify({ sucesso: true, mensagem: "Nota excluída." });
-      }
-
-      case "criar_jornada": {
-        // Busca ferramentas e aulas do arsenal para vincular por slug
-        const [{ data: ferramentas }, { data: aulas }] = await Promise.all([
-          (supabase as any).from("arsenal_ferramentas").select("id, slug").eq("ativo", true),
-          (supabase as any).from("arsenal_aulas").select("id, slug").eq("ativo", true),
-        ]);
-        const slugMap = new Map<string, string>(
-          (ferramentas ?? []).map((f: any) => [f.slug, f.id])
-        );
-        const aulaSlugMap = new Map<string, string>(
-          (aulas ?? []).map((a: any) => [a.slug, a.id])
-        );
-
-        const { data: jornadaCriada, error: errJ } = await (supabase as any)
-          .from("jornadas")
-          .insert({ user_id: platformUserId, titulo: input.titulo, status: "ativa", gerada_por: "ia" })
-          .select("id")
-          .single();
-        if (errJ || !jornadaCriada) return JSON.stringify({ error: errJ?.message ?? "Erro ao criar jornada" });
-
-        const hoje = new Date();
-        let cursorDias = 0;
-        let totalPassos = 0;
-        const estagiosResult: any[] = [];
-
-        for (const [idx, est] of (input.estagios ?? []).entries()) {
-          const dataInicio = new Date(hoje);
-          dataInicio.setDate(dataInicio.getDate() + cursorDias);
-          const prazoDias = est.prazo_dias ?? 7;
-          cursorDias += prazoDias + 1;
-
-          const { data: estagio, error: errE } = await (supabase as any)
-            .from("jornada_estagios")
-            .insert({
-              jornada_id: jornadaCriada.id,
-              titulo: est.titulo,
-              descricao: est.descricao ?? null,
-              ordem: idx,
-              prazo_dias: prazoDias,
-              data_inicio: dataInicio.toISOString().slice(0, 10),
-            })
-            .select("id")
-            .single();
-          if (errE || !estagio) continue;
-
-          const passos = est.passos ?? [];
-          for (const [pi, passo] of passos.entries()) {
-            const rawSlug = passo.ferramenta_slug ?? null;
-            // 'aula' é alias para 'ferramenta_arsenal' — normaliza aqui
-            const rawTipo: string = passo.tipo ?? "acao_livre";
-            const isAulaOuFerramenta = rawTipo === "ferramenta_arsenal" || rawTipo === "aula";
-            const normalizedTipo = rawTipo === "aula" ? "ferramenta_arsenal" : rawTipo;
-
-            const ferramentaId =
-              isAulaOuFerramenta && rawSlug
-                ? (slugMap.get(rawSlug) ?? null)
-                : null;
-            const aulaId =
-              isAulaOuFerramenta && rawSlug && !ferramentaId
-                ? (aulaSlugMap.get(rawSlug) ?? null)
-                : null;
-            await (supabase as any).from("jornada_passos").insert({
-              estagio_id: estagio.id,
-              titulo: passo.titulo,
-              descricao: passo.descricao ?? null,
-              ordem: pi,
-              tipo: normalizedTipo,
-              ferramenta_id: ferramentaId,
-              aula_id: aulaId,
-              prazo_dias: passo.prazo_dias ?? null,
-              obrigatorio: passo.obrigatorio ?? true,
-            });
-            totalPassos++;
-          }
-
-          estagiosResult.push({ titulo: est.titulo, total_passos: passos.length });
-        }
-
-        // Marca onboarding_concluido no platform_users
-        await supabase.from("platform_users").update({ onboarding_concluido: true }).eq("id", platformUserId);
-
-        return JSON.stringify({
-          sucesso: true,
-          jornada_id: jornadaCriada.id,
-          titulo: input.titulo,
-          total_estagios: estagiosResult.length,
-          total_passos: totalPassos,
-          estagios: estagiosResult,
-        });
       }
 
       case "obter_config_ia": {
@@ -3340,28 +3406,40 @@ function corrigirAcentosObjeto(val: unknown): unknown {
 // Cache em memória (persiste enquanto a instância da Edge Function vive — ~5 min)
 const _promptCache = new Map<string, { prompt: string; expiresAt: number }>();
 
+// Base de conhecimento comercial: extraída para supabase/functions/_shared/athos-comercial.ts
+// (compartilhada com o Athos CS em cs-athos, para paridade comercial). Ver import no topo.
+
 async function buildSystemPrompt(orgId: string, platformUserId: string): Promise<string> {
   const cacheKey = `${orgId}:${platformUserId}`;
   const cached = _promptCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.prompt;
 
-  const [puRes, procsRes, orgRes, diagRes, memoriesRes] = await Promise.all([
+  const mesAtual = buildCalendarPeriod("mes");
+
+  const [puRes, procsRes, orgRes, diagRes, memoriesRes, funilMesRes] = await Promise.all([
     supabase.from("platform_users").select("clinic_name, specialty, whatsapp").eq("id", platformUserId).maybeSingle(),
     supabase.from("procedimentos").select("nome, valor_base").eq("organization_id", orgId).eq("ativo", true).limit(10),
     supabase.from("organizations").select("nome").eq("id", orgId).maybeSingle(),
     supabase.from("meus_materiais" as any).select("conteudo, titulo").eq("user_id", platformUserId).eq("categoria", "diagnostico").maybeSingle(),
     supabase.from("os_memories").select("conteudo, tipo, tags").eq("user_id", platformUserId).eq("organization_id", orgId).order("atualizado_em", { ascending: false }).limit(10),
+    calcularMetricasPainel(orgId, mesAtual.startDate, mesAtual.endDate, mesAtual.startDayStr, mesAtual.endDayStr, false),
   ]);
 
   const pu   = puRes.data;
   const org  = orgRes.data;
   const diag = (diagRes as any).data;
+  const funilMes = funilMesRes;
 
   const nomeClinica = pu?.clinic_name || org?.nome || "Não informado";
   const especialidade = pu?.specialty || "Não informada";
 
   const procs  = procsRes.data  ?? [];
   const memories = memoriesRes.data ?? [];
+
+  const situacaoAtualInfo = [
+    "  Leads: " + funilMes.total_leads + " | MQLs: " + funilMes.mqls + " (" + funilMes.tx_mql + "%) | Agendamentos: " + funilMes.agendamentos + " (" + funilMes.tx_agendamento + "%) | Fechamentos: " + funilMes.fechamentos + " (" + funilMes.tx_fechamento + "%)",
+    "  Taxa global (lead→fechamento): " + funilMes.tx_global + "% | Receita do mês: R$ " + funilMes.receita,
+  ].join("\n");
 
   const dataAtual = new Date().toLocaleDateString("pt-BR", { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: "America/Sao_Paulo" });
   const horaAtual = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
@@ -3376,7 +3454,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     : "  Nenhum procedimento";
 
   const prompt = [
-    "Você é o Athos GS — inteligência estratégica desta clínica.",
+    "Você é o Athos GS — especialista comercial desta clínica. Seu trabalho é aplicar a metodologia proprietária EVA (Estruturação, Validação, Ajuste) para elevar o desempenho comercial real da clínica, não apenas responder perguntas.",
     "Todos os dados que você consulta pertencem EXCLUSIVAMENTE a esta clínica.",
     "",
     "REGRA 1: Zero emojis nas respostas, exceto ao simular mensagens WhatsApp para o usuário.",
@@ -3397,6 +3475,11 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "Taxas: tx_mql = MQL/Leads | tx_agendamento = Agend/MQL | tx_fechamento = Fech/Agend",
     "Quando analisar performance, comparar períodos, ou fazer diagnóstico comercial: use SEMPRE o funil acima.",
     "",
+    "## SITUAÇÃO COMERCIAL ATUAL (mês corrente — snapshot automático)",
+    "Você já sabe o que está acontecendo agora nesta clínica, sem precisar perguntar ou buscar tool para uma visão geral:",
+    situacaoAtualInfo,
+    "Use este snapshot como ponto de partida em qualquer diagnóstico ou material de otimização comercial. Para períodos diferentes ou detalhamento maior, busque obter_metricas_funil.",
+    "",
     "## PROCEDIMENTOS",
     procsInfo,
     "",
@@ -3413,7 +3496,44 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "periodo_nome ('hoje'/'semana'/'mes'/'ano') = calendário atual igual ao painel. 'semana'=domingo–sábado corrente.",
     "Períodos passados: data_inicial+data_final (YYYY-MM-DD). 'Últimos X dias': periodo_dias=X.",
     "",
-    "## MATERIAIS: HTML obrigatório (TipTap). Use <h2>/<h3>, <p>, <strong>, <ul><li>, <ol><li>, <hr>. Nunca texto plano.",
+    "## BASE DE CONHECIMENTO COMERCIAL",
+    "Você é especialista nestes temas — use-os como fundamento de qualquer material ou orientação comercial que criar:",
+    COMMERCIAL_KNOWLEDGE_BASE,
+    "",
+    "## CRIAÇÃO DE MATERIAIS COMERCIAIS",
+    "Você não gera texto genérico — aplica EVA: antes de criar um material, busque o dado real da clínica (funil, leads parados, conversas, ranking de procedimentos, objeções já registradas) em vez de escrever teoria solta.",
+    "",
+    "### FORMATAÇÃO DO HTML — REGRA CRÍTICA, SIGA À RISCA",
+    "O material é renderizado num editor rico (TipTap) — cada elemento estrutural DEVE usar a tag semântica certa. NUNCA escreva títulos de seção, objeções ou passos como texto corrido dentro de <p> com numeração manual (ex: '1) Regras...', 'Objeção A: ...' são PROIBIDOS como texto plano). Estrutura obrigatória:",
+    "  - <h2> — título único do material, no topo.",
+    "  - <h3> — cada seção/bloco principal (ex: cada objeção, cada etapa do script, cada passo do processo) é um <h3> próprio, nunca um número dentro de <p>.",
+    "  - <ul><li> — para listas de itens sem ordem obrigatória (características, sinais, critérios).",
+    "  - <ol><li> — para sequências reais de passos/ordem de execução.",
+    "  - <p> — só para o texto corrido dentro de uma seção (explicação, script, resposta) — nunca para títulos.",
+    "  - <strong> — só para destacar 1-3 palavras-chave por parágrafo, nunca o parágrafo inteiro.",
+    "  - <hr> — entre blocos principais (ex: entre uma objeção e outra), não dentro de uma mesma seção.",
+    "REGRA DE LISTA PARALELA: sempre que houver 2+ itens do MESMO tipo dentro de uma seção (cada objeção, cada exemplo por procedimento, cada passo, cada critério), eles são itens de UMA ÚNICA <ul> ou <ol> — nunca uma sequência de <p> separados, cada um começando com <strong>rótulo:</strong>. Errado: '<p><strong>Rinomodelação (R$ 900):</strong> texto</p><p><strong>Preenchimento labial (R$ 800):</strong> texto</p>'. Certo: '<ul><li><strong>Rinomodelação (R$ 900):</strong> texto</li><li><strong>Preenchimento labial (R$ 800):</strong> texto</li></ul>'.",
+    "Esqueleto de referência (adapte o conteúdo, mantenha a estrutura de tags):",
+    "<h2>[Título do material]</h2>",
+    "<p>[1-2 frases de objetivo/contexto]</p>",
+    "<hr>",
+    "<h3>[Nome da seção 1 — ex: nome da objeção, nome do passo]</h3>",
+    "<p>[texto corrido: script, resposta, explicação — com <strong> pontual]</p>",
+    "<ul><li><strong>[item 1]:</strong> [detalhe]</li><li><strong>[item 2]:</strong> [detalhe]</li></ul>",
+    "<hr>",
+    "<h3>[Nome da seção 2]</h3>",
+    "<ol><li>[passo 1]</li><li>[passo 2]</li></ol>",
+    "Antes de chamar criar_pagina/atualizar_pagina, revise mentalmente o HTML gerado: se houver qualquer título/numeração de seção dentro de um <p> em vez de <h3>, ou 2+ itens paralelos como <p> separados em vez de <li> de uma mesma lista, corrija antes de enviar.",
+    "",
+    "Categorias fixas de material comercial (parâmetro categoria da tool criar_pagina, opcional — só quando a página for material comercial) — escolha a mais específica; use 'outro' só quando nenhuma se aplicar:",
+    "  - script_atendimento: roteiro de conversa/atendimento (WhatsApp ou presencial) orientado, não decorado",
+    "  - estrutura_processo: desenho de um processo comercial completo aplicando EVA (quem faz, quando, como, critério de avanço)",
+    "  - quebra_objecao: banco de respostas para objeções específicas — priorize objeções reais já vistas nas conversas da clínica",
+    "  - oferta: estruturação de oferta/precificação (âncora, escada de valor, garantias)",
+    "  - followup_reativacao: cadência de contato para leads ativos ou reativação de base parada",
+    "  - otimizacao_comercial: diagnóstico do funil + plano de ajuste, amarrado a dado real do período",
+    "  - outro: qualquer material comercial que não se encaixe nas categorias acima",
+    "IMPORTANTE: criar_pagina NÃO depende de nenhuma ferramenta do Arsenal — nunca chame listar_arsenal/obter_arsenal_ferramenta antes de criar um material comercial. titulo + conteudo (+ categoria quando for material comercial) já bastam. Para qualquer página que não seja material comercial, omita categoria.",
     "",
     "## ROTEAMENTO DE FERRAMENTAS — SIGA RIGOROSAMENTE",
     "Antes de responder qualquer pedido, identifique a intenção e chame a ferramenta correta. NUNCA responda com dados inventados — sempre busque primeiro.",
@@ -3428,7 +3548,6 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- 'O que o lead falou?', 'conversa do lead', 'mensagens de X', 'analisa a conversa', 'o que foi conversado' → buscar_conversas_lead (precisa de lead_id — use obter_lead_completo antes se só tiver nome/telefone)",
     "- REGRA AUTOMÁTICA: se obter_lead_completo retornar aviso_mensagens não-nulo (mensagens_exibidas >= 30), chame IMEDIATAMENTE buscar_conversas_lead(lead_id, limite=100) antes de analisar qualquer coisa da conversa. Não mencione isso ao usuário — apenas execute.",
     "- 'Envia mensagem para X' → obter_lead_completo(nome/telefone) → enviar_mensagem(lead_id, mensagem)",
-    "- 'Agenda mensagem para X' → obter_lead_completo → agendar_mensagem",
     "",
     "### Consultas sobre MÉTRICAS e FUNIL",
     "- 'Como está o funil?', 'métricas', 'taxa de conversão', 'quantos MQLs?' → obter_metricas_funil",
@@ -3485,8 +3604,16 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- 'Ferramentas do Arsenal', 'categorias' → listar_arsenal",
     "- 'Detalhe da ferramenta X' → obter_arsenal_ferramenta",
     "- 'Materiais complementares' → listar_materiais_complementares | 'Ler material X' → ler_material_complementar",
-    "- 'Meus materiais' → listar_meus_materiais | 'Criar material' → criar_material",
-    "- 'Criar jornada' → criar_jornada",
+    "- 'Minhas notas', 'minhas páginas', 'o que eu já tenho salvo' → listar_paginas",
+    "- Pedido de material comercial → SEMPRE busque dado real primeiro (funil/leads/conversas conforme o tipo), depois chame criar_pagina com a categoria certa:",
+    "  - 'script de atendimento', 'roteiro pra falar com o lead', 'como devo atender' → obter_metricas_funil/obter_procedimentos → criar_pagina(categoria='script_atendimento')",
+    "  - 'estrutura de atendimento', 'processo comercial', 'como estruturar o processo de X' → criar_pagina(categoria='estrutura_processo')",
+    "  - 'quebra de objeção', 'como responder quando o lead diz...' → buscar_conversas_lead/obter_lead_completo (objeções reais) → criar_pagina(categoria='quebra_objecao')",
+    "  - 'monta uma oferta', 'como precificar', 'estrutura de oferta' → obter_procedimentos → criar_pagina(categoria='oferta')",
+    "  - 'follow-up', 'reativação de base', 'leads parados' → analisar_leads_parados → criar_pagina(categoria='followup_reativacao')",
+    "  - 'otimização comercial', 'diagnóstico do funil', 'onde estou perdendo' → obter_metricas_funil → criar_pagina(categoria='otimizacao_comercial')",
+    "  - qualquer outro material comercial que não se encaixe acima → criar_pagina(categoria='outro')",
+    "- Pedido de página/nota que NÃO é material comercial (anotação, planejamento, processo interno) → criar_pagina sem categoria. Se o usuário indicar uma pasta/página existente para organizar dentro, chame listar_paginas primeiro e use parent_id (ou mover_pagina depois de criada).",
     "",
     "### MEMÓRIA PERSISTENTE",
     "- 'Lembre que...', 'anota isso', 'memoriza' → salvar_memoria",
@@ -3523,6 +3650,7 @@ async function buildSystemPrompt(orgId: string, platformUserId: string): Promise
     "- Direto e estratégico — diagnósticos + ações concretas",
     "- Use 'clínica', nunca 'organização'",
     "- NUNCA reproduza a linha do tempo da conversa nem liste as mensagens em sequência cronológica. O usuário já conhece o conteúdo. Ao analisar um atendimento ou conversa, vá direto para o diagnóstico, pontos de melhoria e ações — sem transcrever ou resumir o histórico de mensagens.",
+    "- Escreva SEMPRE em português (PT-BR), alfabeto latino. NUNCA misture caracteres de outro alfabeto/script (chinês, japonês, coreano, cirílico, árabe etc.) no meio do texto — isso é sempre um erro de geração, nunca intencional.",
     "",
     "## MEMÓRIA PERSISTENTE (entre conversas)",
     "Você tem memória entre conversas. As memórias ativas estão listadas abaixo — use-as para personalizar respostas.",
@@ -3566,7 +3694,7 @@ const TOOL_CATEGORIES: Record<string, { tools: string[]; keywords: RegExp }> = {
   },
   conversas: {
     tools: [
-      "buscar_conversas_lead", "enviar_mensagem", "agendar_mensagem",
+      "buscar_conversas_lead", "enviar_mensagem",
     ],
     keywords: /conversa|mensag|whatsapp|envi|mand|falou|disse|escrev|respond|agenda.*mensag/i,
   },
@@ -3614,13 +3742,14 @@ const TOOL_CATEGORIES: Record<string, { tools: string[]; keywords: RegExp }> = {
   },
   plataforma: {
     tools: [
-      "obter_minha_jornada", "marcar_passo_jornada", "criar_jornada",
+      "obter_minha_jornada", "marcar_passo_jornada",
       "listar_arsenal", "obter_arsenal_ferramenta",
       "listar_materiais_complementares", "ler_material_complementar",
       "listar_meus_materiais", "criar_material", "atualizar_material", "excluir_material",
+      "listar_paginas", "criar_pagina", "atualizar_pagina", "mover_pagina", "excluir_pagina",
       "atualizar_progresso_arsenal", "salvar_construcao_ferramenta",
     ],
-    keywords: /jornada|arsenal|ferramenta|material|trilha|aula|passo.*conclu/i,
+    keywords: /jornada|arsenal|ferramenta|material|trilha|aula|passo.*conclu|nota|p[aá]gina/i,
   },
   memoria: {
     tools: [
@@ -3635,6 +3764,8 @@ const TOOL_CATEGORIES: Record<string, { tools: string[]; keywords: RegExp }> = {
 };
 
 // Tools que sempre estão disponíveis (baixo custo, alta utilidade cross-domain)
+// Materiais entram aqui pois criar_material é o core da missão do Athos como especialista
+// comercial — não pode depender de keyword bater a categoria 'plataforma'.
 const ALWAYS_INCLUDE_TOOLS = new Set([
   "obter_lead_completo",
   "buscar_leads",
@@ -3642,6 +3773,13 @@ const ALWAYS_INCLUDE_TOOLS = new Set([
   "buscar_memorias",
   "apagar_memoria",
   "atualizar_memoria",
+  "listar_meus_materiais",
+  "criar_material",
+  "atualizar_material",
+  "listar_paginas",
+  "criar_pagina",
+  "atualizar_pagina",
+  "mover_pagina",
 ]);
 
 function selectToolsForMessage(
@@ -3795,10 +3933,15 @@ Deno.serve(async (req) => {
 
   let body: any;
   try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: "Body invalido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
-  const { message, conversation_id, history = [], model: requestedModel, attachments = [], system_prompt_override, tools_override } = body;
-  const rawModel = (requestedModel && typeof requestedModel === "string" && requestedModel.trim()) ? requestedModel.trim() : DEFAULT_MODEL;
-  const model = ALLOWED_MODELS.has(rawModel) ? rawModel : DEFAULT_MODEL;
+  const { message, conversation_id, history = [], attachments = [], system_prompt_override, tools_override, ferramenta_context } = body;
   if (!message?.trim() && !attachments?.length) return new Response(JSON.stringify({ error: "Mensagem vazia" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+  // Modelo NUNCA vem do cliente — sempre o configurado pelo Admin (athos_config).
+  // Isso não é só uma questão de UI: mesmo uma chamada direta à API (sem passar
+  // pelo frontend) não consegue escolher outro modelo.
+  const { data: athosConfig } = await supabase.from("athos_config").select("modelo_padrao").eq("id", "default").maybeSingle();
+  const rawModel = athosConfig?.modelo_padrao || DEFAULT_MODEL;
+  const model = ALLOWED_MODELS.has(rawModel) ? rawModel : DEFAULT_MODEL;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -3818,17 +3961,22 @@ Deno.serve(async (req) => {
         if (system_prompt_override) {
           const raw = String(system_prompt_override);
           if (raw.includes(DIAG_PLACEHOLDER)) {
-            // Injetar diagnóstico do cliente no prompt do agente de onboarding
-            const { data: diagMat } = await supabase
-              .from("meus_materiais" as any)
-              .select("conteudo")
-              .eq("user_id", platformUserId)
-              .eq("categoria", "diagnostico")
-              .maybeSingle();
-            const diagContent = (diagMat as any)?.conteudo;
-            resolvedSystemPrompt = diagContent
-              ? raw.replace(DIAG_PLACEHOLDER, diagContent)
-              : raw.replace(DIAG_PLACEHOLDER, "(Diagnóstico ainda não preenchido pelo cliente)");
+            if (ferramenta_context) {
+              // Arsenal copiloto — injeta contexto da ferramenta em vez do diagnóstico
+              resolvedSystemPrompt = raw.replace(DIAG_PLACEHOLDER, ferramenta_context);
+            } else {
+              // Onboarding agent — injeta diagnóstico do cliente
+              const { data: diagMat } = await supabase
+                .from("meus_materiais" as any)
+                .select("conteudo")
+                .eq("user_id", platformUserId)
+                .eq("categoria", "diagnostico")
+                .maybeSingle();
+              const diagContent = (diagMat as any)?.conteudo;
+              resolvedSystemPrompt = diagContent
+                ? raw.replace(DIAG_PLACEHOLDER, diagContent)
+                : raw.replace(DIAG_PLACEHOLDER, "(Diagnóstico ainda não preenchido pelo cliente)");
+            }
           } else {
             resolvedSystemPrompt = raw;
           }

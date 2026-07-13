@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { usePlataforma } from "@/contexts/PlataformaContext";
 import { Button } from "@/components/ui/button";
-import { Bot, MessageSquare, Search, Send, RefreshCw, Megaphone, Film, PenTool, Lock, BrainCircuit, ArrowRight } from "lucide-react";
+import { Bot, MessageSquare, Search, Send, RefreshCw, Megaphone, Film, PenTool, Lock, ArrowRight } from "lucide-react";
+import { PageHero } from "@/components/PageHero";
 
 const IA_LIST = [
   { id: 'preattendance', title: 'Pré-Atendimento', benefit: 'Zero lead perdido por demora na resposta', badge: 'Ativa 24h no WhatsApp', icon: Bot, requiredPlan: 'pca' },
@@ -16,32 +17,18 @@ const IA_LIST = [
 
 export default function IAHub() {
   const navigate = useNavigate();
-  const { plan, isCerebroComplete, acesso, isMember } = usePlataforma();
+  const { plan, acesso } = usePlataforma();
   const iasLiberadas = acesso.ias_liberadas ?? [];
 
   return (
     <div className="max-w-[1000px] mx-auto space-y-8 pb-12">
       {/* HEADER */}
-      <div className="space-y-1 border-b border-border pb-6" data-tutorial="iahub-header">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">IAs Comerciais</h1>
-        <p className="text-muted-foreground text-[15px]">{iasLiberadas.length} inteligência{iasLiberadas.length !== 1 ? 's artificiais' : ' artificial'} disponíve{iasLiberadas.length !== 1 ? 'is' : 'l'} para você.</p>
-      </div>
-
-      {/* AVISO CÉREBRO NÃO CONFIGURADO — apenas para o dono da org */}
-      {!isCerebroComplete && !isMember && (
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-card">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
-            <BrainCircuit className="h-4 w-4 text-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-medium text-foreground">Configure o Cérebro Central para personalizar as IAs.</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Gere saídas treinadas para seu ICP e Procedimentos.</p>
-          </div>
-          <Button onClick={() => navigate('/plataforma/cerebro')} variant="outline" size="sm" className="shrink-0 h-8 text-xs font-medium">
-            Configurar
-          </Button>
-        </div>
-      )}
+      <PageHero
+        dataTutorial="iahub-header"
+        icon={Bot}
+        title="IAs Comerciais"
+        subtitle={`${iasLiberadas.length} inteligência${iasLiberadas.length !== 1 ? 's artificiais' : ' artificial'} disponíve${iasLiberadas.length !== 1 ? 'is' : 'l'} para você.`}
+      />
 
       {/* GRID DE IAS */}
       <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden divide-y divide-border">

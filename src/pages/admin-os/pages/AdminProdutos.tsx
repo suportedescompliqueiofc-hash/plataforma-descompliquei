@@ -514,7 +514,7 @@ export default function AdminProdutos() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Funcionalidades</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Áreas liberadas</p>
                     <div className="grid grid-cols-2 gap-1.5">
                       {FUNCIONALIDADES.map(f => {
                         const on = p[f.key as keyof Produto] as boolean;
@@ -661,7 +661,10 @@ export default function AdminProdutos() {
             </section>
 
             <section className="space-y-3">
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Funcionalidades do Sistema</h3>
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">Áreas da plataforma</h3>
+                <p className="text-[11px] text-muted-foreground/60 mt-1">Cada produto libera apenas as áreas marcadas — o cliente vê só o que comprou.</p>
+              </div>
               <div className="space-y-2">
                 {FUNCIONALIDADES.map(f => (
                   <div key={f.key} className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">

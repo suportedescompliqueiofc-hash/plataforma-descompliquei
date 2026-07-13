@@ -4,11 +4,12 @@ import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import { TextStyle, Color } from '@tiptap/extension-text-style';
 import {
   Bold, Italic, Strikethrough, Code, List, ListOrdered,
   Heading1, Heading2, Heading3, Minus, Undo2, Redo2,
   Table as TableIcon, Plus, Trash2, ChevronDown,
-  Quote, Terminal,
+  Quote, Terminal, Baseline, Ban,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { cn } from '@/lib/utils';
@@ -120,21 +121,96 @@ function TableMenu({ editor, dark = false }: { editor: Editor; dark?: boolean })
   );
 }
 
+// ─── Color dropdown ────────────────────────────────────────────────────────────
+
+// Cores padrão para a fonte da escrita. Hexadecimais fixos (não tokens do tema)
+// porque é conteúdo do usuário — a cor escolhida deve valer em claro e escuro.
+const CORES_TEXTO: { nome: string; valor: string | null }[] = [
+  { nome: 'Padrão', valor: null },
+  { nome: 'Vermelho', valor: '#E5484D' },
+  { nome: 'Laranja', valor: '#E85D24' },
+  { nome: 'Âmbar', valor: '#D9820A' },
+  { nome: 'Verde', valor: '#30A46C' },
+  { nome: 'Azul', valor: '#3B82F6' },
+  { nome: 'Roxo', valor: '#8B5CF6' },
+  { nome: 'Rosa', valor: '#EC4899' },
+  { nome: 'Cinza', valor: '#78716C' },
+];
+
+function ColorMenu({ editor, dark = false }: { editor: Editor; dark?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, []);
+
+  const corAtiva = editor.getAttributes('textStyle')?.color as string | undefined;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onMouseDown={e => { e.preventDefault(); setOpen(v => !v); }}
+        title="Cor do texto"
+        className={cn(
+          'flex items-center gap-0.5 p-1.5 rounded-md transition-colors',
+          dark
+            ? 'text-white/35 hover:text-white/70 hover:bg-white/[0.06]'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+        )}
+      >
+        <Baseline className="h-3.5 w-3.5" style={corAtiva ? { color: corAtiva } : undefined} />
+        <ChevronDown className="h-2.5 w-2.5 opacity-60" />
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-50 rounded-xl border border-border/60 bg-popover shadow-lg p-2">
+          <div className="grid grid-cols-5 gap-1">
+            {CORES_TEXTO.map(c => (
+              <button
+                key={c.nome}
+                title={c.nome}
+                onMouseDown={e => {
+                  e.preventDefault();
+                  if (c.valor) editor.chain().focus().setColor(c.valor).run();
+                  else editor.chain().focus().unsetColor().run();
+                  setOpen(false);
+                }}
+                className={cn(
+                  'h-6 w-6 rounded-md border flex items-center justify-center transition-transform hover:scale-110',
+                  corAtiva === c.valor ? 'border-foreground ring-1 ring-foreground/40' : 'border-border/60'
+                )}
+                style={c.valor ? { backgroundColor: c.valor } : undefined}
+              >
+                {!c.valor && <Ban className="h-3 w-3 text-muted-foreground" />}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Editor styles shared ─────────────────────────────────────────────────────
 
 export const EDITOR_STYLES = `
   [&_.ProseMirror]:outline-none
-  [&_.ProseMirror_h1]:text-[22px] [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:text-foreground [&_.ProseMirror_h1]:mb-2 [&_.ProseMirror_h1]:mt-6 [&_.ProseMirror_h1]:leading-snug [&_.ProseMirror_h1:first-child]:mt-0
-  [&_.ProseMirror_h2]:text-[18px] [&_.ProseMirror_h2]:font-semibold [&_.ProseMirror_h2]:text-foreground [&_.ProseMirror_h2]:mb-1.5 [&_.ProseMirror_h2]:mt-5 [&_.ProseMirror_h2:first-child]:mt-0
-  [&_.ProseMirror_h3]:text-[15px] [&_.ProseMirror_h3]:font-semibold [&_.ProseMirror_h3]:text-foreground/80 [&_.ProseMirror_h3]:mb-1 [&_.ProseMirror_h3]:mt-4 [&_.ProseMirror_h3:first-child]:mt-0
-  [&_.ProseMirror_p]:text-[14px] [&_.ProseMirror_p]:text-foreground/80 [&_.ProseMirror_p]:leading-[1.8] [&_.ProseMirror_p]:mb-1
+  [&_.ProseMirror_h1]:text-[20px] [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:text-foreground [&_.ProseMirror_h1]:mb-2 [&_.ProseMirror_h1]:mt-6 [&_.ProseMirror_h1]:leading-snug [&_.ProseMirror_h1:first-child]:mt-0
+  [&_.ProseMirror_h2]:text-[17px] [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:text-foreground [&_.ProseMirror_h2]:mb-2 [&_.ProseMirror_h2]:mt-6 [&_.ProseMirror_h2:first-child]:mt-0
+  [&_.ProseMirror_h3]:text-[11px] [&_.ProseMirror_h3]:font-bold [&_.ProseMirror_h3]:uppercase [&_.ProseMirror_h3]:tracking-wider [&_.ProseMirror_h3]:text-foreground/70 [&_.ProseMirror_h3]:mb-2 [&_.ProseMirror_h3]:mt-6 [&_.ProseMirror_h3]:pt-4 [&_.ProseMirror_h3]:border-t [&_.ProseMirror_h3]:border-border/40 [&_.ProseMirror_h3:first-child]:mt-0 [&_.ProseMirror_h3:first-child]:pt-0 [&_.ProseMirror_h3:first-child]:border-t-0
+  [&_.ProseMirror_p]:text-[15px] [&_.ProseMirror_p]:text-foreground/80 [&_.ProseMirror_p]:leading-[1.7] [&_.ProseMirror_p]:mb-2
   [&_.ProseMirror_strong]:font-bold [&_.ProseMirror_strong]:text-foreground
   [&_.ProseMirror_em]:italic
   [&_.ProseMirror_s]:line-through [&_.ProseMirror_s]:text-muted-foreground
-  [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-6 [&_.ProseMirror_ul]:mb-2
-  [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-6 [&_.ProseMirror_ol]:mb-2
-  [&_.ProseMirror_li]:text-[14px] [&_.ProseMirror_li]:text-foreground/80 [&_.ProseMirror_li]:mb-0.5 [&_.ProseMirror_li]:leading-[1.7]
-  [&_.ProseMirror_hr]:border-border/40 [&_.ProseMirror_hr]:my-5
+  [&_.ProseMirror_ul]:list-disc [&_.ProseMirror_ul]:pl-5 [&_.ProseMirror_ul]:mb-3
+  [&_.ProseMirror_ol]:list-decimal [&_.ProseMirror_ol]:pl-5 [&_.ProseMirror_ol]:mb-3
+  [&_.ProseMirror_li]:text-[15px] [&_.ProseMirror_li]:text-foreground/80 [&_.ProseMirror_li]:mb-1 [&_.ProseMirror_li]:leading-[1.65]
+  [&_.ProseMirror_hr]:border-border/40 [&_.ProseMirror_hr]:my-4
   [&_.ProseMirror_blockquote]:border-l-[3px] [&_.ProseMirror_blockquote]:border-foreground/20 [&_.ProseMirror_blockquote]:pl-4 [&_.ProseMirror_blockquote]:my-3 [&_.ProseMirror_blockquote]:text-muted-foreground [&_.ProseMirror_blockquote]:italic
   [&_.ProseMirror_code]:bg-muted/60 [&_.ProseMirror_code]:text-[13px] [&_.ProseMirror_code]:font-mono [&_.ProseMirror_code]:px-1.5 [&_.ProseMirror_code]:py-0.5 [&_.ProseMirror_code]:rounded-md [&_.ProseMirror_code]:text-foreground/90 [&_.ProseMirror_code]:border [&_.ProseMirror_code]:border-border/40
   [&_.ProseMirror_pre]:bg-[hsl(220,13%,13%)] [&_.ProseMirror_pre]:text-[hsl(220,14%,82%)] [&_.ProseMirror_pre]:rounded-xl [&_.ProseMirror_pre]:p-4 [&_.ProseMirror_pre]:my-3 [&_.ProseMirror_pre]:overflow-x-auto
@@ -145,11 +221,31 @@ export const EDITOR_STYLES = `
   [&_.ProseMirror_.selectedCell]:bg-primary/10
 `;
 
+// Versão para render read-only de HTML salvo pelo editor (dangerouslySetInnerHTML)
+export const PROSE_STYLES = `
+  [&_h1]:text-[20px] [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mb-2 [&_h1]:mt-6 [&_h1]:leading-snug [&_h1:first-child]:mt-0
+  [&_h2]:text-[17px] [&_h2]:font-bold [&_h2]:text-foreground [&_h2]:mb-2 [&_h2]:mt-6 [&_h2:first-child]:mt-0
+  [&_h3]:text-[11px] [&_h3]:font-bold [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-foreground/70 [&_h3]:mb-2 [&_h3]:mt-6 [&_h3]:pt-4 [&_h3]:border-t [&_h3]:border-border/40 [&_h3:first-child]:mt-0 [&_h3:first-child]:pt-0 [&_h3:first-child]:border-t-0
+  [&_p]:text-[15px] [&_p]:text-foreground/80 [&_p]:leading-[1.7] [&_p]:mb-2 [&_p:last-child]:mb-0
+  [&_strong]:font-bold [&_strong]:text-foreground
+  [&_em]:italic
+  [&_s]:line-through [&_s]:text-muted-foreground
+  [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3
+  [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3
+  [&_li]:text-[15px] [&_li]:text-foreground/80 [&_li]:mb-1 [&_li]:leading-[1.65]
+  [&_li_p]:mb-0
+  [&_hr]:border-border/40 [&_hr]:my-4
+  [&_blockquote]:border-l-[3px] [&_blockquote]:border-foreground/20 [&_blockquote]:pl-4 [&_blockquote]:my-3 [&_blockquote]:text-muted-foreground [&_blockquote]:italic
+  [&_code]:bg-muted/60 [&_code]:text-[13px] [&_code]:font-mono [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded-md [&_code]:text-foreground/90 [&_code]:border [&_code]:border-border/40
+`;
+
 // ─── Extensions ───────────────────────────────────────────────────────────────
 
 export function getRichExtensions() {
   return [
     StarterKit,
+    TextStyle,
+    Color.configure({ types: ['textStyle'] }),
     Table.configure({ resizable: false }),
     TableRow,
     TableHeader,
@@ -200,6 +296,7 @@ export function RichToolbar({ editor, compact = false, dark = false }: { editor:
       <TB dark={dark} title="Código inline" active={editor.isActive('code')} onClick={() => editor.chain().focus().toggleCode().run()}>
         <Code className="h-3.5 w-3.5" />
       </TB>
+      <ColorMenu editor={editor} dark={dark} />
 
       <Divider dark={dark} />
 

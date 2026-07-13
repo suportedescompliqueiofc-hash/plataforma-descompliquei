@@ -6,11 +6,11 @@ import {
   Crosshair,
 } from "lucide-react";
 import { usePlataforma } from "@/contexts/PlataformaContext";
+import { PageHero } from "@/components/PageHero";
 
 // ─── Cores por ferramenta ──────────────────────────────────────────────────────
 
 const TOOL_ACCENTS: Record<string, string> = {
-  trilha:   'bg-violet-500',
   arsenal:  'bg-amber-500',
   jornada:  'bg-cyan-500',
   materiais:'bg-emerald-500',
@@ -37,7 +37,7 @@ export default function Hub() {
     {
       id: 'arsenal', icon: Swords,
       title: 'Arsenal Comercial',
-      description: '43 ferramentas para construir processos reais',
+      description: 'Ferramentas para construir processos reais',
       action: () => navigate('/plataforma/arsenal'),
       actionLabel: 'Explorar',
     },
@@ -57,7 +57,7 @@ export default function Hub() {
     },
     temOS && {
       id: 'os', icon: Layers,
-      title: 'Athos GS',
+      title: 'Athos',
       description: 'Seu sistema operacional de gestão da clínica',
       action: () => navigate('/plataforma/athos-gs'),
       actionLabel: 'Acessar',
@@ -96,33 +96,11 @@ export default function Hub() {
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
 
       {/* ─── Hero ─── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-8 py-10 sm:px-12 sm:py-12">
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }} />
-        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full opacity-55 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, #ea580c, transparent 65%)' }} />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-35 blur-[80px]"
-          style={{ background: 'radial-gradient(circle, #d97706, transparent 65%)' }} />
-
-        <div className="relative z-10 space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-white/[0.07] backdrop-blur-sm border border-white/[0.08]">
-              <Crosshair className="h-5 w-5 text-white/80" />
-            </div>
-            <div className="h-px flex-1 max-w-[100px] bg-gradient-to-r from-white/20 to-transparent" />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-display leading-[1.15]">
-              Olá, {plataformaUser?.clinic_name || 'Clínica'}
-            </h1>
-            <p className="text-[13px] text-white/40 mt-2 max-w-sm leading-relaxed">
-              Aqui estão todas as ferramentas da sua plataforma.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageHero
+        icon={Crosshair}
+        title={`Olá, ${plataformaUser?.clinic_name || 'Clínica'}`}
+        subtitle="Aqui estão todas as ferramentas da sua plataforma."
+      />
 
       {/* ─── Grade de ferramentas ─── */}
       <div className="space-y-3" data-tutorial="hub-tools">

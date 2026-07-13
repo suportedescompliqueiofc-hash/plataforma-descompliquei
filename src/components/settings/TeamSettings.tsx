@@ -22,7 +22,7 @@ import { ptBR } from "date-fns/locale";
 const PAGE_KEYS = [
   'painel', 'conversas', 'notificacoes', 'leads', 'pipeline',
   'agendamentos', 'vendas', 'procedimentos', 'metas', 'equipe',
-  'msgs_rapidas', 'cadencias', 'ia', 'configuracoes', 'plataforma',
+  'cadencias', 'ia', 'configuracoes', 'plataforma',
 ] as const;
 
 const ROLE_ICONS: Record<string, React.ElementType> = {

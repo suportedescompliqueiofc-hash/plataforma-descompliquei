@@ -772,7 +772,9 @@ async function saveMemory(sessionId: string, orgId: string, role: string, conten
 
 function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
   const baseDescription =
-    "Gerencia o CRM: salva resumo da conversa e atualiza informações do lead (nome, procedimento de interesse, queixa). Use quando o cliente confirmar interesse, informar dados pessoais, ou avançar na qualificação.";
+    "Atualiza dados cadastrais do lead (nome, procedimento de interesse) quando o cliente informar isso na conversa. " +
+    "NÃO é para escrever resumos ou notas — isso é feito por outro processo, automaticamente, depois da conversa. " +
+    "Use só quando houver um dado novo e objetivo para registrar (nome informado, procedimento identificado).";
   const crmDescription = promptCrm
     ? `${baseDescription}\n\nRegras adicionais: ${promptCrm}`
     : baseDescription;
@@ -786,11 +788,10 @@ function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
         parameters: {
           type: "object",
           properties: {
-            resumo: { type: "string", description: "Resumo completo da conversa para a equipe comercial." },
             nome_lead: { type: "string", description: "Nome do lead, se informado na conversa." },
             procedimento_interesse: { type: "string", description: "Procedimento ou serviço de interesse identificado." },
           },
-          required: ["resumo"],
+          required: [],
         },
       },
     },
@@ -816,7 +817,6 @@ function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
 
 async function executeCrm(args: any, leadId: string): Promise<string> {
   const updates: Record<string, unknown> = { atualizado_em: new Date().toISOString() };
-  if (args.resumo) updates.resumo = args.resumo;
   if (args.nome_lead) updates.nome = args.nome_lead;
   if (args.procedimento_interesse) updates.procedimento_interesse = args.procedimento_interesse;
   const { error } = await supabase.from("leads").update(updates).eq("id", leadId);
@@ -914,6 +914,19 @@ Deno.serve(async (req: Request) => {
   let execLogId: string | null = null;
 
   try {
+    // Gate Athos Recepção: se a org desligou o agente no Console Athos, não responder (no-op).
+    // Padrão = ativo; só pula se houver linha com ativo=false.
+    const { data: gateRecepcao } = await supabase
+      .from("athos_agentes_org")
+      .select("ativo")
+      .eq("organization_id", orgId)
+      .eq("agente_slug", "recepcao")
+      .maybeSingle();
+    if (gateRecepcao && gateRecepcao.ativo === false) {
+      console.log(`[whatsapp-ai-agent] Agente desligado para org ${orgId} — ignorando.`);
+      return jsonResponse({ skipped: true, reason: "agente_desligado" }, 200);
+    }
+
     // ── LOG INICIAL ──
     execLogId = await upsertLog({
       organization_id: orgId,
@@ -1184,11 +1197,12 @@ Deno.serve(async (req: Request) => {
       + contraStr
       + palavrasStr
       + `\n\n=== REGRAS ESTRITAS E INEGOCIAVEIS ===\n`
-      + `1. Use a tool 'crm' em TODA interacao com informacao relevante do lead.\n`
-      + `2. NUNCA pule o CRM. Mesmo em respostas simples, registre o resumo.\n`
+      + `1. Use a tool 'crm' APENAS quando o lead informar o nome dele ou deixar claro qual procedimento tem interesse. Nao use em toda mensagem — so quando houver um dado novo e objetivo.\n`
+      + `2. A tool 'crm' NAO tem campo de resumo/notas. Nao existe "registrar resumo" — isso e feito por outro processo depois, automaticamente. Nunca escreva um resumo do atendimento em lugar nenhum.\n`
       + `3. NUNCA diga ao lead 'dados atualizados', 'notifiquei a equipe', 'salvei no sistema'. Ferramentas sao invisiveis.\n`
       + `4. Aja 100% como atendente humano da clinica.\n`
-      + `5. SEMPRE responda ao lead com mensagem de texto apos usar qualquer ferramenta.`
+      + `5. SEMPRE responda ao lead com mensagem de texto apos usar qualquer ferramenta.\n`
+      + `6. NUNCA escreva narrando o atendimento em 3a pessoa, como se fosse uma nota interna (ex: "A [Nome] esta pronta para...", "Completou o diagnostico...", "Aguardando resposta de [Nome]"). Fale SEMPRE diretamente com o lead, na 2a pessoa ("voce"), como numa conversa real.`
       + emojiRegraStr
       + (dadosCliente
         ? `\n\n=== INSTRUCOES ESPECIFICAS DA CLINICA (PRIORIDADE MAXIMA) ===\n`
@@ -1385,6 +1399,38 @@ Deno.serve(async (req: Request) => {
 
       // 3. Remove frases inteiras entre parênteses (...) que falam sobre CRM, bastidores, ou operacionais
       t = t.replace(/\([^\(\)]*(CRM|bastidores|notificada|notificado|atualizand|atualizando|apenas)[^\(\)]*\)/gi, "");
+
+      // 4. Remove sentenças em que o nome do lead aparece em uso NÃO vocativo (3a pessoa/objeto).
+      // Isso pega vazamentos de "resumo" interno que a IA às vezes narra no texto de resposta
+      // (ex: "A Letícia está pronta para...", "Aguardando resposta da Letícia"), sem afetar
+      // usos legítimos do nome como vocativo ("Letícia, ..." ou "Olá Letícia,").
+      if (lead?.nome) {
+        const primeiroNome = lead.nome.trim().split(/\s+/)[0];
+        if (primeiroNome && primeiroNome.length > 1 && /^[A-Za-zÀ-ÿ]+$/.test(primeiroNome)) {
+          const nomeEscapado = primeiroNome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const nomeRegex = new RegExp(`\\b${nomeEscapado}\\b`, 'gi');
+          const sentencas = t.match(/[^.!?]+[.!?]*\s*/g) || [t];
+          const ehVocativo = (sentenca: string, idx: number, tamanho: number) => {
+            const antes = sentenca.slice(Math.max(0, idx - 6), idx);
+            const depois = sentenca.slice(idx + tamanho, idx + tamanho + 2);
+            return /^\s*[,!?]/.test(depois) || /\b(ol[aá]|oi|opa)\s*$/i.test(antes);
+          };
+          const filtradas = sentencas.filter((s) => {
+            let match: RegExpExecArray | null;
+            nomeRegex.lastIndex = 0;
+            while ((match = nomeRegex.exec(s)) !== null) {
+              if (!ehVocativo(s, match.index, match[0].length)) return false; // uso suspeito, remove a sentença
+            }
+            return true;
+          });
+          if (filtradas.length !== sentencas.length) {
+            console.warn(`[AI-Agent] Sanitização removeu sentença com uso não-vocativo do nome do lead "${primeiroNome}"`);
+          }
+          const resultado = filtradas.join("").trim();
+          // Nunca deixa a mensagem inteira vazia por causa do filtro — melhor manter algo do que nada
+          t = resultado || t;
+        }
+      }
 
       return t.trim();
     };

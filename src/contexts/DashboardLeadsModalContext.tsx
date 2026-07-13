@@ -1,12 +1,15 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 
+export type LeadsModalContext = 'agendamento' | 'venda' | 'qualificacao' | 'followup';
+
 interface ModalState {
   title: string;
   leads: any[];
+  context?: LeadsModalContext;
 }
 
 interface DashboardLeadsModalContextValue {
-  openModal: (title: string, leads: any[]) => void;
+  openModal: (title: string, leads: any[], context?: LeadsModalContext) => void;
   closeModal: () => void;
   modal: ModalState | null;
 }
@@ -16,8 +19,8 @@ const DashboardLeadsModalContext = createContext<DashboardLeadsModalContextValue
 export function DashboardLeadsModalProvider({ children }: { children: ReactNode }) {
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  const openModal = (title: string, leads: any[]) => {
-    setModal({ title, leads });
+  const openModal = (title: string, leads: any[], context?: LeadsModalContext) => {
+    setModal({ title, leads, context });
   };
 
   const closeModal = () => setModal(null);

@@ -1,68 +1,10 @@
-import { useEffect, useState, useCallback, useRef, ReactNode } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTutorialContext } from './TutorialProvider';
 import { tutorials } from './tutorialData';
-
-/**
- * Renders tutorial description with rich formatting:
- * - **bold** → <strong>
- * - \n → line breaks / paragraph splits
- * - Lines starting with • → bullet list items
- */
-function renderDescription(text: string): ReactNode[] {
-  const paragraphs = text.split('\n');
-  const elements: ReactNode[] = [];
-  let bulletBuffer: string[] = [];
-
-  const flushBullets = () => {
-    if (bulletBuffer.length === 0) return;
-    elements.push(
-      <ul key={`ul-${elements.length}`} className="space-y-1 pl-0.5">
-        {bulletBuffer.map((item, i) => (
-          <li key={i} className="flex gap-1.5 items-start">
-            <span className="text-foreground/40 mt-px select-none">•</span>
-            <span>{formatInline(item)}</span>
-          </li>
-        ))}
-      </ul>
-    );
-    bulletBuffer = [];
-  };
-
-  for (const line of paragraphs) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      flushBullets();
-      continue;
-    }
-    if (trimmed.startsWith('• ') || trimmed.startsWith('- ')) {
-      bulletBuffer.push(trimmed.replace(/^[•\-]\s*/, ''));
-    } else {
-      flushBullets();
-      elements.push(<p key={`p-${elements.length}`}>{formatInline(trimmed)}</p>);
-    }
-  }
-  flushBullets();
-  return elements;
-}
-
-/** Converts **bold** markers to <strong> tags */
-function formatInline(text: string): ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  if (parts.length === 1) return text;
-  return (
-    <>
-      {parts.map((part, i) => {
-        if (part.startsWith('**') && part.endsWith('**')) {
-          return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </>
-  );
-}
+import { renderRichText } from '@/lib/richText';
 
 interface Rect {
   top: number;
@@ -75,10 +17,12 @@ export function TutorialSpotlight() {
   const {
     activeTutorialId,
     activeStep,
+    adHocStep,
     nextStep,
     prevStep,
     skipTutorial,
     completeTutorial,
+    closeAdHocSpotlight,
   } = useTutorialContext();
 
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
@@ -87,7 +31,10 @@ export function TutorialSpotlight() {
   const tooltipRef = useRef<HTMLDivElement>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
-  const tutorial = tutorials.find(t => t.id === activeTutorialId);
+  const isAdHoc = activeTutorialId === '__adhoc__';
+  const tutorial = isAdHoc
+    ? (adHocStep ? { id: '__adhoc__', title: 'Atualização da plataforma', steps: [adHocStep] } : null)
+    : tutorials.find(t => t.id === activeTutorialId);
   const step = tutorial?.steps[activeStep];
   const totalSteps = tutorial?.steps.length || 0;
   const isLastStep = activeStep >= totalSteps - 1;
@@ -399,9 +346,11 @@ export function TutorialSpotlight() {
 
   if (!activeTutorialId || !tutorial || !step || !isVisible) return null;
 
+  const handleClose = isAdHoc ? closeAdHocSpotlight : skipTutorial;
+
   const handleNext = () => {
     if (isLastStep) {
-      completeTutorial(tutorial.id);
+      isAdHoc ? closeAdHocSpotlight() : completeTutorial(tutorial.id);
     } else {
       nextStep();
     }
@@ -466,25 +415,29 @@ export function TutorialSpotlight() {
                   <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                     {tutorial.title}
                   </p>
-                  <p className="text-[10px] text-muted-foreground/50">
-                    Passo {activeStep + 1} de {totalSteps}
-                  </p>
+                  {!isAdHoc && (
+                    <p className="text-[10px] text-muted-foreground/50">
+                      Passo {activeStep + 1} de {totalSteps}
+                    </p>
+                  )}
                 </div>
               </div>
               <button
-                onClick={skipTutorial}
+                onClick={handleClose}
                 className="p-1 rounded-md hover:bg-muted/50 transition-colors text-muted-foreground/50 hover:text-muted-foreground"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
             {/* Progress bar */}
-            <div className="mt-2.5 h-1 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-foreground transition-all duration-500 ease-out"
-                style={{ width: `${((activeStep + 1) / totalSteps) * 100}%` }}
-              />
-            </div>
+            {!isAdHoc && (
+              <div className="mt-2.5 h-1 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-foreground transition-all duration-500 ease-out"
+                  style={{ width: `${((activeStep + 1) / totalSteps) * 100}%` }}
+                />
+              </div>
+            )}
           </div>
 
           {/* Content — scrollable when tooltip is too tall for viewport */}
@@ -493,17 +446,17 @@ export function TutorialSpotlight() {
               {step.title}
             </h3>
             <div className="text-[12px] leading-[1.7] text-muted-foreground space-y-1.5">
-              {renderDescription(step.description)}
+              {renderRichText(step.description)}
             </div>
           </div>
 
           {/* Footer */}
           <div className="flex items-center justify-between px-5 py-3 border-t border-border/40 bg-muted/20 shrink-0">
             <button
-              onClick={skipTutorial}
+              onClick={handleClose}
               className="text-[11px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
             >
-              Pular tutorial
+              {isAdHoc ? 'Fechar' : 'Pular tutorial'}
             </button>
             <div className="flex items-center gap-2">
               {activeStep > 0 && (
@@ -522,7 +475,7 @@ export function TutorialSpotlight() {
                 onClick={handleNext}
                 className="h-7 px-3 text-[11px] font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90"
               >
-                {isLastStep ? 'Concluir' : 'Próximo'}
+                {isLastStep ? (isAdHoc ? 'Entendi' : 'Concluir') : 'Próximo'}
                 {!isLastStep && <ChevronRight className="h-3 w-3 ml-0.5" />}
               </Button>
             </div>

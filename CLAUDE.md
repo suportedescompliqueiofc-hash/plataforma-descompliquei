@@ -28,6 +28,25 @@ git push plataforma main   # ✅ SEMPRE usar este
 
 This is a **multi-tenant WhatsApp CRM** (SaaS white-label) built on React + Vite + TypeScript + Supabase.
 
+## ⚠️ GRANDE REFORMULAÇÃO — Plataforma unificada (2026-07-06)
+
+> Plano completo em **`conhecimento/planejamento/unificacao/`** (docs 00–06). Resumo do que mudou — **várias seções ABAIXO neste arquivo ficaram desatualizadas** por causa disto:
+
+- **Plataforma única (fim do "pula-pula"):** CRM e Plataforma agora são **uma sidebar só** (`SidebarContent.tsx`), agrupada por tema. Sumiram os botões "Plataforma"/"Acessar CRM". URLs `/crm` e `/plataforma` seguem por baixo.
+- **Entitlements por área:** produto = conjunto de **áreas** liberadas; o **CRM virou uma área** (`acesso_crm` gateia a sidebar). `AdminProdutos` monta produto ligando áreas. Acesso vem da RPC `get_my_platform_access` → objeto `acesso` no `PlataformaContext`.
+- **Console Athos (`/crm/athos`, `AthosConsole.tsx`):** centraliza as IAs REAIS do CRM sob a marca Athos. Registry em **`src/lib/athosAgents.ts`**. Agentes: **Athos Recepção** (`whatsapp-ai-agent`), **Athos Triagem** (`triage-lead-ia`), **Athos Análise** (`analyze-non-leads`), **Athos Follow-Up** (`analyze-followup-need`+`ia-followup-agent`), **Athos GS** (copiloto `descompliquei-os`), **Athos CS** (`cs-athos`, superadmin). Descartado o catálogo antigo do IAHub (`platform_ia_config`).
+  - **On/off por org:** tabela **`athos_agentes_org`** (`organization_id`, `agente_slug`, `ativo`) + helper `athos_agente_ativo(org, slug)`. As edge functions dos 4 agentes de CRM checam esse gate (early-return `{skipped}` se desativado). Hook `useAthosAgentesOrg`. Switch no Console só p/ agentes `enforced` no registry.
+  - **Log unificado:** função `get_athos_eventos(p_limit)` (une `triage_ia_logs`+`ia_followup_log`+`ai_execution_logs`) → hook `useAthosEventos` → seção "Atividade recente".
+- **Athos GS = especialista comercial (EVA) (2026-07-07):** o Athos GS (`descompliquei-os`) deixou de ser "skill de gerar texto" e virou **especialista comercial** que aplica a metodologia proprietária **EVA** (Estruturação, Validação, Ajuste) com base em dados reais da clínica. O `buildSystemPrompt()` injeta: base de conhecimento comercial condensada (`COMMERCIAL_KNOWLEDGE_BASE`, versão completa em **`conhecimento/plataforma/athos-comercial/*.md`** + `metodologia-eva.md`), um snapshot automático do funil do mês corrente (reaproveita `calcularMetricasPainel`), e regras rígidas de formatação HTML dos materiais. Ver memória `project_unificacao_plataforma`.
+- **Materiais via Athos (`/crm/materiais`, `AthosMateriais.tsx`, `useAthosMateriais`):** área premium sobre **`meus_materiais`** (gravada pela tool `criar_material`). **Taxonomia fixa** de categorias em `src/lib/materiaisComerciais.ts` (frontend) + enum `MATERIAL_CATEGORIAS` no `descompliquei-os` (backend — sincronia manual, runtimes diferentes): `script_atendimento`, `estrutura_processo`, `quebra_objecao`, `oferta`, `followup_reativacao`, `otimizacao_comercial`, `outro`. `categoria` é **required** na tool. Editor rico real (`RichEditor.tsx`) — **atenção ao aplicar `EDITOR_STYLES`/`PROSE_STYLES`: use string CRUA, nunca via `cn()`** (tailwind-merge colapsa as classes `text-[...]` do prose). O botão "Criar com o Athos" vai a `/plataforma/athos-gs?acao=criar-material` (abre conversa nova + prompt indicativo).
+- **Materiais dentro da conversa (`MaterialsSidebar.tsx`):** painel direito da tela de conversa (`Conversas.tsx`), estado `activePanel: 'materiais' | null`. Materiais é só leitura/consulta (accordion + "Copiar texto"), não envia. O painel é **redimensionável** (arrastar borda esquerda, largura salva no localStorage) e **persiste ao trocar de conversa** (só fecha no X).
+- **REMOVIDO — Cérebro Central (2026-07-07):** `platform_cerebro` dropada (migration `20260707000001`), `Cerebro.tsx` deletado, campos `cerebro`/`cerebroPercent`/`isCerebroComplete` fora do `PlataformaContext`, tutorial `platform-cerebro` removido, `ia-proxy` sem a dependência. Não alimentava nenhum agente em uso.
+- **REMOVIDO — Trilha de Aprendizado:** por completo (client + admin). Ver memória `project_trilha_removal`. Seção "Materiais Complementares (Trilha…)" abaixo está OBSOLETA.
+- **REMOVIDO — Templates + Ferramentas do Arsenal (Fase 3-A):** `Materiais/MateriaisEditor`, `ArsenalCategoria/ArsenalFerramenta`, `AdminArsenal` deletados. **`Arsenal.tsx` mostra só Aulas.** As tabelas `arsenal_ferramentas`/`categorias` **ainda existem** (o copiloto as usa) — o drop destrutivo está STAGED em `supabase/migrations/_PENDENTE_20260706_drop_arsenal_ferramentas.sql` (pendente de patch do copiloto + deploy CLI + backup).
+- **REMOVIDO — Mensagens Rápidas (2026-07-13):** feature inteira descartada (sobrepunha Cadências; a tool de IA `agendar_mensagem` nunca funcionou de fato — inseria em coluna NOT NULL sem preenchê-la). Saiu: `QuickMessagesPage.tsx`, `QuickMessagesSidebar.tsx`, `components/quick-messages/*`, hooks `useQuickMessages`/`useQuickMessageFolders`/`useScheduledMessages`, rota `/crm/quick-messages`, item de sidebar, permissão `msgs_rapidas` (`PageKey`), toggle "Rápidas" em `ActiveConversation.tsx`/`Conversas.tsx`/`OutboundConversas.tsx`, tutorial `quick-messages` + steps órfãos, tool `agendar_mensagem` (`descompliquei-os`/`admin-os`), e as tabelas `mensagens_rapidas`/`quick_message_folders`/`scheduled_quick_messages` (dropadas via migration `20260713150000_remove_quick_messages.sql`, que também limpou a dependência dessas tabelas em `blacklist_lead_permanently()`). Edge functions `process-folder-sequence` e `process-scheduled-messages` tiveram o código-fonte local removido, mas **seguem ativas no projeto remoto** (sem CLI access ao projeto `noncbgdczgcboronmcah` para `functions delete` — undeploy manual pendente). `send-quick-message` **continua** — é a função genérica de envio usada por qualquer mensagem no chat, apesar do nome.
+
+**Typecheck:** o codebase **não passa no `tsc`** (centenas de erros pré-existentes: `never`, `possibly null`). Builda via `vite build` (esbuild, sem typecheck). Para validar: `npx tsc -p tsconfig.app.json --noEmit` e olhar só o que quebra runtime — **sintaxe (TS1xxx/TS17002) e `Cannot find name` (TS2304)**. `npx tsc --noEmit` puro na raiz checa NADA (`files:[]`). Deploy de edge functions: MCP inline p/ arquivos pequenos; **arquivos grandes (whatsapp-ai-agent, descompliquei-os) o João deploya via CLI na máquina dele** (`supabase login` + `functions deploy`).
+
 ### Multi-tenancy
 
 Every user belongs to an `organization_id` stored in their profile (`perfis` table). All data queries **must** be scoped by `organization_id`. The `useProfile` hook (`src/hooks/useProfile.ts`) is the source of `organization_id` — it auto-creates an org and profile on first login.
@@ -361,6 +380,7 @@ When `externalAdReply` with `sourceType = 'ad'` is found, it looks up the `criat
 - `jornada_passos` — passos dentro de uma etapa. Columns: `id`, `estagio_id` (FK → `jornada_estagios`), `titulo`, `descricao`, `ordem`, `tipo` (`'acao_livre'` | `'ferramenta_arsenal'` | `'categoria_arsenal'`), `ferramenta_id` (FK → `arsenal_ferramentas`), `categoria_id` (FK → `arsenal_categorias`), `aula_id` (FK → `arsenal_aulas` — `ON DELETE SET NULL`), `prazo_dias`, `obrigatorio`, `concluido`, `concluido_em`, `concluido_por`.
 - `athos_agentes` — configurações de agentes da DescompliqueiOS. Columns: `id`, `slug`, `nome`, `descricao`, `system_prompt`, `ativo`. O `system_prompt` pode conter `[INSERIDO AUTOMATICAMENTE PELO SISTEMA]` como placeholder — a edge function `descompliquei-os` substitui por dados do diagnóstico do usuário antes de enviar à IA.
 - `os_conversations` — histórico de conversas com agentes OS. Columns: `id`, `user_id` (= `auth.uid()`), `titulo`, `agente_slug` (TEXT), `created_at`, `updated_at`.
+- `os_memories` — memória persistente do Athos GS entre conversas. Columns: `id`, `user_id` (= `auth.uid()`), `organization_id`, `tipo` (`'preferencia'` | `'fato'` | `'decisao'` | `'instrucao'` | `'contexto'`), `conteudo` (TEXT), `tags` (text[]), `fonte_conversation_id` (FK → `os_conversations`, nullable), `criado_em`, `atualizado_em`. Populada via tools explícitas (salvar_memoria) e auto-extração ao final de cada conversa.
 
 **Colunas relevantes em `organizations`:**
 - `onboarding_completed_steps text[]` — passos do onboarding CRM já concluídos (DEFAULT `'{}'`)
@@ -655,9 +675,9 @@ steps: [
 |----|-------|---------|
 | `geral` | Visão Geral | welcome, dashboard, conversas, notificacoes, performance |
 | `comercial` | Comercial | leads, pipeline, agendamentos, vendas, metas |
-| `automacao` | Automação | ia, quick-messages, cadences |
+| `automacao` | Automação | ia, cadences |
 | `sistema` | Sistema | settings |
-| `onboarding` | (oculto) | onboarding-perfil, onboarding-etiquetas, onboarding-procedimentos, onboarding-equipe, **platform-tour**, **platform-cerebro** |
+| `onboarding` | (oculto) | onboarding-perfil, onboarding-etiquetas, onboarding-procedimentos, onboarding-equipe, **platform-tour** |
 
 > **IMPORTANTE:** Tutoriais com `category: 'onboarding'` são **excluídos** da Central de Ajuda (`TutorialHelpCenter.tsx`) e do contador de progresso. Devem estar **dentro** do array `tutorials` em `tutorialData.ts` — caso contrário o `TutorialSpotlight` não os encontra e nada é exibido.
 
@@ -679,7 +699,6 @@ steps: [
 | `AiSettings.tsx` | `ia` | `ia-tabs`, `ia-status`, `ia-toggle`, `ia-prompt`, `ia-save`, `ia-field-identity`, `ia-field-voice`, `ia-field-procedures`, `ia-field-faq`, `ia-field-horario`, `ia-field-pagamento`, `ia-field-instructions`, `ia-logs` |
 | `AiFollowupConfig.tsx` | (sub-componente ia) | `ia-followup-config` |
 | `AiFollowupTab.tsx` | (sub-componente ia) | `ia-followup-history` |
-| `QuickMessagesPage.tsx` | `quick-messages` | `quick-messages-create`, `quick-messages-folder-create`, `quick-messages-folders`, `quick-messages-search`, `qm-field-titulo`, `qm-field-tipo`, `qm-field-conteudo`, `qm-submit` |
 | `Cadences.tsx` | `cadences` | `cadences-tabs`, `cadences-list`, `cadences-create`, `cadences-card`, `cadences-dispatch`, `cadences-monitoring`, `cadences-report` |
 | `CadenceModal.tsx` | (modal de cadências) | `cadence-modal-identity`, `cadence-field-nome`, `cadence-field-descricao`, `cadence-steps`, `cadence-add-step`, `cadence-submit` |
 | `Settings.tsx` | `settings` | `settings-nav`, `settings-nav-{id}`, `settings-profile`, `settings-pipeline`, `settings-sources`, `settings-tags`, `settings-marca`, `settings-whatsapp`, `settings-appearance`, `settings-security` |
@@ -688,7 +707,6 @@ steps: [
 | `Jornada.tsx` (plataforma) | (platform-tour step 4) | `jornada-header` |
 | `Materiais.tsx` (plataforma) | (platform-tour step 5) | `materiais-header` |
 | `SidebarContent.tsx` | (platform-tour) | `sidebar-hub`, `sidebar-jornada`, `sidebar-arsenal`, `sidebar-materiais`, `sidebar-os`, `sidebar-sessoes` |
-| `Cerebro.tsx` (plataforma) | `platform-cerebro` | `cerebro-header`, `cerebro-nav`, `cerebro-identidade`, `cerebro-procedimentos`, `cerebro-operacao`, `cerebro-faq`, `cerebro-trilha` |
 
 ### Regra obrigatória ao modificar páginas
 
@@ -1033,6 +1051,37 @@ O campo `system_prompt` do agente `onboarding` contém `[INSERIDO AUTOMATICAMENT
 ### UI de seleção de agentes
 
 Sidebar tem um botão `Bot` icon que abre um **floating panel** (não cards expostos). Agente ativo aparece como badge pill no header do chat com `X` para dispensar.
+
+### Sistema de Memória Persistente
+
+O Athos GS possui memória persistente entre conversas, armazenada na tabela `os_memories`.
+
+**Componentes:**
+1. **Tools explícitas** — `salvar_memoria`, `buscar_memorias`, `atualizar_memoria`, `apagar_memoria` — permitem ao usuário e ao Athos gerenciar memórias diretamente
+2. **Auto-extração** — ao final de cada conversa (fire-and-forget), uma chamada LLM leve (GPT-5.4-nano, 15s timeout) analisa a troca e salva até 3 fatos/preferências/decisões novos automaticamente
+3. **Injeção no system prompt** — `buildSystemPrompt` carrega até 30 memórias e as injeta como contexto no prompt do Athos
+4. **Dedup** — `salvar_memoria` verifica se já existe memória similar antes de criar uma nova
+5. **Cache invalidation** — qualquer operação de memória invalida o cache do system prompt
+
+**Tipos de memória:** `preferencia`, `fato`, `decisao`, `instrucao`, `contexto`
+
+**Janela de histórico:** o frontend envia as últimas 10 mensagens completas ao backend.
+
+### Tool Filtering Dinâmico
+
+O Athos usa **filtragem dinâmica de tools** para reduzir tokens de input em ~50-70%. Em vez de enviar todas as ~55 tools em cada chamada, a função `selectToolsForMessage` analisa a mensagem do usuário + histórico recente por keywords e seleciona apenas as tools relevantes.
+
+**Categorias:** `leads`, `conversas`, `metricas`, `agendamentos`, `vendas`, `cadencias`, `metas`, `config`, `plataforma`, `memoria`
+
+**Regras de co-dependência:**
+- `conversas` → inclui `leads` (encadeamento obter_lead → buscar_conversas)
+- `agendamentos`/`vendas`/`cadencias` → inclui `leads`
+
+**Always-include:** `obter_lead_completo` e `buscar_leads` estão sempre disponíveis.
+
+**Fallback:** se nenhuma categoria bater, envia apenas tools de `memoria` + always-include (conversa pura).
+
+**Logs:** cada chamada loga `[tool-filter] "msg..." → categories: [...] → X/Y tools` para diagnóstico.
 
 ### Salvar conversa com agente
 

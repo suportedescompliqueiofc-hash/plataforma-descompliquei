@@ -26,14 +26,15 @@ function formatBRL(value: number): string {
 
 interface FollowupGapWidgetProps {
   dateRange?: DateRange;
+  origem?: string;
 }
 
-export function FollowupGapWidget({ dateRange }: FollowupGapWidgetProps) {
+export function FollowupGapWidget({ dateRange, origem }: FollowupGapWidgetProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { openModal } = useDashboardLeadsModal();
   const { leads, total, avgHorasSemContato, faturamentoEmRisco, isLoading } =
-    useFollowupGap(dateRange);
+    useFollowupGap(dateRange, origem);
   const [activatingId, setActivatingId] = useState<string | null>(null);
 
   const handleAtivarFollow = async (e: React.MouseEvent, leadId: string, leadNome?: string | null) => {

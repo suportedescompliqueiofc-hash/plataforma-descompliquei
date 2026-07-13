@@ -262,6 +262,7 @@ serve(async (req) => {
             remetente: 'bot',
             tipo_conteudo: 'texto',
             id_mensagem: waMessageId,
+            automatica: true, // mensagem do sistema — não conta como IA de pré-atendimento
           });
           if (msgErr) console.error('[process-appointment-notifications] Erro ao salvar mensagem:', msgErr.message);
         }

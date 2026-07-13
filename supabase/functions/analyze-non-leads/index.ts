@@ -57,6 +57,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Gate Athos Análise: se a org desligou o agente no Console Athos, não analisar (no-op).
+    // Padrão = ativo; só pula se houver linha com ativo=false.
+    const { data: gateAnalise } = await supabase
+      .from("athos_agentes_org")
+      .select("ativo")
+      .eq("organization_id", organization_id)
+      .eq("agente_slug", "analise")
+      .maybeSingle();
+    if (gateAnalise && gateAnalise.ativo === false) {
+      console.log(`[analyze-non-leads] Agente desligado para org ${organization_id} — ignorando.`);
+      return new Response(JSON.stringify({ skipped: true, reason: "agente_desligado", results: [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!OPENROUTER_API_KEY) {
       return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY não configurada" }), {
         status: 500,
@@ -194,6 +209,21 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[analyze-non-leads] Concluído. Analisados: ${leads.length} | Não-leads: ${nonLeads.length} | Leads OK: ${okLeads.length}`);
+
+    // Atividade do Athos Análise — registra os não-leads achados para o feed por agente
+    // do Console Athos (`get_athos_eventos` → página /crm/athos/analise). Best-effort.
+    if (nonLeads.length > 0) {
+      const analiseLogRows = nonLeads.map((nl: any) => ({
+        organization_id,
+        lead_id: nl.lead_id,
+        lead_nome: nl.nome,
+        veredito: "nao_lead",
+        motivo: nl.reason,
+        confianca: nl.confidence,
+      }));
+      const { error: logErr } = await supabase.from("analise_ia_logs").insert(analiseLogRows);
+      if (logErr) console.error("[analyze-non-leads] Erro ao gravar analise_ia_logs:", logErr.message);
+    }
 
     return new Response(
       JSON.stringify({ non_leads: nonLeads, ok_leads: okLeads, total_analyzed: leads.length }),

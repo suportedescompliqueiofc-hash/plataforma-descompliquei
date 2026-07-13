@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Filter, Plus, Pencil, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, UserCheck, Ban, Upload, Users, Phone, Calendar, MoreHorizontal, X, SlidersHorizontal, ArrowUpDown, Clock, Tag, MapPin, ShieldBan, ShieldOff, Activity, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PageHero } from "@/components/PageHero";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -332,39 +333,34 @@ export default function Leads() {
   return (
     <div className="space-y-8 pb-20">
       {/* ══════════ Page Header ══════════ */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-foreground font-display">Leads</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {totalLeads} leads no total
-            <span className="mx-1.5 text-border">·</span>
-            {activeLeads} ativos
-            <span className="mx-1.5 text-border">·</span>
-            {qualifiedLeads} qualificados
-          </p>
-        </div>
-        <div className="flex items-center gap-2" data-tutorial="leads-actions">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-lg text-xs font-medium gap-1.5"
-            onClick={() => setIsImportOpen(true)}
-            data-tutorial="leads-import"
-          >
-            <Upload className="h-3.5 w-3.5" />
-            Importar
-          </Button>
-          <Button
-            size="sm"
-            className="h-8 rounded-lg text-xs font-medium gap-1.5 bg-foreground text-background hover:bg-foreground/90"
-            onClick={handleCreate}
-            data-tutorial="leads-add"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Novo Lead
-          </Button>
-        </div>
-      </div>
+      <PageHero
+        icon={Users}
+        title="Leads"
+        subtitle={`${totalLeads} leads no total · ${activeLeads} ativos · ${qualifiedLeads} qualificados`}
+        right={
+          <div className="flex items-center gap-2" data-tutorial="leads-actions">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-lg text-xs font-medium gap-1.5 bg-white/10 hover:bg-white/15 text-white border-white/15 hover:text-white"
+              onClick={() => setIsImportOpen(true)}
+              data-tutorial="leads-import"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Importar
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 rounded-lg text-xs font-medium gap-1.5 bg-white text-[#1a0e06] hover:bg-white/90"
+              onClick={handleCreate}
+              data-tutorial="leads-add"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Novo Lead
+            </Button>
+          </div>
+        }
+      />
 
       {/* ══════════ Tabs ══════════ */}
       <div className="bg-muted/40 rounded-xl p-1 inline-flex gap-0.5">

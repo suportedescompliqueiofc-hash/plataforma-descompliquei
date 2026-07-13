@@ -181,6 +181,7 @@ serve(async (req) => {
         remetente: 'bot',
         tipo_conteudo: 'texto',
         id_mensagem: waMessageId,
+        automatica: true, // mensagem do sistema — não conta como IA de pré-atendimento
       }).then(({ error: msgErr }) => {
         if (msgErr) console.error('[send-appointment-confirmation] Erro ao salvar mensagem:', msgErr.message);
       });

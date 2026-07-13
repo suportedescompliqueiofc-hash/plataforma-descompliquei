@@ -1,0 +1,260 @@
+{
+  "clinicName": "Mayara Vianna Beauty Clinic",
+  "responsibleName": "Dra. Mayara Vianna",
+  "email": "mayaraviannaa@hotmail.com",
+  "phone": "(21) 96677-8289",
+  "website": "",
+  "instagram": "@mayviannabeauty",
+  "fullAddress": "Praça Nilo Peçanha, 16 - Centro de Nilópolis - Sala 405 \nPrédio ao lado da ligth, praça conhecida como praça dos estudantes. ",
+  "city": "Nilópolis",
+  "state": "Rio de Janeiro ",
+  "marketTime": "5-10",
+  "mission": "Proporcionar bem estar e autoestima através de procedimentos estéticos personalizados e seguros. ",
+  "vision": "Ser reconhecida pela excelência de resultados naturais e individualizados. ",
+  "values": [],
+  "differentials": "Atendimento personalizado, Ambiente acolhedor e sofisticado, Formação atualizada, Investimento ao bem estar do cliente. ",
+  "targetAudience": [
+    "women-20-30",
+    "women-30-40",
+    "women-40-50"
+  ],
+  "detailedDescription": "A clínica foi idealizada para proporcionar bem-estar, conforto e sofisticação em cada detalhe. O espaço conta com ambiente totalmente climatizado, recepção acolhedora, três salas bem estruturadas, banheiro automatizado e copa de apoio, garantindo praticidade e comodidade para cada cliente.\nEspecializada em harmonização facial, Mayara oferece procedimentos como preenchimento labial, de sulcos (bigode chinês), queixo, rinomodelação, malar e mandíbula, além de aplicação de toxina botulínica e design de sobrancelhas com henna ou coloração de fios. A equipe também conta com Bianca, podóloga e nail designer (unhas de gel e cuidados com os pés), Gabi, manicure e pedicure, e Maryna, lash designer especializada em cílios.\nAo visitar a clínica, cada cliente é recebida com atenção, educação e profissionalismo, podendo ainda desfrutar de um cappuccino especial da casa, com borda de Nutella, servido como cortesia — um toque exclusivo que torna a experiência ainda mais agradável.",
+  "professionals": [
+    {
+      "id": "hb3jijqrb",
+      "bio": "Mayara iniciou sua trajetória aos 18 anos, atendendo design de sobrancelhas na casa da mãe. Com dedicação, estudo constante e paixão pela estética, foi evoluindo profissionalmente e conquistando novos espaços, até realizar o sonho de ter sua própria clínica. Hoje, é especializada em harmonização. ",
+      "name": "Dra. Mayara Vianna",
+      "photo": "",
+      "education": "",
+      "specialty": "Esteticista graduada e Biomédica em formação ",
+      "experience": 0,
+      "socialMedia": "@mayviannabeauty",
+      "certifications": "Pós graduada em Injetáveis \nAtualizada no master class de harmonização "
+    }
+  ],
+  "procedures": [
+    {
+      "id": "i239xcs7l",
+      "name": "Preenchimento Labial ",
+      "benefits": "Os principais benefícios do preenchimento labial vão muito além do volume:\n• Realça a beleza natural dos lábios\n• Define melhor o contorno labial\n• Corrige assimetrias\n• Proporciona hidratação profunda\n• Deixa o aspecto mais jovem e saudável\n• Melhora a harmonia do rosto como um todo\n• Resultados imediatos e personalizados\n\nTudo isso com um resultado pensado para valorizar seus traços, mantendo naturalidade e elegância, sem exageros.",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "Preenchimento labial é um procedimento que realça a beleza dos seus lábios de forma natural e personalizada. Com o uso de ácido hialurônico, conseguimos dar mais volume, definir o contorno, corrigir assimetrias e hidratar profundamente, deixando os lábios mais bonitos e harmônicos com o seu rosto.\nO resultado é imediato e pensado especialmente para valorizar seus traços, sem exageros — apenas destacando o que você já tem de mais bonito. É uma forma segura e moderna de aumentar a autoestima e se sentir ainda mais confiante.",
+      "indications": "O preenchimento labial é indicado para quem deseja realçar a beleza dos lábios de forma natural e equilibrada. Ele é ideal para pessoas que sentem que os lábios são finos ou perderam volume com o tempo, que desejam melhorar o contorno, corrigir assimetrias ou até mesmo hidratar profundamente a região. \n\nTambém é indicado para quem busca mais harmonia facial, valorizando o sorriso e deixando a expressão mais jovem e suave. Tudo é feito de forma personalizada, respeitando o formato do rosto e o estilo de cada cliente, sem exageros.",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Primeiro contato:\nA cliente entra em contato e é recebida com acolhimento e atenção. É feita uma breve escuta para entender o que ela deseja (volume, definição, correção ou hidratação).\n Apresentação do procedimento\nVocê explica de forma clara o preenchimento labial, seus benefícios, segurança e resultados esperados, sempre reforçando naturalidade e personalização.\nTriagem e alinhamento de expectativas\nSão feitas perguntas rápidas sobre histórico de saúde e expectativas para garantir segurança e entendimento do resultado.\nApresentação de valor e agenda\nApós esclarecer dúvidas, é informado o valor do procedimento e apresentada a disponibilidade de horários.\nAgendamento\nA cliente escolhe o melhor dia e horário. O agendamento é confirmado com orientações prévias (como cuidados antes do procedimento).\n6. Pós-atendimento no contato\nA cliente recebe mensagem de confirmação e instruções para chegar tranquila e preparada no dia.",
+      "contraindications": "",
+      "specificQuestions": [
+        "O que te incomoda ou gostaria de melhorar nos seus lábios hoje? Você busca mais volume, definição ou apenas hidratação? Já fez preenchimento labial alguma vez? Como foi sua experiência?",
+        "Você prefere um resultado mais natural ou mais evidente?",
+        "Todas as contraindicações estão ok para realização do procedimento? Gestantes  Lactantes  Infecções ativas na área do lábio(ex: herpes, machucado; aguardar cicatrizar) Em tratamento oncológico  Problemas de coagulação  Doenças autoimunes(ex: lúpus)"
+      ],
+      "specificObjections": [
+        {
+          "id": "g7qdu4tbe",
+          "response": "O procedimento é totalmente personalizado. A ideia não é mudar seu rosto, e sim valorizar seus traços com naturalidade, respeitando sua harmonia facial.",
+          "objection": "Tenho medo de ficar exagerado/artificial "
+        },
+        {
+          "id": "8jq63elil",
+          "response": "Utilizamos anestésico tópico e técnicas que deixam o procedimento muito mais confortável. A sensação é bem tolerável para a maioria das clientes.",
+          "objection": "Tenho medo de doer "
+        },
+        {
+          "id": "lzpxfc72p",
+          "response": "Em média de 4 a 6 meses, variando de pessoa para pessoa.",
+          "objection": "Quanto tempo dura? "
+        },
+        {
+          "id": "ixr5ahljv",
+          "response": "",
+          "objection": ""
+        }
+      ]
+    },
+    {
+      "id": "xenhtmrsu",
+      "name": "Botox ",
+      "benefits": "Suaviza linhas de expressão e rugas\nPrevine o envelhecimento precoce da pele\nDeixa a aparência mais leve e descansada\nMelhora a simetria e harmonia facial\nRosto com aspecto mais jovem e rejuvenescido\nExpressão mais suave, sem aparência de cansaço\nPele com aparência mais lisa e uniforme\n",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "A toxina botulínica, conhecida como botox, é um procedimento estético que suaviza linhas de expressão e previne o envelhecimento da pele. Ele age relaxando os músculos responsáveis pelas rugas, como testa, entre as sobrancelhas e pés de galinha, deixando a aparência mais leve, descansada e rejuvenescida.\nÉ um tratamento rápido, seguro e personalizado, feito de acordo com a necessidade de cada rosto, com resultados naturais que valorizam sua beleza sem perder sua expressão. Ideal para quem busca prevenção e rejuvenescimento de forma elegante e sutil.",
+      "indications": "O botox é indicado para quem deseja suavizar linhas de expressão e prevenir o envelhecimento de forma natural e segura.\nEle é ideal para pessoas que começam a perceber rugas na testa, entre as sobrancelhas (glabela) ou ao redor dos olhos (pés de galinha), ou para quem já quer se prevenir antes que essas marcas fiquem mais profundas.\nTambém é indicado para quem busca um aspecto mais descansado, leve e rejuvenescido, sem perder a naturalidade da expressão facial.",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Primeiro contato (WhatsApp)\nA cliente entra em contato e é recebida com acolhimento. Você identifica o interesse e pergunta o que ela deseja melhorar (rugas, prevenção, expressão cansada, etc.).\n2. Entendimento da necessidade\nVocê faz perguntas rápidas para entender o caso:\nO que mais te incomoda no seu rosto hoje?\nVocê já fez botox alguma vez?\nSeu objetivo é prevenir ou suavizar marcas já existentes?\n3. Explicação do procedimento\nVocê explica de forma simples o botox:\ncomo ele age, que é seguro, personalizado e traz resultado natural sem mudar a expressão.\n4. Quebra de dúvidas/objeções\nEsclarece medos comuns (dor, ficar “sem expressão”, resultado artificial), sempre reforçando naturalidade e segurança.\n5. Apresentação de valor e proposta\nVocê informa o valor e reforça o benefício principal: rejuvenescimento leve, natural e preventivo.",
+      "contraindications": "",
+      "specificQuestions": [
+        "Preciso que me confirme se as contraindicações estão ok? Gestantes e mulheres em período de amamentação Pessoas com alergia à toxina botulínica ou a algum componente da fórmula Pacientes com doenças neuromusculares (ex: miastenia gravis) Infecções ou inflamações ativas na região a ser tratada Uso de alguns antibióticos ou medicamentos específicos (avaliar caso a caso) Pessoas com condições médicas não controladas (necessita avaliação profissional)"
+      ],
+      "specificObjections": [
+        {
+          "id": "cp9307waz",
+          "response": "O botox é dosado para manter sua expressão natural, só suaviza o que te incomoda.",
+          "objection": "Tenho medo de ficar sem expressão "
+        },
+        {
+          "id": "34p4k6jta",
+          "response": "O resultado é totalmente personalizado para ficar leve e natural no seu rosto.",
+          "objection": "Tenho medo de ficar artificial "
+        },
+        {
+          "id": "6h5grxl8p",
+          "response": "Claro, mas se quiser posso te explicar o melhor plano para seu caso e te ajudar na decisão.",
+          "objection": "Vou decidir, vou ver, quero pensar mais um pouco "
+        },
+        {
+          "id": "7px6r8e8f",
+          "response": "",
+          "objection": ""
+        }
+      ]
+    }
+  ],
+  "pricingApproach": "exact",
+  "pricingJustification": "",
+  "procedurePricing": [
+    {
+      "maxPrice": 700,
+      "minPrice": 650,
+      "procedureId": "i239xcs7l",
+      "priceFactors": "650,00 paga pagamento em pix ou dinheiro \n700 para pagamento parcelado em até 10x no cartão  \n\nValor para 1 ML ",
+      "paymentMethods": [
+        "cash",
+        "pix",
+        "credit",
+        "debit"
+      ],
+      "investmentRange": "custom",
+      "promotionalDetails": "",
+      "installmentAvailable": true,
+      "installmentConditions": "Até 10x com juros ",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 800,
+      "minPrice": 750,
+      "procedureId": "xenhtmrsu",
+      "priceFactors": "750,00 a vista paga pix ou dinheiro \n800,00 parcelado em até 10x no cartão \nValor válido para terço superior completo(testa, glabela(meio de sobrancelha), orbicular dos olhos(pés de galinha). ",
+      "paymentMethods": [
+        "cash",
+        "pix",
+        "credit",
+        "debit"
+      ],
+      "investmentRange": "custom",
+      "promotionalDetails": "",
+      "installmentAvailable": true,
+      "installmentConditions": "Até 10x com juros ",
+      "hasPromotionalPackages": false
+    }
+  ],
+  "idealLeadProfile": "Mulheres de idade de 25 até 55, que tenham investimento para realizar tratamentos dentro dos nossos valores.",
+  "qualificationQuestions": [],
+  "disqualificationCriteria": "Pessoas que buscam tratamentos cirúrgicos, grávidas ou lactentes e pessoas que buscam valores muito baixo. ",
+  "outOfProfileHandling": "forward_specialist",
+  "minInfoToQualify": [],
+  "weekdayOpen": "08:00",
+  "weekdayClose": "20:00",
+  "saturdayOpen": "08:00",
+  "saturdayClose": "13:00",
+  "saturdayClosed": false,
+  "sundayOpen": "",
+  "sundayClose": "",
+  "sundayClosed": true,
+  "holidayPolicy": "closed",
+  "evaluationDuration": "60",
+  "minAdvanceEvaluation": "1_day",
+  "preferredEvaluationTimes": [],
+  "evaluationPolicy": "",
+  "schedulingInfoRequired": [],
+  "evaluationCancellationPolicy": "",
+  "welcomeMessage": "Olá, seja muito bem vinda a Clínica Mayara Vianna Beauty Academy. Sou a Ana, assistente da Dra. Mayara Vianna. \nComo posso te ajudar hoje? ",
+  "needsIdentificationScript": "",
+  "clinicPresentationScript": "",
+  "procedureEducationScript": "",
+  "evaluationSchedulingScript": "",
+  "escalationTriggers": [
+    "technical_doubt",
+    "negative_sentiment",
+    "human_request",
+    "competitor_comparison",
+    "specific_pricing"
+  ],
+  "escalationMessageLimit": 3,
+  "escalationOther": "",
+  "customerJourneyDescription": "",
+  "hasMandatoryEvaluation": false,
+  "evaluationCostDetails": "",
+  "evaluationProcessFlow": "",
+  "proceduresRequiringEvaluation": [],
+  "proceduresAllowingDirectBooking": [
+    "i239xcs7l",
+    "xenhtmrsu"
+  ],
+  "communicationTone": "friendly",
+  "formalityLevel": 3,
+  "emojiUsage": "",
+  "customerTreatment": "voce_respectful",
+  "personalities": [
+    "caring"
+  ],
+  "wordsToAvoid": [
+    "Linguagem negativa",
+    "Pressionar para fechamento",
+    "Ignorância",
+    "Rugas",
+    "Defeito",
+    "Velho/velha"
+  ],
+  "preferredWords": [
+    "Valorizar",
+    "Realçar",
+    "Rejuvenescer",
+    "Melhorar"
+  ],
+  "faqs": [
+    {
+      "id": "1776693952593",
+      "answer": "O preenchimento labial está no valor de 650,00 sendo 1ML. \nPara pagamento no cartão fica 700,00 em até 10x. ",
+      "category": "scheduling",
+      "priority": "medium",
+      "question": "Quanto custa o preenchimento labial "
+    },
+    {
+      "id": "1776694043713",
+      "answer": "O botox está no valor de 750,00 a vista terço superior completo e 800,00 parcelado em até 10x no cartão. ",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "Quanto custa o botox? "
+    }
+  ],
+  "technicalInfo": "Naturalidade, sofisticação, segurança, exclua idade no atendimento. ",
+  "internalProtocols": "Nunca passar valores sem antes passar todas as informações sobre o procedimentos e de informar os pontos positivos do atendimento. Se for menor de idade, solicitar um responsável no dia do atendimento. ",
+  "specialCases": [
+    {
+      "id": "1776694253040",
+      "procedure": "",
+      "situation": ""
+    }
+  ],
+  "agentSchedule": "clinic_hours",
+  "customAgentScheduleStart": "09:00",
+  "customAgentScheduleEnd": "18:00",
+  "offHoursMessage": "",
+  "contactAttemptLimit": 3,
+  "escalationSituations": [],
+  "escalationMessageCount": 5,
+  "notificationTriggers": [],
+  "supportedLanguages": [
+    "portuguese"
+  ],
+  "additionalNotes": "",
+  "agentPriorities": "",
+  "termsAccepted": false
+}

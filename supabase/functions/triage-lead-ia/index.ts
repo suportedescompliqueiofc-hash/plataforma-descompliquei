@@ -34,6 +34,8 @@ NÃO ATIVE a IA quando a mensagem indica contexto já existente ou situação qu
 
 EM DÚVIDA: prefira NAO — é melhor um humano avaliar do que a IA entrar em contexto errado.
 
+Se houver uma seção "REGRAS ESPECÍFICAS DESTA CLÍNICA" na mensagem do usuário, ela tem PRIORIDADE sobre as regras gerais acima em caso de conflito.
+
 Responda EXATAMENTE neste formato (duas linhas, sem mais nada):
 DECISAO: SIM
 MOTIVO: razao objetiva em ate 12 palavras sem aspas`;
@@ -58,6 +60,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Gate Athos Triagem: se a org desligou o agente no Console Athos, não classificar (no-op).
+    // Padrão = ativo; só pula se houver linha com ativo=false.
+    const { data: gateTriagem } = await supabase
+      .from("athos_agentes_org")
+      .select("ativo")
+      .eq("organization_id", organization_id)
+      .eq("agente_slug", "triagem")
+      .maybeSingle();
+    if (gateTriagem && gateTriagem.ativo === false) {
+      console.log(`[triage-lead-ia] Agente desligado para org ${organization_id} — ignorando.`);
+      return new Response(JSON.stringify({ skipped: true, reason: "agente_desligado" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!OPENROUTER_API_KEY) {
       console.error("[triage-lead-ia] OPENROUTER_API_KEY não configurada");
       return new Response(JSON.stringify({ error: "OPENROUTER_API_KEY não configurada" }), {
@@ -75,6 +92,14 @@ Deno.serve(async (req) => {
 
     const leadNome = lead?.nome ?? null;
     const origemLead = lead?.origem ?? null;
+
+    // Regras extras específicas desta org (ver organizations.triagem_regras_extras)
+    const { data: orgConfig } = await supabase
+      .from("organizations")
+      .select("triagem_regras_extras")
+      .eq("id", organization_id)
+      .maybeSingle();
+    const regrasExtras = orgConfig?.triagem_regras_extras?.trim() || null;
 
     const textoMensagem = mensagem?.trim() || "";
     let ativarIa = false;
@@ -102,6 +127,9 @@ Deno.serve(async (req) => {
       // Contexto adicional para enriquecer a decisão
       const contextoOrigem = origemLead
         ? `\nOrigem do lead: ${origemLead} (leads de marketing tendem a ser primeiro contato).`
+        : "";
+      const contextoRegrasExtras = regrasExtras
+        ? `\n\nREGRAS ESPECÍFICAS DESTA CLÍNICA:\n${regrasExtras}`
         : "";
 
       const TRIAGE_TOOL = {
@@ -133,7 +161,7 @@ Deno.serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Mensagem: ${textoMensagem}${contextoOrigem}`,
+            content: `Mensagem: ${textoMensagem}${contextoOrigem}${contextoRegrasExtras}`,
           },
         ],
         tools: [TRIAGE_TOOL],

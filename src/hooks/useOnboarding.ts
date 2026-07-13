@@ -54,8 +54,8 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     description: 'Defina a identidade do assistente, procedimentos e horários de atendimento automático.',
     icon: 'Bot',
     mandatory: true,
-    path: '/crm/ia',
-    tutorialId: 'ia',
+    path: '/crm/athos/recepcao',
+    tutorialId: 'athos-recepcao',
     ctaLabel: 'Configurar IA',
   },
   {
@@ -114,7 +114,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 // Páginas onde o modal NÃO bloqueia (usuário está configurando algo)
 export const ONBOARDING_ALLOWED_PATHS = [
   '/crm/settings',
-  '/crm/ia',
+  '/crm/athos',
   '/crm/procedimentos',
   '/crm/onboarding',
 ];

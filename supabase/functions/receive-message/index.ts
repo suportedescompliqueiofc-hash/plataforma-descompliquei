@@ -105,11 +105,11 @@ serve(async (req) => {
     );
 
     const payload = await req.json();
-    
-    // DEBUG: Save payload to database for inspection
-    try {
-      await supabaseAdmin.from('debug_payloads').insert({ payload });
-    } catch (e) {}
+
+    // NOTA: a gravação incondicional de TODO payload em debug_payloads foi
+    // removida (2026-07-07) — ela inchava a tabela e saturava o Disk IO da
+    // instância. Só mantemos a captura de contexto de anúncio abaixo, que é
+    // funcional (alimentada pelo lookup de ad_context_capture).
 
     // DEBUG: Gravar payload detalhado se for mensagem de anúncio
     try {
@@ -847,18 +847,35 @@ serve(async (req) => {
     console.log('[IA-DISPATCH] Decisão final:', deveDisparar, '(iaAtiva:', iaAtiva, ')')
 
     if (deveDisparar) {
-        const payload = { lead_id: lead.id, organization_id: lead.organization_id, mensagem_usuario: text, tipo_mensagem: tipoConteudo, media_path: uploadedFilePath };
-        console.log('[IA-DISPATCH] Disparando whatsapp-ai-agent para lead:', lead.id)
-        const aiRequest = supabaseAdmin.functions.invoke('whatsapp-ai-agent', {
-          body: payload,
-        }).catch((err: any) => {
-          console.error('[IA-DISPATCH] Erro ao invocar whatsapp-ai-agent:', err)
-        });
+        // Guard: se já houve mensagem de atendente humano nesta conversa, a IA não
+        // deve retomar — mesmo que ia_ativa tenha ficado true por inconsistência.
+        // Garante que a IA não volta após follow-up quando o humano já assumiu o atendimento.
+        const { data: humanMsgPrevia } = await supabaseAdmin
+          .from('mensagens')
+          .select('id')
+          .eq('lead_id', lead.id)
+          .eq('direcao', 'saida')
+          .eq('remetente', 'atendente')
+          .limit(1)
+          .maybeSingle();
 
-        // @ts-ignore - Garante que o isolado não morra antes de disparar a promise de background
-        if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
-           // @ts-ignore
-           EdgeRuntime.waitUntil(aiRequest);
+        if (humanMsgPrevia) {
+          await supabaseAdmin.from('leads').update({ ia_ativa: false } as any).eq('id', lead.id);
+          console.log('[IA-DISPATCH] IA bloqueada: handoff prévio detectado (msg de atendente encontrada) — ia_ativa corrigida para false');
+        } else {
+          const payload = { lead_id: lead.id, organization_id: lead.organization_id, mensagem_usuario: text, tipo_mensagem: tipoConteudo, media_path: uploadedFilePath };
+          console.log('[IA-DISPATCH] Disparando whatsapp-ai-agent para lead:', lead.id)
+          const aiRequest = supabaseAdmin.functions.invoke('whatsapp-ai-agent', {
+            body: payload,
+          }).catch((err: any) => {
+            console.error('[IA-DISPATCH] Erro ao invocar whatsapp-ai-agent:', err)
+          });
+
+          // @ts-ignore - Garante que o isolado não morra antes de disparar a promise de background
+          if (typeof EdgeRuntime !== 'undefined' && typeof EdgeRuntime.waitUntil === 'function') {
+             // @ts-ignore
+             EdgeRuntime.waitUntil(aiRequest);
+          }
         }
     } else {
         const motivo = direcao !== 'entrada' ? 'mensagem de saída' : 'ia_ativa === false (transbordo humano)';

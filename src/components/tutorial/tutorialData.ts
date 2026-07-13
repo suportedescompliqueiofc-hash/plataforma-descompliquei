@@ -103,12 +103,6 @@ export const tutorials: Tutorial[] = [
 
       // ── AUTOMAÇÃO ──
       {
-        target: 'sidebar-quick-messages',
-        title: 'Mensagens Rápidas',
-        description: 'Templates prontos organizados em **pastas temáticas**:\n\n• Boas-vindas, follow-up, agendamento, pós-consulta...\n• Use **variáveis** como {nome} que são substituídas automaticamente\n• Na hora de atender, selecione e envie com **2 cliques**\n\nEconomize tempo e **padronize** a qualidade do atendimento.',
-        position: 'right',
-      },
-      {
         target: 'sidebar-cadences',
         title: 'Cadências — automação',
         description: 'Uma cadência é uma **sequência automática** de mensagens em intervalos que você define.\n\n**Exemplo prático:**\n• Lead não respondeu em **2h** → envia mensagem 1\n• Ainda sem resposta em **24h** → envia mensagem 2\n• Sem resposta em **3 dias** → envia último follow-up\n\nIdeal para **reativação de leads inativos** e follow-up automático.',
@@ -445,11 +439,11 @@ export const tutorials: Tutorial[] = [
         position: 'bottom',
       },
 
-      // ── 11. Mensagens Rápidas ──
+      // ── 11b. Materiais ──
       {
-        target: 'conversation-quick-messages',
-        title: 'Mensagens Rápidas',
-        description: 'Abre o painel lateral com seus **templates prontos**.\n\n• Encontre pelo nome ou role pelas pastas\n• Clique no template — ele é inserido no campo de texto\n• Edite antes de enviar se quiser personalizar\n• A variável **{nome}** é substituída automaticamente\n\nCrie seus templates em **Automação > Mensagens Rápidas**.',
+        target: 'conversation-materiais',
+        title: 'Materiais',
+        description: 'Abre o painel lateral com os **materiais comerciais** criados pelo Athos (scripts de atendimento, quebra de objeção, ofertas e mais).\n\n• Busque pelo título ou filtre por categoria\n• Clique num material pra expandir e ler o conteúdo\n• Use **Copiar texto** pra se basear na conversa\n\nDiferente das Mensagens Rápidas, aqui nada é enviado direto — é conteúdo de consulta.',
         position: 'left',
       },
 
@@ -466,6 +460,14 @@ export const tutorials: Tutorial[] = [
         target: 'conversation-notas',
         title: 'Notas internas',
         description: 'Anotações **internas da equipe** — o lead nunca vê.\n\n• Use para registrar preferências, combinados, detalhes do procedimento\n• Qualquer membro da equipe pode ler\n• Ficam salvas permanentemente no perfil do lead\n\n**Dica:** anote o que foi combinado em cada atendimento. Quando retomar a conversa dias depois, você terá o contexto completo.',
+        position: 'left',
+      },
+
+      // ── 13b. Resumo da IA ──
+      {
+        target: 'conversation-resumo-ia',
+        title: 'Resumo da IA',
+        description: 'Mostra o que o **Athos** já entendeu sobre este lead, direto na conversa — sem precisar abrir a ficha completa.\n\n• Resumo da conversa, procedimento de interesse, objetivo e principal objeção\n• Atualizado automaticamente pouco depois de cada troca de mensagens\n\n**Dica:** consulte antes de responder — é o jeito mais rápido de retomar o contexto sem reler tudo.',
         position: 'left',
       },
 
@@ -553,6 +555,38 @@ export const tutorials: Tutorial[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════
+  // ATUALIZAÇÕES
+  // ═══════════════════════════════════════════════════════════════
+  {
+    id: 'atualizacoes',
+    pageRoute: '/crm/atualizacoes',
+    title: 'Atualizações',
+    description: 'Acompanhe tudo o que muda na plataforma — novidades, melhorias e correções — direto na sua sidebar.',
+    icon: 'Megaphone',
+    category: 'geral',
+    steps: [
+      {
+        target: 'sidebar-atualizacoes',
+        title: 'Novidades da plataforma',
+        description: 'Sempre que a plataforma ganhar uma novidade, uma **melhoria** ou uma **correção**, ela aparece aqui.\n\nUm ponto vermelho no menu indica que existem atualizações que você **ainda não viu**.',
+        position: 'right',
+      },
+      {
+        target: 'atualizacoes-tabs',
+        title: 'Filtre por tipo',
+        description: 'Use as abas pra ver só o que interessa:\n\n• **Novidade** — recursos novos\n• **Melhoria** — algo que já existia ficou melhor\n• **Correção** — um problema foi resolvido',
+        position: 'bottom',
+      },
+      {
+        target: 'atualizacoes-list',
+        title: 'Ver agora',
+        description: 'Quando uma atualização tiver um botão **"Ver agora"**, clique nele — você será levado direto pro lugar da plataforma onde a novidade está, pra já testar.',
+        position: 'top',
+      },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════
   // LEADS
   // ═══════════════════════════════════════════════════════════════
   {
@@ -592,12 +626,6 @@ export const tutorials: Tutorial[] = [
         target: 'lead-field-origem',
         title: 'Campo: Origem',
         description: 'Selecione **de onde veio** este lead:\n\n• **Marketing** — veio de anúncio pago (Meta Ads, Google, etc.)\n• **Orgânico** — veio espontaneamente (indicação, busca, redes sociais)\n\n**Por que importa:** a origem define se o lead entra nos cálculos de **CPL, Custo por Qualificado e ROAS**. Leads orgânicos não contam para métricas de marketing.',
-        position: 'right',
-      },
-      {
-        target: 'lead-field-fonte',
-        title: 'Campo: Fonte',
-        description: 'Selecione a **fonte específica** que trouxe este lead:\n\n• Instagram, Google, Indicação, WhatsApp Direto...\n• As fontes são configuradas em **Configurações > Fontes**\n\n**Diferença entre Origem e Fonte:**\n• **Origem** = canal geral (Marketing ou Orgânico)\n• **Fonte** = canal específico dentro da origem\n\n**Dica:** fontes bem preenchidas revelam qual canal ou campanha gera mais leads de qualidade.',
         position: 'right',
       },
       {
@@ -1305,12 +1333,14 @@ export const tutorials: Tutorial[] = [
   },
 
   // ═══════════════════════════════════════════════════════════════
-  // AUTOMAÇÃO - IA (14 steps — walkthrough completo com cliques)
+  // ATHOS PRÉ-ATENDIMENTO (14 steps — walkthrough completo com cliques)
+  // Substitui o antigo tutorial 'ia' de /crm/ia (página removida — conteúdo
+  // centralizado em /crm/athos/recepcao).
   // ═══════════════════════════════════════════════════════════════
   {
-    id: 'ia',
-    pageRoute: '/crm/ia',
-    title: 'IA de Pré-atendimento',
+    id: 'athos-recepcao',
+    pageRoute: '/crm/athos/recepcao',
+    title: 'Athos Pré-Atendimento',
     description: 'Configure sua assistente virtual para qualificar leads automaticamente.',
     icon: 'Bot',
     category: 'automacao',
@@ -1318,15 +1348,15 @@ export const tutorials: Tutorial[] = [
       // ── 1. Visão geral das abas ──
       {
         target: 'ia-tabs',
-        title: 'Bem-vindo à IA',
-        description: 'A **Inteligência Artificial** é a assistente que atende seus leads automaticamente via WhatsApp.\n\nA página é dividida em **4 abas**:\n\n• **Configurações** — monte o perfil e prompt da IA\n• **Follow-up** — mensagens automáticas de acompanhamento\n• **Triagem** — veja como a IA classifica os leads\n• **Logs** — histórico detalhado de cada interação\n\nVamos percorrer cada seção em detalhe.',
+        title: 'Bem-vindo ao Pré-Atendimento',
+        description: 'O **Athos Pré-Atendimento** é o agente que responde seus leads automaticamente via WhatsApp.\n\nEsta página centraliza tudo sobre ele, em **2 abas**:\n\n• **Configurações** — monte o perfil e prompt da IA\n• **Logs** — histórico detalhado de cada interação\n\nVamos percorrer cada seção em detalhe.',
         position: 'bottom',
       },
       // ── 2. Status ──
       {
         target: 'ia-status',
-        title: 'Painel de Status',
-        description: 'Este card mostra o **status atual** da sua IA:\n\n• **Ativa** (verde) — a IA está respondendo automaticamente\n• **Inativa** (cinza) — mensagens não são respondidas pela IA\n\nO status muda em tempo real quando você liga ou desliga o interruptor abaixo.',
+        title: 'Motor de Resposta',
+        description: 'Este card mostra o **status do motor de resposta** da IA:\n\n• **Ativa** (verde) — a IA está respondendo automaticamente\n• **Inativa** (cinza) — mensagens não são respondidas pela IA\n\n**Atenção:** isto é diferente do interruptor lá em cima, no topo da página — aquele liga/desliga o agente inteiro no Console Athos; este aqui é o motor de resposta específico desta IA.',
         position: 'left',
         action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(1)', delay: 400 },
       },
@@ -1411,129 +1441,79 @@ export const tutorials: Tutorial[] = [
         title: 'Salvar Configurações',
         description: 'Após preencher todos os campos, clique em **"Salvar"** para aplicar as mudanças.\n\n• O botão fica **desabilitado** quando não há alterações\n• Um **indicador vermelho** aparece quando há mudanças não salvas\n• Use **"Descartar"** para reverter ao último estado salvo\n\n**Importante:** As mudanças só entram em vigor após salvar.',
         position: 'bottom',
-        action: { type: 'click', selector: '[data-tutorial="ia-subtab-identidade"]', delay: 300 },
       },
-      // ── 14. Aba Follow-up: visão geral ──
-      {
-        target: 'ia-followup-tabs',
-        title: 'Aba Follow-up',
-        description: 'A aba de Follow-up tem duas seções:\n\n• **Configuração** — ativa/desativa o follow-up e define sequências e intervalos\n• **Análise** — histórico completo e métricas de todos os follow-ups enviados\n\nVamos ver cada uma.',
-        position: 'bottom',
-        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(2)', delay: 500 },
-      },
-      // ── 15. Follow-up: config ──
-      {
-        target: 'ia-followup-config',
-        title: 'Configuração de Follow-up',
-        description: 'O follow-up automático envia **mensagens humanizadas** para leads que sumiram durante o atendimento.\n\n• **Ative/desative** o follow-up com o interruptor\n• Configure a **sequência de tentativas** (até 5)\n• Defina o **intervalo** entre cada mensagem:\n  - 1ª tentativa: 15min a 2h (lead ainda está quente)\n  - 2ª tentativa: 1h a 8h (reforço)\n  - 3ª tentativa: 12h a 3 dias (última chance)\n• Configure se deve **respeitar horário de atendimento**\n\nA IA **para automaticamente** quando o lead responde.',
-        position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="ia-followup-tab-config"]', delay: 400 },
-      },
-      // ── 16. Follow-up: análise ──
-      {
-        target: 'ia-followup-history',
-        title: 'Análise de Follow-ups',
-        description: 'Na aba **Análise** você encontra o histórico completo de todos os follow-ups:\n\n• **Enviado** — mensagem entregue com sucesso\n• **IA ignorou** — a IA decidiu que não fazia sentido enviar\n• **Fora do horário** — bloqueado pela regra de horário\n• **Lead respondeu** — follow-up cancelado porque o lead voltou\n• **Erro** — falha no envio\n\nUse este histórico para **ajustar os intervalos** e verificar se a IA está tomando boas decisões.',
-        position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="ia-followup-tab-analise"]', delay: 400 },
-      },
-      // ── 17. Aba Triagem ──
-      {
-        target: 'ia-triage',
-        title: 'Triagem de Leads',
-        description: 'A aba de **Triagem** mostra como a IA está classificando cada lead em tempo real:\n\n• Veja o **score de qualificação** atribuído pela IA a cada conversa\n• Entenda o **motivo** da classificação — o que fez a IA considerar o lead quente ou frio\n• Filtre por **período** para analisar tendências\n\n**Use a triagem para:**\n• Calibrar o prompt da IA quando ela classificar errado\n• Identificar padrões nos leads mais qualificados\n• Priorizar o follow-up manual nos leads com maior potencial',
-        position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(3)', delay: 500 },
-      },
-      // ── 18. Aba Logs ──
+      // ── 14. Logs ──
       {
         target: 'ia-logs',
         title: 'Logs de Execução da IA',
-        description: 'A aba de **Logs** mostra o **registro detalhado** de cada interação da IA:\n\n• **Conversa completa** — o que o lead perguntou e o que a IA respondeu\n• **Ferramentas utilizadas** — quais ações a IA executou (atualizar CRM, notificar equipe)\n• **Tempo de resposta** — quanto demorou para responder\n• **Tokens consumidos** — custo de cada interação\n\n**Boas práticas:**\n• Revise os logs **semanalmente** para encontrar respostas que podem melhorar\n• Identifique perguntas recorrentes e adicione ao **FAQ**\n• Se a IA errar em algo, ajuste o **prompt** ou as **instruções específicas**',
+        description: 'A aba de **Logs** mostra o **registro detalhado** de cada interação da IA:\n\n• **Tempo Real** — monitor ao vivo das execuções em andamento\n• **Execuções** — histórico filtrável por período, com detalhe e erro de cada uma\n\n**Boas práticas:**\n• Revise os logs **semanalmente** para encontrar respostas que podem melhorar\n• Identifique perguntas recorrentes e adicione ao **FAQ**\n• Se a IA errar em algo, ajuste o **prompt** ou as **instruções específicas**',
         position: 'top',
-        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(4)', delay: 500 },
+        action: { type: 'click', selector: '[data-tutorial="ia-tabs"] button:nth-child(2)', delay: 400 },
       },
     ],
   },
 
   // ═══════════════════════════════════════════════════════════════
-  // AUTOMAÇÃO - MENSAGENS RÁPIDAS (10 steps — com modal walkthrough)
+  // ATHOS FOLLOW-UP (5 steps)
   // ═══════════════════════════════════════════════════════════════
   {
-    id: 'quick-messages',
-    pageRoute: '/crm/quick-messages',
-    title: 'Mensagens Rápidas',
-    description: 'Crie templates de mensagens para agilizar seu atendimento.',
-    icon: 'Zap',
+    id: 'athos-followup',
+    pageRoute: '/crm/athos/followup',
+    title: 'Athos Follow-Up',
+    description: 'Reengaje leads que esfriaram e acompanhe o histórico de disparos.',
+    icon: 'Send',
     category: 'automacao',
     steps: [
-      // ── 1. Visão geral ──
       {
-        target: 'quick-messages-create',
-        title: 'O que são Mensagens Rápidas?',
-        description: 'Mensagens rápidas são **templates prontos** que você envia com um clique durante o atendimento no WhatsApp.\n\n• **Economize tempo** — não precisa digitar a mesma mensagem várias vezes\n• **Padronize** o atendimento de toda a equipe\n• **Variáveis inteligentes** — **{nome}** é substituído pelo nome do lead automaticamente\n• **Múltiplos formatos** — texto, áudio, imagem, vídeo e documentos\n\nVamos criar sua primeira mensagem agora! Clique em **"Nova Mensagem"** para abrir o formulário.',
+        target: 'ia-followup-tabs',
+        title: 'Automático e Manual',
+        description: 'O Follow-Up tem **dois fluxos totalmente distintos** — cada um na sua aba:\n\n• **Automático** — a IA dispara sozinha enquanto está atendendo o lead\n• **Manual** — o resgate que **você ativa no botão** "Follow IA", para leads que a equipe atendeu e sumiram\n\nCada aba tem suas próprias métricas e histórico. Vamos ver.',
         position: 'bottom',
       },
-      // ── 2. Abre modal Nova Mensagem ──
       {
-        target: 'qm-field-titulo',
-        title: 'Título da Mensagem',
-        description: 'Este é o **nome do botão** que aparece para sua equipe durante o atendimento.\n\nEscolha um nome **curto e descritivo** para identificar a mensagem rapidamente:\n• "Boas-vindas"\n• "Confirmação de Consulta"\n• "Follow-up 1"\n• "Promoção do Mês"\n\n**Dica:** Use nomes que deixem claro o contexto sem precisar ler o conteúdo completo.',
-        position: 'bottom',
-        action: { type: 'click', selector: '[data-tutorial="quick-messages-create"]', delay: 500 },
-      },
-      // ── 3. Campo tipo ──
-      {
-        target: 'qm-field-tipo',
-        title: 'Tipo e Pasta',
-        description: '**Tipo de conteúdo** — o que será enviado:\n• **Texto** — mensagem escrita (suporta variáveis como {nome})\n• **Imagem** — foto com legenda opcional\n• **Áudio** — arquivo de áudio\n• **Vídeo** — clipe de vídeo\n• **PDF** — documento\n\n**Pasta** — onde organizar esta mensagem. Você pode criar pastas temáticas clicando em "Nova Pasta" na página principal.\n\n**Dica:** Comece com **Texto** para mensagens do dia a dia.',
-        position: 'bottom',
-      },
-      // ── 4. Campo conteúdo ──
-      {
-        target: 'qm-field-conteudo',
-        title: 'Conteúdo da Mensagem',
-        description: 'Escreva aqui o **texto completo** da mensagem que será enviada.\n\n**Variável disponível:**\n• **{nome}** — substituído automaticamente pelo nome do lead\n\n**Exemplos prontos para copiar:**\n\n"Olá {nome}! Obrigado pelo seu interesse na nossa clínica. Em que posso ajudar você hoje?"\n\n"Oi {nome}, passando para confirmar sua consulta amanhã. Tudo certo para você?"\n\n"Boa tarde, {nome}! Temos uma condição especial essa semana. Posso te contar mais?"',
+        target: 'ia-followup-history',
+        title: 'Análise do Automático',
+        description: 'Na aba **Automático → Análise** você acompanha os follow-ups que a **IA disparou sozinha**:\n\n• **Enviado** — mensagem entregue com sucesso\n• **IA ignorou** — a IA decidiu que não fazia sentido enviar\n• **Lead respondeu** — follow-up cancelado porque o lead voltou\n• **Erro** — falha no envio\n\nUse a **recuperação por tentativa** para ajustar os intervalos.',
         position: 'top',
+        action: { type: 'click', selector: '[data-tutorial="ia-followup-tab-automatico"]', delay: 400 },
       },
-      // ── 5. Botão salvar mensagem ──
       {
-        target: 'qm-submit',
-        title: 'Salvar a Mensagem',
-        description: 'Após preencher o título e o conteúdo, clique em **"Criar Mensagem"** para salvar.\n\nA mensagem ficará disponível:\n• Na **biblioteca** desta página (organizada na pasta selecionada)\n• No **atendimento** via WhatsApp — ícone de raio na tela de conversa\n\nVocê pode **editar ou excluir** qualquer mensagem a qualquer momento.',
+        target: 'ia-followup-config',
+        title: 'Configuração (do Automático)',
+        description: 'A **Configuração** vale para o follow-up **automático** — não afeta o manual.\n\n• **Ative/desative** o follow-up automático\n• Configure a **sequência de tentativas** (até 5)\n• Defina o **intervalo** entre cada mensagem:\n  - 1ª tentativa: 15min a 2h (lead ainda está quente)\n  - 2ª tentativa: 1h a 8h (reforço)\n  - 3ª tentativa: 12h a 3 dias (última chance)\n• Configure se deve **respeitar horário de atendimento**\n\nA IA **para automaticamente** quando o lead responde.',
         position: 'top',
+        action: { type: 'click', selector: '[data-tutorial="ia-followup-tab-config"]', delay: 400 },
       },
-      // ── 6. Fechar modal e mostrar pastas ──
       {
-        target: 'quick-messages-folder-create',
-        title: 'Criar Pastas de Organização',
-        description: 'Agora vamos organizar as mensagens em **pastas temáticas**.\n\nClique em **"Nova Pasta"** para criar uma pasta. Cada pasta tem:\n• **Nome** — identificação da categoria\n• **Cor** — para reconhecimento visual rápido\n\n**Sugestões de pastas:**\n• **Boas-vindas** — primeiro contato com novos leads\n• **Agendamento** — confirmações e lembretes\n• **Follow-up** — acompanhamento pós-contato\n• **Pós-consulta** — avaliação e retorno\n• **Promoções** — ofertas e novidades',
+        target: 'athos-followup-gap',
+        title: 'Leads sem retorno (Manual)',
+        description: 'Na aba **Manual**, esta lista mostra **quem esfriou agora** — leads em que a equipe falou por último e o lead sumiu.\n\n• Filtre por **período** com o seletor de datas\n• Clique em **"Follow IA"** para ativar o reengajamento **manual** naquele lead\n• Use os ícones para ver a conversa ou abrir a jornada completa\n\nSó os leads ativados aqui entram no fluxo **manual** — nada é ativado sozinho.',
         position: 'bottom',
-        action: { type: 'dismiss', delay: 300 },
-      },
-      // ── 7. Área de pastas ──
-      {
-        target: 'quick-messages-folders',
-        title: 'Suas Pastas e Mensagens',
-        description: 'Aqui ficam **todas as pastas e mensagens** organizadas.\n\n• Cada pasta é **expansível** — clique para ver as mensagens dentro\n• **Arraste e solte** pastas para mudar a ordem de exibição\n• **Arraste mensagens** entre pastas para reorganizar\n• O número ao lado do nome indica **quantas mensagens** há dentro\n\n**Ações em cada mensagem (passe o mouse):**\n• Ícone de **lápis** — editar\n• Ícone de **lixeira** — excluir',
-        position: 'top',
-      },
-      // ── 8. Busca ──
-      {
-        target: 'quick-messages-search',
-        title: 'Buscar Mensagens',
-        description: 'Use a **busca** para localizar rapidamente qualquer mensagem:\n\n• Busca por **título** — ex: "boas-vindas"\n• Busca por **conteúdo** — ex: "agendamento"\n• Resultados em **tempo real** enquanto você digita\n\n**Quando usar?** Quando sua biblioteca crescer e você precisar localizar uma mensagem específica sem navegar pelas pastas.',
-        position: 'bottom',
-      },
-      // ── 9. Como usar no atendimento ──
-      {
-        target: 'quick-messages-create',
-        title: 'Usando no Atendimento',
-        description: '**Como enviar mensagens rápidas durante uma conversa:**\n\n1. Abra qualquer conversa no **WhatsApp / Conversas**\n2. Clique no ícone de **raio (⚡)** ao lado do campo de digitação\n3. Uma janela com todas as suas pastas abre\n4. Clique na mensagem desejada\n5. Ela é **inserida automaticamente** no campo de texto\n6. Você pode editar antes de enviar se quiser personalizar\n\n**Dica:** Use o campo de busca dentro do seletor para encontrar mensagens rápido durante atendimentos.',
-        position: 'bottom',
+        action: { type: 'click', selector: '[data-tutorial="ia-followup-tab-manual"]', delay: 400 },
       },
     ],
   },
+
+  // ═══════════════════════════════════════════════════════════════
+  // ATHOS TRIAGEM (2 steps)
+  // ═══════════════════════════════════════════════════════════════
+  {
+    id: 'athos-triagem',
+    pageRoute: '/crm/athos/triagem',
+    title: 'Athos Triagem',
+    description: 'Veja como a IA decide quem é lead real logo na primeira mensagem.',
+    icon: 'UserCheck',
+    category: 'automacao',
+    steps: [
+      {
+        target: 'athos-agent-conteudo',
+        title: 'Triagem de Leads',
+        description: 'Esta página mostra como a IA está classificando cada contato **em tempo real**, na primeira mensagem:\n\n• Veja a **decisão** — IA ativada ou encaminhado a um humano\n• Entenda o **motivo** — o que fez a IA tomar aquela decisão\n• Filtre por **período** e por tipo de decisão para analisar tendências\n\n**Use a triagem para:**\n• Calibrar o prompt da IA quando ela classificar errado\n• Identificar padrões nos leads mais qualificados',
+        position: 'top',
+      },
+    ],
+  },
+
 
   // ═══════════════════════════════════════════════════════════════
   // AUTOMAÇÃO - CADÊNCIAS (12 steps — modal walkthrough completo)
@@ -1917,14 +1897,13 @@ export const tutorials: Tutorial[] = [
       {
         target: 'sidebar',
         title: 'Menu da plataforma',
-        description: 'Este é o **menu lateral** — por ele você navega entre todas as ferramentas disponíveis no seu plano.\n\nEstá organizado em seções:\n\n• **Hub** — ponto de partida e visão geral\n• **Jornada** — sua jornada personalizada de implementação\n• **Arsenal** — ferramentas e aulas comerciais práticas\n• **Meus Materiais** — seus documentos e construções\n• **Athos GS** — IA estratégica da sua clínica\n• **Sessões Táticas** — encontros ao vivo',
+        description: 'Este é o **menu lateral** — agora **unificado**: CRM e Plataforma no mesmo lugar, sem trocar de ambiente.\n\nAs seções da plataforma ficam agrupadas por tema:\n\n• **Aprendizado** — Jornada, Arsenal e Sessões Táticas\n• **Jornada** — sua jornada personalizada de implementação\n• **Arsenal** — ferramentas e aulas comerciais práticas\n• **Athos** — IA estratégica da sua clínica\n• **Sessões Táticas** — encontros ao vivo',
       },
-      // ── 2. Hub ──────────────────────────────────────────────────────────────
+      // ── 2. Visão geral ──────────────────────────────────────────────────────
       {
         target: 'hub-tools',
-        title: 'Hub — Sua central de comando',
-        description: 'O **Hub** é seu ponto de partida. Aqui você tem atalhos rápidos para todas as ferramentas do plano e acompanha o progresso geral.\n\nSempre que entrar na plataforma, você começa por aqui.',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 500 },
+        title: 'Sua central de comando',
+        description: 'Esta é a sua **visão geral** da plataforma. Aqui você tem atalhos rápidos para todas as ferramentas do plano e acompanha o progresso geral.\n\nSempre que entrar, você começa por aqui.',
       },
       // ── 3. Arsenal ──────────────────────────────────────────────────────────
       {
@@ -1937,21 +1916,21 @@ export const tutorials: Tutorial[] = [
       {
         target: 'jornada-header',
         title: 'Jornada Personalizada',
-        description: 'A **Jornada** é o seu plano de implementação personalizado — criado pelo Athos GS com base no seu diagnóstico.\n\n• Dividida em **etapas** com prazo e passos concretos\n• Cada passo vinculado a uma **ferramenta ou aula** do Arsenal\n• Etapas desbloqueiam em sequência — conclua uma para avançar\n\n**Dica:** Siga a ordem. Cada etapa concluída desbloqueia a próxima.',
+        description: 'A **Jornada** é o seu plano de implementação personalizado — criado pelo **Athos** com base no seu diagnóstico.\n\n• Dividida em **etapas** com prazo e passos concretos\n• Cada passo vinculado a uma **ferramenta ou aula** do Arsenal\n• Etapas desbloqueiam em sequência — conclua uma para avançar\n\n**Dica:** Siga a ordem. Cada etapa concluída desbloqueia a próxima.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-jornada"]', delay: 600 },
       },
-      // ── 5. Meus Materiais ───────────────────────────────────────────────────
+      // ── 5. Notas ────────────────────────────────────────────────────────────
       {
-        target: 'materiais-header',
-        title: 'Meus Materiais',
-        description: '**Meus Materiais** é onde ficam todos os documentos que você constrói na plataforma.\n\n• Tudo que você preenche no **Arsenal** é salvo aqui automaticamente\n• Você pode criar e editar documentos livremente\n• O **Diagnóstico Estratégico** gerado no onboarding fica fixado aqui como base de conhecimento\n\nPense como seu **arquivo estratégico pessoal**.',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-materiais"]', delay: 600 },
+        target: 'notas-shell',
+        title: 'Notas',
+        description: '**Notas** é onde sua equipe organiza tudo — em **pastas** e **notas**, sem bagunça de página dentro de página.\n\n• Uma **tela inicial** reúne suas pastas, as notas mais recentes e o que a empresa compartilhou\n• Crie **pastas e subpastas** ilimitadas; dentro delas ficam as notas (e notas soltas também valem)\n• Notas podem ser **pessoais** ou **compartilhadas com a empresa**\n• Tudo que o **Athos** cria pra você (scripts, ofertas, planos) é salvo aqui\n• Dentro de uma nota, use **/** pra inserir títulos, listas e tabelas, e chame o **Athos** pra continuar ou reescrever\n\nPense como o **arquivo estratégico da sua equipe**.',
+        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-notas"]', delay: 600 },
       },
-      // ── 6. Athos GS ─────────────────────────────────────────────────────────
+      // ── 6. Athos ────────────────────────────────────────────────────────────
       {
         target: 'sidebar-os',
-        title: 'Athos GS',
-        description: 'O **Athos GS** é a sua IA estratégica — treinada com o método Descompliquei e com os dados da sua clínica.\n\nUse para:\n\n• Tirar dúvidas sobre estratégia comercial\n• Analisar situações e tomar decisões\n• Criar materiais, scripts e planos de ação\n• Revisar o que está funcionando e o que não está\n\nO Athos conhece o seu **Diagnóstico Estratégico** — as conversas são contextualizadas para a realidade da sua clínica.',
+        title: 'Athos',
+        description: 'O **Athos** é a sua IA estratégica — treinada com o método Descompliquei e com os dados da sua clínica.\n\nUse para:\n\n• Tirar dúvidas sobre estratégia comercial\n• Analisar situações e tomar decisões\n• Criar materiais, scripts e planos de ação\n• Revisar o que está funcionando e o que não está\n\nO Athos conhece o seu **Diagnóstico Estratégico** — as conversas são contextualizadas para a realidade da sua clínica.',
         action: { type: 'click' as const, selector: '[data-tutorial="sidebar-os"]', delay: 600 },
       },
       // ── 7. Sessões Táticas ──────────────────────────────────────────────────
@@ -1963,84 +1942,13 @@ export const tutorials: Tutorial[] = [
       },
       // ── 8. Encerramento ─────────────────────────────────────────────────────
       {
-        target: 'hub-tools',
+        target: 'sidebar',
         title: 'Tour concluído!',
-        description: 'Agora você conhece todas as seções da plataforma.\n\n**Por onde começar:**\n\n• Siga os passos da sua **Jornada** — cada um tem uma ação concreta vinculada\n• Explore o **Arsenal** e complete as construções da sua clínica\n• Use o **Athos GS** sempre que precisar de orientação estratégica\n• Configure o **CRM** para gerenciar seus leads\n\nVocê pode refazer este tour a qualquer momento pela Central de Ajuda.',
-        action: { type: 'click' as const, selector: '[data-tutorial="sidebar-hub"]', delay: 600 },
+        description: 'Agora você conhece todas as seções da plataforma.\n\n**Por onde começar:**\n\n• Siga os passos da sua **Jornada** — cada um tem uma ação concreta vinculada\n• Explore o **Arsenal** e complete as construções da sua clínica\n• Use o **Athos** sempre que precisar de orientação estratégica\n• Use o **CRM**, no mesmo menu, para gerenciar seus leads\n\nVocê pode refazer este tour a qualquer momento pela Central de Ajuda.',
       },
     ],
   },
 
-  // ── Plataforma — Cérebro Central (Onboarding guiado) ────────────────────────
-  {
-    id: 'platform-cerebro',
-    pageRoute: '/plataforma/cerebro',
-    title: 'Preencher o Cérebro Central',
-    description: 'Configure a identidade da sua clínica passo a passo.',
-    icon: 'Brain',
-    category: 'onboarding' as any,
-    steps: [
-      // ── Introdução ──
-      {
-        target: 'cerebro-header',
-        title: 'Cérebro Central',
-        description: 'Esta é a **memória estratégica** da sua clínica. Quanto mais você preenche, mais inteligentes e personalizadas ficam todas as IAs da plataforma.\n\nA barra de progresso no topo mostra o percentual preenchido.',
-      },
-      {
-        target: 'cerebro-nav',
-        title: '5 fases de configuração',
-        description: 'O Cérebro é organizado em **5 fases** que cobrem toda a operação da sua clínica. Vamos passar por cada uma delas agora.\n\nTodas as alterações são **salvas automaticamente** — você não precisa clicar em nenhum botão de salvar.',
-      },
-
-      // ── Fase 1: Identidade ──
-      {
-        target: 'cerebro-identidade',
-        title: 'Fase 1: Identidade',
-        description: 'Aqui você define **quem é a sua clínica**:\n\n• Nome da clínica e do responsável\n• Especialidade principal e complementares\n• Cidade, estado e ano de fundação\n• Propósito e valores\n\nEssas informações personalizam **todas as respostas das IAs** ao contexto específico do seu negócio.',
-        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(1)', delay: 400 },
-      },
-
-      // ── Fase 2: Procedimentos ──
-      {
-        target: 'cerebro-procedimentos',
-        title: 'Fase 2: Procedimentos',
-        description: 'Defina **o que sua clínica oferece** e como precifica:\n\n• **Procedimento âncora** — o que você mais quer vender\n• Faixa de investimento e diferenciais\n• Lista completa dos procedimentos oferecidos\n\nQuanto mais detalhado, melhor as IAs conseguem **vender e tirar dúvidas** sobre seus serviços.',
-        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(2)', delay: 400 },
-      },
-
-      // ── Fase 3: Operação ──
-      {
-        target: 'cerebro-operacao',
-        title: 'Fase 3: Operação Comercial',
-        description: 'Configure **como funciona o dia a dia comercial** da clínica:\n\n• Horários de funcionamento\n• Formas de pagamento aceitas\n• Perfil ideal de paciente (ICP)\n• Tom de voz nas comunicações\n\nIsso permite que as IAs respondam perguntas práticas como **horários, preços e formas de pagamento** com precisão.',
-        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(3)', delay: 400 },
-      },
-
-      // ── Fase 4: FAQ & Objeções ──
-      {
-        target: 'cerebro-faq',
-        title: 'Fase 4: FAQ & Objeções',
-        description: 'Cadastre as **perguntas mais frequentes** dos pacientes e as **objeções comuns** que surgem na negociação:\n\n• Perguntas sobre procedimentos, recuperação, riscos\n• Objeções de preço, tempo, medo\n• Respostas personalizadas para cada situação\n\nAs IAs usam esse banco de respostas para **converter leads** de forma mais natural e assertiva.',
-        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(4)', delay: 400 },
-      },
-
-      // ── Fase 5: Trilha ──
-      {
-        target: 'cerebro-trilha',
-        title: 'Fase 5: Trilha de Aprendizado',
-        description: 'Esta fase é **alimentada automaticamente** conforme você avança na Trilha de Aprendizado.\n\nCada módulo que você completa gera materiais estratégicos (scripts, análises, posicionamento) que são integrados ao Cérebro.\n\n**Dica:** Comece pela Trilha e os materiais aparecerão aqui automaticamente.',
-        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(5)', delay: 400 },
-      },
-
-      // ── Fechamento ──
-      {
-        target: 'cerebro-nav',
-        title: 'Comece pela Fase 1',
-        description: 'Recomendamos preencher **na ordem, começando pela Fase 1**. Quanto mais completo o Cérebro, mais poderosas ficam as IAs.\n\n**Pronto!** Volte ao checklist e continue com os próximos passos da configuração.',
-        action: { type: 'click' as const, selector: '[data-tutorial="cerebro-nav"] button:nth-child(1)', delay: 400 },
-      },
-    ],
-  },
 ];
 
 // Categories for help center grouping

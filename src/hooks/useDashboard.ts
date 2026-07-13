@@ -19,6 +19,7 @@ async function fetchAllBotMessages(orgId: string, startDate: string, endDate: st
       .select('lead_id, criado_em')
       .eq('organization_id', orgId)
       .eq('remetente', 'bot')
+      .eq('automatica', false) // exclui confirmação/lembrete de agendamento (não é IA de pré-atendimento)
       .gte('criado_em', startDate)
       .lte('criado_em', endDate)
       .range(from, from + PAGE_SIZE - 1);
@@ -30,6 +31,26 @@ async function fetchAllBotMessages(orgId: string, startDate: string, endDate: st
     from += PAGE_SIZE;
   }
   return all;
+}
+
+async function fetchAllBotLeadIds(orgId: string) {
+  const PAGE_SIZE = 1000;
+  const leadIds = new Set<string>();
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select('lead_id')
+      .eq('organization_id', orgId)
+      .eq('remetente', 'bot')
+      .eq('automatica', false) // exclui confirmação/lembrete de agendamento
+      .range(from, from + PAGE_SIZE - 1);
+    if (error || !data || data.length === 0) break;
+    for (const m of data) if (m.lead_id) leadIds.add(m.lead_id);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return leadIds;
 }
 
 async function fetchAllHumanMessages(orgId: string, startDate: string, endDate: string) {
@@ -80,7 +101,7 @@ async function fetchAllLeads(orgId: string, startDate: string, endDate: string) 
   return allLeads;
 }
 
-export function useDashboard(dateRange: DateRange | undefined, origemFilter: OrigemFilter = 'geral', responsavelId?: string) {
+export function useDashboard(dateRange: DateRange | undefined, origemFilter: OrigemFilter = 'geral', responsavelId?: string, metricsMode: 'geral' | 'cadastrados' = 'geral') {
   const { user } = useAuth();
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
@@ -105,7 +126,7 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
   }, [orgId, queryClient]);
 
   const { data: metrics, isLoading, error, refetch } = useQuery({
-    queryKey: ['dashboard-metrics', orgId, dateRange, origemFilter, responsavelId],
+    queryKey: ['dashboard-metrics', orgId, dateRange, origemFilter, responsavelId, metricsMode],
     placeholderData: (prev) => prev,
     queryFn: async () => {
       if (!user || !orgId || !dateRange?.from || !dateRange?.to) return null;
@@ -116,17 +137,22 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
       const endDayStr = format(endOfDay(dateRange.to), 'yyyy-MM-dd');
 
       try {
-        const [ leadsData, vendasRes, expensesRes, criativosRes, metaInsightsRes, agendamentosRes, mensagensRes, mqlNotasRes, allBotMsgs, allHumanMsgs ] = await Promise.all([
+        const [ leadsData, vendasRes, expensesRes, criativosRes, metaInsightsRes, agendamentosRes, mensagensRes, mqlNotasRes, allBotMsgs, allHumanMsgs, allBotLeadIds, handoffLogsRes, painelRes ] = await Promise.all([
           fetchAllLeads(orgId, startDate, endDate),
           supabase.from('vendas').select('*, lead_id, lead:leads(origem)').eq('organization_id', orgId).gte('data_fechamento', startDayStr).lte('data_fechamento', endDayStr),
           supabase.from('marketing_expenses').select('amount').eq('organization_id', orgId).gte('expense_date', startDayStr).lte('expense_date', endDayStr),
           supabase.from('criativos').select('platform_metrics').eq('organization_id', orgId),
           supabase.from('meta_insights' as any).select('gasto').eq('organization_id', orgId).eq('nivel', 'campaign').gte('data_ref', startDayStr).lte('data_ref', endDayStr),
-          supabase.from('agendamentos').select('id, status, valor_orcado, lead_id, data_hora_inicio, lead:leads(id, nome, telefone, atualizado_em, criado_em, origem)').eq('organization_id', orgId).gte('data_hora_inicio', startDate).lte('data_hora_inicio', endDate),
-          supabase.from('mensagens').select('lead_id, remetente, criado_em').eq('organization_id', orgId).in('remetente', ['lead', 'bot', 'agente', 'humano']).gte('criado_em', startDate).lte('criado_em', endDate).order('criado_em', { ascending: true }).limit(8000),
+          supabase.from('agendamentos').select('id, status, valor_orcado, lead_id, data_hora_inicio, lead:leads(id, nome, telefone, atualizado_em, criado_em, origem, is_qualified)').eq('organization_id', orgId).gte('data_hora_inicio', startDate).lte('data_hora_inicio', endDate),
+          supabase.from('mensagens').select('lead_id, remetente, criado_em').eq('organization_id', orgId).in('remetente', ['lead', 'bot', 'agente', 'humano']).eq('automatica', false).gte('criado_em', startDate).lte('criado_em', endDate).order('criado_em', { ascending: true }).limit(8000),
           supabase.from('lead_notas').select('lead_id').eq('organization_id', orgId).eq('tipo', 'sistema').filter('metadados->>evento', 'eq', 'mql').gte('criado_em', startDate).lte('criado_em', endDate),
           fetchAllBotMessages(orgId, startDate, endDate),
           fetchAllHumanMessages(orgId, startDate, endDate),
+          fetchAllBotLeadIds(orgId),
+          // Handoffs REAIS do período: a IA transferiu e disparou a notificação
+          supabase.from('ai_execution_logs').select('lead_id').eq('organization_id', orgId).eq('etapa', 'notificacao_enviada').gte('criado_em', startDate).lte('criado_em', endDate).limit(8000),
+          // Fonte ÚNICA da Visão Geral — mesma função que o Athos usa (get_org_painel).
+          (supabase as any).rpc('get_org_painel', { p_org_id: orgId, p_from: startDayStr, p_to: endDayStr }),
         ]);
 
         // Exclui leads marcados como "fora das métricas" (testes, spam, etc.)
@@ -138,6 +164,8 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const agendamentosData = agendamentosRes.data || [];
         const mensagens = (mensagensRes.data as any[]) || [];
         const mqlNotas = (mqlNotasRes.data as any[]) || [];
+        // Leads que a IA transferiu de fato (log 'notificacao_enviada') no período
+        const handoffLogIds = new Set<string>(((handoffLogsRes as any)?.data || []).map((r: any) => r.lead_id).filter(Boolean));
 
         // --- Filtro de origem (definido aqui para ser usado em TODAS as métricas) ---
         // Nota: 'indicacao' foi unificado com 'organico' — leads de indicação são tratados como orgânicos
@@ -176,10 +204,12 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           if (v.lead_id) leadsComAtividadeReal.add(v.lead_id);
         }
 
-        let filteredAllLeads = leads
-          .filter(filterByOrigem)
-          .filter((l: any) => l.fonte !== 'importado')
-          .filter((l: any) => leadsComAtividadeReal.has(l.id));
+        // Base do painel INTEIRO segue o modo: 'cadastrados' → leads criados no período;
+        // 'geral' → leads com atividade real. Assim Performance Comercial, funil, etc.
+        // acompanham o toggle (não só a Visão Geral).
+        let filteredAllLeads = (metricsMode === 'cadastrados'
+          ? leads.filter(filterByOrigem).filter((l: any) => l.fonte !== 'importado').filter((l: any) => l.criado_em >= startDate && l.criado_em <= endDate)
+          : leads.filter(filterByOrigem).filter((l: any) => l.fonte !== 'importado').filter((l: any) => leadsComAtividadeReal.has(l.id)));
         if (responsavelId) {
           // Atribuição multi-camada: qualquer ação do membro no CRM vincula o lead a ele
           const [msgsRes, atividadesRes, notasRes] = await Promise.all([
@@ -339,26 +369,34 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           : 0;
 
         // --- Efetividade da IA (queries dedicadas, sem limite de 8000) ---
-        // Leads únicos que receberam ≥1 mensagem bot no período
+        // Leads únicos que receberam ≥1 mensagem bot no período (filtrado por origem)
         const iaDedicadaLeadIds = new Set<string>();
         for (const m of allBotMsgs) {
-          if (m.lead_id) iaDedicadaLeadIds.add(m.lead_id);
+          if (!m.lead_id) continue;
+          const lead = leadsById.get(m.lead_id);
+          if (!lead || !filterByOrigem(lead)) continue;
+          iaDedicadaLeadIds.add(m.lead_id);
         }
 
-        // Último timestamp de bot por lead
+        // Primeiro e último timestamp de bot por lead
         const lastBotByLead = new Map<string, string>();
+        const firstBotByLead = new Map<string, string>();
         for (const m of allBotMsgs) {
           if (!m.lead_id) continue;
           const prev = lastBotByLead.get(m.lead_id);
           if (!prev || m.criado_em > prev) lastBotByLead.set(m.lead_id, m.criado_em);
+          const prevFirst = firstBotByLead.get(m.lead_id);
+          if (!prevFirst || m.criado_em < prevFirst) firstBotByLead.set(m.lead_id, m.criado_em);
         }
 
-        // Handoff: lead com bot E mensagem humana APÓS o último bot
+        // Handoff: lead com bot E mensagem humana APÓS o PRIMEIRO bot do período.
+        // Usar firstBotByLead garante que follow-ups enviados depois do handoff
+        // não "desfaçam" a detecção (lastBotByLead ficaria mais recente que a msg humana).
         const iaDedicadaHandoffIds = new Set<string>();
         for (const m of allHumanMsgs) {
           if (!m.lead_id || !iaDedicadaLeadIds.has(m.lead_id)) continue;
-          const lastBot = lastBotByLead.get(m.lead_id);
-          if (lastBot && m.criado_em > lastBot) {
+          const firstBot = firstBotByLead.get(m.lead_id);
+          if (firstBot && m.criado_em > firstBot) {
             iaDedicadaHandoffIds.add(m.lead_id);
           }
         }
@@ -430,12 +468,20 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           ? parseFloat(((iaDedicadaHandoff / iaDedicadaTotal) * 100).toFixed(1))
           : 0;
 
-        // Fechamentos via IA — leads que tiveram interação com bot E estão fechados
-        const iaLeadsFechadosIds = [...iaDedicadaLeadIds].filter(id => leadsById.get(id)?.is_closed);
-        const iaFechamentos = iaLeadsFechadosIds.length;
-        const iaTaxaConversaoIA = iaDedicadaTotal > 0
-          ? parseFloat(((iaFechamentos / iaDedicadaTotal) * 100).toFixed(1))
+        // Distinção real (via log 'notificacao_enviada'):
+        //  • Transferido = a IA fez o handoff formal
+        //  • Interferiu  = humano entrou após o bot SEM a IA ter transferido
+        //  • Só IA       = atendida pela IA, ninguém assumiu nem transferiu
+        const iaTransferidoLeadIds = new Set([...iaDedicadaLeadIds].filter((id) => handoffLogIds.has(id)));
+        const iaInterferiuLeadIds = new Set([...iaDedicadaHandoffIds].filter((id) => !handoffLogIds.has(id)));
+        const iaSoIaLeadIds = new Set([...iaDedicadaLeadIds].filter((id) => !iaTransferidoLeadIds.has(id) && !iaInterferiuLeadIds.has(id)));
+        const iaTransferido = iaTransferidoLeadIds.size;
+        const iaInterferiu = iaInterferiuLeadIds.size;
+        const iaTaxaTransferencia = iaDedicadaTotal > 0
+          ? parseFloat(((iaTransferido / iaDedicadaTotal) * 100).toFixed(1))
           : 0;
+
+        // iaLeadsFechadosIds calculado abaixo, após vendasFiltradas ser definida
 
         const trHumano = {
           tempoResposta: avgOf(primeiraRespostaValues),
@@ -506,9 +552,10 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         // Contagens por origem
         // 'indicacao' unificado com 'organico'; 'paciente' excluído do 'geral'
         // Origem usa apenas leads com atividade real no período (mesma base do totalLeads)
-        const leadsAtivosPeriodo = leads
-          .filter((l: any) => l.fonte !== 'importado')
-          .filter((l: any) => leadsComAtividadeReal.has(l.id));
+        // Segue o modo (mesma lógica de filteredAllLeads) — para "Origem dos Leads" acompanhar.
+        const leadsAtivosPeriodo = (metricsMode === 'cadastrados'
+          ? leads.filter((l: any) => l.fonte !== 'importado').filter((l: any) => l.criado_em >= startDate && l.criado_em <= endDate)
+          : leads.filter((l: any) => l.fonte !== 'importado').filter((l: any) => leadsComAtividadeReal.has(l.id)));
         const origemCounts = {
           marketing:  leadsAtivosPeriodo.filter((l: any) => l.origem === 'marketing'),
           organico:   leadsAtivosPeriodo.filter((l: any) => l.origem === 'organico' || l.origem === 'indicacao'),
@@ -519,27 +566,33 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         };
 
         // --- Modelo por evento: conta quando o evento OCORREU, não quando o lead foi criado ---
-
-        // MQL: busca notas de sistema com evento='mql' gravadas no período
+        // EXCEÇÃO — qualificação (MQL): usa o estado ATUAL (is_qualified), não a data da nota.
+        // Qualificação não expira nem "pertence" a um mês: um lead qualificado em junho e agendado em
+        // julho continua sendo um lead qualificado. Contar só notas criadas dentro do período fazia a
+        // Taxa de Agendamento passar de 100% sempre que a qualificação e o agendamento caíam em meses
+        // diferentes (comum quando a agenda está cheia). filteredAllLeads já é o mesmo cohort usado
+        // como denominador de "Total de Leads".
         const mqlLeadIdsSet = new Set<string>(
-          mqlNotas
-            .map((n: any) => n.lead_id)
-            .filter((id: string) => {
-              if (!id) return false;
-              const l = leadsById.get(id);
-              return !l || filterByOrigem(l);
-            })
+          filteredAllLeads.filter((l: any) => l.is_qualified).map((l: any) => l.id)
         );
-        const mqlCount = responsavelId
-          ? [...mqlLeadIdsSet].filter(id => filteredLeadsIds.has(id)).length
-          : mqlLeadIdsSet.size;
+        const mqlCount = mqlLeadIdsSet.size;
 
-        // Agendamentos: leads únicos com agendamento realizado no período
+        // Agendamentos: leads únicos com qualquer agendamento no período (exceto cancelados)
         const scheduledRealizados = agendamentosData
-          .filter((a: any) => a.status === 'realizado' && (!a.lead || filterByOrigem(a.lead)));
+          .filter((a: any) => a.status !== 'cancelado' && (!a.lead || filterByOrigem(a.lead)));
         const scheduledLeadIdsSet = new Set<string>(
           scheduledRealizados.map((a: any) => a.lead_id).filter(Boolean)
         );
+        // Fallback: leadsById só contém leads com criado_em/atualizado_em no período.
+        // Um lead antigo agendado agora pode não ter sido "tocado" — usa o lead embutido no join de agendamentos.
+        const leadsByIdFromAgendamentos = new Map<string, any>();
+        for (const a of agendamentosData) {
+          if (a.lead_id && a.lead && !leadsByIdFromAgendamentos.has(a.lead_id)) {
+            leadsByIdFromAgendamentos.set(a.lead_id, a.lead);
+          }
+        }
+        const idsToLeadsComFallback = (ids: string[]) =>
+          [...new Set(ids)].map(id => leadsById.get(id) ?? leadsByIdFromAgendamentos.get(id)).filter(Boolean);
         const scheduledCount = responsavelId
           ? [...scheduledLeadIdsSet].filter(id => filteredLeadsIds.has(id)).length
           : scheduledLeadIdsSet.size;
@@ -566,6 +619,19 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const fechadosSemAgend = fechadosSemAgendIds.length;
         const pctFechadosComAgend = closedCount > 0 ? parseFloat(((fechadosComAgend / closedCount) * 100).toFixed(1)) : 0;
         const pctFechadosSemAgend = closedCount > 0 ? parseFloat(((fechadosSemAgend / closedCount) * 100).toFixed(1)) : 0;
+
+        // Breakdown: agendados com vs sem qualificação (MQL) registrada
+        // Usa o estado ATUAL de is_qualified (não o mqlLeadIdsSet, que só enxerga notas
+        // criadas dentro do período) — senão um lead qualificado antes do período aparece
+        // aqui como "sem qualificação" mesmo já estando qualificado de verdade.
+        const allScheduledIds = responsavelId
+          ? [...scheduledLeadIdsSet].filter(id => filteredLeadsIds.has(id))
+          : [...scheduledLeadIdsSet];
+        const isLeadQualifiedNow = (id: string) =>
+          !!(leadsById.get(id) ?? leadsByIdFromAgendamentos.get(id))?.is_qualified;
+        const agendadosSemMqlIds = allScheduledIds.filter(id => !isLeadQualifiedNow(id));
+        const agendadosSemMql = agendadosSemMqlIds.length;
+        const pctAgendadosSemMql = scheduledCount > 0 ? parseFloat(((agendadosSemMql / scheduledCount) * 100).toFixed(1)) : 0;
 
         // --- Tempo de conversão (cadastro → fechamento) ---
         const temposFechamento: { dias: number; lead: any; venda: any }[] = [];
@@ -655,9 +721,18 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
         const faturamentoTotal = vendasFiltradas.reduce((sum, v) => sum + Number(v.valor_fechado || 0), 0);
         const vendasCount = vendasFiltradas.length;
 
-        // Faturamento gerado por leads que passaram pela IA
+        // Fechamentos via IA — leads com venda no período que algum dia interagiram com bot (sem restrição de data)
+        const iaLeadsFechadosIds = [...new Set(
+          vendasFiltradas.filter((v: any) => allBotLeadIds.has(v.lead_id)).map((v: any) => v.lead_id as string)
+        )];
+        const iaFechamentos = iaLeadsFechadosIds.length;
+        const iaTaxaConversaoIA = iaDedicadaTotal > 0
+          ? parseFloat(((iaFechamentos / iaDedicadaTotal) * 100).toFixed(1))
+          : 0;
+
+        // Faturamento gerado por leads que passaram pela IA (algum dia) e fecharam no período
         const faturamentoIA = vendasFiltradas
-          .filter((v: any) => iaDedicadaLeadIds.has(v.lead_id))
+          .filter((v: any) => allBotLeadIds.has(v.lead_id))
           .reduce((sum: number, v: any) => sum + Number(v.valor_fechado || 0), 0);
         const pctFaturamentoIA = faturamentoTotal > 0
           ? parseFloat(((faturamentoIA / faturamentoTotal) * 100).toFixed(1))
@@ -760,6 +835,8 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           }));
 
         return {
+          // Fonte ÚNICA da Visão Geral (get_org_painel) — { atividade, cadastrados } da origem atual.
+          painel: (painelRes as any)?.data?.[origemFilter] ?? null,
           // Campos existentes (mantidos para compatibilidade)
           totalContatos: leadsCreatedInPeriod.length,
           totalLeadsAtivos: filteredAllLeads.length,
@@ -843,8 +920,14 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           iaConversasLeadsList: idsToLeads([...iaDedicadaLeadIds]),
           iaHandoffConversas: iaDedicadaHandoff,
           iaHandoffLeadsList: idsToLeads([...iaDedicadaHandoffIds]),
-          iaPerdidosConversas: iaDedicadaTotal - iaDedicadaHandoff,
-          iaPerdidosLeadsList: idsToLeads([...iaDedicadaLeadIds].filter(id => !iaDedicadaHandoffIds.has(id))),
+          // Distinção transferência real × interferência humana
+          iaTransferidoConversas: iaTransferido,
+          iaTransferidoLeadsList: idsToLeads([...iaTransferidoLeadIds]),
+          iaInterferiuConversas: iaInterferiu,
+          iaInterferiuLeadsList: idsToLeads([...iaInterferiuLeadIds]),
+          iaTaxaTransferencia,
+          iaPerdidosConversas: iaSoIaLeadIds.size,
+          iaPerdidosLeadsList: idsToLeads([...iaSoIaLeadIds]),
           iaTaxaEfetividade,
           iaTempoHandoff,
           iaFechamentos,
@@ -916,6 +999,9 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
           fechadosSemAgendList: idsToLeads(fechadosSemAgendIds),
           pctFechadosComAgend,
           pctFechadosSemAgend,
+          agendadosSemMql,
+          agendadosSemMqlList: idsToLeadsComFallback(agendadosSemMqlIds),
+          pctAgendadosSemMql,
           // Evolução no tempo para Descompliquei (3 séries: leads mkt, mqls, fechamentos)
           descompliqueiOverTime: eachDayOfInterval({ start: dateRange.from, end: dateRange.to }).map(d => {
             const dayStart = startOfDay(d).toISOString();

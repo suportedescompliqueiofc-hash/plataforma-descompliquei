@@ -1,0 +1,229 @@
+{
+  "clinicName": "",
+  "responsibleName": "Edilene Gomes ",
+  "email": "edilene83martins@gmail.com",
+  "phone": "(21) 97979-7915",
+  "website": "",
+  "instagram": "Dra.edilene Gomes ",
+  "fullAddress": "Av Armando Lombardi número 205\nSala 206 Barra Da Tijuca ",
+  "city": "Rio de Janeiro ",
+  "state": "Rio de Janeiro ",
+  "marketTime": "3-5",
+  "mission": "",
+  "vision": "",
+  "values": [],
+  "differentials": "",
+  "targetAudience": [
+    "women-20-30",
+    "women-30-40",
+    "women-40-50",
+    "women-50+",
+    "men",
+    "all"
+  ],
+  "detailedDescription": "",
+  "professionals": [
+    {
+      "id": "l4y2uv7ye",
+      "bio": "Formei em 2023\nAtuo na área há 4 anos ",
+      "name": "Edilene Gomes ",
+      "photo": "",
+      "education": "Biomedicina ",
+      "specialty": "Biomédica esteta ",
+      "experience": 4,
+      "socialMedia": "@Dra.edilene Gomes ",
+      "certifications": "Estética facial \nBiomedicina estética \nEstética E cosmetologia "
+    }
+  ],
+  "procedures": [
+    {
+      "id": "44r7xstso",
+      "name": "",
+      "benefits": "",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "Harmonização facial completa ",
+      "indications": "",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Harmonização facial \nMicroagulhamento \nPeeling \nTratamento de melasma \nTratamento de estrias \nTratamento de acne \nTratamento de olheiras \nTratamento de papadas ",
+      "contraindications": "",
+      "specificQuestions": [
+        "Você já fez esse procedimento? ",
+        "Qual  a sua queixa principal ?",
+        "O que mais te incomoda hoje "
+      ],
+      "specificObjections": [
+        {
+          "id": "3pb40gft7",
+          "response": "Tudo é planejado minimamente detalhado ",
+          "objection": "Vai ficar legal "
+        }
+      ]
+    }
+  ],
+  "pricingApproach": "approximate",
+  "pricingJustification": "",
+  "procedurePricing": [
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "44r7xstso",
+      "priceFactors": "",
+      "paymentMethods": [
+        "cash",
+        "pix",
+        "credit",
+        "debit"
+      ],
+      "investmentRange": "1000_2000",
+      "promotionalDetails": "5 % de desconto para pagamento a vista ",
+      "installmentAvailable": true,
+      "installmentConditions": "",
+      "hasPromotionalPackages": true
+    }
+  ],
+  "idealLeadProfile": "",
+  "qualificationQuestions": [],
+  "disqualificationCriteria": "Gestante curiosos preço muito baixo \nHipertenso  diabético ",
+  "outOfProfileHandling": "schedule_anyway",
+  "minInfoToQualify": [],
+  "weekdayOpen": "09:00",
+  "weekdayClose": "19:00",
+  "saturdayOpen": "09:00",
+  "saturdayClose": "21:00",
+  "saturdayClosed": false,
+  "sundayOpen": "",
+  "sundayClose": "",
+  "sundayClosed": true,
+  "holidayPolicy": "closed",
+  "evaluationDuration": "60",
+  "minAdvanceEvaluation": "1_day",
+  "preferredEvaluationTimes": [],
+  "evaluationPolicy": "",
+  "schedulingInfoRequired": [],
+  "evaluationCancellationPolicy": "",
+  "welcomeMessage": "",
+  "needsIdentificationScript": "",
+  "clinicPresentationScript": "",
+  "procedureEducationScript": "",
+  "evaluationSchedulingScript": "",
+  "escalationTriggers": [
+    "specific_pricing",
+    "technical_doubt",
+    "competitor_comparison",
+    "human_request"
+  ],
+  "escalationMessageLimit": 3,
+  "escalationOther": "",
+  "customerJourneyDescription": "",
+  "hasMandatoryEvaluation": true,
+  "evaluationCostDetails": "200,00  abatido no procedimento ",
+  "evaluationProcessFlow": "",
+  "proceduresRequiringEvaluation": [],
+  "proceduresAllowingDirectBooking": [
+    "44r7xstso"
+  ],
+  "communicationTone": "formal",
+  "formalityLevel": 3,
+  "emojiUsage": "",
+  "customerTreatment": "",
+  "personalities": [
+    "technical",
+    "caring",
+    "direct"
+  ],
+  "wordsToAvoid": [],
+  "preferredWords": [],
+  "faqs": [
+    {
+      "id": "17758364374800",
+      "answer": "4 meses ",
+      "category": "pricing",
+      "priority": "medium",
+      "question": "Quanto tempo dura o procedimento?"
+    },
+    {
+      "id": "17758364375811",
+      "answer": "Depende de pessoas para pessoas ",
+      "category": "other",
+      "priority": "high",
+      "question": "O procedimento dói?"
+    },
+    {
+      "id": "17758364376812",
+      "answer": "4 ",
+      "category": "clinic",
+      "priority": "high",
+      "question": "Quanto tempo dura o resultado?"
+    },
+    {
+      "id": "17758364377813",
+      "answer": "",
+      "category": "pricing",
+      "priority": "high",
+      "question": "Quais são as formas de pagamento?"
+    },
+    {
+      "id": "17758364378814",
+      "answer": "Sim com juros ",
+      "category": "clinic",
+      "priority": "medium",
+      "question": "Vocês parcelam?"
+    },
+    {
+      "id": "17758364379815",
+      "answer": "Sim claro ",
+      "category": "scheduling",
+      "priority": "high",
+      "question": "Precisa de avaliação antes?"
+    },
+    {
+      "id": "17758364380806",
+      "answer": "1 minuto ",
+      "category": "scheduling",
+      "priority": "medium",
+      "question": "Qual o tempo de espera para agendar?"
+    },
+    {
+      "id": "17758364381817",
+      "answer": "Depende do procedimento ",
+      "category": "post_procedure",
+      "priority": "high",
+      "question": "Quais os cuidados após o procedimento?"
+    },
+    {
+      "id": "17758364382808",
+      "answer": "Depende do procedimento se for botox imediato ",
+      "category": "post_procedure",
+      "priority": "medium",
+      "question": "Quando posso voltar às atividades normais?"
+    },
+    {
+      "id": "17758364383819",
+      "answer": "Barra Da Tijuca Av Armando Lombardi 205. \nSala 206 ",
+      "category": "clinic",
+      "priority": "low",
+      "question": "Onde a clínica está localizada?"
+    }
+  ],
+  "technicalInfo": "",
+  "internalProtocols": "CPF identidade  50 % do valor do procedimento para garantir a sua vaga ",
+  "specialCases": [],
+  "agentSchedule": "clinic_hours",
+  "customAgentScheduleStart": "09:00",
+  "customAgentScheduleEnd": "18:00",
+  "offHoursMessage": "",
+  "contactAttemptLimit": 3,
+  "escalationSituations": [],
+  "escalationMessageCount": 5,
+  "notificationTriggers": [],
+  "supportedLanguages": [
+    "portuguese"
+  ],
+  "additionalNotes": "",
+  "agentPriorities": "",
+  "termsAccepted": false
+}

@@ -2,10 +2,10 @@ import React from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ConversationsList } from "@/components/conversations/ConversationsList";
 import { ActiveConversation } from "@/components/conversations/ActiveConversation";
-import { QuickMessagesSidebar } from "@/components/conversations/QuickMessagesSidebar";
+import { MaterialsSidebar } from "@/components/conversations/MaterialsSidebar";
 import { MessageSquare, GitBranch, Tag as TagIcon, Zap, Bot, Globe, Trash2, MousePointerClick, ChevronLeft } from "lucide-react";
 import { useLead } from "@/hooks/useLeads";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -34,8 +34,39 @@ export default function Conversations() {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
 
-  // Por padrão, inicia fechado (false)
-  const [showQuickMessages, setShowQuickMessages] = useState(false);
+  // Painel direito da conversa: 'materiais' | null (fechado).
+  const [activePanel, setActivePanel] = useState<'materiais' | null>(null);
+
+  // Largura ajustável do painel direito (arrastar a borda esquerda). Persistida no localStorage.
+  const PANEL_MIN = 256;
+  const [panelWidth, setPanelWidth] = useState<number>(() => {
+    const saved = Number(localStorage.getItem('conversa_panel_width'));
+    return saved && saved >= PANEL_MIN ? saved : 300;
+  });
+
+  const startPanelResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = panelWidth;
+    const max = Math.min(640, Math.round(window.innerWidth * 0.6));
+    let lastWidth = startWidth;
+    const onMove = (ev: MouseEvent) => {
+      // Arrastar para a esquerda (clientX diminui) aumenta a largura.
+      lastWidth = Math.max(PANEL_MIN, Math.min(max, startWidth + (startX - ev.clientX)));
+      setPanelWidth(lastWidth);
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem('conversa_panel_width', String(lastWidth));
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [panelWidth]);
 
   // Estado de seleção em massa (alimentado pelo ConversationsList via callback)
   const [bulkSelection, setBulkSelection] = useState<BulkSelectionState>({
@@ -51,10 +82,8 @@ export default function Conversations() {
     setBulkSelection({ isActive: isSelecting, count: ids.size, triggerAction, cancelSelection });
   }, []);
 
-  // Fecha o painel de mensagens rápidas sempre que o leadId mudar (clique em nova conversa)
-  useEffect(() => {
-    setShowQuickMessages(false);
-  }, [leadId]);
+  // O painel direito (Rápidas / Materiais) NÃO fecha ao trocar de conversa —
+  // só fecha quando o usuário clica no X. Mantém a referência aberta durante o atendimento.
 
 
   return (
@@ -65,7 +94,7 @@ export default function Conversations() {
         {/* Painel Esquerdo: Lista - Largura adaptada para telas grandes */}
         <div className={cn(
           "flex-shrink-0 h-full border-r bg-card/50 transition-all duration-300",
-          leadId ? "hidden md:block w-64 lg:w-72 xl:w-80 2xl:w-96" : "w-full md:w-64 lg:w-72 xl:w-80 2xl:w-96"
+          leadId ? "hidden md:block w-60 lg:w-64 xl:w-72 2xl:w-80" : "w-full md:w-60 lg:w-64 xl:w-72 2xl:w-80"
         )} data-tutorial="conversations-list">
           <ConversationsList onSelectionChange={handleSelectionChange} />
         </div>
@@ -100,8 +129,8 @@ export default function Conversations() {
               <div className="flex-1 overflow-hidden">
                 <ActiveConversation
                   leadId={leadId}
-                  showQuickMessages={showQuickMessages}
-                  onToggleQuickMessages={() => setShowQuickMessages(!showQuickMessages)}
+                  showMateriais={activePanel === 'materiais'}
+                  onToggleMateriais={() => setActivePanel(p => p === 'materiais' ? null : 'materiais')}
                 />
               </div>
             </div>
@@ -165,19 +194,32 @@ export default function Conversations() {
           )}
         </div>
 
-        {/* Painel Direito Desktop: Mensagens Rápidas — flex-shrink-0 mantém largura fixa */}
-        {!isMobile && showQuickMessages && leadId && (
-          <div className="hidden lg:block h-full flex-shrink-0 border-l bg-card w-64 xl:w-72 2xl:w-80">
-            <QuickMessagesSidebar lead={lead || null} onClose={() => setShowQuickMessages(false)} />
+        {/* Painel Direito Desktop: Materiais — largura ajustável arrastando a borda esquerda */}
+        {!isMobile && activePanel && leadId && (
+          <div
+            className="hidden lg:flex h-full flex-shrink-0 border-l bg-card relative"
+            style={{ width: panelWidth }}
+          >
+            {/* Alça de redimensionamento (borda esquerda) */}
+            <div
+              onMouseDown={startPanelResize}
+              className="group absolute left-0 top-0 h-full w-2 -ml-1 cursor-col-resize z-20"
+              title="Arraste para ajustar a largura"
+            >
+              <div className="h-full w-px mx-auto bg-transparent group-hover:bg-primary/40 transition-colors" />
+            </div>
+            <div className="flex-1 min-w-0 h-full">
+              <MaterialsSidebar onClose={() => setActivePanel(null)} />
+            </div>
           </div>
         )}
 
-        {/* Painel Mobile: Mensagens Rápidas (Gaveta Inferior) */}
+        {/* Painel Mobile: Materiais (Gaveta Inferior) */}
         {isMobile && leadId && (
-            <Sheet open={showQuickMessages} onOpenChange={setShowQuickMessages}>
+            <Sheet open={activePanel !== null} onOpenChange={(open) => setActivePanel(open ? activePanel : null)}>
                 <SheetContent side="bottom" className="h-[70vh] p-0 rounded-t-3xl overflow-hidden border-t-2">
                     <div className="h-full w-full">
-                        <QuickMessagesSidebar lead={lead || null} onClose={() => setShowQuickMessages(false)} />
+                      <MaterialsSidebar onClose={() => setActivePanel(null)} />
                     </div>
                 </SheetContent>
             </Sheet>

@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CheckCircle, Megaphone, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye, Sparkles, Leaf, HeartPulse, Building2, RotateCcw, AlertTriangle } from "lucide-react";
+import { Search, Mic, Image as ImageIcon, Video, FileText, MoreVertical, Trash2, Pencil, Tag as TagIcon, X, ChevronRight, Hash, Filter, Globe, User, Clock, Calendar as CalendarIcon, CalendarCheck, BadgeCheck, CheckCircle, Megaphone, UserPlus, CheckSquare, Square, Zap, Bot, Loader2, Check, EyeOff, Eye, Sparkles, Leaf, HeartPulse, Building2, RotateCcw, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -449,7 +449,15 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
     tagId: "all",
     iaFilter: "all",
     dateRange: undefined as DateRange | undefined,
+    status: [] as Array<"qualificado" | "agendado" | "fechado">,
   });
+
+  const toggleStatusFilter = (status: "qualificado" | "agendado" | "fechado") => {
+    setFilters(f => ({
+      ...f,
+      status: f.status.includes(status) ? f.status.filter(s => s !== status) : [...f.status, status],
+    }));
+  };
 
   const filteredConversations = useMemo(() => {
     return conversations?.filter(c => {
@@ -478,14 +486,20 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
 
       const outboundMatch = !origemFilter || c.origem === origemFilter || (c as any).fonte === 'prospecao_ativa';
 
-      return nameMatch && originMatch && tagMatch && iaMatch && dateMatch && outboundMatch;
+      const statusMatch = filters.status.length === 0 || filters.status.every(s =>
+        (s === "qualificado" && (c as any).is_qualified) ||
+        (s === "agendado" && (c as any).is_scheduled) ||
+        (s === "fechado" && (c as any).is_closed)
+      );
+
+      return nameMatch && originMatch && tagMatch && iaMatch && dateMatch && outboundMatch && statusMatch;
     });
   }, [conversations, searchTerm, filters, messageSearchLeadIds, origemFilter, leadsAtendidosIA]);
 
-  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.iaFilter !== "all" || !!filters.dateRange;
+  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.iaFilter !== "all" || !!filters.dateRange || filters.status.length > 0;
 
   const resetFilters = () => {
-    setFilters({ origin: "all", tagId: "all", iaFilter: "all", dateRange: undefined });
+    setFilters({ origin: "all", tagId: "all", iaFilter: "all", dateRange: undefined, status: [] });
   };
 
   const handleToggleSelection = (id: string) => {
@@ -795,6 +809,39 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                         <SelectItem value="sem_ia">Não atendidos pela IA</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Status do Lead */}
+                  <div className="space-y-1.5" data-tutorial="conversations-filter-status">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <CheckCircle className="h-3 w-3" /> Status do Lead
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {(
+                        [
+                          { value: "qualificado", label: "Qualificado", icon: CheckCircle },
+                          { value: "agendado", label: "Agendado", icon: CalendarCheck },
+                          { value: "fechado", label: "Fechado", icon: BadgeCheck },
+                        ] as const
+                      ).map(({ value, label, icon: Icon }) => {
+                        const active = filters.status.includes(value);
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => toggleStatusFilter(value)}
+                            className={cn(
+                              "flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-colors text-left",
+                              active ? "border-foreground/30 bg-foreground/[0.06]" : "border-border/60 hover:bg-muted/40"
+                            )}
+                          >
+                            <Checkbox checked={active} className="pointer-events-none h-4 w-4" />
+                            <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            <span className="text-xs font-medium">{label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {/* Data de Cadastro */}

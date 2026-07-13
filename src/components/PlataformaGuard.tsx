@@ -3,7 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlataforma } from '@/contexts/PlataformaContext';
 import { useProfile } from '@/hooks/useProfile';
-import { getRedirectDestino } from '@/utils/redirectUtils';
+import { isSomenteCRM } from '@/utils/redirectUtils';
 
 /**
  * PlataformaGuard pode ser usado de duas formas:
@@ -47,7 +47,7 @@ export function PlataformaGuard({ children }: { children?: React.ReactNode }) {
     }
 
     // Produto somente CRM — redireciona em vez de mostrar erro
-    if (getRedirectDestino(acesso) === '/crm') {
+    if (isSomenteCRM(acesso)) {
       return <Navigate to="/crm" replace />;
     }
   }

@@ -211,6 +211,8 @@ Deno.serve(async (req: Request) => {
           seenReset.add(l.id);
           return true;
         });
+        // Ids que vieram da query de follow-up manual — usados para carimbar o tipo no log
+        const manualResetIds = new Set((leadsPausadosManual ?? []).map((l) => l.id));
 
         if (leadsPausados.length > 0) {
           const idsParaResetar = leadsPausados
@@ -236,6 +238,7 @@ Deno.serve(async (req: Request) => {
                 tentativa: (l as any).followup_tentativas ?? 0,
                 status: "lead_respondeu",
                 motivo_ia: "Lead respondeu após follow-up — ciclo reiniciado",
+                tipo: manualResetIds.has(l.id) ? "manual" : "automatico",
                 enviado_em: new Date().toISOString(),
               }));
             if (recoveryLogs.length > 0) {
@@ -333,6 +336,7 @@ Deno.serve(async (req: Request) => {
                 tentativa: lead.followup_tentativas ?? 0,
                 status: "lead_respondeu",
                 motivo_ia: "Lead respondeu após follow-up — ciclo reiniciado",
+                tipo: lead.followup_manual ? "manual" : "automatico",
                 enviado_em: new Date().toISOString(),
               });
 
@@ -345,6 +349,25 @@ Deno.serve(async (req: Request) => {
           if (lead.followup_pausado) {
             console.log(`[FOLLOWUP] Lead ${lead.id} - SKIP: ainda pausado após check de reset`);
             continue;
+          }
+
+          // Se não é follow-up manual, verificar se a última mensagem de saída foi de um humano
+          // Isso evita que o bot interfira em conversas gerenciadas manualmente pela equipe
+          if (!lead.followup_manual) {
+            const { data: lastOutbound } = await supabase
+              .from("mensagens")
+              .select("remetente")
+              .eq("lead_id", lead.id)
+              .eq("direcao", "saida")
+              .not("remetente", "eq", "ia")
+              .order("criado_em", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (lastOutbound && lastOutbound.remetente !== "bot") {
+              console.log(`[FOLLOWUP] Lead ${lead.id} - SKIP: última mensagem de saída foi de atendente humano (remetente: ${lastOutbound.remetente})`);
+              continue;
+            }
           }
 
           const tentativaAtual = (lead.followup_tentativas || 0) + 1;
@@ -567,6 +590,7 @@ Identifique onde a conversa parou e gere o follow-up mais humano e eficaz possí
               tentativa: tentativaAtual,
               status: "ignorado_ia",
               motivo_ia: decisao.motivo,
+              tipo: isManual ? "manual" : "automatico",
             });
 
             const isUltimaTentativaIgnorada = tentativaAtual >= totalTentativasAtivas;
@@ -664,6 +688,7 @@ Identifique onde a conversa parou e gere o follow-up mais humano e eficaz possí
             status: "enviado",
             mensagem_enviada: mensagem,
             motivo_ia: decisao.motivo || null,
+            tipo: isManual ? "manual" : "automatico",
           });
 
           // Atualizar lead — pausar SOMENTE se esgotou todas as tentativas
@@ -688,6 +713,7 @@ Identifique onde a conversa parou e gere o follow-up mais humano e eficaz possí
               tentativa: (lead.followup_tentativas || 0) + 1,
               status: "erro",
               motivo_ia: leadErr?.message?.substring(0, 500),
+              tipo: lead.followup_manual ? "manual" : "automatico",
             });
           } catch (logErr: any) {
             console.error("[FOLLOWUP] Erro ao inserir log de erro:", logErr?.message);

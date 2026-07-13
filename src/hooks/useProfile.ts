@@ -10,6 +10,7 @@ export interface Profile {
   telefone?: string;
   atualizado_em: string;
   organization_id?: string;
+  last_seen_atualizacao_em?: string;
 }
 
 export function useProfile() {

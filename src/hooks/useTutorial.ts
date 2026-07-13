@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useProfile } from './useProfile';
 import { supabase } from '@/integrations/supabase/client';
+import type { TutorialStep } from '@/components/tutorial/tutorialData';
 
 const STORAGE_KEY = 'crm_tutorial_progress';
+const ADHOC_TUTORIAL_ID = '__adhoc__';
 
 interface TutorialProgress {
   completedTutorials: string[];
@@ -62,6 +64,7 @@ export function useTutorial() {
   const [activeTutorialId, setActiveTutorialId] = useState<string | null>(null);
   const [activeStep, setActiveStep]         = useState(0);
   const [helpCenterOpen, setHelpCenterOpen] = useState(false);
+  const [adHocStep, setAdHocStep]           = useState<TutorialStep | null>(null);
 
   // 1. Carrega localStorage imediatamente (sem flash), depois sincroniza com DB
   useEffect(() => {
@@ -126,17 +129,38 @@ export function useTutorial() {
   }, [updateProgress]);
 
   const startTutorial = useCallback((tutorialId: string) => {
+    setAdHocStep(null);
     setActiveTutorialId(tutorialId);
     setActiveStep(0);
     setHelpCenterOpen(false);
+  }, []);
+
+  // Spotlight avulso de 1 passo — usado pelo botão "Ver agora" das Atualizações,
+  // que aponta pra um data-tutorial existente na página de destino sem precisar
+  // de um tutorial completo cadastrado em tutorialData.ts.
+  const startAdHocSpotlight = useCallback((step: TutorialStep) => {
+    setAdHocStep(step);
+    setActiveTutorialId(ADHOC_TUTORIAL_ID);
+    setActiveStep(0);
+    setHelpCenterOpen(false);
+  }, []);
+
+  const closeAdHocSpotlight = useCallback(() => {
+    setActiveTutorialId(null);
+    setActiveStep(0);
+    setAdHocStep(null);
   }, []);
 
   const nextStep  = useCallback(() => setActiveStep(prev => prev + 1), []);
   const prevStep  = useCallback(() => setActiveStep(prev => Math.max(0, prev - 1)), []);
 
   const skipTutorial = useCallback(() => {
-    if (activeTutorialId) completeTutorial(activeTutorialId);
-  }, [activeTutorialId, completeTutorial]);
+    if (activeTutorialId === ADHOC_TUTORIAL_ID) {
+      closeAdHocSpotlight();
+    } else if (activeTutorialId) {
+      completeTutorial(activeTutorialId);
+    }
+  }, [activeTutorialId, completeTutorial, closeAdHocSpotlight]);
 
   const isTutorialCompleted = useCallback(
     (tutorialId: string) => progress.completedTutorials.includes(tutorialId),
@@ -147,9 +171,12 @@ export function useTutorial() {
     progress,
     activeTutorialId,
     activeStep,
+    adHocStep,
     helpCenterOpen,
     setHelpCenterOpen,
     startTutorial,
+    startAdHocSpotlight,
+    closeAdHocSpotlight,
     completeTutorial,
     dismissWelcome,
     resetTutorial,

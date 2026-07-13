@@ -5,15 +5,14 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  Clock,
   Radio,
   FileText,
-  AlertTriangle,
 } from "lucide-react";
-import { format, startOfDay, startOfWeek } from "date-fns";
+import { format, startOfDay, endOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { AiLogsViewer } from "@/components/ai/AiLogsViewer";
@@ -34,7 +33,7 @@ interface ExecutionLog {
   leads: { nome: string | null; telefone: string | null } | null;
 }
 
-type FilterType = "todos" | "erros" | "hoje" | "semana";
+type FilterType = "todos" | "erros";
 type SubTab = "tempo-real" | "execucoes";
 
 const STATUS_CONFIG: Record<string, { icon: React.ReactNode; badgeClass: string }> = {
@@ -63,17 +62,22 @@ export function AiExecutionLogsTab() {
   const [subTab, setSubTab] = useState<SubTab>("tempo-real");
   const [filter, setFilter] = useState<FilterType>("todos");
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: new Date(),
+  });
 
   const { data: logs, isLoading } = useQuery({
-    queryKey: ["ia-execution-logs", orgId],
+    queryKey: ["ia-execution-logs", orgId, dateRange],
     queryFn: async () => {
       if (!orgId) return [];
-      const { data, error } = await supabase
+      let query = supabase
         .from("ai_execution_logs")
         .select("*, leads!lead_id(nome, telefone)")
-        .eq("organization_id", orgId)
-        .order("criado_em", { ascending: false })
-        .limit(100);
+        .eq("organization_id", orgId);
+      if (dateRange?.from) query = query.gte("criado_em", startOfDay(dateRange.from).toISOString());
+      if (dateRange?.to) query = query.lte("criado_em", endOfDay(dateRange.to).toISOString());
+      const { data, error } = await query.order("criado_em", { ascending: false }).limit(200);
       if (error) throw error;
       return (data || []) as ExecutionLog[];
     },
@@ -83,17 +87,7 @@ export function AiExecutionLogsTab() {
 
   const filteredLogs = useMemo(() => {
     if (!logs) return [];
-    const now = new Date();
-    switch (filter) {
-      case "erros":
-        return logs.filter((l) => l.status === "error");
-      case "hoje":
-        return logs.filter((l) => new Date(l.criado_em) >= startOfDay(now));
-      case "semana":
-        return logs.filter((l) => new Date(l.criado_em) >= startOfWeek(now, { weekStartsOn: 1 }));
-      default:
-        return logs;
-    }
+    return filter === "erros" ? logs.filter((l) => l.status === "error") : logs;
   }, [logs, filter]);
 
   const errorCount = useMemo(() => logs?.filter((l) => l.status === "error").length || 0, [logs]);
@@ -101,8 +95,6 @@ export function AiExecutionLogsTab() {
   const filters: { key: FilterType; label: string }[] = [
     { key: "todos", label: "Todos" },
     { key: "erros", label: "Erros" },
-    { key: "hoje", label: "Hoje" },
-    { key: "semana", label: "Semana" },
   ];
 
   return (
@@ -161,7 +153,7 @@ export function AiExecutionLogsTab() {
       {subTab === "execucoes" && (
         <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
+          <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-muted">
                 <Activity className="h-3.5 w-3.5 text-muted-foreground" />
@@ -171,20 +163,26 @@ export function AiExecutionLogsTab() {
                   Logs de Execução
                 </p>
                 <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                  Últimas 100 execuções registradas
+                  Filtre por período · até 200 execuções
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-1">
+          </div>
+
+          {/* Filtros */}
+          <div className="px-5 py-3 border-b border-border/40 flex items-center gap-3 flex-wrap">
+            <DateRangePicker date={dateRange} setDate={setDateRange} className="w-auto" />
+            <div className="w-px h-4 bg-border/40 shrink-0" />
+            <div className="flex items-center gap-1 p-0.5 bg-muted/40 rounded-lg">
               {filters.map((f) => (
                 <button
                   key={f.key}
                   onClick={() => setFilter(f.key)}
                   className={cn(
-                    "h-7 px-2.5 rounded-lg text-[11px] font-medium transition-all duration-200",
+                    "h-7 px-2.5 rounded-md text-[11px] font-medium transition-all duration-200",
                     filter === f.key
                       ? "bg-foreground text-background shadow-sm"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {f.label}
@@ -194,6 +192,9 @@ export function AiExecutionLogsTab() {
                 </button>
               ))}
             </div>
+            <span className="text-[11px] text-muted-foreground/50 ml-auto">
+              {filteredLogs.length} registro{filteredLogs.length !== 1 ? "s" : ""}
+            </span>
           </div>
 
           {/* Content */}

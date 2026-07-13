@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 
 type Session = {
   id: string;
-  type: string;
+  type: string | null;
   title: string;
   description: string;
   scheduled_at: string;
@@ -35,7 +35,7 @@ export default function SessoesTaticas() {
         .order('scheduled_at', { ascending: true });
 
       if (!error && data) {
-        setSessions(data);
+        setSessions(data.filter(s => s.scheduled_at && !isNaN(new Date(s.scheduled_at).getTime())));
       }
       setLoading(false);
     }
@@ -67,13 +67,16 @@ export default function SessoesTaticas() {
     window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank');
   };
 
-  const typeColor = (type: string) =>
-    type.toLowerCase() === 'comercial' ? 'bg-emerald-500' : 'bg-blue-500';
+  const typeColor = (type: string | null | undefined) =>
+    (type || '').toLowerCase() === 'comercial' ? 'bg-emerald-500' : 'bg-blue-500';
 
-  const typePill = (type: string) =>
-    type.toLowerCase() === 'comercial'
+  const typePill = (type: string | null | undefined) =>
+    (type || '').toLowerCase() === 'comercial'
       ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
       : 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+
+  const typeLabel = (type: string | null | undefined) =>
+    (type || '').toLowerCase() === 'comercial' ? 'Comercial' : 'Demanda';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-12">
@@ -142,11 +145,11 @@ export default function SessoesTaticas() {
             <div className="flex-1 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border', typePill(nextSession.type))}>
-                  {nextSession.type.toLowerCase() === 'comercial'
+                  {(nextSession.type || '').toLowerCase() === 'comercial'
                     ? <Target className="h-3 w-3" />
                     : <Zap className="h-3 w-3" />
                   }
-                  {nextSession.type}
+                  {typeLabel(nextSession.type)}
                 </span>
                 <span className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
@@ -298,8 +301,8 @@ export default function SessoesTaticas() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <span className={cn('text-[9px] font-bold uppercase tracking-wider', session.type.toLowerCase() === 'comercial' ? 'text-emerald-500' : 'text-blue-500')}>
-                        {session.type}
+                      <span className={cn('text-[9px] font-bold uppercase tracking-wider', (session.type || '').toLowerCase() === 'comercial' ? 'text-emerald-500' : 'text-blue-500')}>
+                        {typeLabel(session.type)}
                       </span>
                       <span className="text-muted-foreground/30 text-[9px]">·</span>
                       <span className="text-[10px] text-muted-foreground/50 font-mono">
@@ -331,8 +334,8 @@ export default function SessoesTaticas() {
               <DialogHeader>
                 <div className="flex items-center gap-2 mb-2">
                   <span className={cn('inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold border', typePill(selectedSession.type))}>
-                    {selectedSession.type.toLowerCase() === 'comercial' ? <Target className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
-                    {selectedSession.type}
+                    {(selectedSession.type || '').toLowerCase() === 'comercial' ? <Target className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+                    {typeLabel(selectedSession.type)}
                   </span>
                   {isPast(new Date(selectedSession.scheduled_at)) && (
                     <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium bg-muted text-muted-foreground border border-border/60">

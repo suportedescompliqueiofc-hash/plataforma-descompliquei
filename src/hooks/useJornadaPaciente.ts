@@ -13,7 +13,8 @@ export type EventoTipo =
   | 'nota'
   | 'ia'
   | 'cadencia'
-  | 'responsavel';
+  | 'responsavel'
+  | 'confirmacao';
 
 export interface AutorEvento {
   id: string;
@@ -107,7 +108,7 @@ export function useJornadaPaciente(leadId: string | undefined) {
           .single(),
         supabase
           .from('mensagens')
-          .select('id, criado_em, direcao, conteudo, tipo_conteudo')
+          .select('id, criado_em, direcao, conteudo, tipo_conteudo, remetente, automatica')
           .eq('lead_id', leadId)
           .order('criado_em', { ascending: true }),
         supabase
@@ -152,7 +153,11 @@ export function useJornadaPaciente(leadId: string | undefined) {
       const lead = leadResult.data as JornadaLead | null;
       if (!lead) throw new Error('Lead nao encontrado');
 
-      const mensagens       = mensagensResult.data || [];
+      const mensagensTodas   = mensagensResult.data || [];
+      // Confirmação/lembrete de agendamento não é resposta da IA nem de humano —
+      // fica de fora de toda a análise de "primeira resposta"/handoff e ganha evento próprio.
+      const mensagens        = mensagensTodas.filter((m: any) => !m.automatica);
+      const mensagensAutomaticas = mensagensTodas.filter((m: any) => m.automatica);
       const agendamentos    = agendamentosResult.data || [];
       const vendas          = vendasResult.data || [];
       const notas           = notasResult.data || [];
@@ -238,16 +243,13 @@ export function useJornadaPaciente(leadId: string | undefined) {
       if (primeiraRecebida && primeiraEnviada) {
         const diffMs = new Date(primeiraEnviada.criado_em).getTime() - new Date(primeiraRecebida.criado_em).getTime();
         tempoRespostaMin = Math.max(0, Math.round(diffMs / 60000));
-        const tempoLabel = tempoRespostaMin < 1 ? '< 1 min'
+        const tempoLabel = tempoRespostaMin < 1 ? 'menos de 1 min'
           : tempoRespostaMin < 60 ? `${tempoRespostaMin} min`
           : `${Math.floor(tempoRespostaMin / 60)}h${tempoRespostaMin % 60 > 0 ? ` ${tempoRespostaMin % 60}min` : ''}`;
 
-        // Detectar se a IA ou humano respondeu primeiro
-        const firstOutTime = new Date(primeiraEnviada.criado_em).getTime();
-        const foiIA = aiLogs.some(l =>
-          AI_ETAPAS_RESPOSTA.has(l.etapa) &&
-          Math.abs(new Date(l.criado_em).getTime() - firstOutTime) < 2 * 60 * 1000
-        );
+        // Detectar se a IA ou humano respondeu primeiro — fonte de verdade é o remetente
+        // ('bot' = Agente IA; qualquer outro remetente de saída = atendente humano)
+        const foiIA = (primeiraEnviada as any).remetente === 'bot';
 
         eventos.push({
           id: `primeira-resposta-${lead.id}`,
@@ -271,6 +273,25 @@ export function useJornadaPaciente(leadId: string | undefined) {
       }
       // Sessões NÃO geram eventos na timeline — primeiro contato e primeira resposta
       // são os marcos relevantes. O total de mensagens já aparece no sidebar de stats.
+
+      // ─────────────────────────────────────────
+      // 3b. MENSAGENS AUTOMÁTICAS (confirmação/lembrete de agendamento)
+      // Sistemática própria — nunca contam como resposta da IA nem de humano.
+      // ─────────────────────────────────────────
+      for (const m of mensagensAutomaticas) {
+        const conteudo = (m as any).conteudo as string | undefined;
+        const isLembrete = conteudo?.toLowerCase().includes('lembramos');
+        eventos.push({
+          id: `automatica-${m.id}`,
+          tipo: 'confirmacao',
+          data: m.criado_em,
+          titulo: isLembrete ? 'Lembrete de agendamento enviado' : 'Mensagem de confirmação enviada ao lead',
+          descricao: conteudo
+            ? `"${conteudo.slice(0, 150)}${conteudo.length > 150 ? '...' : ''}"`
+            : undefined,
+          metadata: { subtipo: 'mensagem_automatica' },
+        });
+      }
 
       // ─────────────────────────────────────────
       // 4. AGENDAMENTOS
@@ -450,7 +471,7 @@ export function useJornadaPaciente(leadId: string | undefined) {
         const handoffTime = new Date(handoffTimestamp).getTime();
         const entradaTime = new Date(lead.criado_em).getTime();
         const diffMin = Math.max(0, Math.round((handoffTime - entradaTime) / 60000));
-        const tLabel = diffMin < 1 ? '< 1 min'
+        const tLabel = diffMin < 1 ? 'menos de 1 min'
           : diffMin < 60 ? `${diffMin} min`
           : `${Math.floor(diffMin / 60)}h${diffMin % 60 > 0 ? ` ${diffMin % 60}min` : ''}`;
         eventos.push({
@@ -473,28 +494,23 @@ export function useJornadaPaciente(leadId: string | undefined) {
       // ─────────────────────────────────────────
       // 7a. HUMANO ASSUMIU — primeira msg humana após IA
       // ─────────────────────────────────────────
-      if (iaRespondeuAlguma) {
-        const aiRespTimes = aiLogs
-          .filter(l => AI_ETAPAS_RESPOSTA.has(l.etapa))
-          .map(l => new Date(l.criado_em).getTime());
-        const lastAiRespTime = Math.max(...aiRespTimes);
-
-        // Primeira mensagem de saída que NÃO coincide com resposta de IA (margem 2min)
-        const primeiraHumana = mensagens.find(m => {
-          if (m.direcao !== 'saida') return false;
-          const t = new Date(m.criado_em).getTime();
-          // Deve ser depois da última resposta IA E não coincidir com nenhum log de IA
-          if (t <= lastAiRespTime) return false;
-          const coincideComIA = aiRespTimes.some(at => Math.abs(t - at) < 2 * 60 * 1000);
-          return !coincideComIA;
-        });
+      const houveRespostaBot = mensagens.some(m => m.direcao === 'saida' && (m as any).remetente === 'bot');
+      if (houveRespostaBot) {
+        // Primeira mensagem humana (remetente != 'bot'/'ia') depois da primeira resposta da IA
+        const idxPrimeiroBot = mensagens.findIndex(m => m.direcao === 'saida' && (m as any).remetente === 'bot');
+        const primeiraHumana = mensagens.find((m, idx) =>
+          idx > idxPrimeiroBot &&
+          m.direcao === 'saida' &&
+          (m as any).remetente !== 'bot' &&
+          (m as any).remetente !== 'ia'
+        );
 
         if (primeiraHumana) {
           const tempoAteHumano = handoffTimestampFinal
             ? Math.max(0, Math.round((new Date(primeiraHumana.criado_em).getTime() - new Date(handoffTimestampFinal).getTime()) / 60000))
             : undefined;
           const tempoLabel = tempoAteHumano !== undefined
-            ? (tempoAteHumano < 1 ? '< 1 min'
+            ? (tempoAteHumano < 1 ? 'menos de 1 min'
               : tempoAteHumano < 60 ? `${tempoAteHumano} min`
               : `${Math.floor(tempoAteHumano / 60)}h${tempoAteHumano % 60 > 0 ? ` ${tempoAteHumano % 60}min` : ''}`)
             : null;
@@ -528,17 +544,22 @@ export function useJornadaPaciente(leadId: string | undefined) {
       // ─────────────────────────────────────────
       for (const at of atividades) {
         if (at.tipo !== 'responsavel') continue;
-        const autor = at.user_id ? autorPerfisMap.get(at.user_id) : undefined;
         const respId = at.metadados?.responsavel_id;
-        const respNome = respId ? autorPerfisMap.get(respId)?.nome : undefined;
+        if (!respId) continue; // remoção de responsável não é exibida na timeline
+        const autor = at.user_id ? autorPerfisMap.get(at.user_id) : undefined;
+        const respNome = autorPerfisMap.get(respId)?.nome;
+        // Autoatribuição (autor === responsável) = a própria pessoa assumiu o atendimento
+        // ao mandar a primeira/próxima mensagem humana. Atribuição por outra pessoa = admin
+        // definiu manualmente o responsável pelo modal do lead.
+        const isSelfTakeover = at.user_id === respId;
         eventos.push({
           id: `atividade-${at.id}`,
           tipo: 'responsavel',
           data: at.criado_em,
-          titulo: respId
-            ? `Responsável atribuído${respNome ? `: ${respNome}` : ''}`
-            : 'Responsável removido',
-          descricao: autor ? `Por ${autor.nome}` : undefined,
+          titulo: isSelfTakeover
+            ? `Atendimento assumido${respNome ? ` por ${respNome}` : ''}`
+            : `Responsável atribuído${respNome ? `: ${respNome}` : ''}`,
+          descricao: isSelfTakeover ? undefined : (autor ? `Por ${autor.nome}` : undefined),
           metadata: { responsavel_id: respId, responsavel_nome: respNome },
           autor,
         });
@@ -586,6 +607,7 @@ export function useJornadaPaciente(leadId: string | undefined) {
         entrada: 0,
         mensagem: 1,
         agendamento: 2,
+        confirmacao: 3,
         venda: 4,
         scoring: 5,
         nota: 6,

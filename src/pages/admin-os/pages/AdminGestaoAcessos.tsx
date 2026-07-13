@@ -509,8 +509,6 @@ export default function AdminGestaoAcessos() {
             })()}
             </div>
 
-          </div>
-
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateModal(false)}>Cancelar</Button>
             <Button

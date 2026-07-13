@@ -34,7 +34,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { useBranding } from "@/contexts/BrandingContext";
-import { DESCOMPLIQUEI_ORG_ID } from "@/lib/constants";
+import { DESCOMPLIQUEI_ORG_ID, ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { exportConversationPdf, type ConversationPdfMessage } from "@/lib/conversation-pdf";
 
 import { AudioMessage } from "./AudioMessage";
@@ -56,6 +56,7 @@ import { FullscreenMediaViewer } from "./FullscreenMediaViewer";
 import { LeadModal } from "@/components/leads/LeadModal";
 import { VendaModal } from "@/components/vendas/VendaModal";
 import { FormattedText } from "@/components/FormattedText";
+import { LeadResumoIa } from "./LeadResumoIa";
 
 const DateSeparator = ({ dateString }: { dateString: string }) => {
   const date = parseISO(dateString);
@@ -156,12 +157,12 @@ const getMessageExportText = (message: Message) => {
 
 interface ActiveConversationProps {
   leadId: string;
-  showQuickMessages?: boolean;
-  onToggleQuickMessages?: () => void;
+  showMateriais?: boolean;
+  onToggleMateriais?: () => void;
   compactMode?: boolean;
 }
 
-export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMessages, compactMode = false }: ActiveConversationProps) {
+export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, compactMode = false }: ActiveConversationProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -170,6 +171,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
   const { branding } = useBranding();
   const { profile } = useProfile();
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
+  const isAnnaClaraOrg = profile?.organization_id === ANNA_CLARA_ORG_ID;
 
   const { data: lead, isLoading: leadLoading, isFetching: leadFetching } = useLead(leadId);
   const { agendamentoAtivo, invalidate: invalidateAgendamento } = useLeadAgendamento(leadId);
@@ -253,6 +255,9 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
   // Notas Panel
   const [showNotas, setShowNotas] = useState(false);
+
+  // Resumo da IA Panel
+  const [showResumo, setShowResumo] = useState(false);
 
   // Follow-up IA manual
   const [isActivatingFollow, setIsActivatingFollow] = useState(false);
@@ -568,8 +573,8 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden relative">
-      {!compactMode && <header data-tutorial="conversation-header" className="flex flex-col border-b border-border/60 bg-card z-10 flex-shrink-0">
-        <div className="flex items-center justify-between px-3 py-2.5 gap-2">
+      <header data-tutorial="conversation-header" className="flex flex-col border-b border-border/60 bg-card z-10 flex-shrink-0">
+        {!compactMode && <div className="flex items-center justify-between px-3 py-2.5 gap-2">
             <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 rounded-full" onClick={() => navigate('/crm/conversas')}><ChevronLeft className="h-5 w-5" /></Button>
                 <Avatar className="h-10 w-10 border border-border/40 shadow-sm flex-shrink-0">
@@ -596,23 +601,50 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                             {lead?.telefone}
                         </span>
 
-                        {/* Badge de Origem */}
+                        {/* Badge de Origem — clicável para alterar */}
                         {(() => {
-                            const origemMap: Record<string, { icon: React.ElementType; label: string }> = {
-                                marketing:  { icon: Megaphone, label: 'MKT'  },
-                                organico:   { icon: Globe,      label: 'ORG'  },
-                                indicacao:  { icon: Users,      label: 'IND'  },
-                                reativacao: { icon: RotateCcw,  label: 'REAT' },
-                                paciente:   { icon: HeartPulse, label: 'PAC'  },
-                                convenio:   { icon: Building2,  label: 'CONV' },
+                            const origemMap: Record<string, { icon: React.ElementType; label: string; fullLabel: string }> = {
+                                marketing:  { icon: Megaphone, label: 'MKT',  fullLabel: 'Marketing'  },
+                                organico:   { icon: Globe,      label: 'ORG',  fullLabel: 'Orgânico'   },
+                                reativacao: { icon: RotateCcw,  label: 'REAT', fullLabel: 'Reativação' },
+                                paciente:   { icon: HeartPulse, label: 'PAC',  fullLabel: 'Paciente'   },
+                                ...(isAnnaClaraOrg ? { convenio: { icon: Building2, label: 'CONV', fullLabel: 'Convênio' } } : {}),
                             };
-                            const cfg = origemMap[lead?.origem as string] ?? { icon: Globe, label: 'ORG' };
+                            const cfg = origemMap[lead?.origem as string] ?? { icon: Globe, label: 'ORG', fullLabel: 'Orgânico' };
                             const Icon = cfg.icon;
                             return (
-                                <div className="flex items-center gap-0.5 bg-muted/50 px-1 py-0.5 rounded-md border border-border/40 shrink-0">
-                                    <Icon className="h-2.5 w-2.5 text-muted-foreground" />
-                                    <span className="text-[9px] font-bold uppercase text-muted-foreground">{cfg.label}</span>
-                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button
+                                            type="button"
+                                            disabled={!lead}
+                                            className="flex items-center gap-0.5 bg-muted/50 hover:bg-muted px-1 py-0.5 rounded-md border border-border/40 shrink-0 transition-colors disabled:opacity-50"
+                                            title="Alterar origem do lead"
+                                        >
+                                            <Icon className="h-2.5 w-2.5 text-muted-foreground" />
+                                            <span className="text-[9px] font-bold uppercase text-muted-foreground">{cfg.label}</span>
+                                        </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="w-44">
+                                        {Object.entries(origemMap).map(([value, opt]) => {
+                                            const OptIcon = opt.icon;
+                                            const isActive = lead?.origem === value;
+                                            return (
+                                                <DropdownMenuItem
+                                                    key={value}
+                                                    className={cn("text-xs gap-2", isActive && "bg-muted font-semibold")}
+                                                    onSelect={() => {
+                                                        if (!lead || isActive) return;
+                                                        updateLead({ id: lead.id, origem: value });
+                                                    }}
+                                                >
+                                                    <OptIcon className="h-3 w-3 text-muted-foreground" />
+                                                    {opt.fullLabel}
+                                                </DropdownMenuItem>
+                                            );
+                                        })}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             );
                         })()}
 
@@ -646,10 +678,10 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                     <Switch id="ai-toggle" checked={isAiActive} onCheckedChange={handleAiToggle} disabled={!lead} className="scale-75" />
                 </div>
             </div>
-        </div>
+        </div>}
 
         {/* ═══ Toolbar — scrollable row with all lead actions ═══ */}
-        <div className="flex items-center px-3 pb-2 gap-3 overflow-x-auto scrollbar-none">
+        <div className={cn("flex items-center px-3 gap-3 overflow-x-auto scrollbar-none", compactMode ? "py-2" : "pb-2")}>
             {/* Status group: MQL + Agendado + Fechado */}
             <div className="flex items-center gap-1 shrink-0">
                 {lead && (
@@ -659,7 +691,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       variant="outline"
                       size="sm"
                       className={cn(
-                        "h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
+                        "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
                         lead.is_qualified
                           ? isDescompliqueiOrg && lead.lead_scoring
                             ? "border-none shadow-sm active:scale-95"
@@ -689,7 +721,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                           variant="outline"
                           size="sm"
                           className={cn(
-                            "h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
+                            "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
                             lead.is_scheduled
                               ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-sm"
                               : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
@@ -828,7 +860,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                           variant="outline"
                           size="sm"
                           className={cn(
-                            "h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
+                            "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
                             lead.is_closed
                               ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-sm"
                               : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
@@ -944,89 +976,115 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                 )}
             </div>
 
-            {/* Follow IA — só para leads com gap detectado e sem follow já ativo */}
-            {lead && (lead as any).followup_gap === 'PRECISA_FOLLOW' && !(lead as any).followup_manual && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0 border-amber-500/40 bg-amber-500/[0.06] text-amber-700 hover:bg-amber-500/15 hover:border-amber-500/60"
-                disabled={isActivatingFollow}
-                onClick={handleAtivarFollow}
-              >
-                {isActivatingFollow ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
-                Follow IA
-              </Button>
-            )}
-
-            {/* Separator */}
-            {lead && <div className="h-4 w-px bg-border/40 shrink-0" />}
-
-            {/* Tags + Quick Messages */}
-            {lead && (
-                <div data-tutorial="conversation-tags-quick" className="flex items-center gap-1.5 shrink-0">
-                    <TagManager leadId={lead.id} compact />
-                    {onToggleQuickMessages && (
-                        <Button
-                            data-tutorial="conversation-quick-messages"
-                            variant={showQuickMessages ? "default" : "ghost"}
-                            size="sm"
-                            className={cn(
-                                "h-6 px-2 rounded-full text-[10px] gap-1 shrink-0",
-                                showQuickMessages ? "bg-foreground text-background" : "text-muted-foreground"
-                            )}
-                            onClick={onToggleQuickMessages}
-                        >
-                            <Zap className="h-3 w-3" />
-                            <span className="hidden lg:inline">Rápidas</span>
-                        </Button>
-                    )}
-                </div>
-            )}
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Utility actions */}
-            <div data-tutorial="conversation-utilities" className="flex items-center gap-0.5 shrink-0 border-l border-border/40 pl-1.5">
-                <div className="lg:hidden">
-                    {leadId && <CadenceLeadSelector leadId={leadId} />}
-                </div>
-                {lead && (
+            {!compactMode && (
+              <>
+                {/* Follow IA — só para leads com gap detectado e sem follow já ativo */}
+                {lead && (lead as any).followup_gap === 'PRECISA_FOLLOW' && !(lead as any).followup_manual && (
                   <Button
-                    data-tutorial="conversation-blacklist"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    title="Bloquear número permanentemente"
-                    className="h-6 w-6 p-0 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    onClick={() => setShowBlacklistConfirm(true)}
+                    className="h-7 px-2.5 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0 border-amber-500/40 bg-amber-500/[0.06] text-amber-700 hover:bg-amber-500/15 hover:border-amber-500/60"
+                    disabled={isActivatingFollow}
+                    onClick={handleAtivarFollow}
                   >
-                    <ShieldBan className="h-3 w-3" />
+                    {isActivatingFollow ? <Loader2 className="h-3 w-3 animate-spin" /> : <Bot className="h-3 w-3" />}
+                    Follow IA
                   </Button>
                 )}
+
+                {/* Separator */}
+                {lead && <div className="h-4 w-px bg-border/40 shrink-0" />}
+
+                {/* Tags + Materiais */}
                 {lead && (
-                  <Button
-                    data-tutorial="conversation-notas"
-                    variant="ghost"
-                    size="sm"
-                    title="Notas"
-                    className={cn(
-                      "h-6 w-6 p-0 rounded-full transition-colors",
-                      showNotas ? "bg-foreground text-background" : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/50"
-                    )}
-                    onClick={() => setShowNotas(!showNotas)}
-                  >
-                    <StickyNote className="h-3 w-3" />
-                  </Button>
+                    <div data-tutorial="conversation-tags-quick" className="flex items-center gap-1.5 shrink-0">
+                        <TagManager leadId={lead.id} compact />
+                        {onToggleMateriais && (
+                            <Button
+                                data-tutorial="conversation-materiais"
+                                variant={showMateriais ? "default" : "ghost"}
+                                size="sm"
+                                className={cn(
+                                    "h-6 px-2 rounded-full text-[10px] gap-1 shrink-0",
+                                    showMateriais ? "bg-foreground text-background" : "text-muted-foreground"
+                                )}
+                                onClick={onToggleMateriais}
+                            >
+                                <FileText className="h-3 w-3" />
+                                <span className="hidden lg:inline">Materiais</span>
+                            </Button>
+                        )}
+                    </div>
                 )}
-                <div className="xs:block">{lead && <AiLockControl lead={lead} lastIncomingMessage={lastIncomingMessage?.conteudo} lastIncomingMessageType={lastIncomingMessage?.tipo_conteudo} messages={messages} />}</div>
-            </div>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Utility actions */}
+                <div data-tutorial="conversation-utilities" className="flex items-center gap-0.5 shrink-0 border-l border-border/40 pl-1.5">
+                    <div className="lg:hidden">
+                        {leadId && <CadenceLeadSelector leadId={leadId} />}
+                    </div>
+                    {lead && (
+                      <Button
+                        data-tutorial="conversation-blacklist"
+                        variant="ghost"
+                        size="sm"
+                        title="Bloquear número permanentemente"
+                        className="h-6 w-6 p-0 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        onClick={() => setShowBlacklistConfirm(true)}
+                      >
+                        <ShieldBan className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {lead && (
+                      <Button
+                        data-tutorial="conversation-notas"
+                        variant="ghost"
+                        size="sm"
+                        title="Notas"
+                        className={cn(
+                          "h-6 w-6 p-0 rounded-full transition-colors",
+                          showNotas ? "bg-foreground text-background" : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/50"
+                        )}
+                        onClick={() => setShowNotas(!showNotas)}
+                      >
+                        <StickyNote className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {lead && (
+                      <Button
+                        data-tutorial="conversation-resumo-ia"
+                        variant="ghost"
+                        size="sm"
+                        title="Resumo da IA"
+                        className={cn(
+                          "h-6 w-6 p-0 rounded-full transition-colors",
+                          showResumo ? "bg-foreground text-background" : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/50"
+                        )}
+                        onClick={() => setShowResumo(!showResumo)}
+                      >
+                        <Sparkles className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <div className="xs:block">{lead && <AiLockControl lead={lead} lastIncomingMessage={lastIncomingMessage?.conteudo} lastIncomingMessageType={lastIncomingMessage?.tipo_conteudo} messages={messages} />}</div>
+                </div>
+              </>
+            )}
         </div>
-      </header>}
+      </header>
 
       {/* Painel de Notas */}
       {showNotas && lead && lead.organization_id && (
         <div className="border-b bg-background px-4 py-3 flex-shrink-0 max-h-[40vh] overflow-y-auto">
           <LeadNotas leadId={lead.id} organizationId={lead.organization_id} />
+        </div>
+      )}
+
+      {/* Painel de Resumo da IA */}
+      {showResumo && lead && (
+        <div className="border-b bg-background px-4 py-3 flex-shrink-0 max-h-[40vh] overflow-y-auto">
+          <LeadResumoIa leadId={lead.id} />
         </div>
       )}
 
@@ -1114,6 +1172,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
         followupUltimaTentativa={(lead as any)?.followup_ultima_tentativa}
         followupPausado={(lead as any)?.followup_pausado}
         ultimoContato={(lead as any)?.ultimo_contato}
+        iaAtiva={(lead as any)?.ia_ativa}
       />
 
       <ScrollArea className="flex-1 bg-[hsl(var(--background))]">
@@ -1155,13 +1214,13 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                   isWithinExportRange && "bg-primary/5 ring-1 ring-primary/15"
                 )}
               >
-                <div className={cn("flex items-end gap-1.5 max-w-[88%] sm:max-w-[80%]", isOutgoing ? "flex-row-reverse" : "flex-row")}>
-                  <Avatar className="h-7 w-7 flex-shrink-0 border border-border/30">
+                <div className={cn("flex items-end gap-1.5 max-w-[85%] sm:max-w-[78%] lg:max-w-[72%]", isOutgoing ? "flex-row-reverse" : "flex-row")}>
+                  <Avatar className="h-6 w-6 flex-shrink-0 border border-border/30">
                     {isOutgoing ? (
-                      <AvatarFallback className={cn("text-[10px]", isAi ? "bg-violet-100 text-violet-600" : "bg-muted text-muted-foreground")}>{isAi ? <Bot className="h-3.5 w-3.5" /> : <User className="h-3.5 w-3.5" />}</AvatarFallback>
-                    ) : (<AvatarFallback className="bg-foreground/5 text-foreground/60 text-[10px] font-semibold">{getInitials(lead?.nome)}</AvatarFallback>)}
+                      <AvatarFallback className={cn("text-[10px]", isAi ? "bg-violet-100 text-violet-600" : "bg-muted text-muted-foreground")}>{isAi ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}</AvatarFallback>
+                    ) : (<AvatarFallback className="bg-foreground/5 text-foreground/60 text-[9px] font-semibold">{getInitials(lead?.nome)}</AvatarFallback>)}
                   </Avatar>
-                  <div className={cn("px-3 py-2.5 rounded-2xl relative transition-all min-w-[100px]", isOutgoing ? "bg-foreground text-background rounded-br-sm" : "bg-card border border-border/50 rounded-bl-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)]")}>
+                  <div className={cn("px-3 py-2 rounded-2xl relative transition-all min-w-[90px]", isOutgoing ? "bg-foreground text-background rounded-br-sm" : "bg-card border border-border/50 rounded-bl-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)]")}>
                     {isExportMode && (
                       <div className="mb-2 flex flex-wrap items-center gap-1.5">
                         <Button
@@ -1257,7 +1316,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                               onView={openMediaViewer as any}
                             />
                             {msg.conteudo && msg.media_path && (
-                              <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed break-words mt-1">{msg.conteudo}</p>
+                              <p className="text-[13px] whitespace-pre-wrap leading-relaxed break-words mt-1">{msg.conteudo}</p>
                             )}
                           </>
                         ) : isPdf ? (
@@ -1273,7 +1332,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                       editingMessageId === msg.id ? (
                         <div className="space-y-2">
                           <textarea
-                            className="w-full min-h-[60px] p-2 rounded-lg text-xs sm:text-sm bg-black/10 border border-white/20 text-inherit resize-none focus:outline-none focus:ring-1 focus:ring-white/40"
+                            className="w-full min-h-[60px] p-2 rounded-lg text-[13px] bg-black/10 border border-white/20 text-inherit resize-none focus:outline-none focus:ring-1 focus:ring-white/40"
                             value={editText}
                             onChange={(e) => setEditText(e.target.value)}
                             autoFocus
@@ -1292,7 +1351,7 @@ export function ActiveConversation({ leadId, showQuickMessages, onToggleQuickMes
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs sm:text-sm whitespace-pre-wrap leading-relaxed break-words">{msg.conteudo}</p>
+                        <p className="text-[13px] whitespace-pre-wrap leading-relaxed break-words">{msg.conteudo}</p>
                       )
                     )}
                     <div className={cn("flex items-center justify-end gap-1 mt-1.5", isOutgoing ? "text-background/50" : "text-muted-foreground/50")}>

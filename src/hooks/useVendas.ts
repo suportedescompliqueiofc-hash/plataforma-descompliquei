@@ -98,10 +98,29 @@ export function useVendas(dateRange?: DateRange) {
     },
     onSuccess: async (data) => {
       if (data?.lead_id) {
+        const { data: leadAntes } = await supabase
+          .from('leads')
+          .select('is_qualified')
+          .eq('id', data.lead_id)
+          .single();
+
         await supabase
           .from('leads')
           .update({ is_closed: true, is_qualified: true })
           .eq('id', data.lead_id);
+
+        // Registra a nota de sistema do MQL quando a qualificação é ativada automaticamente aqui
+        // (mesma lógica do updateLead em useLeads.ts) — sem isso, o Dashboard perde o evento de qualificação.
+        if (!leadAntes?.is_qualified && orgId) {
+          await supabase.from('lead_notas').insert({
+            lead_id: data.lead_id,
+            organization_id: orgId,
+            conteudo: 'Lead marcado como qualificado',
+            tipo: 'sistema',
+            metadados: { evento: 'mql', is_qualified: true },
+          });
+        }
+
         queryClient.invalidateQueries({ queryKey: ['leads'] });
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
       }

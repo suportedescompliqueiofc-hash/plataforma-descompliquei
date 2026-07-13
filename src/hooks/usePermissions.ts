@@ -6,7 +6,7 @@ import { useProfile } from './useProfile';
 export type PageKey =
   | 'painel' | 'conversas' | 'notificacoes' | 'leads'
   | 'agendamentos' | 'vendas' | 'procedimentos' | 'metas'
-  | 'msgs_rapidas' | 'cadencias' | 'ia' | 'configuracoes' | 'plataforma';
+  | 'cadencias' | 'ia' | 'configuracoes' | 'plataforma';
 
 export interface UserPermissions {
   isOwner: boolean;
@@ -21,7 +21,7 @@ export interface UserPermissions {
 const ALL_ACCESS: Record<PageKey, boolean> = {
   painel: true, conversas: true, notificacoes: true, leads: true,
   agendamentos: true, vendas: true, procedimentos: true, metas: true,
-  msgs_rapidas: true, cadencias: true, ia: true, configuracoes: true, plataforma: true,
+  cadencias: true, ia: true, configuracoes: true, plataforma: true,
 };
 
 export function usePermissions(): UserPermissions {

@@ -181,7 +181,7 @@ export default function Dashboard() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { metrics, isLoading, error: metricsError, refetch } = useDashboard(dateRange, origemFilter);
+  const { metrics, isLoading, error: metricsError, refetch } = useDashboard(dateRange, origemFilter, undefined, metricsMode);
 
   /* ── Gradients ── */
   const GRADIENTS = (
@@ -248,6 +248,8 @@ export default function Dashboard() {
   /* ── Data ── */
   const faturamento = metrics.faturamentoTotal ?? 0;
   const totalLeads = metrics.totalLeadsAtivos ?? metrics.totalContatos ?? 0;
+  // Visão Geral vinda da fonte ÚNICA (get_org_painel) — a MESMA função que o Athos usa.
+  const P = (metrics as any).painel as { atividade?: any; cadastrados?: any } | null | undefined;
   const mqlCount = metrics.mqlCount ?? 0;
   const scheduledCount = metrics.scheduledCount ?? 0;
   const closedCount = metrics.closedCount ?? 0;
@@ -573,17 +575,17 @@ export default function Dashboard() {
               {/* Cards */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border/40">
                 {(metricsMode === 'geral' ? [
-                  { label: 'Total de Leads',    value: totalLeads.toString(),                                sub: 'com atividade no período', icon: UserPlus,   color: '#E85D24', listKey: 'totalLeadsList' },
-                  { label: 'Faturamento',       value: fmtCurrency(metrics.faturamentoTotal ?? 0),          sub: 'receita no período',       icon: DollarSign, color: '#10b981', listKey: null },
-                  { label: 'Ticket Médio',      value: fmtCurrency(metrics.ticketMedio ?? 0),               sub: 'por venda fechada',        icon: Wallet,     color: '#6366f1', listKey: null },
-                  { label: 'Taxa de Conversão', value: `${(metrics.taxaConversaoGlobal ?? 0).toFixed(1)}%`, sub: 'leads → fechamentos',      icon: TrendingUp, color: '#8b5cf6', listKey: null },
-                  { label: 'Vendas',            value: (metrics.vendasCount ?? 0).toString(),               sub: 'fechamentos no período',   icon: BadgeCheck, color: '#3b82f6', listKey: null },
+                  { label: 'Total de Leads',    value: (P?.atividade?.leads ?? totalLeads).toString(),                                       sub: 'com atividade no período', icon: UserPlus,   color: '#E85D24', listKey: 'totalLeadsList' },
+                  { label: 'Faturamento',       value: fmtCurrency(P?.atividade?.faturamento ?? metrics.faturamentoTotal ?? 0),              sub: 'receita no período',       icon: DollarSign, color: '#10b981', listKey: null },
+                  { label: 'Ticket Médio',      value: fmtCurrency(P?.atividade?.ticket ?? metrics.ticketMedio ?? 0),                        sub: 'por venda fechada',        icon: Wallet,     color: '#6366f1', listKey: null },
+                  { label: 'Taxa de Conversão', value: `${Number(P?.atividade?.conversao_pct ?? metrics.taxaConversaoGlobal ?? 0).toFixed(1)}%`, sub: 'leads → fechamentos',  icon: TrendingUp, color: '#8b5cf6', listKey: null },
+                  { label: 'Vendas',            value: (P?.atividade?.vendas ?? metrics.vendasCount ?? 0).toString(),                        sub: 'fechamentos no período',   icon: BadgeCheck, color: '#3b82f6', listKey: null },
                 ] : [
-                  { label: 'Total de Leads',    value: (metrics.cadastradosTotal ?? 0).toString(),                                 sub: 'cadastrados no período',   icon: UserPlus,   color: '#E85D24', listKey: 'cadastradosList' },
-                  { label: 'Faturamento',       value: fmtCurrency(metrics.cadastradosFaturamento ?? 0),                          sub: 'dos cadastrados',          icon: DollarSign, color: '#10b981', listKey: null },
-                  { label: 'Ticket Médio',      value: fmtCurrency(metrics.cadastradosTicketMedio ?? 0),                          sub: 'por venda fechada',        icon: Wallet,     color: '#6366f1', listKey: null },
-                  { label: 'Taxa de Conversão', value: `${(metrics.cadastradosTaxaConversao ?? 0).toFixed(1)}%`,                  sub: 'cadastrados → fechamentos',icon: TrendingUp, color: '#8b5cf6', listKey: null },
-                  { label: 'Vendas',            value: (metrics.cadastradosVendasCount ?? 0).toString(),                          sub: 'dos cadastrados',          icon: BadgeCheck, color: '#3b82f6', listKey: 'cadastradosClosedList' },
+                  { label: 'Total de Leads',    value: (P?.cadastrados?.leads ?? metrics.cadastradosTotal ?? 0).toString(),                  sub: 'cadastrados no período',   icon: UserPlus,   color: '#E85D24', listKey: 'cadastradosList' },
+                  { label: 'Faturamento',       value: fmtCurrency(P?.cadastrados?.faturamento ?? metrics.cadastradosFaturamento ?? 0),      sub: 'dos cadastrados',          icon: DollarSign, color: '#10b981', listKey: null },
+                  { label: 'Ticket Médio',      value: fmtCurrency(P?.cadastrados?.ticket ?? metrics.cadastradosTicketMedio ?? 0),          sub: 'por venda fechada',        icon: Wallet,     color: '#6366f1', listKey: null },
+                  { label: 'Taxa de Conversão', value: `${Number(P?.cadastrados?.conversao_pct ?? metrics.cadastradosTaxaConversao ?? 0).toFixed(1)}%`, sub: 'cadastrados → fechamentos', icon: TrendingUp, color: '#8b5cf6', listKey: null },
+                  { label: 'Vendas',            value: (P?.cadastrados?.vendas ?? metrics.cadastradosVendasCount ?? 0).toString(),           sub: 'dos cadastrados',          icon: BadgeCheck, color: '#3b82f6', listKey: 'cadastradosClosedList' },
                 ]).map((item) => {
                   const Icon = item.icon;
                   return (
@@ -1045,6 +1047,39 @@ export default function Dashboard() {
             </div>
             </TooltipProvider>
 
+            {/* Tira de alerta — Agendados sem Qualificação */}
+            {(() => {
+              const semMql     = (metrics as any).agendadosSemMql ?? 0;
+              const semMqlList = (metrics as any).agendadosSemMqlList ?? [];
+              const pctSemMql  = (metrics as any).pctAgendadosSemMql ?? 0;
+              if (semMql === 0) return null;
+              return (
+                <div
+                  className="border-t-2 cursor-pointer group transition-colors"
+                  style={{ borderTopColor: 'rgba(245,158,11,0.40)', backgroundColor: 'rgba(245,158,11,0.04)' }}
+                  onClick={() => semMqlList.length > 0 && openLeadsModal('Agendados sem Qualificação', semMqlList)}
+                >
+                  <div className="px-5 py-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg shrink-0" style={{ backgroundColor: '#f59e0b15' }}>
+                        <AlertTriangle className="h-3.5 w-3.5" style={{ color: '#f59e0b' }} />
+                      </span>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[12px] font-semibold" style={{ color: '#f59e0b' }}>
+                            {semMql} {semMql === 1 ? 'lead foi agendado' : 'leads foram agendados'} sem qualificação no sistema
+                          </span>
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>Revisar</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">{pctSemMql}% dos agendamentos saíram fora do fluxo de qualificação</p>
+                      </div>
+                    </div>
+                    {semMqlList.length > 0 && <ChevronRight className="h-4 w-4 shrink-0 transition-colors" style={{ color: 'rgba(245,158,11,0.4)' }} />}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Tira de alerta — Sem Agendamento */}
             {(() => {
               const semAgend     = (metrics as any).fechadosSemAgend ?? 0;
@@ -1231,12 +1266,16 @@ export default function Dashboard() {
           {(() => {
             const iaTotal          = metrics.iaConversasTotal ?? 0;
             const iaConversasLista = (metrics as any).iaConversasLeadsList ?? [];
-            const iaHandoff        = metrics.iaHandoffConversas ?? 0;
-            const iaHandoffLista   = (metrics as any).iaHandoffLeadsList ?? [];
+            const iaTransferido      = (metrics as any).iaTransferidoConversas ?? 0;
+            const iaTransferidoLista = (metrics as any).iaTransferidoLeadsList ?? [];
+            const iaInterferiu       = (metrics as any).iaInterferiuConversas ?? 0;
+            const iaInterferiuLista  = (metrics as any).iaInterferiuLeadsList ?? [];
             const iaPerdidos       = (metrics as any).iaPerdidosConversas ?? 0;
             const iaPerdidosLista  = (metrics as any).iaPerdidosLeadsList ?? [];
-            const iaTaxa           = metrics.iaTaxaEfetividade ?? 0;
+            const iaTaxa           = (metrics as any).iaTaxaTransferencia ?? 0;
             const iaSemDados       = iaTotal === 0;
+            const totalLeadsAtivos = (metrics as any).totalLeadsAtivos ?? 0;
+            const taxaCoberturaIA  = totalLeadsAtivos > 0 ? parseFloat(((iaTotal / totalLeadsAtivos) * 100).toFixed(1)) : 0;
             const ht               = (metrics as any).iaTempoHandoff;
             const temHandoff       = ht && ht.total > 0;
 
@@ -1268,8 +1307,8 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <>
-                    {/* 4 KPIs */}
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-border/40">
+                    {/* 5 KPIs */}
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-px bg-border/40">
                       <div
                         className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
                         onClick={() => iaConversasLista.length > 0 && openLeadsModal('Conversas com IA', iaConversasLista)}
@@ -1284,22 +1323,43 @@ export default function Dashboard() {
                           <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaTotal}</div>
                           <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Conversas com IA</div>
                           <div className="text-[10px] text-muted-foreground/50 mt-0.5">leads únicos atendidos no período</div>
+                          {totalLeadsAtivos > 0 && (
+                            <div className="text-[10px] font-semibold mt-1" style={{ color: taxaCoberturaIA >= 60 ? '#10b981' : taxaCoberturaIA >= 30 ? '#f59e0b' : '#ef4444' }}>
+                              {taxaCoberturaIA}% dos leads do período
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div
                         className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
-                        onClick={() => iaHandoffLista.length > 0 && openLeadsModal('Passaram para Humano', iaHandoffLista)}
+                        onClick={() => iaTransferidoLista.length > 0 && openLeadsModal('Transferidas pela IA', iaTransferidoLista)}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#10b98115' }}>
-                            <UserCheck className="h-4 w-4" style={{ color: '#10b981' }} />
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#3b82f615' }}>
+                            <UserCheck className="h-4 w-4" style={{ color: '#3b82f6' }} />
                           </span>
-                          {iaHandoffLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                          {iaTransferidoLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
                         </div>
                         <div>
-                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaHandoff}</div>
-                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Passaram para Humano</div>
-                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">IA transferiu para atendente</div>
+                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaTransferido}</div>
+                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Transferidas pela IA</div>
+                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">handoff real — a IA finalizou e passou</div>
+                        </div>
+                      </div>
+                      <div
+                        className="flex flex-col gap-3 p-5 bg-card cursor-pointer hover:bg-muted/20 transition-colors group"
+                        onClick={() => iaInterferiuLista.length > 0 && openLeadsModal('Humano interferiu na conversa', iaInterferiuLista)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: '#f59e0b15' }}>
+                            <Users className="h-4 w-4" style={{ color: '#f59e0b' }} />
+                          </span>
+                          {iaInterferiuLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
+                        </div>
+                        <div>
+                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaInterferiu}</div>
+                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Humano interferiu</div>
+                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">entrou no meio, sem a IA transferir</div>
                         </div>
                       </div>
                       <div
@@ -1324,8 +1384,8 @@ export default function Dashboard() {
                         </span>
                         <div>
                           <div className="text-[28px] font-bold font-display leading-none" style={{ color: taxaColor }}>{iaTaxa}%</div>
-                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Taxa de Handoff</div>
-                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">conversas que chegaram ao humano</div>
+                          <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Taxa de Transferência</div>
+                          <div className="text-[10px] text-muted-foreground/50 mt-0.5">conversas que a IA transferiu de fato</div>
                           <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
                             <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(iaTaxa, 100)}%`, backgroundColor: taxaColor }} />
                           </div>
@@ -1808,7 +1868,7 @@ export default function Dashboard() {
           })()}
 
           {/* ── FOLLOW-UP GAP ── */}
-          <FollowupGapWidget dateRange={dateRange} />
+          <FollowupGapWidget dateRange={dateRange} origem={origemFilter} />
 
           {/* ⑧ TOP PROCEDIMENTOS */}
           <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-top-procedimentos">

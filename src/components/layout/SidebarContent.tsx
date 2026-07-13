@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, BarChart3, Settings, LogOut, ChevronLeft,
-  MessageSquare, Bell, ShoppingCart, Bot, Zap, GitMerge, GitBranch, ShieldCheck,
-  PlayCircle, Brain, Calendar, Target, CalendarDays, ImagePlay, PenLine,
-  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Sparkles, Swords, Route, UsersRound
+  MessageSquare, Bell, ShoppingCart, Bot, GitMerge, GitBranch, ShieldCheck,
+  Calendar, Target, CalendarDays, ImagePlay, PenLine,
+  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Sparkles, Swords, Route, UsersRound, Megaphone,
+  NotebookText
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +23,7 @@ import { TutorialHelpButton } from "@/components/tutorial/TutorialHelpButton";
 import { usePerformanceBadge } from "@/hooks/usePerformance";
 import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { useOnboarding } from "@/hooks/useOnboarding";
+import { useAtualizacoes } from "@/hooks/useAtualizacoes";
 
 interface SidebarContentProps {
   isCollapsed?: boolean;
@@ -36,10 +39,10 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   const { plataformaUser, plan, progressPercent, acesso, isContextLoading: plataformaLoading, isMember } = usePlataforma();
   const { pending: performancePending } = usePerformanceBadge();
   const { showInSidebar: showOnboarding, completedCount: onboardingDone, totalCount: onboardingTotal } = useOnboarding();
+  const { naoVistosCount: atualizacoesNaoVistas } = useAtualizacoes();
 
   const isSuperAdmin = role === 'superadmin';
   const permissions = usePermissions();
-  const isPlatformMode = location.pathname.startsWith('/plataforma');
   const isOutboundMode = location.pathname.startsWith('/outbound');
 
   // Modais de segurança
@@ -61,49 +64,88 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     navigate(pendingUrl);
   };
 
+  // Acesso a qualquer recurso da Plataforma (Aprendizado). Superadmin sempre tem.
   const temPlataforma =
-    isSuperAdmin || // superadmin sempre vê o botão Plataforma
+    isSuperAdmin ||
     acesso.acesso_sessoes_taticas ||
     acesso.acesso_materiais ||
     acesso.acesso_ia_comercial ||
-    (acesso.pilares_liberados?.length ?? 0) > 0 ||
     (acesso.ias_liberadas?.length ?? 0) > 0;
 
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
 
-  const crmMenuItems = [
+  // Durante o loading, manter os itens visíveis (evitar flicker na navegação)
+  const temOS = plataformaLoading || acesso.acesso_os;
+  // CRM é uma ÁREA entitled: só aparece se o produto liberar acesso_crm (superadmin = ACESSO_TOTAL).
+  const temCrm = plataformaLoading || acesso.acesso_crm;
+
+  // Membros de equipe operam só no CRM — seções de Aprendizado ficam ocultas.
+  const showAprendizado = temPlataforma && !isMember;
+
+  // MENU ÚNICO INTEGRADO — CRM + Plataforma numa sidebar só (sem pula-pula).
+  type MenuItem = {
+    title: string;
+    isSeparator?: boolean;
+    icon?: LucideIcon;
+    path?: string;
+    accessKey?: keyof typeof acesso;
+    superadminOnly?: boolean;
+  };
+  const unifiedMenuItems: MenuItem[] = [
     ...(showOnboarding ? [{ title: "Configuração Inicial", icon: Rocket, path: "/crm/onboarding" }] : []),
-    { isSeparator: true, title: "Visão Geral" },
-    { title: "Painel", icon: LayoutDashboard, path: "/crm" },
-    { title: "Performance", icon: Trophy, path: "/crm/performance" },
-    { title: "Conversas", icon: MessageSquare, path: "/crm/conversas" },
-    { title: "Notificações", icon: Bell, path: "/crm/notificacoes" },
-    { isSeparator: true, title: "Comercial" },
-    { title: "Leads", icon: Users, path: "/crm/leads" },
-    { title: "Agendamentos", icon: CalendarDays, path: "/crm/agendamentos" },
-    { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
-    { title: "Procedimentos", icon: Stethoscope, path: "/crm/procedimentos" },
-    { title: "Metas", icon: Target, path: "/crm/metas" },
-    { title: "Equipe", icon: UsersRound, path: "/crm/equipe" },
-    { title: "Evolução", icon: TrendingUp, path: "/crm/evolucao" },
-    { isSeparator: true, title: "Automação" },
-    { title: "Msgs Rápidas", icon: Zap, path: "/crm/quick-messages" },
-    { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },
-    { title: "IA", icon: Bot, path: "/crm/ia" },
-    ...(isDescompliqueiOrg ? [
+    { title: "Atualizações", icon: Megaphone, path: "/crm/atualizacoes" },
+    // ── ÁREA CRM (gated por acesso_crm) ──────────────────────────────────────
+    ...(temCrm ? [
+      { isSeparator: true, title: "Visão Geral" },
+      { title: "Painel", icon: LayoutDashboard, path: "/crm" },
+      { title: "Performance", icon: Trophy, path: "/crm/performance" },
+      { title: "Conversas", icon: MessageSquare, path: "/crm/conversas" },
+      { title: "Notificações", icon: Bell, path: "/crm/notificacoes" },
+      { isSeparator: true, title: "Comercial" },
+      { title: "Leads", icon: Users, path: "/crm/leads" },
+      { title: "Agendamentos", icon: CalendarDays, path: "/crm/agendamentos" },
+      { title: "Vendas", icon: ShoppingCart, path: "/crm/vendas" },
+      { title: "Procedimentos", icon: Stethoscope, path: "/crm/procedimentos" },
+      { title: "Metas", icon: Target, path: "/crm/metas" },
+      { title: "Equipe", icon: UsersRound, path: "/crm/equipe" },
+      { title: "Evolução", icon: TrendingUp, path: "/crm/evolucao" },
+    ] : []),
+    // ── ÁREA INTELIGÊNCIA (Athos) — só o separador se houver algum item ───────
+    ...((temCrm || temOS) ? [
+      { isSeparator: true, title: "Inteligência" },
+      ...(temCrm ? [{ title: "Agentes de IA", icon: Bot, path: "/crm/athos" }] : []),
+      ...(temOS ? [{ title: "Athos", icon: Sparkles, path: "/plataforma/athos-gs" }] : []),
+    ] : []),
+    // ── ÁREA APRENDIZADO (Plataforma) ────────────────────────────────────────
+    ...(showAprendizado ? [
+      { isSeparator: true, title: "Aprendizado" },
+      { title: "Arsenal", icon: Swords, path: "/plataforma/arsenal" },
+      { title: "Jornada", icon: Route, path: "/plataforma/jornada" },
+      { title: "Notas", icon: NotebookText, path: "/crm/notas", accessKey: 'acesso_materiais' as const },
+      { title: "Sessões Táticas", icon: Calendar, path: "/plataforma/sessoes-taticas", accessKey: 'acesso_sessoes_taticas' as const },
+      { title: "Clube One", icon: Trophy, path: "/plataforma/clube-one" },
+    ] : []),
+    // ── ÁREA AUTOMAÇÃO (CRM) ─────────────────────────────────────────────────
+    ...(temCrm ? [
+      { isSeparator: true, title: "Automação" },
+      { title: "Cadências", icon: GitMerge, path: "/crm/cadences" },
+    ] : []),
+    // ── MARKETING / PROSPECÇÃO (Descompliquei-only, implica CRM) ──────────────
+    ...((isDescompliqueiOrg && temCrm) ? [
       { isSeparator: true, title: "Marketing" },
       { title: "Tráfego", icon: BarChart3, path: "/crm/marketing-trafego" },
       { title: "Criativos", icon: ImagePlay, path: "/crm/criativos" },
       { title: "Canvas", icon: PenLine, path: "/crm/canvas" },
-    ] : []),
-    ...(isDescompliqueiOrg ? [
       { isSeparator: true, title: "Prospecção" },
       { title: "Outbound", icon: Phone, path: "/outbound/painel" },
     ] : []),
-    { isSeparator: true, title: "Sistema" },
-    { title: "Configurações", icon: Settings, path: "/crm/settings" },
-    { title: "Super Admin CRM", icon: ShieldCheck, path: "/crm/super-admin-crm", superadminOnly: true },
-    ...(temPlataforma ? [{ title: "Plataforma", icon: PlayCircle, path: "/plataforma" }] : []),
+    // ── SISTEMA — separador só se houver algum item ───────────────────────────
+    ...((temCrm || showAprendizado || isSuperAdmin) ? [
+      { isSeparator: true, title: "Sistema" },
+      { title: "Configurações", icon: Settings, path: "/crm/settings" },
+      { title: "Super Admin CRM", icon: ShieldCheck, path: "/crm/super-admin-crm", superadminOnly: true },
+      { title: "Super Admin", icon: ShieldCheck, path: "/admin", superadminOnly: true },
+    ] : []),
   ];
 
   const outboundMenuItems = [
@@ -122,26 +164,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Voltar ao CRM", icon: BarChart3, path: "/crm" },
   ];
 
-  // Durante o loading, manter os itens visíveis (evitar flicker na navegação)
-  const temTrilha = plataformaLoading || (acesso.pilares_liberados?.length ?? 0) > 0;
-  const temIAs = plataformaLoading || acesso.acesso_ia_comercial || (acesso.ias_liberadas?.length ?? 0) > 0;
-  const temOS = plataformaLoading || acesso.acesso_os;
-
-  const platformMenuItems = [
-    { title: "Hub", icon: LayoutDashboard, path: "/plataforma" },
-    { isSeparator: true, title: "Aprendizado" },
-    { title: "Jornada", icon: Route, path: "/plataforma/jornada" },
-    { title: "Arsenal", icon: Swords, path: "/plataforma/arsenal" },
-    { title: "Meus Materiais", icon: Target, path: "/plataforma/materiais", accessKey: 'acesso_materiais' as const },
-    { isSeparator: true, title: "Ao Vivo" },
-    { title: "Sessões Táticas", icon: Calendar, path: "/plataforma/sessoes-taticas", accessKey: 'acesso_sessoes_taticas' as const },
-    { isSeparator: true, title: "Ferramenta" },
-    ...(temOS ? [{ title: "Athos GS", icon: Sparkles, path: "/plataforma/athos-gs" }] : []),
-    { title: "Acessar CRM", icon: BarChart3, path: "/crm", accessKey: 'acesso_crm' as const },
-    { isSeparator: true, title: "Admin", superadminOnly: true },
-    { title: "Super Admin", icon: ShieldCheck, path: "/admin", superadminOnly: true }
-  ];
-
   // Mapeamento path CRM → chave de permissão
   const PATH_PERMISSION_MAP: Record<string, PageKey> = {
     '/crm':                    'painel',
@@ -153,9 +175,9 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/procedimentos':      'procedimentos',
     '/crm/metas':              'metas',
     '/crm/equipe':             'equipe',
-    '/crm/quick-messages':     'msgs_rapidas',
     '/crm/cadences':           'cadencias',
     '/crm/ia':                 'ia',
+    '/crm/athos':              'ia',
     '/crm/settings':           'configuracoes',
     '/plataforma':             'plataforma',
   };
@@ -164,29 +186,27 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   // Escondê-las durante o loading evita o flash antes da detecção de membro terminar.
   const MEMBER_RESTRICTED_KEYS = new Set(['acesso_materiais']);
 
-  const menuItems = isPlatformMode
-    ? platformMenuItems.filter(item => {
-        if (item.superadminOnly && !isSuperAdmin) return false;
-        // Durante loading, não filtrar por acesso — evita flicker na navegação
-        if (plataformaLoading) return true;
-        if (item.accessKey && !acesso[item.accessKey]) return false;
-        return true;
-      })
-    : isOutboundMode
+  const menuItems = isOutboundMode
     ? outboundMenuItems
-    : crmMenuItems.filter(item => {
+    : unifiedMenuItems.filter((item) => {
         if (item.superadminOnly && !isSuperAdmin) return false;
-        // Se for dono ou permissões ainda não carregadas, mostrar tudo
-        if (permissions.isOwner) return true;
-        // Separadores sempre visíveis
         if (item.isSeparator) return true;
-        // Itens sem path (ex: separadores com title) — mostrar
         if (!item.path) return true;
-        // Configurações sempre visível para todos os membros —
-        // contém perfil pessoal e senha que são independentes das permissões da org
+
+        // Itens da Plataforma (Aprendizado): gate por accessKey; sem flicker durante o loading
+        const isPlataformaItem = item.path.startsWith('/plataforma') || !!item.accessKey;
+        if (isPlataformaItem) {
+          if (plataformaLoading) return true;
+          if (item.accessKey && !acesso[item.accessKey]) return false;
+          return true;
+        }
+
+        // Itens do CRM: permissões do papel
+        if (permissions.isOwner) return true;
+        // Configurações sempre visível — contém perfil pessoal e senha
         if (item.path === '/crm/settings') return true;
         const permKey = PATH_PERMISSION_MAP[item.path];
-        // Se não tem mapeamento (ex: marketing, criativos), mostrar apenas para donos
+        // Sem mapeamento (ex: marketing, criativos, /admin): apenas donos/superadmin
         if (!permKey) return permissions.isOwner;
         return permissions.canAccess(permKey);
       });
@@ -210,6 +230,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   // Map menu paths to data-tutorial attributes for the tutorial system
   const tutorialTargetMap: Record<string, string> = {
     '/crm': 'sidebar-painel',
+    '/crm/atualizacoes': 'sidebar-atualizacoes',
     '/crm/conversas': 'sidebar-conversas',
     '/crm/notificacoes': 'sidebar-notificacoes',
     '/crm/leads': 'sidebar-leads',
@@ -217,15 +238,14 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/vendas': 'sidebar-vendas',
     '/crm/procedimentos': 'sidebar-procedimentos',
     '/crm/metas': 'sidebar-metas',
-    '/crm/quick-messages': 'sidebar-quick-messages',
     '/crm/cadences': 'sidebar-cadences',
     '/crm/ia': 'sidebar-ia',
+    '/crm/athos': 'sidebar-athos',
     '/crm/settings': 'sidebar-settings',
     // Plataforma
     '/plataforma': 'sidebar-hub',
     '/plataforma/arsenal': 'sidebar-arsenal',
-    '/plataforma/trilha': 'sidebar-trilha',
-    '/plataforma/materiais': 'sidebar-materiais',
+    '/crm/notas': 'sidebar-notas',
     '/plataforma/sessoes-taticas': 'sidebar-sessoes',
     '/plataforma/athos-gs': 'sidebar-os',
     '/plataforma/jornada': 'sidebar-jornada',
@@ -251,8 +271,8 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
             </Avatar>
 
           <div className={`flex flex-col transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'flex-1 min-w-0 opacity-100 overflow-hidden'}`}>
-              <h1 className="text-[13px] font-semibold text-sidebar-foreground leading-tight truncate">{isPlatformMode ? 'Hub de Gestão' : isOutboundMode ? 'Prospecção Ativa' : branding?.brand_name || 'CRM'}</h1>
-              <p className="text-[10px] text-white/40 tracking-wide truncate">{isPlatformMode ? branding?.brand_name || 'Descompliquei' : isOutboundMode ? 'Outbound' : branding?.tagline || 'Gestão Inteligente'}</p>
+              <h1 className="text-[13px] font-semibold text-sidebar-foreground leading-tight truncate">{isOutboundMode ? 'Prospecção Ativa' : branding?.brand_name || 'CRM'}</h1>
+              <p className="text-[10px] text-white/40 tracking-wide truncate">{isOutboundMode ? 'Outbound' : branding?.tagline || 'Gestão Inteligente'}</p>
             </div>
           </div>
           {toggleCollapse && !isCollapsed && (
@@ -315,6 +335,11 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
                     {performancePending}
                   </span>
                 )}
+                {item.title === 'Atualizações' && atualizacoesNaoVistas > 0 && (
+                  <span className="ml-auto min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold tabular-nums px-1">
+                    {atualizacoesNaoVistas}
+                  </span>
+                )}
                 {item.title === 'Configuração Inicial' && showOnboarding && (
                   <span className="ml-auto text-[10px] font-bold text-muted-foreground bg-muted border border-border/60 px-1.5 py-0.5 rounded-md tabular-nums">
                     {onboardingDone}/{onboardingTotal}
@@ -326,7 +351,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
         </nav>
 
         {/* Tutorial Button */}
-        {!isPlatformMode && !isOutboundMode && (
+        {!isOutboundMode && (
           <div className={`${isCollapsed ? 'px-2' : 'px-3'} pb-2`}>
             <TutorialHelpButton collapsed={isCollapsed} />
           </div>
@@ -349,13 +374,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
             </div>
           </div>
           <div className={`flex ${isCollapsed ? 'flex-col' : ''} gap-1`}>
-            {isPlatformMode && (
-              <Button variant="ghost" className={`flex-1 h-8 text-white/40 hover:text-white/70 hover:bg-white/[0.05] ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`} onClick={() => navigate('/plataforma/configuracoes')}>
-                <Settings className="h-3.5 w-3.5 flex-shrink-0" />
-                <span className={`ml-2 text-xs whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Configurações</span>
-              </Button>
-            )}
-            <Button variant="ghost" className={`${isPlatformMode ? 'flex-1' : 'w-full'} h-8 text-white/40 hover:text-white/70 hover:bg-white/[0.05] ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`} onClick={signOut}><LogOut className="h-3.5 w-3.5 flex-shrink-0" /><span className={`ml-2 text-xs whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Sair</span></Button>
+            <Button variant="ghost" className={`w-full h-8 text-white/40 hover:text-white/70 hover:bg-white/[0.05] ${isCollapsed ? 'justify-center px-0' : 'justify-start'}`} onClick={signOut}><LogOut className="h-3.5 w-3.5 flex-shrink-0" /><span className={`ml-2 text-xs whitespace-nowrap transition-all duration-300 ${isCollapsed ? 'w-0 opacity-0 overflow-hidden' : 'w-auto opacity-100'}`}>Sair</span></Button>
           </div>
         </div>
 

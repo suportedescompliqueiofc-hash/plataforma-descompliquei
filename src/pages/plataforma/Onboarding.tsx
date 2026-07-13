@@ -490,8 +490,19 @@ export default function Onboarding() {
       return;
     }
     if (etapa === "athos") {
-      // Diagnóstico já enviado — ir direto para o Athos construir
-      setTela(9);
+      // Athos foi REMOVIDO do onboarding. Usuários em estado legado 'athos' (ou reset)
+      // recebem a jornada de onboarding PADRÃO (idempotente) e seguem para a plataforma —
+      // nunca disparam o antigo fluxo de geração via Athos.
+      (async () => {
+        try { await supabase.functions.invoke("ensure-onboarding-jornada"); } catch (e) { console.error(e); }
+        if (user) {
+          await supabase.from("platform_users" as any)
+            .update({ onboarding_concluido: true, onboarding_concluido_em: new Date().toISOString() })
+            .eq("id", user.id);
+        }
+        setConcluido();
+        navigate("/plataforma", { replace: true });
+      })();
       return;
     }
     if (blocoAtual > 0) setTela(blocoAtual);
@@ -687,8 +698,11 @@ export default function Onboarding() {
     const markdown = gerarDocumento(respostas);
     const nomeClinica = respostas.p1 || "Minha Clínica";
     await salvarDocumento(markdown, nomeClinica);
+    // concluirDiagnostico já cria a jornada de onboarding padrão e marca onboarding_concluido.
+    // Sem passar pelo Athos: vai direto para a plataforma (o checklist "Configure sua plataforma" aparece).
     await concluirDiagnostico();
-    irPara(9);
+    setConcluido();
+    navigate("/plataforma", { replace: true });
   };
 
   // ── Progresso ──────────────────────────────────────────────────────────────

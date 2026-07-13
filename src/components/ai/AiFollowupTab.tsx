@@ -14,9 +14,8 @@ import {
   Send,
   RefreshCw,
   TrendingUp,
-  ExternalLink,
-  AlertTriangle,
   UserCheck,
+  Zap,
 } from "lucide-react";
 import { addMinutes, endOfDay, format, formatDistanceToNow, isPast, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -25,7 +24,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { AiFollowupConfig } from "./AiFollowupConfig";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FollowupGapWidget } from "@/components/dashboard/FollowupGapWidget";
+import { useDashboardLeadsModal } from "@/contexts/DashboardLeadsModalContext";
+
+type FollowupTipo = "automatico" | "manual";
 
 interface FollowupLog {
   id: string;
@@ -35,15 +37,24 @@ interface FollowupLog {
   mensagem_enviada: string | null;
   motivo_ia: string | null;
   enviado_em: string;
-  leads: { nome: string | null; telefone: string | null; followup_manual?: boolean } | null;
+  tipo: FollowupTipo | null;
+  leads: { nome: string | null; telefone: string | null } | null;
 }
 
-interface ActiveLead {
+interface TrackLead {
   id: string;
   nome: string | null;
   telefone: string | null;
   followup_tentativas: number;
   followup_ultima_tentativa: string | null;
+  followup_pausado?: boolean | null;
+  ultimo_contato?: string | null;
+}
+
+interface SeqStep {
+  ordem: number;
+  minutos: number;
+  ativo: boolean;
 }
 
 const STATUS_CONFIG: Record<
@@ -82,120 +93,67 @@ const STATUS_CONFIG: Record<
   },
 };
 
-export function AiFollowupTab() {
-  const { profile } = useProfile();
-  const orgId = profile?.organization_id;
+/** Config visual de cada trilho (automático x manual) */
+const TRACK_META: Record<
+  FollowupTipo,
+  {
+    label: string;
+    descricao: string;
+    Icon: React.ElementType;
+    dot: string;
+    activeDot: string;
+    accentText: string;
+    accentIconBg: string;
+  }
+> = {
+  automatico: {
+    label: "Automático",
+    descricao: "Disparado sozinho pela IA enquanto ela atende o lead",
+    Icon: Zap,
+    dot: "bg-blue-500",
+    activeDot: "bg-blue-500/30",
+    accentText: "text-blue-600",
+    accentIconBg: "bg-blue-50",
+  },
+  manual: {
+    label: "Manual",
+    descricao: "Resgate ativado no botão \"Follow IA\" pela equipe",
+    Icon: UserCheck,
+    dot: "bg-amber-500",
+    activeDot: "bg-amber-500/30",
+    accentText: "text-amber-600",
+    accentIconBg: "bg-amber-50",
+  },
+};
+
+// ————————————————————————————————————————————————————————————————
+// Componente de um trilho (Automático OU Manual) — KPIs, recuperação,
+// leads no ciclo e histórico, todos filtrados para aquele tipo.
+// ————————————————————————————————————————————————————————————————
+function TrackPanel({
+  variant,
+  logs,
+  activeLeads,
+  pausedLeads,
+  seqArray,
+  historyTutorialTarget,
+}: {
+  variant: FollowupTipo;
+  logs: FollowupLog[];
+  activeLeads: TrackLead[];
+  pausedLeads: TrackLead[];
+  seqArray: SeqStep[];
+  historyTutorialTarget?: boolean;
+}) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"config" | "analise">("analise");
-  const [openCard, setOpenCard] = useState<string | null>(null);
+  const { openModal } = useDashboardLeadsModal();
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>({
-    from: startOfMonth(new Date()),
-    to: new Date(),
-  });
 
-  const { data: logs } = useQuery({
-    queryKey: ["followup-logs-full", orgId, dateRange],
-    queryFn: async () => {
-      if (!orgId) return [];
-      let query = supabase
-        .from("ia_followup_log")
-        .select("*, leads!lead_id(nome, telefone, followup_manual)")
-        .eq("organization_id", orgId)
-        .order("enviado_em", { ascending: false })
-        .limit(500);
+  const meta = TRACK_META[variant];
 
-      if (dateRange?.from) {
-        query = query.gte("enviado_em", startOfDay(dateRange.from).toISOString());
-      }
-      if (dateRange?.to) {
-        query = query.lte("enviado_em", endOfDay(dateRange.to).toISOString());
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return (data || []) as FollowupLog[];
-    },
-    enabled: !!orgId,
-    refetchInterval: 30000,
-  });
-
-  const { data: activeLeads } = useQuery({
-    queryKey: ["followup-active-leads", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await supabase
-        .from("leads")
-        .select("id, nome, telefone, followup_tentativas, followup_ultima_tentativa")
-        .eq("organization_id", orgId)
-        .eq("ia_ativa", true)
-        .eq("followup_pausado", false)
-        .gt("followup_tentativas", 0)
-        .order("followup_ultima_tentativa", { ascending: false })
-        .limit(10);
-      return (data || []) as ActiveLead[];
-    },
-    enabled: !!orgId,
-    refetchInterval: 60000,
-  });
-
-  const { data: manualLeads } = useQuery({
-    queryKey: ["followup-manual-leads", orgId],
-    queryFn: async () => {
-      if (!orgId) return [];
-      const { data } = await supabase
-        .from("leads")
-        .select("id, nome, telefone, followup_tentativas, followup_ultima_tentativa, followup_pausado, ultimo_contato")
-        .eq("organization_id", orgId)
-        .eq("followup_manual", true)
-        .order("atualizado_em", { ascending: false })
-        .limit(50);
-      return (data || []) as (ActiveLead & { followup_pausado?: boolean; ultimo_contato?: string | null })[];
-    },
-    enabled: !!orgId,
-    refetchInterval: 30000,
-  });
-
-  const { data: followupConfig } = useQuery({
-    queryKey: ["followup-config-seq", orgId],
-    queryFn: async () => {
-      if (!orgId) return [] as Array<{ ordem: number; minutos: number; ativo: boolean }>;
-      const { data } = await supabase
-        .from("ia_followup_config")
-        .select("sequencia")
-        .eq("organization_id", orgId)
-        .maybeSingle();
-      const seq = data?.sequencia;
-      return (Array.isArray(seq) ? seq : []) as Array<{ ordem: number; minutos: number; ativo: boolean }>;
-    },
-    enabled: !!orgId,
-  });
-
-  const seqArray = Array.isArray(followupConfig) ? followupConfig : [];
-
-  const { data: pausedLeads } = useQuery({
-    queryKey: ["followup-paused-leads", orgId],
-    queryFn: async () => {
-      if (!orgId) return [] as ActiveLead[];
-      const { data } = await supabase
-        .from("leads")
-        .select("id, nome, telefone, followup_tentativas, followup_ultima_tentativa")
-        .eq("organization_id", orgId)
-        .eq("ia_ativa", true)
-        .eq("followup_pausado", true)
-        .order("followup_ultima_tentativa", { ascending: false })
-        .limit(100);
-      return (data ?? []) as ActiveLead[];
-    },
-    enabled: !!orgId,
-    refetchInterval: 60000,
-  });
-  const pausedCount = pausedLeads?.length ?? 0;
-
-  const enviados = logs?.filter((l) => l.status === "enviado") ?? [];
-  const ignorados = logs?.filter((l) => l.status === "ignorado_ia") ?? [];
-  const erros = logs?.filter((l) => l.status === "erro") ?? [];
-  const recuperadosLogs = logs?.filter((l) => l.status === "lead_respondeu") ?? [];
+  const enviados = logs.filter((l) => l.status === "enviado");
+  const ignorados = logs.filter((l) => l.status === "ignorado_ia");
+  const recuperadosLogs = logs.filter((l) => l.status === "lead_respondeu");
 
   const alcancadosUnicos = new Set(enviados.map((l) => l.lead_id));
   const recuperadosUnicos = new Set(recuperadosLogs.map((l) => l.lead_id));
@@ -208,10 +166,22 @@ export function AiFollowupTab() {
     acc[l.tentativa] = (acc[l.tentativa] ?? 0) + 1;
     return acc;
   }, {});
-  const maxTentativas = Math.max(
-    ...enviados.map((l) => l.tentativa),
-    3,
-  );
+
+  const ativosSeq = seqArray.filter((s) => s.ativo);
+
+  // Deduplica leads a partir dos logs (id/nome/telefone) para abrir no painel rico
+  const dedupeLogLeads = (arr: FollowupLog[]) => {
+    const seen = new Set<string>();
+    return arr
+      .filter((l) => { if (seen.has(l.lead_id)) return false; seen.add(l.lead_id); return true; })
+      .map((l) => ({ id: l.lead_id, nome: l.leads?.nome ?? null, telefone: l.leads?.telefone ?? null }));
+  };
+
+  // Abre o mesmo painel rico do dashboard, no contexto follow-up (timeline dos disparos)
+  const openLeads = (label: string, list: any[]) => {
+    if (!list || list.length === 0) return;
+    openModal(`${label} · ${meta.label}`, list, "followup");
+  };
 
   const kpis = [
     {
@@ -222,15 +192,17 @@ export function AiFollowupTab() {
       iconBg: "bg-green-50",
       iconColor: "text-green-500",
       valueColor: "text-green-600",
+      leads: dedupeLogLeads(enviados),
     },
     {
       label: "Em acompanhamento",
-      value: activeLeads?.length ?? 0,
-      sub: "leads ativos no ciclo agora",
+      value: activeLeads.length,
+      sub: "leads no ciclo agora",
       Icon: RefreshCw,
-      iconBg: "bg-blue-50",
-      iconColor: "text-blue-500",
-      valueColor: "text-blue-600",
+      iconBg: meta.accentIconBg,
+      iconColor: meta.accentText,
+      valueColor: meta.accentText,
+      leads: activeLeads,
     },
     {
       label: "IA ignorou",
@@ -240,75 +212,115 @@ export function AiFollowupTab() {
       iconBg: "bg-muted/60",
       iconColor: "text-muted-foreground",
       valueColor: "text-foreground",
+      leads: dedupeLogLeads(ignorados),
     },
     {
       label: "Esgotaram tentativas",
-      value: pausedCount ?? 0,
+      value: pausedLeads.length,
       sub: "aguardando nova mensagem",
       Icon: Pause,
       iconBg: "bg-amber-50",
       iconColor: "text-amber-500",
       valueColor: "text-amber-600",
+      leads: pausedLeads,
     },
   ];
 
+  const renderLeadRow = (lead: TrackLead) => {
+    const tentativas = lead.followup_tentativas ?? 0;
+    const isPaused = !!lead.followup_pausado;
+    const nextStep = seqArray.find((s) => s.ordem === tentativas + 1 && s.ativo);
+
+    let referenciaStr = tentativas === 0 ? lead.ultimo_contato : lead.followup_ultima_tentativa;
+    if (!referenciaStr && lead.ultimo_contato) referenciaStr = lead.ultimo_contato;
+
+    let nextAt: Date | null = null;
+    let overdue = false;
+    if (nextStep && referenciaStr) {
+      nextAt = addMinutes(new Date(referenciaStr), nextStep.minutos);
+      overdue = isPast(nextAt);
+    }
+
+    let statusText = "";
+    let statusColor = "text-muted-foreground/60";
+    if (isPaused) {
+      statusText = "Tentativas esgotadas · aguardando resposta";
+      statusColor = "text-amber-500";
+    } else if (tentativas === 0 && nextAt && !overdue) {
+      statusText = `1ª tentativa ${formatDistanceToNow(nextAt, { addSuffix: true, locale: ptBR })} · ${format(nextAt, "HH:mm")}`;
+      statusColor = meta.accentText;
+    } else if (tentativas === 0 && overdue) {
+      statusText = "1ª tentativa pendente · aguardando cron";
+      statusColor = "text-amber-500";
+    } else if (nextAt && !overdue) {
+      statusText = `Próxima (T${tentativas + 1}) ${formatDistanceToNow(nextAt, { addSuffix: true, locale: ptBR })} · ${format(nextAt, "HH:mm")}`;
+      statusColor = meta.accentText;
+    } else if (overdue) {
+      statusText = `T${tentativas + 1} pendente · aguardando cron`;
+      statusColor = "text-amber-500";
+    } else if (!nextStep && !isPaused) {
+      statusText = "Última tentativa enviada · aguardando resposta";
+      statusColor = "text-muted-foreground/60";
+    }
+
+    const dotTotal = Math.max(ativosSeq.length, 3);
+
+    return (
+      <div
+        key={lead.id}
+        onClick={() => navigate(`/crm/leads/${lead.id}`)}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+      >
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-semibold truncate">
+            {lead.nome || lead.telefone || "—"}
+          </p>
+          <p className={`text-[10px] ${statusColor}`}>{statusText}</p>
+        </div>
+        <div className="flex items-center gap-1">
+          {Array.from({ length: dotTotal }).map((_, i) => (
+            <div
+              key={i}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                i < tentativas
+                  ? meta.dot
+                  : isPaused && i < ativosSeq.length
+                  ? meta.activeDot
+                  : "bg-border"
+              }`}
+            />
+          ))}
+          <span className="ml-1.5 text-[10px] font-mono text-muted-foreground tabular-nums">
+            T{tentativas}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
-      {/* Tab switcher */}
-      <div className="flex items-center justify-between">
-        <div className="inline-flex bg-muted/40 rounded-xl p-1 gap-0.5" data-tutorial="ia-followup-tabs">
-          {(
-            [
-              { key: "analise", label: "Análise", tutorialKey: "ia-followup-tab-analise" },
-              { key: "config", label: "Configuração", tutorialKey: "ia-followup-tab-config" },
-            ] as const
-          ).map(({ key, label, tutorialKey }) => (
-            <button
-              key={key}
-              data-tutorial={tutorialKey}
-              onClick={() => setActiveTab(key)}
-              className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
-                activeTab === key
-                  ? "bg-foreground text-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {activeTab === "analise" && (
-          <DateRangePicker date={dateRange} setDate={setDateRange} />
-        )}
+      {/* KPI strip */}
+      <div className="grid grid-cols-4 gap-3">
+        {kpis.map(({ label, value, sub, Icon, iconBg, iconColor, valueColor, leads: cardLeads }) => (
+          <button
+            key={label}
+            onClick={() => openLeads(label, cardLeads)}
+            className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 text-left hover:shadow-md hover:border-border/80 transition-all group"
+          >
+            <div className={`w-7 h-7 rounded-lg flex items-center justify-center mb-3 ${iconBg}`}>
+              <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
+            </div>
+            <p className={`text-2xl font-bold font-display tabular-nums leading-none ${valueColor}`}>
+              {value}
+            </p>
+            <p className="text-[12px] font-semibold text-foreground mt-1">{label}</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">{sub}</p>
+          </button>
+        ))}
       </div>
 
-      {/* Config tab */}
-      {activeTab === "config" && <AiFollowupConfig />}
-
-      {/* Análise tab */}
-      {activeTab === "analise" && (
-        <div className="space-y-4">
-          {/* KPI strip */}
-          <div className="grid grid-cols-4 gap-3">
-            {kpis.map(({ label, value, sub, Icon, iconBg, iconColor, valueColor }) => (
-              <button
-                key={label}
-                onClick={() => setOpenCard(label)}
-                className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4 text-left hover:shadow-md hover:border-border/80 transition-all group"
-              >
-                <div className={`w-7 h-7 rounded-lg flex items-center justify-center mb-3 ${iconBg}`}>
-                  <Icon className={`h-3.5 w-3.5 ${iconColor}`} />
-                </div>
-                <p className={`text-2xl font-bold font-display tabular-nums leading-none ${valueColor}`}>
-                  {value}
-                </p>
-                <p className="text-[12px] font-semibold text-foreground mt-1">{label}</p>
-                <p className="text-[10px] text-muted-foreground/60 mt-0.5">{sub}</p>
-              </button>
-            ))}
-          </div>
-
-      {/* Recovery section */}
+      {/* Recuperação */}
       <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
           <div className="flex items-center gap-2">
@@ -320,7 +332,7 @@ export function AiFollowupTab() {
                 RECUPERAÇÃO DE LEADS
               </p>
               <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                Leads que responderam após receber follow-up no período
+                Leads que responderam após o follow-up {meta.label.toLowerCase()} no período
               </p>
             </div>
           </div>
@@ -333,14 +345,16 @@ export function AiFollowupTab() {
               </div>
               <p className="text-sm font-medium text-muted-foreground">Sem dados no período</p>
               <p className="text-[11px] text-muted-foreground/50 mt-0.5">
-                Follow-ups ainda não foram enviados neste intervalo
+                Nenhum follow-up {meta.label.toLowerCase()} foi enviado neste intervalo
               </p>
             </div>
           ) : (
             <div className="space-y-5">
-              {/* Métricas principais */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="rounded-xl bg-muted/30 p-4">
+                <button
+                  onClick={() => openLeads("Leads alcançados", dedupeLogLeads(enviados))}
+                  className="rounded-xl bg-muted/30 p-4 text-left hover:bg-muted/50 hover:shadow-sm transition-all"
+                >
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
                     LEADS ALCANÇADOS
                   </p>
@@ -350,8 +364,11 @@ export function AiFollowupTab() {
                   <p className="text-[11px] text-muted-foreground/60 mt-1">
                     receberam ao menos 1 follow-up
                   </p>
-                </div>
-                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-4">
+                </button>
+                <button
+                  onClick={() => openLeads("Leads recuperados", dedupeLogLeads(recuperadosLogs))}
+                  className="rounded-xl bg-emerald-50 border border-emerald-100 p-4 text-left hover:bg-emerald-100/70 hover:shadow-sm transition-all"
+                >
                   <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600/60 mb-2">
                     LEADS RECUPERADOS
                   </p>
@@ -361,7 +378,7 @@ export function AiFollowupTab() {
                   <p className="text-[11px] text-emerald-600/60 mt-1">
                     responderam após o follow-up
                   </p>
-                </div>
+                </button>
                 <div className="rounded-xl bg-muted/30 p-4">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
                     TAXA DE RECUPERAÇÃO
@@ -375,7 +392,6 @@ export function AiFollowupTab() {
                 </div>
               </div>
 
-              {/* Distribuição por tentativa */}
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
                   RECUPERAÇÕES POR TENTATIVA
@@ -419,105 +435,8 @@ export function AiFollowupTab() {
         </div>
       </div>
 
-      {/* Manual follow-ups */}
-      {manualLeads && manualLeads.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/[0.02] shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="px-5 py-4 border-b border-amber-500/20 bg-amber-500/[0.04]">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-amber-500/10">
-                <UserCheck className="h-3.5 w-3.5 text-amber-600" />
-              </span>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700/80">
-                  FOLLOW-UPS MANUAIS
-                </p>
-                <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                  Leads ativados manualmente para follow-up com IA
-                </p>
-              </div>
-              <span className="ml-auto text-[11px] font-bold tabular-nums bg-amber-500/10 text-amber-700 rounded-lg px-2.5 py-1">
-                {manualLeads.length}
-              </span>
-            </div>
-          </div>
-          <div className="p-4 space-y-1.5">
-            {manualLeads.map((lead) => {
-              const tentativas = lead.followup_tentativas ?? 0;
-              const isPaused = lead.followup_pausado;
-              const nextStep = seqArray.find(
-                (s) => s.ordem === tentativas + 1 && s.ativo,
-              );
-
-              let referenciaStr = tentativas === 0 ? lead.ultimo_contato : lead.followup_ultima_tentativa;
-              if (!referenciaStr && lead.ultimo_contato) referenciaStr = lead.ultimo_contato;
-
-              let nextAt: Date | null = null;
-              let overdue = false;
-              if (nextStep && referenciaStr) {
-                nextAt = addMinutes(new Date(referenciaStr), nextStep.minutos);
-                overdue = isPast(nextAt);
-              }
-
-              let statusText = "";
-              let statusColor = "text-muted-foreground/60";
-              if (isPaused) {
-                statusText = "Tentativas esgotadas · aguardando resposta";
-                statusColor = "text-amber-500";
-              } else if (tentativas === 0 && nextAt && !overdue) {
-                statusText = `1ª tentativa ${formatDistanceToNow(nextAt, { addSuffix: true, locale: ptBR })} · ${format(nextAt, "HH:mm")}`;
-                statusColor = "text-blue-500";
-              } else if (tentativas === 0 && overdue) {
-                statusText = "1ª tentativa pendente · aguardando cron";
-                statusColor = "text-amber-500";
-              } else if (nextAt && !overdue) {
-                statusText = `Próxima (T${tentativas + 1}) ${formatDistanceToNow(nextAt, { addSuffix: true, locale: ptBR })} · ${format(nextAt, "HH:mm")}`;
-                statusColor = "text-blue-500";
-              } else if (overdue) {
-                statusText = `T${tentativas + 1} pendente · aguardando cron`;
-                statusColor = "text-amber-500";
-              } else if (!nextStep && !isPaused) {
-                statusText = "Ativado · aguardando processamento";
-                statusColor = "text-blue-500";
-              }
-
-              return (
-                <div
-                  key={lead.id}
-                  onClick={() => navigate(`/crm/leads/${lead.id}`)}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-semibold truncate">
-                      {lead.nome || lead.telefone || "—"}
-                    </p>
-                    <p className={`text-[10px] ${statusColor}`}>{statusText}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.max(seqArray.filter(s => s.ativo).length, 3) }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`w-2 h-2 rounded-full transition-colors ${
-                          i < tentativas
-                            ? "bg-amber-500"
-                            : isPaused && i < seqArray.filter(s => s.ativo).length
-                            ? "bg-amber-500/30"
-                            : "bg-border"
-                        }`}
-                      />
-                    ))}
-                    <span className="ml-1.5 text-[10px] font-mono text-muted-foreground tabular-nums">
-                      T{tentativas}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Active leads */}
-      {activeLeads && activeLeads.length > 0 && (
+      {/* Leads no ciclo */}
+      {(activeLeads.length > 0 || pausedLeads.length > 0) && (
         <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
             <div className="flex items-center gap-2">
@@ -526,70 +445,27 @@ export function AiFollowupTab() {
               </span>
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                  LEADS EM ACOMPANHAMENTO
+                  LEADS NO CICLO {meta.label.toUpperCase()}
                 </p>
                 <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                  Receberam follow-up e aguardam próxima tentativa
+                  Em acompanhamento e aguardando a próxima tentativa
                 </p>
               </div>
+              <span className="ml-auto text-[11px] font-bold tabular-nums bg-muted text-muted-foreground rounded-lg px-2.5 py-1">
+                {activeLeads.length + pausedLeads.length}
+              </span>
             </div>
           </div>
           <div className="p-4 space-y-1.5">
-            {activeLeads.map((lead) => (
-              <div
-                key={lead.id}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <p className="text-[12px] font-semibold truncate">
-                    {lead.nome || lead.telefone || "—"}
-                  </p>
-                  {lead.followup_ultima_tentativa && (() => {
-                    const nextStep = seqArray.find(
-                      (s) => s.ordem === (lead.followup_tentativas ?? 0) + 1 && s.ativo,
-                    );
-                    if (!nextStep) {
-                      return (
-                        <p className="text-[10px] text-muted-foreground/60">
-                          Última tentativa enviada · aguardando resposta
-                        </p>
-                      );
-                    }
-                    const nextAt = addMinutes(new Date(lead.followup_ultima_tentativa), nextStep.minutos);
-                    const overdue = isPast(nextAt);
-                    return (
-                      <p className={`text-[10px] ${overdue ? "text-amber-500" : "text-muted-foreground/60"}`}>
-                        {overdue
-                          ? "Próxima tentativa pendente · aguardando cron"
-                          : `Próxima tentativa ${formatDistanceToNow(nextAt, { addSuffix: true, locale: ptBR })} · ${format(nextAt, "HH:mm", { locale: ptBR })}`}
-                      </p>
-                    );
-                  })()}
-                </div>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={`w-2 h-2 rounded-full transition-colors ${
-                        i < (lead.followup_tentativas ?? 0)
-                          ? "bg-foreground"
-                          : "bg-border"
-                      }`}
-                    />
-                  ))}
-                  <span className="ml-1.5 text-[10px] font-mono text-muted-foreground tabular-nums">
-                    T{lead.followup_tentativas ?? 0}
-                  </span>
-                </div>
-              </div>
-            ))}
+            {activeLeads.map(renderLeadRow)}
+            {pausedLeads.map(renderLeadRow)}
           </div>
         </div>
       )}
 
-      {/* History */}
+      {/* Histórico */}
       <div
-        data-tutorial="ia-followup-history"
+        {...(historyTutorialTarget ? { "data-tutorial": "ia-followup-history" } : {})}
         className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden"
       >
         <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
@@ -599,29 +475,26 @@ export function AiFollowupTab() {
             </span>
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
-                HISTÓRICO DE FOLLOW-UPS
+                HISTÓRICO DE FOLLOW-UPS {meta.label.toUpperCase()}
               </p>
               <p className="text-[10px] text-muted-foreground/50 mt-0.5">
                 Filtre por período · atualiza a cada 30s
               </p>
             </div>
+            <span className="ml-auto text-[11px] text-muted-foreground/60 tabular-nums">
+              {logs.length} registro{logs.length !== 1 ? "s" : ""}
+            </span>
           </div>
         </div>
 
-        <div className="px-5 pt-4">
-          <span className="text-[11px] text-muted-foreground/60 tabular-nums">
-            {(logs ?? []).length} registro{(logs ?? []).length !== 1 ? "s" : ""} no período
-          </span>
-        </div>
-
         <div className="p-5">
-          {(logs ?? []).length === 0 ? (
+          {logs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <div className="p-3 rounded-xl bg-muted/40 mb-3">
                 <Bot className="h-6 w-6 text-muted-foreground/40" />
               </div>
               <p className="text-sm font-medium text-muted-foreground">
-                Nenhum follow-up no período selecionado
+                Nenhum follow-up {meta.label.toLowerCase()} no período
               </p>
               <p className="text-[11px] text-muted-foreground/50 mt-0.5">
                 Tente selecionar um intervalo de datas diferente
@@ -651,14 +524,10 @@ export function AiFollowupTab() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/30">
-                  {(logs ?? []).map((log) => {
+                  {logs.map((log) => {
                     const st = STATUS_CONFIG[log.status] ?? STATUS_CONFIG.erro;
                     const { Icon: StatusIcon } = st;
-                    const leadName =
-                      (log.leads as any)?.nome ||
-                      (log.leads as any)?.telefone ||
-                      "Lead";
-                    const isManual = (log.leads as any)?.followup_manual === true;
+                    const leadName = log.leads?.nome || log.leads?.telefone || "Lead";
                     const isExpanded = expandedRow === log.id;
                     const hasDetail =
                       (log.status === "enviado" && log.mensagem_enviada) ||
@@ -687,14 +556,7 @@ export function AiFollowupTab() {
                             )}
                           </td>
                           <td className="py-2.5 pr-3 font-semibold text-[12px]">
-                            <span className="flex items-center gap-1.5">
-                              {leadName}
-                              {isManual && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider border border-amber-200/60 bg-amber-50 text-amber-600">
-                                  Manual
-                                </span>
-                              )}
-                            </span>
+                            {leadName}
                           </td>
                           <td className="py-2.5 pr-3">
                             <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-muted text-[11px] font-bold tabular-nums">
@@ -770,60 +632,219 @@ export function AiFollowupTab() {
           )}
         </div>
       </div>
+
+    </div>
+  );
+}
+
+// ————————————————————————————————————————————————————————————————
+export function AiFollowupTab() {
+  const { profile } = useProfile();
+  const orgId = profile?.organization_id;
+  const [track, setTrack] = useState<FollowupTipo>("automatico");
+  const [autoView, setAutoView] = useState<"analise" | "config">("analise");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: startOfMonth(new Date()),
+    to: new Date(),
+  });
+
+  const { data: logs } = useQuery({
+    queryKey: ["followup-logs-full", orgId, dateRange],
+    queryFn: async () => {
+      if (!orgId) return [];
+      let query = supabase
+        .from("ia_followup_log")
+        .select("id, lead_id, tentativa, status, mensagem_enviada, motivo_ia, enviado_em, tipo, leads!lead_id(nome, telefone)")
+        .eq("organization_id", orgId)
+        .order("enviado_em", { ascending: false })
+        .limit(500);
+
+      if (dateRange?.from) {
+        query = query.gte("enviado_em", startOfDay(dateRange.from).toISOString());
+      }
+      if (dateRange?.to) {
+        query = query.lte("enviado_em", endOfDay(dateRange.to).toISOString());
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data || []) as unknown as FollowupLog[];
+    },
+    enabled: !!orgId,
+    refetchInterval: 30000,
+  });
+
+  // Leads no ciclo AUTOMÁTICO (IA ativa, sem follow manual, já com ao menos 1 tentativa)
+  const { data: autoLeads } = useQuery({
+    queryKey: ["followup-auto-leads", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as TrackLead[];
+      const { data } = await supabase
+        .from("leads")
+        .select("id, nome, telefone, followup_tentativas, followup_ultima_tentativa, followup_pausado, ultimo_contato")
+        .eq("organization_id", orgId)
+        .eq("ia_ativa", true)
+        .eq("followup_manual", false)
+        .gt("followup_tentativas", 0)
+        .order("followup_ultima_tentativa", { ascending: false })
+        .limit(100);
+      return (data || []) as TrackLead[];
+    },
+    enabled: !!orgId,
+    refetchInterval: 60000,
+  });
+
+  // Leads no ciclo MANUAL (followup_manual = true, qualquer tentativa)
+  const { data: manualLeads } = useQuery({
+    queryKey: ["followup-manual-leads", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as TrackLead[];
+      const { data } = await supabase
+        .from("leads")
+        .select("id, nome, telefone, followup_tentativas, followup_ultima_tentativa, followup_pausado, ultimo_contato")
+        .eq("organization_id", orgId)
+        .eq("followup_manual", true)
+        .order("atualizado_em", { ascending: false })
+        .limit(100);
+      return (data || []) as TrackLead[];
+    },
+    enabled: !!orgId,
+    refetchInterval: 30000,
+  });
+
+  const { data: followupConfig } = useQuery({
+    queryKey: ["followup-config-seq", orgId],
+    queryFn: async () => {
+      if (!orgId) return [] as SeqStep[];
+      const { data } = await supabase
+        .from("ia_followup_config")
+        .select("sequencia")
+        .eq("organization_id", orgId)
+        .maybeSingle();
+      const seq = data?.sequencia;
+      return (Array.isArray(seq) ? seq : []) as SeqStep[];
+    },
+    enabled: !!orgId,
+  });
+
+  const seqArray = Array.isArray(followupConfig) ? followupConfig : [];
+
+  const allLogs = logs ?? [];
+  const logsAuto = allLogs.filter((l) => l.tipo !== "manual");
+  const logsManual = allLogs.filter((l) => l.tipo === "manual");
+
+  const autoActive = (autoLeads ?? []).filter((l) => !l.followup_pausado);
+  const autoPaused = (autoLeads ?? []).filter((l) => l.followup_pausado);
+  const manualActive = (manualLeads ?? []).filter((l) => !l.followup_pausado);
+  const manualPaused = (manualLeads ?? []).filter((l) => l.followup_pausado);
+
+  const showDatePicker = !(track === "automatico" && autoView === "config");
+
+  return (
+    <div className="space-y-4">
+      {/* Abas principais: Automático | Manual — os dois fluxos são coisas distintas */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="inline-flex bg-muted/40 rounded-xl p-1 gap-0.5" data-tutorial="ia-followup-tabs">
+          {(Object.keys(TRACK_META) as FollowupTipo[]).map((key) => {
+            const m = TRACK_META[key];
+            const isActive = track === key;
+            return (
+              <button
+                key={key}
+                data-tutorial={`ia-followup-tab-${key}`}
+                onClick={() => setTrack(key)}
+                className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                  isActive
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <m.Icon className="h-3.5 w-3.5" />
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+        {showDatePicker && <DateRangePicker date={dateRange} setDate={setDateRange} />}
+      </div>
+
+      {/* Legenda do trilho ativo */}
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70">
+        <span className={`inline-block w-2 h-2 rounded-full ${TRACK_META[track].dot}`} />
+        {TRACK_META[track].descricao}
+      </div>
+
+      {/* ————— AUTOMÁTICO ————— */}
+      {track === "automatico" && (
+        <div className="space-y-4">
+          {/* Sub-abas do automático: Análise | Configuração (config é SÓ do automático) */}
+          <div className="inline-flex bg-muted/40 rounded-xl p-1 gap-0.5">
+            {(
+              [
+                { key: "analise", label: "Análise", tutorialKey: "ia-followup-tab-analise" },
+                { key: "config", label: "Configuração", tutorialKey: "ia-followup-tab-config" },
+              ] as const
+            ).map(({ key, label, tutorialKey }) => (
+              <button
+                key={key}
+                data-tutorial={tutorialKey}
+                onClick={() => setAutoView(key)}
+                className={`px-4 py-1.5 rounded-lg text-[12px] font-semibold transition-all ${
+                  autoView === key
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {autoView === "config" ? (
+            <div className="space-y-2">
+              <p className="text-[11px] text-muted-foreground/60">
+                Estas regras valem para o follow-up <span className="font-semibold text-foreground">automático</span> — o que a IA dispara sozinha durante o atendimento. O follow manual não usa esta configuração.
+              </p>
+              <AiFollowupConfig />
+            </div>
+          ) : (
+            <TrackPanel
+              variant="automatico"
+              logs={logsAuto}
+              activeLeads={autoActive}
+              pausedLeads={autoPaused}
+              seqArray={seqArray}
+              historyTutorialTarget
+            />
+          )}
         </div>
       )}
 
-      {/* Dialog de leads por card */}
-      {(() => {
-        const cardLeads: { id: string; nome: string | null; telefone: string | null }[] = (() => {
-          if (openCard === "Enviados no período") {
-            const seen = new Set<string>();
-            return enviados
-              .filter((l) => { if (seen.has(l.lead_id)) return false; seen.add(l.lead_id); return true; })
-              .map((l) => ({ id: l.lead_id, nome: (l.leads as any)?.nome ?? null, telefone: (l.leads as any)?.telefone ?? null }));
-          }
-          if (openCard === "Em acompanhamento") return activeLeads ?? [];
-          if (openCard === "IA ignorou") {
-            const seen = new Set<string>();
-            return ignorados
-              .filter((l) => { if (seen.has(l.lead_id)) return false; seen.add(l.lead_id); return true; })
-              .map((l) => ({ id: l.lead_id, nome: (l.leads as any)?.nome ?? null, telefone: (l.leads as any)?.telefone ?? null }));
-          }
-          if (openCard === "Esgotaram tentativas") return pausedLeads ?? [];
-          return [];
-        })();
+      {/* ————— MANUAL ————— */}
+      {track === "manual" && (
+        <div className="space-y-6">
+          {/* Leads sem retorno — porta de entrada do follow MANUAL */}
+          <div className="space-y-3" data-tutorial="athos-followup-gap">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                Leads sem retorno
+              </p>
+              <p className="text-[11px] text-muted-foreground/50 mt-0.5">
+                Quem esfriou agora — ative o reengajamento manual na hora com o botão "Follow IA"
+              </p>
+            </div>
+            <FollowupGapWidget dateRange={dateRange} />
+          </div>
 
-        return (
-          <Dialog open={!!openCard} onOpenChange={(o) => !o && setOpenCard(null)}>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="text-sm font-bold">{openCard}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
-                {cardLeads.length === 0 ? (
-                  <p className="text-[12px] text-muted-foreground text-center py-6">Nenhum lead neste grupo</p>
-                ) : (
-                  cardLeads.map((lead) => (
-                    <button
-                      key={lead.id}
-                      onClick={() => { setOpenCard(null); navigate(`/crm/leads/${lead.id}`); }}
-                      className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors text-left group"
-                    >
-                      <div>
-                        <p className="text-[12px] font-semibold">{lead.nome || lead.telefone || "—"}</p>
-                        {lead.nome && lead.telefone && (
-                          <p className="text-[10px] text-muted-foreground/60">{lead.telefone}</p>
-                        )}
-                      </div>
-                      <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground transition-colors shrink-0" />
-                    </button>
-                  ))
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
-        );
-      })()}
+          <TrackPanel
+            variant="manual"
+            logs={logsManual}
+            activeLeads={manualActive}
+            pausedLeads={manualPaused}
+            seqArray={seqArray}
+          />
+        </div>
+      )}
     </div>
   );
 }

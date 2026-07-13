@@ -13,18 +13,17 @@ import { Header } from "@/components/layout/Header";
 import { useWhatsAppMonitor } from "@/hooks/useWhatsAppMonitor";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
+import { AppChromeProvider, useAppChrome } from "@/contexts/AppChromeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PlataformaGuard } from "@/components/PlataformaGuard";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Settings from "./pages/Settings";
-import AiSettings from "./pages/AiSettings";
 import NotFound from "./pages/NotFound";
 import Conversations from "./pages/Conversas";
 import Notifications from "./pages/Notifications";
 import Vendas from "./pages/Vendas";
 import { Navigate } from "react-router-dom";
-import QuickMessagesPage from "./pages/QuickMessagesPage";
 import Cadences from "./pages/Cadences";
 import MarketingTrafego from "./pages/MarketingTrafego";
 import Agendamentos from "./pages/Agendamentos";
@@ -42,9 +41,13 @@ import { TutorialSpotlight } from "./components/tutorial/TutorialSpotlight";
 import { TutorialHelpCenter } from "./components/tutorial/TutorialHelpCenter";
 import { OnboardingModal } from "./components/onboarding/OnboardingModal";
 import { MemberWelcomeModal } from "./components/onboarding/MemberWelcomeModal";
+import { NpsSurveyPopup } from "./components/nps/NpsSurveyPopup";
 import { OnboardingPlataformaChecklist } from "./components/plataforma/OnboardingPlataformaChecklist";
 import OnboardingPlataformaModal from "./components/plataforma/OnboardingPlataformaModal";
 import CrmOnboarding from "./pages/CrmOnboarding";
+import Atualizacoes from "./pages/Atualizacoes";
+import { AtualizacoesPopup } from "./components/atualizacoes/AtualizacoesPopup";
+import AdminAtualizacoes from "./pages/admin-os/pages/AdminAtualizacoes";
 
 // Outbound pages
 import OutboundPainel from "./pages/outbound/OutboundPainel";
@@ -64,17 +67,16 @@ import AdminLayout from "./pages/admin-os/AdminLayout";
 import AdminDashboard from "./pages/admin-os/pages/AdminDashboard";
 import AdminClientes from "./pages/admin-os/pages/AdminClientes";
 import AdminClientePerfil from "./pages/admin-os/pages/AdminClientePerfil";
-import AdminTrilha from "./pages/admin-os/pages/AdminTrilha";
-import AdminTrilhaWrapper from "./pages/admin-os/AdminTrilhaWrapper";
-import AdminArsenal from "./pages/admin-os/pages/AdminArsenal";
-import AdminJornadas from "./pages/admin-os/pages/AdminJornadas";
-import AdminJornadaEditor from "./pages/admin-os/pages/AdminJornadaEditor";
 import AdminIAs from "./pages/admin-os/pages/AdminIAs";
 import AdminSessoes from "./pages/admin-os/pages/AdminSessoes";
 import AdminSistema from "./pages/admin-os/pages/AdminSistema";
 import AdminSuporte from "./pages/admin-os/pages/AdminSuporte";
 import AdminProdutos from "./pages/admin-os/pages/AdminProdutos";
 import AdminAthos from "./pages/admin-os/pages/AdminAthos";
+import AdminCS from "./pages/admin-os/pages/AdminCS";
+import AdminCSCliente from "./pages/admin-os/pages/AdminCSCliente";
+import AdminCSJornada from "./pages/admin-os/pages/AdminCSJornada";
+import AdminCSJornadaEditor from "./pages/admin-os/pages/AdminCSJornadaEditor";
 import AdminAcessoCliente from "./pages/admin-os/pages/AdminAcessoCliente";
 import { AcessoGuard } from "./components/AcessoGuard";
 import { OnboardingGuard } from "./components/plataforma/OnboardingGuard";
@@ -92,26 +94,26 @@ import { MASTER_ORG_ID } from "./lib/constants";
 
 // Componentes da Plataforma
 import Hub from "./pages/plataforma/Hub";
-import Trilha from "./pages/plataforma/Trilha";
 import Arsenal from "./pages/plataforma/Arsenal";
 import Jornada from "./pages/plataforma/Jornada";
-import ArsenalCategoria from "./pages/plataforma/ArsenalCategoria";
-import ArsenalFerramenta from "./pages/plataforma/ArsenalFerramenta";
+import JornadaEstagio from "./pages/plataforma/JornadaEstagio";
 import ArsenalAula from "./pages/plataforma/ArsenalAula";
 import DescompliqueiOS from "./pages/plataforma/DescompliqueiOS";
-import Modulo from "./pages/plataforma/Modulo";
-import Pilar from "./pages/plataforma/Pilar";
 import IAHub from "./pages/plataforma/IAHub";
 import IATipo from "./pages/plataforma/IATipo";
+import AthosConsole from "./pages/plataforma/AthosConsole";
+import AthosAgentPage from "./pages/plataforma/AthosAgentPage";
+import AthosMateriais from "./pages/plataforma/AthosMateriais";
+import Notas from "./pages/plataforma/Notas";
 import SessoesTaticas from "./pages/plataforma/SessoesTaticas";
 import Onboarding from "./pages/plataforma/Onboarding";
 import OnboardingAthos from "./pages/plataforma/OnboardingAthos";
-import Materiais from "./pages/plataforma/Materiais";
-import MateriaisEditor from "./pages/plataforma/MateriaisEditor";
-import Configuracoes from "./pages/plataforma/Configuracoes";
 import Evolucao from "./pages/plataforma/Evolucao";
 import PlataformaLogin from "./pages/plataforma/PlataformaLogin";
+import ClubeOne from "./pages/plataforma/ClubeOne";
+import AdminClubeOne from "./pages/admin-os/pages/AdminClubeOne";
 import { PlataformaProvider } from "@/contexts/PlataformaContext";
+import { AthosOSProvider } from "@/contexts/AthosOSContext";
 
 /**
  * Intercepta erros de autenticação vindos no hash da URL (ex: magic link expirado).
@@ -192,12 +194,19 @@ function RootRedirect() {
   return <Navigate to={getRedirectDestino(acesso)} replace />;
 }
 
-const AppLayout = ({ children }: { children: React.ReactNode }) => {
+const AppLayout = ({ children }: { children: React.ReactNode }) => (
+  <AppChromeProvider>
+    <AppLayoutInner>{children}</AppLayoutInner>
+  </AppChromeProvider>
+);
+
+const AppLayoutInner = ({ children }: { children: React.ReactNode }) => {
+  const { chromeHidden } = useAppChrome();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useLocalStorage('sidebar-collapsed', false);
   const { modal, closeModal } = useDashboardLeadsModal();
   const location = useLocation();
-  const isConversationsPage = location.pathname.startsWith('/crm/conversas') || location.pathname.startsWith('/outbound/conversas') || location.pathname.startsWith('/plataforma/athos-gs');
+  const isConversationsPage = location.pathname.startsWith('/crm/conversas') || location.pathname.startsWith('/outbound/conversas') || location.pathname.startsWith('/plataforma/athos-gs') || location.pathname.startsWith('/crm/notas');
   const isPlataformaRoute = location.pathname.startsWith('/plataforma');
 
   // Usar hook para verificar se é superadmin
@@ -248,12 +257,12 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden flex flex-col">
-      {isPlataformaRoute && diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 7 && (
+      {!chromeHidden && isPlataformaRoute && diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 7 && (
         <div className="bg-[#E85D24] text-white text-xs sm:text-sm font-medium py-2 px-4 text-center z-[60] relative">
           <strong>Seu acesso expira em {diasRestantes === 0 ? 'hoje' : `${diasRestantes} dia${diasRestantes === 1 ? '' : 's'}`}.</strong> Entre em contato para renovar.
         </div>
       )}
-      {waDisconnected && (
+      {!chromeHidden && waDisconnected && (
         <div className="bg-red-600 text-white text-xs sm:text-sm font-medium py-2.5 px-4 text-center z-[60] relative flex items-center justify-center gap-3">
           <span className="h-2 w-2 rounded-full bg-white/70 animate-pulse shrink-0" />
           <span><strong>WhatsApp desconectado.</strong> Sua conexão com o WhatsApp caiu e as mensagens não estão sendo recebidas.</span>
@@ -265,30 +274,35 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           </a>
         </div>
       )}
-      <div className="hidden lg:block relative">
-        <Sidebar 
-          isCollapsed={isSidebarCollapsed} 
-          toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-        />
-      </div>
-      
+      {!chromeHidden && (
+        <div className="hidden lg:block relative">
+          <Sidebar
+            isCollapsed={isSidebarCollapsed}
+            toggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          />
+        </div>
+      )}
+
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
         <SheetContent side="left" className="p-0 w-[280px] bg-sidebar border-r-0">
           <SidebarContent />
         </SheetContent>
       </Sheet>
 
-      <Header 
-        onMenuClick={() => setMobileMenuOpen(true)} 
-        isSidebarCollapsed={isSidebarCollapsed}
-      />
+      {!chromeHidden && (
+        <Header
+          onMenuClick={() => setMobileMenuOpen(true)}
+          isSidebarCollapsed={isSidebarCollapsed}
+        />
+      )}
       <main className={cn(
-        "pt-16 transition-all duration-300 flex-1 flex flex-col",
-        isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'
+        "flex-1 flex flex-col",
+        !chromeHidden && "pt-16 transition-all duration-300",
+        !chromeHidden && (isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64')
       )}>
         <div className={cn(
           "w-full max-w-full overflow-x-hidden flex-1",
-          !isConversationsPage && "p-4 sm:p-6"
+          !isConversationsPage && !chromeHidden && "p-4 sm:p-6"
         )}>
           {children}
         </div>
@@ -301,6 +315,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           onClose={closeModal}
           title={modal.title}
           leads={modal.leads}
+          context={modal.context}
         />
       )}
     </div>
@@ -326,8 +341,11 @@ const App = () => (
               <TutorialHelpCenter />
               <OnboardingModal />
               <MemberWelcomeModal />
+              <NpsSurveyPopup />
               <OnboardingPlataformaModal />
               <OnboardingPlataformaChecklist />
+              <AtualizacoesPopup />
+              <AthosOSProvider>
               <Routes>
             {/* CRM — AppLayout persiste, CrmGuard só controla o conteúdo */}
             <Route path="/crm/login" element={<Navigate to="/login" replace />} />
@@ -337,10 +355,15 @@ const App = () => (
                 <Route path="/crm" element={<Dashboard />} />
                 <Route path="/crm/leads" element={<Leads />} />
                 <Route path="/crm/agendamentos" element={<Agendamentos />} />
-                <Route path="/crm/quick-messages" element={<QuickMessagesPage />} />
                 <Route path="/crm/cadences" element={<Cadences />} />
-                <Route path="/crm/ia" element={<AiSettings />} />
-                <Route path="/crm/settings" element={<Settings />} />
+                <Route path="/crm/ia" element={<Navigate to="/crm/athos/recepcao" replace />} />
+                <Route path="/crm/athos" element={<AthosConsole />} />
+                <Route path="/crm/athos/:agentId" element={<AthosAgentPage />} />
+                <Route path="/crm/notas" element={<Notas />} />
+                {/* Página antiga, ainda viva: guarda o Diagnóstico Estratégico do onboarding
+                    e o espelho das construções do Arsenal (meus_materiais) — não migrados
+                    para "paginas" nesta fase. Fora da sidebar, mas continua acessível. */}
+                <Route path="/crm/materiais" element={<AthosMateriais />} />
                 <Route path="/crm/conversas" element={<Conversations />} />
                 <Route path="/crm/conversas/:leadId" element={<Conversations />} />
                 <Route path="/crm/notificacoes" element={<Notifications />} />
@@ -357,6 +380,12 @@ const App = () => (
                 <Route path="/crm/criativos/:pastaId" element={<CriativosPasta />} />
                 <Route path="/crm/canvas" element={<Canvas />} />
                 <Route path="/crm/super-admin-crm" element={<SuperAdmin />} />
+              </Route>
+
+              {/* Configurações — sempre acessível, independente de produto/entitlement (perfil, senha, plano) */}
+              <Route element={<ProtectedRoute />}>
+                <Route path="/crm/settings" element={<Settings />} />
+                <Route path="/crm/atualizacoes" element={<Atualizacoes />} />
               </Route>
 
               {/* Outbound — Prospecção Ativa (Descompliquei) */}
@@ -380,9 +409,9 @@ const App = () => (
             {/* Legados CRM */}
             <Route path="/login" element={<PlataformaLogin />} />
             <Route path="/leads" element={<Navigate to="/crm/leads" replace />} />
-            <Route path="/quick-messages" element={<Navigate to="/crm/quick-messages" replace />} />
+            <Route path="/quick-messages" element={<Navigate to="/crm" replace />} />
             <Route path="/cadences" element={<Navigate to="/crm/cadences" replace />} />
-            <Route path="/ia" element={<Navigate to="/crm/ia" replace />} />
+            <Route path="/ia" element={<Navigate to="/crm/athos/recepcao" replace />} />
             <Route path="/settings" element={<Navigate to="/crm/settings" replace />} />
             <Route path="/conversas" element={<Navigate to="/crm/conversas" replace />} />
             <Route path="/conversas/:leadId" element={<RedirectParam to="/crm/conversas/:leadId" />} />
@@ -396,18 +425,18 @@ const App = () => (
                 <Route path="/admin/athos" element={<AdminAthos />} />
                 <Route path="/admin/clientes" element={<AdminClientes />} />
                 <Route path="/admin/clientes/:id" element={<AdminClientePerfil />} />
-                <Route path="/admin/trilha" element={<AdminTrilhaWrapper />} />
-                <Route path="/admin/trilha/pilar/:pillarId" element={<AdminTrilhaWrapper />} />
-                <Route path="/admin/trilha/modulo/:moduleId" element={<AdminTrilhaWrapper />} />
-                <Route path="/admin/arsenal" element={<AdminArsenal />} />
-                <Route path="/admin/jornadas" element={<AdminJornadas />} />
-                <Route path="/admin/jornadas/:id" element={<AdminJornadaEditor />} />
+                <Route path="/admin/cs" element={<AdminCS />} />
+                <Route path="/admin/cs/cliente/:clientId" element={<AdminCSCliente />} />
+                <Route path="/admin/cs/cliente/:clientId/jornada" element={<AdminCSJornada />} />
+                <Route path="/admin/cs/jornada/:jornadaId/editar" element={<AdminCSJornadaEditor />} />
                 <Route path="/admin/ias" element={<AdminIAs />} />
                 <Route path="/admin/sessoes" element={<AdminSessoes />} />
                 <Route path="/admin/sistema" element={<AdminSistema />} />
                 <Route path="/admin/suporte" element={<AdminSuporte />} />
                 <Route path="/admin/acessos/:orgId" element={<AdminAcessoCliente />} />
                 <Route path="/admin/produtos" element={<AdminProdutos />} />
+                <Route path="/admin/atualizacoes" element={<AdminAtualizacoes />} />
+                <Route path="/admin/clube-one" element={<AdminClubeOne />} />
               </Route>
             </Route>
             {/* Plataforma — AppLayout persiste, PlataformaGuard só controla o conteúdo */}
@@ -422,32 +451,26 @@ const App = () => (
                 {/* Rotas protegidas — redirecionam para /onboarding se não concluído */}
                 <Route element={<OnboardingGuard />}>
                   <Route path="/plataforma" element={<Hub />} />
-                  <Route path="/plataforma/trilha" element={<AcessoGuard arrayKey="pilares_liberados"><Trilha /></AcessoGuard>} />
-                  <Route path="/plataforma/trilha/pilar/:pilarId" element={<AcessoGuard arrayKey="pilares_liberados"><Pilar /></AcessoGuard>} />
-                  <Route path="/plataforma/trilha/:moduloId" element={<AcessoGuard arrayKey="pilares_liberados"><Modulo /></AcessoGuard>} />
                   <Route path="/plataforma/jornada" element={<Jornada />} />
+                  <Route path="/plataforma/jornada/estagio/:estagioId" element={<JornadaEstagio />} />
                   <Route path="/plataforma/arsenal" element={<Arsenal />} />
                   <Route path="/plataforma/arsenal/aulas/:aulaSlug" element={<ArsenalAula />} />
-                  <Route path="/plataforma/arsenal/:slug" element={<ArsenalCategoria />} />
-                  <Route path="/plataforma/arsenal/:slug/:ferrSlug" element={<ArsenalFerramenta />} />
                   <Route path="/plataforma/sessoes-taticas" element={<AcessoGuard accessKey="acesso_sessoes_taticas"><SessoesTaticas /></AcessoGuard>} />
-                  <Route path="/plataforma/materiais" element={<AcessoGuard accessKey="acesso_materiais"><Materiais /></AcessoGuard>} />
-                  <Route path="/plataforma/materiais/:id" element={<AcessoGuard accessKey="acesso_materiais"><MateriaisEditor /></AcessoGuard>} />
-                  <Route path="/plataforma/configuracoes" element={<Configuracoes />} />
+                  <Route path="/plataforma/materiais" element={<Navigate to="/crm/materiais" replace />} />
+                  <Route path="/plataforma/configuracoes" element={<Navigate to="/crm/settings" replace />} />
+                  <Route path="/plataforma/clube-one" element={<ClubeOne />} />
                 </Route>
               </Route>
             </Route>
             {/* Legados Plataforma */}
             <Route path="/onboarding" element={<Navigate to="/plataforma/onboarding" replace />} />
-            <Route path="/trilha" element={<Navigate to="/plataforma/trilha" replace />} />
-            <Route path="/trilha/pilar/:pilarId" element={<RedirectParam to="/plataforma/trilha/pilar/:pilarId" />} />
-            <Route path="/trilha/:moduloId" element={<RedirectParam to="/plataforma/trilha/:moduloId" />} />
             <Route path="/sessoes-taticas" element={<Navigate to="/plataforma/sessoes-taticas" replace />} />
-            <Route path="/materiais" element={<Navigate to="/plataforma/materiais" replace />} />
-            <Route path="/configuracoes" element={<Navigate to="/plataforma/configuracoes" replace />} />
+            <Route path="/materiais" element={<Navigate to="/crm/materiais" replace />} />
+            <Route path="/configuracoes" element={<Navigate to="/crm/settings" replace />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+              </AthosOSProvider>
               </TutorialProvider>
               </DashboardLeadsModalProvider>
             </PlataformaProvider>

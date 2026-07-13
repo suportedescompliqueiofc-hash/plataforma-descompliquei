@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, Calendar,
   ShieldCheck, ChevronRight, Menu, X, Package, MonitorSmartphone,
   MessageSquare, LogOut, Settings, Swords, Route, Sparkles, LifeBuoy,
-  Bell, ExternalLink, Clock,
+  Bell, ExternalLink, Clock, Trophy, HeartHandshake, Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -18,12 +18,14 @@ import { ptBR } from 'date-fns/locale';
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard',        path: '/admin',          exact: true, badgeType: 'none' },
   { icon: Sparkles,        label: 'Athos Admin',      path: '/admin/athos',    badgeType: 'none' },
-  { icon: Users,           label: 'Clientes',         path: '/admin/clientes', badgeType: 'inactive_clients' },
-  { icon: Swords,          label: 'Arsenal Comercial',path: '/admin/arsenal',  badgeType: 'none' },
-  { icon: Route,           label: 'Jornadas',         path: '/admin/jornadas', badgeType: 'none' },
+  { icon: Users,           label: 'Clientes',          path: '/admin/clientes',  badgeType: 'inactive_clients' },
+  { icon: HeartHandshake,  label: 'Customer Success',  path: '/admin/cs',        badgeType: 'none' },
+  { icon: Swords,          label: 'Arsenal Comercial', path: '/admin/arsenal',   badgeType: 'none' },
   { icon: Calendar,        label: 'Sessões Táticas',  path: '/admin/sessoes',  badgeType: 'none' },
-  { icon: Package,         label: 'Produtos',         path: '/admin/produtos', badgeType: 'none' },
-  { icon: Settings,        label: 'Sistema & Config', path: '/admin/sistema',  badgeType: 'none' },
+  { icon: Package,         label: 'Produtos',         path: '/admin/produtos',    badgeType: 'none' },
+  { icon: Megaphone,       label: 'Atualizações',     path: '/admin/atualizacoes', badgeType: 'none' },
+  { icon: Trophy,          label: 'Clube One',        path: '/admin/clube-one',   badgeType: 'none' },
+  { icon: Settings,        label: 'Sistema & Config', path: '/admin/sistema',     badgeType: 'none' },
   { icon: LifeBuoy,        label: 'Suporte',          path: '/admin/suporte',  badgeType: 'none' },
 ];
 

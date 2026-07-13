@@ -1,0 +1,730 @@
+{
+  "clinicName": "Instituto Morgado",
+  "responsibleName": "Dra Lara Morgado",
+  "email": "dralaramorgado@gmail.com",
+  "phone": "(21) 96774-2278",
+  "website": "",
+  "instagram": "@dralaramorgado",
+  "fullAddress": "Rua Dr Borman,43 sl 908. Centro de Niteroi \nCEP:24020-320",
+  "city": "Rio de Janeiro ",
+  "state": "RJ",
+  "marketTime": "3-5",
+  "mission": "Ajudar mulheres e homens a se reconhecerem com mais presença, segurança e coerência com a própria imagem, sem perder a naturalidade.",
+  "vision": "Ser reconhecida como referência em harmonização facial avançada, destacando-se pela naturalidade dos resultados, excelência técnica e pela capacidade de traduzir a individualidade de cada paciente em uma imagem mais segura, harmônica e autêntica. Com foco em perfiloplastia e estética regenerativa. ",
+  "values": [
+    "Ética, transparência, confiança, acolhimento, empatia, segurança."
+  ],
+  "differentials": "Ambiente acolhedor com muita experiência para os pacientes; \nA consulta se torna um bate papo onde alinho realidade x expectava com meus pacientes de maneira muita esclarecedora e confortável;\nCheiro, iluminação, organização, mimos. Tudo pensado para melhor receber e atender os pacientes. \n",
+  "targetAudience": [
+    "women-30-40",
+    "women-20-30",
+    "women-40-50"
+  ],
+  "detailedDescription": "A clínica oferece um ambiente moderno, acolhedor e cuidadosamente planejado para proporcionar conforto, segurança e uma experiência diferenciada em cada atendimento.\nCom foco na individualidade de cada paciente, onde realizo uma consulta com protocolo detalhado e um planejamento personalizado, priorizando resultados naturais e harmônicos. \nMais do que procedimentos estéticos, entrego cuidado, estratégia e confiança em cada etapa da experiência.",
+  "professionals": [
+    {
+      "id": "mzg8lk1pr",
+      "bio": "Sou Cirurgiã-dentista, especialista em Endodontia e HOF. Tenho atuação dedicada à Harmonização Facial há quase quatro anos. Também atuo como professora de HOF em plataforma online. ",
+      "name": "Dra Lara Morgado ",
+      "photo": "",
+      "education": "Odontologia- Universidade Universo em Niteroi.",
+      "specialty": "Especialista em HOF e residente em Buco",
+      "experience": 0,
+      "socialMedia": "@dralaramorgado",
+      "certifications": "Especialista em Endodontia; \nAtualização em HOF;\nEspecialista em HOF; \nResidente em Bucomaxilofacial; \n\n"
+    }
+  ],
+  "procedures": [
+    {
+      "id": "78nv5fc8o",
+      "name": "Protocolo de rejuvenescimento",
+      "benefits": "• Efeito lifting imediato e progressivo\n• Pele mais firme, densa e com melhor qualidade\n• Contorno facial mais definido\n• Estímulo natural de colágeno a longo prazo\n• Rejuvenescimento sem aspecto artificial\n• Melhora da flacidez de face e pescoço\n• Resultado duradouro e elegante",
+      "category": "bioestimuladores",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "Um tratamento completo que combina bioestimuladores de colágeno que da qualidade a pele, associado ao ácido hialurônico com pontos estratégicos de sustentação para um efeito lifting imediato. E um blend de substancias que ajudam a acelerar o processo de bioestímulo de colágeno. ",
+      "indications": "Pacientes que queiram previnir ou tratar flacidez de face e pescoço. ",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Oi, tudo bem? Seja bem-vinda(o)! Vi que se interessou pelo nosso protocolo de rejuvenescimento.  Ele é realmente um dos tratamentos mais completos que temos aqui na clínica.\n\nMe conta, hoje o que mais te incomoda: flacidez, perda de contorno ou qualidade da pele?\n\nPerfeito, entendi. Esse protocolo é exatamente indicado para isso, porque ele combina bioestimuladores de colágeno com pontos estratégicos de sustentação. Ou seja, a gente consegue não só melhorar a firmeza da pele, mas também reposicionar estruturas do rosto, trazendo um efeito de lifting de forma natural e elegante, sem exageros.\nE o mais importante: não é um tratamento padrão. A Dra. faz uma avaliação completa e monta um plano totalmente personalizado, respeitando o seu rosto e o resultado que você busca.\nPara te indicar exatamente o que você precisa e já estruturar seu protocolo, o ideal é a consulta com a Dra.\nTenho horário disponível em [dia/horário]. Você prefere manhã ou tarde?",
+      "contraindications": "",
+      "specificQuestions": [
+        "“Hoje, se tivesse algo para mudar  no seu rosto, Oque seria? ”",
+        "“Você sente mais flacidez, perda de contorno ou mudança na qualidade da pele?”",
+        "“Você já realizou algum procedimento estético antes? Qual?”",
+        "“Você prefere resultados imediatos, progressivos ou uma combinação dos dois?” (prepara terreno para bioestímulo + sustentação)",
+        "“Tem algum evento ou prazo importante?” (urgência = gatilho de decisão)",
+        "“Hoje, o que te faria dizer ‘é isso que eu queria’ após o tratamento?” (define objetivo emocional, ajuda muito na conversão)"
+      ],
+      "specificObjections": [
+        {
+          "id": "71besw05r",
+          "response": "“Essa é uma preocupação super comum e faz todo sentido.\nSobre o inchaço: pode existir um leve edema nos primeiros dias, porque é um procedimento injetável, mas é algo temporário e esperado, que regride rapidamente.\nAgora, sobre ficar artificial: o nosso protocolo é justamente o oposto disso. A proposta é estimular o seu próprio colágeno e reposicionar estruturas de forma estratégica, respeitando totalmente a sua anatomia.\n\nOu seja, você não vai ficar com um rosto diferente. Vai parecer mais descansada, mais firme, mais bem cuidada… mas ainda sendo você.\nInclusive, esse é um dos principais diferenciais da Dra.: resultados naturais, elegantes e sem exageros.”",
+          "objection": "“Vou ficar artificial ou com o rosto inchado?”"
+        },
+        {
+          "id": "sepvh9axx",
+          "response": "Isso é algo que a gente sempre alinha com muita transparência.\nA recuperação costuma ser bem tranquila. Como é um procedimento injetável, pode acontecer um leve inchaço e, em alguns casos, pequenos roxinhos,  principalmente em áreas mais sensíveis. Mas isso é temporário e faz parte do processo.\n\nGeralmente, o inchaço inicial já melhora nos primeiros dias, e qualquer roxinho, se aparecer, tende a regredir ao longo de poucos dias também.\nA maioria dos pacientes consegue seguir a rotina normalmente, com alguns cuidados simples que a Dra. orienta após o procedimento.\nE claro, tudo é feito com técnica e cuidado justamente para minimizar ao máximo esses efeitos.”",
+          "objection": " “Como é a recuperação? Vou ficar roxa(o) ou inchada(o) por muito tempo?\""
+        },
+        {
+          "id": "863cc0jzh",
+          "response": "“Excelente pergunta! E é importante entender isso.\n\nEsse protocolo não é algo que você precisa fazer o tempo todo. Ele promove um estímulo de colágeno e uma reestruturação que traz resultados duradouros.\nDe forma geral, o efeito pode durar em média de 12 a 24 meses, dependendo do seu organismo, estilo de vida e do plano definido para você.\nO que a gente costuma orientar não é ‘refazer sempre’, e sim fazer manutenções estratégicas, mais espaçadas, para preservar o resultado ao longo do tempo.\nOu seja, você não fica dependente do procedimento.  você mantém o resultado de forma inteligente.\nE tudo isso é ajustado de forma personalizada na sua consulta, respeitando o seu ritmo e o que você busca.”",
+          "objection": "“Quanto tempo dura? Vou precisar fazer sempre?\" "
+        },
+        {
+          "id": "lt2rgdg7a",
+          "response": "“Eu entendo e isso realmente acontece em alguns casos.\nO bioestimulador, sozinho, feito sem estratégia ou de forma isolada, a pessoa pode ter a sensação de que ‘não mudou tanto’.\nAqui, o diferencial é justamente o protocolo.\nNós associamos o bioestimulador aos pontos de sustentação, que já promovem um reposicionamento das estruturas e melhora de contorno, e também utilizamos ativos complementares como nutrientes, antioxidantes e vitaminas, que potencializam e aceleram o estímulo de colágeno.\nOu seja, a gente não está tratando só a pele de forma passiva.\nA gente cria um ambiente biológico mais favorável para que o seu organismo produza colágeno com mais eficiência e qualidade.",
+          "objection": "“Já vi gente falando que não da  tanta diferença… \""
+        }
+      ]
+    },
+    {
+      "id": "4imx8otly",
+      "name": "Perfil perfeito ",
+      "benefits": "Um procedimento com resultado imediato, sem dor e sem cirurgia e que é realizado em minutos. ",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O Protocolo Perfil Perfeito é um planejamento completo de perfiloplastia, pensado para harmonizar pontos estratégicos como queixo, lábios e nariz, criando um perfil mais equilibrado, elegante e fotogênico de todos os ângulos.",
+      "indications": "Para quem busca uma harmonia facial linda. Para quem quer tirar foto de perfil, sem filtro. ",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "“Oi, tudo bem? Vi que você se interessou pelo nosso Protocolo Perfil Perfeito. Ele é focado em harmonizar nariz, lábios e queixo de forma natural e estratégica.\nMe conta: Você acha que seu perfil tem pontos de melhoria ou gostaria de evidencia-lo?\n\nPerfeito. Muitas vezes é o desequilíbrio entre essas estruturas que causa essa percepção, e é exatamente isso que a gente corrige. Com pequenos ajustes, já conseguimos um perfil mais alinhado, definido e elegante e sem exageros.\n\nO procedimento é minimamente invasivo, com recuperação tranquila e resultado que já melhora o contorno imediatamente, refinando nos dias seguintes.\n\nPara te indicar exatamente o que faz sentido no seu caso, o ideal é a consulta com a Dra.\nTenho horário em [dia/horário]. Prefere manhã ou tarde?\n\nPosso deixar pré-reservado para você, porque a agenda costuma preencher rápido.”",
+      "contraindications": "",
+      "specificQuestions": [
+        "“Quando você se olha de lado, o que mais chama sua atenção: nariz, lábios ou queixo?”",
+        "“Você sente que seu queixo é mais retraído e por isso te gera uma papada que talvez você nem tenha na verdade?”",
+        "“Você já evitou fotos de perfil ou ângulos de lado?” ",
+        "“Você já fez algum procedimento nessas regiões (nariz, lábios ou queixo)?” Como foi sua experiência com esses procedimentos?”",
+        "“Se você pudesse melhorar seu perfil em 40 minutos e deixá-lo mais harmônico ao ponto de você tirar fotos de todos os ângulos, isso te deixaria feliz?”"
+      ],
+      "specificObjections": [
+        {
+          "id": "5exr87fgo",
+          "response": "“Perfeito — esse também é o nosso posicionamento. O protocolo é totalmente estratégico e personalizado, justamente para evitar excessos. A gente trabalha com equilíbrio, não com volume exagerado. O resultado é natural, elegante e respeita completamente a sua anatomia.”\n",
+          "objection": "“Tenho receio de ficar artificial ou exagerado. Não quero aquele aspecto de ‘harmonização’ marcada.”"
+        },
+        {
+          "id": "j1b90vtq5",
+          "response": "“Essa dúvida é comum. O diferencial aqui é que não tratamos pontos isolados — quando alinhamos nariz, lábios e queixo juntos, o impacto no perfil é muito mais perceptível. Muitas vezes, pequenos ajustes bem planejados já geram uma mudança grande na harmonia do rosto.”\n",
+          "objection": "“Será que realmente vai fazer diferença no meu caso? Tenho medo de investir e não ver tanta mudança.”"
+        },
+        {
+          "id": "ugi48js87",
+          "response": "“É justamente por isso que o protocolo é completo. A Dra. não avalia áreas isoladas — ela analisa o conjunto. Cada aplicação é pensada em função das outras, garantindo equilíbrio entre todas as estruturas. Harmonia não é acaso, é planejamento.”",
+          "objection": "“E se uma parte ficar desproporcional em relação à outra?” Como garantir que tudo vai ficar harmônico?”"
+        },
+        {
+          "id": "z0i5uk872",
+          "response": "“Pode haver um leve inchaço e, em alguns casos, pequenos roxinhos, mas são temporários e esperados. A recuperação costuma ser tranquila, e a maioria dos pacientes segue a rotina normalmente com alguns cuidados simples.”",
+          "objection": "“Vou ficar muito inchada ou roxa?” A recuperação é tranquila mesmo?”"
+        },
+        {
+          "id": "w5pijptpw",
+          "response": "“O procedimento é feito com anestesia local, então o desconforto é quase zero. Pode haver uma sensibilidade em alguns pontos, mas de forma geral é bem tolerável e confortável”\n",
+          "objection": "“Dói fazer tudo isso?”"
+        },
+        {
+          "id": "5izy2ywv4",
+          "response": "“Os resultados são duradouros, geralmente 12 meses, podendo ser mais dependendo do organismo. Não é algo que você precisa fazer sempre. O que orientamos são manutenções estratégicas, mais espaçadas, para preservar o resultado ao longo do tempo.”\n",
+          "objection": "“Quanto tempo dura o resultado de um protocolo completo?” Vou precisar ficar refazendo sempre?”"
+        }
+      ]
+    },
+    {
+      "id": "safg2bz99",
+      "name": "Protocolo bigode chinês estruturado",
+      "benefits": "•\tResultado mais natural: não fica com aspecto “preenchido” ou pesado\n\t•\tRosto mais descansado: suaviza o ar de cansaço\n\t•\tMelhora da sustentação facial: reposiciona os tecidos, não só a ruga\n\t•\tEfeito mais duradouro\n\t•\tPreserva sua identidade, sem mudar seus traços",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O protocolo de bigode chinês estruturado é um tratamento completo que vai além de suavizar a linha do bigode chinês. A proposta é reconstruir a sustentação do rosto, devolvendo o aspecto mais jovem.\n Nesse protocolo, primeiro trabalhamos pontos estratégicos de estruturação, principalmente na região malar, para reposicionar e sustentar a face.",
+      "indications": "•\tPercebe o “bigode chinês” mais marcado, mesmo deitado\n\t•\tSente o rosto com aspecto de cansaço ou “queda”\n\t•\tJá fez preenchimento no sulco e não teve um resultado tão natural\n\t•\tQuer melhorar a harmonia facial sem mudar a própria identidade\n\t•\tPrefere um tratamento mais completo, que trate a causa e não só a ruga",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Oi, tudo bem? Vi que você se interessou pelo protocolo de bigode chinês. Ele é focado não só em suavizar a linha, mas em tratar a causa, reposicionando a sustentação do rosto para um resultado mais natural.\n\nMe conta: o que mais te incomoda hoje? E você já fez algum procedimento antes? Se puder, me envie fotos de frente e perfil (em repouso e sorrindo), assim consigo te orientar melhor.\n\nCom base nisso, te explico o que é indicado no seu caso, o investimento e já te passo opções de agenda, combinado?",
+      "contraindications": "",
+      "specificQuestions": [
+        "O que mais te incomoda hoje: a marca do bigode chinês ou a sensação de rosto cansado/“caído”?",
+        "Você já fez algum preenchimento nessa região ou em outras áreas do rosto? Como foi sua experiência?",
+        "Você busca um resultado mais natural, sem mudar suas características, ou algo mais evidente?",
+        "Você percebe que essa marca aparece mais quando está em repouso ou só ao sorrir?",
+        "• O que seria um resultado perfeito pra você?",
+        "Você estaria aberta(o) a tratar a causa do problema, trabalhando a sustentação do rosto, e não apenas a linha em si?",
+        ""
+      ],
+      "specificObjections": [
+        {
+          "id": "as7gtto1c",
+          "response": "Fica tranquila, a proposta desse protocolo é exatamente o contrário disso. A gente não trabalha excesso de volume, e sim sustentação. O resultado é leve e natural, como se o rosto estivesse mais descansado, não “preenchido”.",
+          "objection": "“Tenho medo de ficar com o rosto artificial, muito preenchido…”"
+        },
+        {
+          "id": "61ql0wsue",
+          "response": "O protocolo é personalizada. A Dra analisa sua estrutura e indica apenas o que realmente faz sentido pra você. Quando bem indicado, o resultado costuma ser muito satisfatório justamente por tratar a causa, não só a linha do bigode chinês.\n",
+          "objection": "“Será que vai ficar bom mesmo no meu caso?”"
+        },
+        {
+          "id": "xmln3r3yl",
+          "response": "É um procedimento bem tranquilo. A Dra utiliza técnicas que minimizam o desconforto e, quando necessário, anestesia local. A maioria dos pacientes relata que foi mais confortável do que imaginava.",
+          "objection": "“Dói? Tenho um pouco de medo de agulha…”"
+        },
+        {
+          "id": "o0sy8hx9j",
+          "response": "O inchaço costuma ser leve e temporário, variando de pessoa pra pessoa. Na maioria dos casos, o paciente já consegue seguir a rotina normalmente, com alguns cuidados básicos nos primeiros dias.",
+          "objection": "“Vou ficar muito inchada? Precisa de muito tempo de recuperação?”"
+        },
+        {
+          "id": "sss7bc13m",
+          "response": " É um protocolo completo, personalizado, que envolve análise facial, técnica e estratégia para um resultado mais natural e duradouro. Você não está pagando só pelo produto, mas por todo o planejamento e resultado entregue.",
+          "objection": "\"E o valor? É caro?\""
+        }
+      ]
+    },
+    {
+      "id": "7fii1xxat",
+      "name": "Protocolo de rinomodelação",
+      "benefits": "– Resultado imediato: você já sai do consultório vendo a diferença\n– Sem cirurgia: nada de cortes, internação ou recuperação longa\n– Melhora do perfil: alinhar o dorso e levantar levemente a ponta muda completamente a percepção do rosto\n– Efeito natural: o nariz fica mais harmônico, sem parecer “feito”\n– Procedimento rápido: feito em poucos minutos, com retorno quase imediato à rotina\n– Alta autoestima: é um detalhe que impacta muito na forma como você se enxerga",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O protocolo de rinomodelação é um procedimento pensado para melhorar o formato do nariz sem cirurgia, de forma rápida, segura e com resultado imediato. Ele é ideal para quem se incomoda com pequenos detalhes, como giba (ossinho alto), ponta caída ou falta de definição, mas não quer passar por um processo cirúrgico.",
+      "indications": "•\tSe incomoda com pequenos detalhes no nariz, como “ossinho” alto (giba), ponta caída ou falta de definição\n\t•\tQuer melhorar o perfil sem precisar de cirurgia\n\t•\tBusca um resultado natural, sem transformar totalmente o nariz\n\t•\tTem o nariz proporcional, mas sente que falta harmonia com o restante do rosto\n\t•\tQuer uma solução mais rápida, com resultado imediato\n\t•\tTem receio de procedimentos cirúrgicos e prefere algo minimamente invasivo",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Oi, tudo bem? Vi que você se interessou pelo protocolo de rinomodelação. Ele é um procedimento indicado para melhorar o formato do nariz sem cirurgia, trazendo mais harmonia para o seu perfil de forma natural e sem mudar suas características.\n\nMe conta, o que mais te incomoda hoje no seu nariz? É algum detalhe no perfil, como o “ossinho”, ou mais a pontinha? Você já fez algum procedimento antes ou seria sua primeira vez? E tem algum receio em relação ao resultado?\n\nSe puder, me envia fotos de frente e de perfil, assim consigo te dar uma orientação mais personalizada sobre o seu caso.",
+      "contraindications": "",
+      "specificQuestions": [
+        "O que mais te incomoda hoje no seu nariz: o “ossinho” (giba), a ponta ou o formato no geral?",
+        "Você busca uma melhora mais sutil e natural ou uma mudança mais significativa? A Dra tem as duas técnicas, por isso a pergunta. ",
+        "Você já fez rinomodelação ou alguma cirurgia no nariz antes?",
+        "Esse incômodo aparece mais no perfil (de lado) ou também de frente?",
+        "Você tem interesse em evitar cirurgia ou está avaliando todas as possibilidades?",
+        "Existe algum receio em relação ao procedimento?"
+      ],
+      "specificObjections": [
+        {
+          "id": "zruxvds0n",
+          "response": "O procedimento é bem tranquilo. Utilizamos anestésico para minimizar o desconforto e a maioria dos pacientes relata que é muito mais leve do que imaginava.",
+          "objection": "“Dói muito? Tenho medo de agulha…”"
+        },
+        {
+          "id": "oe1dmq5vr",
+          "response": "Entendo sua preocupação, e é importante você trazer isso. A rinomodelação exige muito conhecimento anatômico e técnica.\n\nVocê estará com uma profissional que é professora de harmonização facial, com domínio aprofundado da anatomia e das técnicas mais seguras. Tudo é feito com planejamento e protocolos rigorosos para garantir sua segurança.\n\nOu seja, você pode ficar tranquila, porque está em mãos qualificadas.",
+          "objection": "“É perigoso? Já ouvi falar de complicações…”"
+        },
+        {
+          "id": "tlm4e2ax8",
+          "response": "O resultado tem uma boa durabilidade, variando de organismo para organismo, mas costuma durar uma media de 12  meses. ",
+          "objection": "“Quanto tempo dura? Não quero algo que suma rápido…”"
+        },
+        {
+          "id": "abj07ovdx",
+          "response": "A manutenção não é algo frequente como as pessoas imaginam. O resultado costuma ter uma boa durabilidade e, quando o paciente opta por retocar, geralmente, não por necessidade imediata.",
+          "objection": "“Tenho medo de fazer e depois precisar ficar retocando sempre…”"
+        }
+      ]
+    },
+    {
+      "id": "peqz5n9tf",
+      "name": "Protocolo de preenchimento de olheiras ",
+      "benefits": "– Olhar mais descansado imediatamente perceptível\n– Redução do aspecto de cansaço e “tristeza”\n– Iluminação da região dos olhos (aparência mais viva e saudável)\n– Suavização do fundo e/ou da coloração escura\n– Resultado natural, sem pesar ou alterar sua expressão\n– Melhora global do rosto (o olhar impacta toda a face)\n– Menor dependência de maquiagem\n– Aumento da autoestima e segurança\n– Procedimento rápido, com retorno à rotina\n– Tratamento personalizado (cada olheira é tratada de forma única)",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O protocolo de olheiras é um tratamento pensado para devolver leveza ao seu olhar sem mudar quem você é. Sabe aquele aspecto de cansaço, mesmo quando você está bem? Ou o fundo mais marcado que a maquiagem já não consegue disfarçar? É exatamente isso que a gente trata.\n\nAntes de qualquer coisa, a gente entende qual é o tipo da sua olheira, porque nem toda olheira é igual. Pode ser mais fundo, mais escura, ou até uma combinação dos dois. A partir disso, montamos um plano totalmente personalizado para suavizar essa região de forma estratégica.",
+      "indications": "•\tTem olheiras que dão aspecto de cansaço, mesmo quando está descansada(o)\n\t•\tPercebe a região dos olhos mais funda, com aparência de “buraco”\n\t•\tSe incomoda com escurecimento abaixo dos olhos\n\t•\tSente que a maquiagem já não disfarça como antes\n\t•\tQuer um olhar mais leve, iluminado e descansado\n\t•\tBusca um resultado natural, sem pesar ou mudar a expressão",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Oi, tudo bem? Vi que você se interessou pelo protocolo de olheiras. Ele é focado em melhorar o aspecto escurecido, fundo ou cansado da região dos olhos, devolvendo um olhar mais leve, descansado e iluminado. Sempre de forma natural, sem pesar.\n\nMe conta, o que mais te incomoda hoje: a cor escura, o fundo (aspecto de “buraco”) ou o ar de cansaço? Você já fez algum procedimento nessa região antes? E existe algum receio em relação ao resultado?",
+      "contraindications": "",
+      "specificQuestions": [
+        "O que mais te incomoda hoje: o escurecimento, o fundo (aspecto de “buraco”) ou o ar de cansaço?",
+        "Você percebe que suas olheiras são mais profundas, mais escuras ou um pouco dos dois?",
+        "Esse incômodo é algo antigo ou surgiu com o tempo?",
+        "Você já fez algum tratamento para olheiras antes? Como foi a experiência?",
+        "A maquiagem ainda consegue disfarçar ou já não resolve mais como antes?",
+        "Essa bolsinha que você tem abaixo da olheira, e mais evidente quando você acorda ou ela fica o dia todo?"
+      ],
+      "specificObjections": [
+        {
+          "id": "h02yzzbrs",
+          "response": "Por isso a consulta é essencial. Cada tipo de olheira tem uma indicação específica, e a Dra só realiza o procedimento quando ele realmente é adequado para o seu caso.",
+          "objection": "“E se piorar minha olheira?”"
+        },
+        {
+          "id": "b2s9lz1ny",
+          "response": "Nem toda olheira é igual. Quando entendemos a causa, seja fundo, cor ou ambos,  conseguimos tratar de forma direcionada e ter uma melhora significativa.",
+          "objection": "“Já ouvi que olheira não tem solução…”"
+        },
+        {
+          "id": "ce1eo9psz",
+          "response": "É uma área delicada mesmo, e por isso exige conhecimento anatômico e técnica. Aqui tudo é feito com planejamento e segurança, respeitando essa região.",
+          "objection": "“Tenho medo de mexer na região dos olhos…”"
+        },
+        {
+          "id": "kp20vd94v",
+          "response": "É um procedimento bem tolerável. Utilizamos técnicas que minimizam o desconforto e a maioria dos pacientes relata que é mais tranquilo do que imaginava.",
+          "objection": "“Dói muito?”"
+        },
+        {
+          "id": "slsijj1og",
+          "response": "Pode acontecer um leve roxinho, mas é temporário e dentro do esperado. Na maioria dos casos, é discreto e melhora rapidamente.\n",
+          "objection": "“Vou ficar muito roxa?”"
+        },
+        {
+          "id": "79abj3q80",
+          "response": "A durabilidade costuma ser boa e varia de pessoa para pessoa. No geral, é o preenchimento que dura mais. ",
+          "objection": "“O resultado dura pouco?”"
+        }
+      ]
+    },
+    {
+      "id": "8u5jf9opm",
+      "name": "",
+      "benefits": "",
+      "category": "",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "",
+      "indications": "",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "",
+      "contraindications": "",
+      "specificQuestions": [],
+      "specificObjections": []
+    },
+    {
+      "id": "2e7yaf0eu",
+      "name": "Protocolo de preenchimento labial ",
+      "benefits": "• Lábios mais definidos e desenhados  aquele contorno que valoriza o batom e o sorriso\n• Volume na medida certa  sem exageros, respeitando sua anatomia\n• Hidratação profunda  aspecto mais viçoso, macio e saudável\n• Correção de assimetrias  mais equilíbrio entre os lados\n• Rejuvenescimento da região  lábios com aparência mais jovem e descansada\n• Harmonia facial  o rosto como um todo fica mais proporcional\n• Efeito “acordei bonita”  mesmo sem maquiagem, você se sente mais arrumada",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O preenchimento labial é muito mais do que “aumentar os lábios”. É um procedimento estratégico para valorizar e rejuvenescer o seu rosto como um todo, respeitando sua beleza natural.\n\nEle é feito com ácido hialurônico, uma substância segura e já presente no nosso organismo, que permite modelar os lábios com precisão: podemos dar mais volume, melhorar o contorno dando um desenho lindo aos lábios, corrigir assimetrias e hidratar profundamente.",
+      "indications": "• Sente que os lábios são finos ou perderam volume com o tempo\n• Se incomoda com falta de contorno ou aquele “borrado” na boca\n• Percebe assimetrias (um lado diferente do outro) e quer corrigir\n• Quer um aspecto mais hidratado e saudável, sem depender de gloss o tempo todo\n• Deseja realçar sua beleza de forma sutil, sem mudanças exageradas\n• Sente que o sorriso poderia ser mais valorizado\n• Quer rejuvenescer a região dos lábios, suavizando sinais de envelhecimento\n• Quer deixar os labios mais volumosos ",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Oi, tudo bem? Vi que você se interessou pelo preenchimento labial 💋\n\nMe conta o que você gostaria de melhorar nos seus lábios. A partir disso, a doutora cria um plano totalmente personalizado para valorizar sua boca com naturalidade, respeitando seu rosto e evitando exageros.\n\nO procedimento é rápido, seguro e traz mais contorno, hidratação e um volume lindo e elegante.\n\nSe fizer sentido pra você, posso ver os horários disponíveis e já deixar seu agendamento pronto 🤍",
+      "contraindications": "",
+      "specificQuestions": [
+        "• O que te incomoda hoje nos seus lábios?",
+        "• O que você gostaria de melhorar neles?",
+        "• Você busca algo mais sutil ou um resultado mais evidente?",
+        "• Tem alguma referência ou resultado que você goste?",
+        "• Você já fez preenchimento labial antes? Como foi sua experiência?",
+        "• Teve algo que não gostou ou que te deixou insegura?",
+        "• Tem algum receio em relação ao procedimento?",
+        "• Tem alguma data especial ou evento chegando?",
+        "• Posso te explicar como a doutora faria no seu caso e já ver um horário pra você? 🤍"
+      ],
+      "specificObjections": [
+        {
+          "id": "jszrmmeoa",
+          "response": " Isso é muito comum, e aqui o foco é exatamente o oposto. A doutora trabalha com técnicas que respeitam seu rosto, buscando naturalidade. A ideia é que as pessoas percebam que você está mais bonita, não que fez procedimento.",
+          "objection": " “Tenho medo de ficar artificial.” "
+        },
+        {
+          "id": "oi39vqtn1",
+          "response": "O objetivo não é mudar quem você é, e sim valorizar seus traços. Tudo é feito de forma personalizada e, muitas vezes, começamos de forma mais sutil justamente para você se adaptar com segurança.\n",
+          "objection": "“Tenho medo de não me reconhecer depois.”"
+        },
+        {
+          "id": "r736ag71m",
+          "response": "O procedimento é bem tranquilo. Utilizamos técnicas e recursos que tornam o processo muito mais confortável do que as pacientes imaginam.\n",
+          "objection": "\"Tenho medo de dor\""
+        },
+        {
+          "id": "y3o677mfr",
+          "response": "Quando realizado por uma profissional capacitada, com técnica e conhecimento anatômico, o procedimento é seguro. E você ainda recebe todo o suporte e acompanhamento no pós.\n",
+          "objection": "\"Tenho medo de dar algum problema\""
+        },
+        {
+          "id": "gb6z4srfy",
+          "response": "Justamente nesses casos o resultado costuma ser ainda mais bonito, porque conseguimos construir forma, contorno e proporção de maneira muito natural.\n",
+          "objection": "“Acho que minha boca é muito fina, não sei se vai ficar bom.”"
+        },
+        {
+          "id": "hvrn61bjl",
+          "response": "Pode ocorrer um leve inchaço inicial, que é esperado e temporário. Em poucos dias, o lábio já assume um aspecto mais natural e bonito.\n",
+          "objection": "\"Tenho medo de ficar inchado depois\""
+        },
+        {
+          "id": "4ed83bp7x",
+          "response": "Claro, é importante você se sentir segura. Mas me conta: o que ainda te deixa em dúvida? Posso te explicar melhor e, se fizer sentido, já deixamos um horário reservado pra você 🤍",
+          "objection": "\"Vou pensar melhor\""
+        }
+      ]
+    },
+    {
+      "id": "5525hdl7b",
+      "name": "Protocolo Botox fullface ",
+      "benefits": "• Pele mais lisa e uniforme\n• Linhas de expressão suavizadas\n• Olhar mais leve e descansado\n• Expressão mais tranquila, menos “tensa” ou “carregada”\n• Prevenção do envelhecimento das marcas dinâmicas\n• Melhora da harmonia facial como um todo\n• Resultado natural, sem aspecto artificial",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "O botox full face é um protocolo pensado para quem quer rejuvenescer o rosto de forma global, suave e elegante, sem mudar sua expressão, apenas suavizando o que te incomoda. \n\nO grande diferencial do full face é que não tratamos só uma região isolada — olhamos o rosto como um todo. Isso permite um resultado muito mais harmônico, com efeito de rosto descansado, leve e naturalmente mais jovem.",
+      "indications": "É ideal para quem se incomoda com linhas na testa, entre as sobrancelhas ou ao redor dos olhos, para quem sente o rosto com aspecto de cansaço ou até mais “pesado”, e também para quem quer prevenir o envelhecimento, mantendo a pele mais lisa por mais tempo. Inclusive, é uma excelente opção tanto para quem já tem marcas quanto para quem quer evitar que elas se aprofundem.",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "Oi, tudo bem? Vi que você se interessou pelo botox full face ✨\n\nMe conta… o que mais tem te incomodado hoje: linhas na testa, ao redor dos olhos, expressão mais pesada ou sensação de rosto cansado?\n\nPerfeito. Aqui, o atendimento é totalmente personalizado. A doutora avalia seu rosto como um todo, entende sua dinâmica facial e, a partir disso, desenha um plano estratégico para suavizar as linhas sem tirar sua naturalidade, você continua sendo você, só que com uma aparência mais leve e descansada.\n\nO procedimento é rápido, seguro e praticamente sem tempo de recuperação. Em poucos dias, você já começa a perceber a pele mais lisa e uma expressão mais tranquila e elegante.\n\nDepois, você recebe todas as orientações e tem acompanhamento para garantir que o resultado evolua da melhor forma.\n\nSe fizer sentido pra você, posso verificar os horários disponíveis e já deixar sua avaliação agendada 🤍",
+      "contraindications": "",
+      "specificQuestions": [
+        "• O que mais te incomoda hoje no seu rosto: testa, entre as sobrancelhas ou ao redor dos olhos?",
+        "• Você sente sua expressão mais cansada, pesada ou “brava” mesmo sem estar?",
+        "• Você busca um resultado mais sutil e natural ou algo mais evidente?",
+        "• Já fez botox antes? Como foi sua experiência?",
+        "• Tem algum receio em relação ao procedimento?",
+        "• O que seria um resultado ideal pra você depois do botox?"
+      ],
+      "specificObjections": [
+        {
+          "id": "8tvo636yw",
+          "response": "Esse é um dos maiores mitos. A proposta do protocolo full face é justamente suavizar, não congelar. A doutora trabalha com doses e pontos estratégicos para manter sua expressão natural, só mais leve e descansada.",
+          "objection": "\"Tenho medo de ficar com o rosto travado\""
+        },
+        {
+          "id": "hhp4ezhxl",
+          "response": "Você não vai perder, vai refinar. A ideia é tirar o excesso de contração que marca as linhas, preservando sua identidade e suas expressões.\n",
+          "objection": "\"Tenho medo de perder a expressão\" "
+        },
+        {
+          "id": "bfga2tlpa",
+          "response": "O botox não é só tratamento, é prevenção. Começar no momento certo evita que as linhas se aprofundem e mantém sua pele mais jovem por mais tempo.",
+          "objection": "Acho que ainda não preciso disso\""
+        },
+        {
+          "id": "zex18k241",
+          "response": "Claro, é importante você se sentir segura. Mas me conta: o que ainda te deixa em dúvida? Posso te explicar melhor e, se fizer sentido, já deixamos um horário reservado pra você 🤍",
+          "objection": "\"Vou pensar mais um pouco...\""
+        }
+      ]
+    },
+    {
+      "id": "v9ss5rb47",
+      "name": "Protocolo contorno mandibular ",
+      "benefits": "",
+      "category": "injetaveis",
+      "duration": "",
+      "afterCare": "",
+      "available": true,
+      "description": "",
+      "indications": "",
+      "recoveryTime": "",
+      "expectedResults": "",
+      "preServiceScript": "",
+      "contraindications": "",
+      "specificQuestions": [],
+      "specificObjections": []
+    }
+  ],
+  "pricingApproach": "no_values",
+  "pricingJustification": "",
+  "procedurePricing": [
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "78nv5fc8o",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "4imx8otly",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "safg2bz99",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "7fii1xxat",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "peqz5n9tf",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "8u5jf9opm",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "2e7yaf0eu",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "5525hdl7b",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    },
+    {
+      "maxPrice": 0,
+      "minPrice": 0,
+      "procedureId": "v9ss5rb47",
+      "priceFactors": "",
+      "paymentMethods": [],
+      "investmentRange": "ate_500",
+      "promotionalDetails": "",
+      "installmentAvailable": false,
+      "installmentConditions": "",
+      "hasPromotionalPackages": false
+    }
+  ],
+  "idealLeadProfile": "Mulheres entre 23 e 60 anos, que valorizam a própria imagem e buscam realçar a beleza de forma natural, elegante e segura. São pacientes que priorizam qualidade, têm um olhar preventivo sobre o envelhecimento e entendem a importância de investir em tratamentos que mantenham a harmonia facial ao longo do tempo. Buscam resultados sofisticados e personalizados, com foco em realçar seus traços. ",
+  "qualificationQuestions": [],
+  "disqualificationCriteria": "• Demonstram expectativa irreal (querer mudar completamente o rosto ou “ficar igual” a outra pessoa)\n→ dificilmente ficarão satisfeitas, mesmo com um bom resultado\n\n• Estão inseguras em excesso ou muito indecisas\n→ tendem a desmarcar, gerar ansiedade no processo ou não confiar no planejamento\n\n• Estão buscando preço acima de tudo\n→ não valorizam técnica, segurança e personalização, apenas custo\n\n• Não estão dispostas a seguir orientações ou protocolo\n→ risco maior de intercorrências e insatisfação no pós\n\n• Têm medo intenso e não estão prontas para o procedimento\n→ o momento não é ideal, melhor respeitar o tempo da paciente\n\n• Apresentam contraindicações importantes (gestação, amamentação, condições clínicas não controladas, etc.)\n→ segurança sempre em primeiro lugar\n\n• Já passaram por muitos procedimentos e buscam “mais do mesmo” sem critério\n→ risco de exagero e quebra da harmonia facial\n",
+  "outOfProfileHandling": "forward_specialist",
+  "minInfoToQualify": [],
+  "weekdayOpen": "09:00",
+  "weekdayClose": "18:00",
+  "saturdayOpen": "09:00",
+  "saturdayClose": "13:00",
+  "saturdayClosed": true,
+  "sundayOpen": "",
+  "sundayClose": "",
+  "sundayClosed": true,
+  "holidayPolicy": "closed",
+  "evaluationDuration": "60",
+  "minAdvanceEvaluation": "1_day",
+  "preferredEvaluationTimes": [],
+  "evaluationPolicy": "",
+  "schedulingInfoRequired": [],
+  "evaluationCancellationPolicy": "",
+  "welcomeMessage": "Seja bem-vindo ao consultório da doutora Lara Morgado 🤍\n\nQue bom ter você por aqui! Vai ser um prazer te atender e entender o que você deseja realçar na sua beleza. Trabalhamos sempre com naturalidade, segurança e um olhar totalmente personalizado para valorizar seus traços.\n\nFique à vontade para me contar o que te trouxe até aqui 🤍",
+  "needsIdentificationScript": "",
+  "clinicPresentationScript": "",
+  "procedureEducationScript": "",
+  "evaluationSchedulingScript": "",
+  "escalationTriggers": [
+    "negative_sentiment",
+    "technical_doubt",
+    "human_request",
+    "specific_pricing",
+    "competitor_comparison"
+  ],
+  "escalationMessageLimit": 3,
+  "escalationOther": "",
+  "customerJourneyDescription": "",
+  "hasMandatoryEvaluation": true,
+  "evaluationCostDetails": "A consulta tem o valor de R$ 100,00 🤍\n\nEsse valor é abatido caso você realize o procedimento, ou seja, ele é revertido como parte do seu tratamento.\n\nEsse momento é muito importante, pois é na avaliação que a doutora entende suas necessidades e planeja tudo de forma personalizada, garantindo um resultado seguro, natural e harmonioso para você 🤍",
+  "evaluationProcessFlow": "A consulta presencial é essencial porque cada rosto é único e precisa ser analisado em detalhes. É nesse momento que a doutora entende sua estrutura facial, expressões e proporções com precisão, garantindo um planejamento totalmente personalizado.\n\nIsso permite um resultado mais seguro, natural e harmônico, pensado exclusivamente para valorizar seus traços.",
+  "proceduresRequiringEvaluation": [],
+  "proceduresAllowingDirectBooking": [],
+  "communicationTone": "balanced",
+  "formalityLevel": 2,
+  "emojiUsage": "",
+  "customerTreatment": "voce_respectful",
+  "personalities": [
+    "empathetic",
+    "caring"
+  ],
+  "wordsToAvoid": [
+    "Baratinho",
+    "Desconto",
+    "Acho que dá",
+    "Vamos tentar",
+    "Nunca vi esse caso",
+    "consertar",
+    "Você que sabe",
+    "Qualquer coisa eu vejo para você",
+    "estragar o rosto",
+    "Decide aí"
+  ],
+  "preferredWords": [
+    "Consulta personalizada",
+    "planejamento facila",
+    "Protocolo individualizado",
+    "Harmonia facial",
+    "naturalidade",
+    "Equilibrio das proporções",
+    "Rejuvenescimento facial",
+    "expressão leve e descansada",
+    "realçardes-vos traços",
+    "Resultado elegante e sofisticado"
+  ],
+  "faqs": [
+    {
+      "id": "1776349019977",
+      "answer": "O procedimento é bem tolerável. Utilizamos técnicas que tornam a aplicação muito mais confortável.",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "Doi para fazer preenchimento?"
+    },
+    {
+      "id": "1776349073306",
+      "answer": "Em média, de 10 a 18 meses, podendo variar de acordo com o seu organismo. ",
+      "category": "procedures",
+      "priority": "high",
+      "question": "Quanto tempo dura o preenchimento? "
+    },
+    {
+      "id": "1776349146438",
+      "answer": "Sim, mas o resultado final aparece após alguns dias, quando o leve inchaço inicial reduz.\n",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "O resultado do preenchimento é imediato? "
+    },
+    {
+      "id": "1776349191357",
+      "answer": "Pode ocorrer um inchaço leve e temporário, que faz parte do processo natural e melhora rapidamente.\n",
+      "category": "procedures",
+      "priority": "high",
+      "question": "Preenchimento labial fica muito inchado? "
+    },
+    {
+      "id": "1776349237700",
+      "answer": "É um protocolo que trata o rosto como um todo, suavizando linhas de expressão e trazendo um aspecto mais leve e descansado.\n",
+      "category": "procedures",
+      "priority": "high",
+      "question": "Oque é botox fullface? "
+    },
+    {
+      "id": "1776349274420",
+      "answer": "Sim, em muitos casos os dois procedimentos se complementam muito bem.\n",
+      "category": "procedures",
+      "priority": "high",
+      "question": "Posso fazer preenchimento e botox juntos?"
+    },
+    {
+      "id": "1776349329850",
+      "answer": "Em geral, os procedimentos são rápidos, variando entre 30 e 60 minutos dependendo do caso.\n",
+      "category": "procedures",
+      "priority": "high",
+      "question": "Quanto tempo dura o procedimento? "
+    },
+    {
+      "id": "1776349408770",
+      "answer": "Sim, normalmente não há necessidade de afastamento das atividades.",
+      "category": "procedures",
+      "priority": "high",
+      "question": "Posso trabalhar no mesmo dia? "
+    },
+    {
+      "id": "1776349432685",
+      "answer": "A consulta tem o valor de R$ 100,00, que é abatido caso o procedimento seja realizado.\n",
+      "category": "pricing",
+      "priority": "high",
+      "question": "Qual valor da consulta? "
+    },
+    {
+      "id": "1776349500416",
+      "answer": "Por isso todo o planejamento é feito antes, com foco em naturalidade e alinhamento de expectativas.\n",
+      "category": "procedures",
+      "priority": "medium",
+      "question": "Tenho medo de não gostar do resultado... "
+    }
+  ],
+  "technicalInfo": "• Utilizamos apenas produtos premium, com procedência comprovada e alta segurança clínica\n• A doutora é professora em harmonização facial, com alto nível de atualização e domínio técnico\n• Planejamento facial individualizado,  nada é padronizado ou baseado em “modelos prontos”\n• Avaliação facial completa antes de qualquer procedimento, garantindo harmonia e equilíbrio real do rosto\n• Técnica avançada com foco em naturalidade, evitando exageros e resultados artificiais\n• Protocolo com técnicas de conforto e anestesia para tornar o procedimento mais tranquilo\n• Atendimento totalmente personalizado, com acompanhamento próximo no pré e pós-procedimento\n• Você tem todo um acolhimento no pós-procedimento, com suporte e orientações para uma evolução segura e tranquila\n• Foco em resultado elegante e sofisticado, respeitando as proporções naturais do rosto\n• Segurança como prioridade absoluta em todas as etapas do tratamento\n• Compromisso com resultado previsível, planejado e alinhado à expectativa da paciente",
+  "internalProtocols": "Regras de pré-agendamento: não é passado orçamento antes da avaliação presencial, pois cada caso exige análise facial e planejamento personalizado. O agendamento da consulta é confirmado mediante envio de CPF e pagamento da taxa de consulta via Pix. Menores de 18 anos somente são atendidos acompanhados por responsável legal. A consulta é obrigatória antes de qualquer procedimento, garantindo segurança, indicação correta e resultado individualizado.",
+  "specialCases": [
+    {
+      "id": "1776349804281",
+      "procedure": "Claro, é importante você se sentir segura 🤍\nSó me conta: o que ainda está te deixando em dúvida? Assim consigo te orientar melhor e te ajudar a decidir com mais tranquilidade.\n",
+      "situation": "Vou pensar e entro em contato. "
+    },
+    {
+      "id": "1776349939126",
+      "procedure": "Entendo você perfeitamente 🤍\nPor isso aqui nós começamos sempre com uma análise facial completa e planejamento individualizado, justamente para evitar exageros e chegar em um resultado mais seguro e harmônico.\n",
+      "situation": "J;a fiz antes e não gostei. "
+    },
+    {
+      "id": "1776350022134",
+      "procedure": "Entendo, mas aqui nós trabalhamos com produtos premium, técnica avançada e planejamento personalizado, o que garante segurança e um resultado mais natural e duradouro.\nNosso foco é qualidade e não apenas o procedimento em si.",
+      "situation": "Quero algo bem barato. "
+    },
+    {
+      "id": "1776350040070",
+      "procedure": "A maioria das pacientes relata que o procedimento é bem tranquilo. Utilizamos técnicas específicas para tornar tudo mais confortável e seguro durante toda a aplicação.\n",
+      "situation": "Tenho medo de sentir dor... "
+    },
+    {
+      "id": "1776350066690",
+      "procedure": "Esse é um dos nossos maiores cuidados aqui. O foco da doutora é sempre naturalidade e harmonia facial, respeitando suas proporções. O resultado é para realçar sua beleza, não mudar sua identidade.\n",
+      "situation": "Tenho medo de ficar artificial... "
+    }
+  ],
+  "agentSchedule": "clinic_hours",
+  "customAgentScheduleStart": "09:00",
+  "customAgentScheduleEnd": "18:00",
+  "offHoursMessage": "",
+  "contactAttemptLimit": 3,
+  "escalationSituations": [],
+  "escalationMessageCount": 5,
+  "notificationTriggers": [],
+  "supportedLanguages": [
+    "portuguese"
+  ],
+  "additionalNotes": "",
+  "agentPriorities": "",
+  "termsAccepted": false
+}

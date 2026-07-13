@@ -1,13 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { ConversationsList } from "@/components/conversations/ConversationsList";
 import { ActiveConversation } from "@/components/conversations/ActiveConversation";
-import { QuickMessagesSidebar } from "@/components/conversations/QuickMessagesSidebar";
 import { MessageSquare, ArrowLeft, User } from "lucide-react";
 import { useLead } from "@/hooks/useLeads";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -20,17 +17,11 @@ import { useOutboundProspectos } from "@/hooks/useOutboundProspectos";
 export default function OutboundConversas() {
   const { leadId } = useParams<{ leadId: string }>();
   const { data: lead } = useLead(leadId || null);
-  const isMobile = useIsMobile();
   const { profile } = useProfile();
   const { prospectos } = useOutboundProspectos();
 
-  const [showQuickMessages, setShowQuickMessages] = useState(false);
   const [prospectoModalOpen, setProspectoModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
-
-  useEffect(() => {
-    setShowQuickMessages(false);
-  }, [leadId]);
 
   const linkedProspecto = leadId
     ? prospectos.find(p => p.whatsapp_lead_id === leadId) || null
@@ -69,11 +60,7 @@ export default function OutboundConversas() {
                   </div>
                 )}
                 <div className="flex-1 overflow-hidden">
-                  <ActiveConversation
-                    leadId={leadId}
-                    onToggleQuickMessages={() => setShowQuickMessages(!showQuickMessages)}
-                    showQuickMessages={showQuickMessages}
-                  />
+                  <ActiveConversation leadId={leadId} />
                 </div>
               </div>
             ) : (
@@ -90,27 +77,6 @@ export default function OutboundConversas() {
           </div>
         </div>
 
-        {leadId && showQuickMessages && !isMobile && (
-          <div className="w-80 h-full border-l bg-card/50 flex-shrink-0 hidden lg:block">
-            <QuickMessagesSidebar
-              leadId={leadId}
-              onClose={() => setShowQuickMessages(false)}
-            />
-          </div>
-        )}
-
-        {isMobile && (
-          <Sheet open={showQuickMessages} onOpenChange={setShowQuickMessages}>
-            <SheetContent side="right" className="p-0 w-full sm:w-96">
-              {leadId && (
-                <QuickMessagesSidebar
-                  leadId={leadId}
-                  onClose={() => setShowQuickMessages(false)}
-                />
-              )}
-            </SheetContent>
-          </Sheet>
-        )}
       </div>
 
       {linkedProspecto && (

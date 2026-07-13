@@ -6,6 +6,7 @@ import {
   BarChart2, Target, Flame, LayoutDashboard, Info
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PageHero } from "@/components/PageHero";
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import {
@@ -556,17 +557,12 @@ export default function Performance() {
   return (
     <div className="space-y-6 pb-10">
       {/* ── Header ── */}
-      <div data-tutorial="performance-header">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="p-1.5 rounded-lg bg-muted">
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Performance</h1>
-        </div>
-        <p className="text-[13px] text-muted-foreground ml-10 capitalize">
-          {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-        </p>
-      </div>
+      <PageHero
+        dataTutorial="performance-header"
+        icon={Trophy}
+        title="Performance"
+        subtitle={format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR }).replace(/^\w/, (c) => c.toUpperCase())}
+      />
 
       {/* ── sr-only tab switchers (used by tutorial actions) ── */}
       <button data-tutorial="performance-open-overview-direct" className="sr-only" onClick={() => setActiveTab('overview')} tabIndex={-1} aria-hidden="true" />

@@ -1,29 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+// Jornada 2.0 (visão do cliente) — consultoria mensal montada pelo CS.
+// Tarefas com descrição rica (conteudo_md), subtarefas, tipo 'material'
+// (construir com o Athos GS). Sem locking. Histórico de todas as jornadas.
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface JornadaSubtarefa {
+  id: string;
+  titulo: string;
+  ordem: number;
+  concluido: boolean;
+}
 
 export interface JornadaPasso {
   id: string;
-  estagio_id: string;
   titulo: string;
+  conteudo_md: string | null;
   descricao: string | null;
   ordem: number;
-  tipo: 'acao_livre' | 'ferramenta_arsenal' | 'categoria_arsenal';
-  ferramenta_id: string | null;
-  categoria_id: string | null;
+  tipo: 'acao_livre' | 'material' | 'ferramenta_arsenal' | 'categoria_arsenal';
+  material_categoria: string | null;
+  material_brief: string | null;
+  material_id: string | null;
   aula_id: string | null;
   prazo_dias: number | null;
   obrigatorio: boolean;
   concluido: boolean;
   concluido_em: string | null;
-  arsenal_ferramentas: {
-    id: string;
-    nome: string;
-    slug: string;
-    arsenal_categorias: { id: string; nome: string; slug: string };
-  } | null;
-  arsenal_categorias: { id: string; nome: string; slug: string } | null;
+  jornada_subtarefas: JornadaSubtarefa[];
+  meus_materiais: { id: string; titulo: string } | null;
   arsenal_aulas: { id: string; slug: string } | null;
 }
 
@@ -40,10 +47,10 @@ export interface JornadaEstagio {
 
 export interface Jornada {
   id: string;
-  user_id: string;
   titulo: string;
   status: 'rascunho' | 'ativa' | 'concluida';
-  gerada_por: 'ia' | 'admin';
+  tipo: 'onboarding' | 'mensal' | null;
+  periodo_ref: string | null;
   created_at: string;
   updated_at: string;
   jornada_estagios: JornadaEstagio[];
@@ -51,68 +58,88 @@ export interface Jornada {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-export type EstagioStatus = 'nao_iniciado' | 'em_andamento' | 'concluido';
-
-export function getEstagioStatus(estagio: JornadaEstagio): EstagioStatus {
-  const passos = estagio.jornada_passos ?? [];
-  if (passos.length === 0) return 'nao_iniciado';
-  if (passos.every(p => !p.concluido)) return 'nao_iniciado';
-  const obrigatorios = passos.filter(p => p.obrigatorio);
-  if (obrigatorios.length > 0 && obrigatorios.every(p => p.concluido)) return 'concluido';
-  if (passos.length > 0 && passos.every(p => p.concluido)) return 'concluido';
-  return 'em_andamento';
-}
-
 export function getJornadaProgress(jornada: Jornada) {
-  const allPassos = jornada.jornada_estagios.flatMap(e => e.jornada_passos ?? []);
-  const total = allPassos.length;
-  const done = allPassos.filter(p => p.concluido).length;
+  const passos = jornada.jornada_estagios.flatMap(e => e.jornada_passos ?? []);
+  const total = passos.length;
+  const done = passos.filter(p => p.concluido).length;
   return { total, done, pct: total === 0 ? 0 : Math.round((done / total) * 100) };
 }
 
-export function getCurrentEstagio(jornada: Jornada): JornadaEstagio | null {
-  return (
-    jornada.jornada_estagios.find(e => getEstagioStatus(e) === 'em_andamento') ??
-    jornada.jornada_estagios.find(e => getEstagioStatus(e) === 'nao_iniciado') ??
-    null
-  );
+export function getEstagioProgress(estagio: JornadaEstagio) {
+  const passos = estagio.jornada_passos ?? [];
+  const total = passos.length;
+  const done = passos.filter(p => p.concluido).length;
+  return { total, done, pct: total === 0 ? 0 : Math.round((done / total) * 100) };
 }
 
-// ─── Hooks ────────────────────────────────────────────────────────────────────
+function sortJornadas(list: Jornada[]): Jornada[] {
+  const rank = (j: Jornada) => (j.status === 'ativa' ? 0 : 1);
+  return [...list].sort((a, b) => {
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    const pa = a.periodo_ref ?? a.created_at;
+    const pb = b.periodo_ref ?? b.created_at;
+    return pb.localeCompare(pa);
+  });
+}
 
-export function useJornada() {
+// ─── Query: todas as jornadas do cliente (histórico) ──────────────────────────
+
+export function useJornadas() {
   return useQuery({
-    queryKey: ['minha-jornada'],
-    queryFn: async () => {
+    queryKey: ['jornadas'],
+    queryFn: async (): Promise<Jornada[]> => {
       const { data, error } = await (supabase as any)
         .from('jornadas')
         .select(`
-          *,
+          id, titulo, status, tipo, periodo_ref, created_at, updated_at,
           jornada_estagios (
-            *,
+            id, jornada_id, titulo, descricao, ordem, prazo_dias, data_inicio,
             jornada_passos (
-              *,
-              arsenal_ferramentas ( id, nome, slug, arsenal_categorias ( id, nome, slug ) ),
-              arsenal_categorias ( id, nome, slug ),
+              id, titulo, conteudo_md, descricao, ordem, tipo,
+              material_categoria, material_brief, material_id, aula_id,
+              prazo_dias, obrigatorio, concluido, concluido_em,
+              jornada_subtarefas ( id, titulo, ordem, concluido ),
+              meus_materiais ( id, titulo ),
               arsenal_aulas ( id, slug )
             )
           )
         `)
-        .in('status', ['ativa', 'concluida'])
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .in('status', ['ativa', 'concluida']);
       if (error) throw error;
-      if (!data) return null;
-      const jornada = data as Jornada;
-      jornada.jornada_estagios = (jornada.jornada_estagios ?? []).sort((a, b) => a.ordem - b.ordem);
-      jornada.jornada_estagios.forEach(e => {
-        e.jornada_passos = (e.jornada_passos ?? []).sort((a, b) => a.ordem - b.ordem);
+      const list = (data ?? []) as Jornada[];
+      list.forEach(j => {
+        j.jornada_estagios = (j.jornada_estagios ?? []).sort((a, b) => a.ordem - b.ordem);
+        j.jornada_estagios.forEach(e => {
+          e.jornada_passos = (e.jornada_passos ?? []).sort((a, b) => a.ordem - b.ordem);
+          e.jornada_passos.forEach(p => {
+            p.jornada_subtarefas = (p.jornada_subtarefas ?? []).sort((a, b) => a.ordem - b.ordem);
+          });
+        });
       });
-      return jornada;
+      return sortJornadas(list);
     },
     staleTime: 30_000,
   });
+}
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+function patchJornadasCache(qc: ReturnType<typeof useQueryClient>, mutate: (p: JornadaPasso) => JornadaPasso, mutateSub?: (s: JornadaSubtarefa, passoId: string) => JornadaSubtarefa) {
+  const prev = qc.getQueryData<Jornada[]>(['jornadas']);
+  if (!prev) return prev;
+  const next = prev.map(j => ({
+    ...j,
+    jornada_estagios: j.jornada_estagios.map(e => ({
+      ...e,
+      jornada_passos: e.jornada_passos.map(p => {
+        let np = mutate(p);
+        if (mutateSub) np = { ...np, jornada_subtarefas: np.jornada_subtarefas.map(s => mutateSub(s, p.id)) };
+        return np;
+      }),
+    })),
+  }));
+  qc.setQueryData(['jornadas'], next);
+  return prev;
 }
 
 export function useMarcarPassoConcluido() {
@@ -122,33 +149,47 @@ export function useMarcarPassoConcluido() {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await (supabase as any)
         .from('jornada_passos')
-        .update({
-          concluido,
-          concluido_em: concluido ? new Date().toISOString() : null,
-          concluido_por: concluido ? (user?.id ?? null) : null,
-        })
+        .update({ concluido, concluido_em: concluido ? new Date().toISOString() : null, concluido_por: concluido ? (user?.id ?? null) : null })
         .eq('id', passoId);
       if (error) throw error;
     },
     onMutate: async ({ passoId, concluido }) => {
-      await qc.cancelQueries({ queryKey: ['minha-jornada'] });
-      const prev = qc.getQueryData<Jornada>(['minha-jornada']);
-      if (prev) {
-        qc.setQueryData<Jornada>(['minha-jornada'], {
-          ...prev,
-          jornada_estagios: prev.jornada_estagios.map(e => ({
-            ...e,
-            jornada_passos: e.jornada_passos.map(p =>
-              p.id === passoId ? { ...p, concluido } : p
-            ),
-          })),
-        });
-      }
+      await qc.cancelQueries({ queryKey: ['jornadas'] });
+      const prev = patchJornadasCache(qc, p => p.id === passoId ? { ...p, concluido } : p);
       return { prev };
     },
-    onError: (_e, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(['minha-jornada'], ctx.prev);
-    },
-    onSettled: () => { qc.invalidateQueries({ queryKey: ['minha-jornada'] }); },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(['jornadas'], ctx.prev); },
+    onSettled: () => { qc.invalidateQueries({ queryKey: ['jornadas'] }); },
   });
+}
+
+export function useMarcarSubtarefa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ subtarefaId, concluido }: { subtarefaId: string; concluido: boolean }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error } = await (supabase as any)
+        .from('jornada_subtarefas')
+        .update({ concluido, concluido_em: concluido ? new Date().toISOString() : null, concluido_por: concluido ? (user?.id ?? null) : null })
+        .eq('id', subtarefaId);
+      if (error) throw error;
+    },
+    onMutate: async ({ subtarefaId, concluido }) => {
+      await qc.cancelQueries({ queryKey: ['jornadas'] });
+      const prev = patchJornadasCache(qc, p => p, s => s.id === subtarefaId ? { ...s, concluido } : s);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(['jornadas'], ctx.prev); },
+    onSettled: () => { qc.invalidateQueries({ queryKey: ['jornadas'] }); },
+  });
+}
+
+// ─── Deep-link para construir material com o Athos GS ─────────────────────────
+
+export function buildMaterialDeepLink(passo: JornadaPasso): string {
+  const params = new URLSearchParams();
+  params.set('passo', passo.id);
+  if (passo.material_categoria) params.set('categoria', passo.material_categoria);
+  if (passo.material_brief) params.set('brief', passo.material_brief);
+  return `/plataforma/athos-gs?${params.toString()}`;
 }

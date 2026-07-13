@@ -50,9 +50,6 @@ type PlataformaContextType = {
   plataformaUser: any;
   plan: 'gca' | 'pca' | null;
   progress: any[];
-  cerebro: any;
-  cerebroPercent: number;
-  isCerebroComplete: boolean;
   totalModules: number;
   completedModules: number;
   progressPercent: number;
@@ -75,7 +72,6 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [plataformaUser, setPlataformaUser] = useState<any>(null);
   const [progress, setProgress] = useState<any[]>([]);
-  const [cerebro, setCerebro] = useState<any>(null);
   const [totalModules, setTotalModules] = useState(0);
   const [isContextLoading, setIsContextLoading] = useState(true);
   const [tenant, setTenant] = useState<any>(null);
@@ -199,7 +195,6 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
         const orgId = perfil?.organization_id ?? profileRef.current?.organization_id;
         let isTeamMember = false;
-        let cerebroUserId = user!.id;
 
         if (orgId) {
           const { data: memberEntry } = await supabase
@@ -212,30 +207,19 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
           isTeamMember = !!memberEntry;
 
           if (isTeamMember) {
-            // Encontrar o dono da org (quem NÃO está em team_member_permissions)
-            const [{ data: orgProfiles }, { data: allMemberPerms }] = await Promise.all([
-              supabase.from('perfis').select('id').eq('organization_id', orgId),
-              supabase.from('team_member_permissions').select('user_id').eq('organization_id', orgId),
-            ]);
-            const memberIds = new Set((allMemberPerms || []).map((m: any) => m.user_id));
-            const ownerProfile = (orgProfiles || []).find((p: any) => !memberIds.has(p.id));
-            if (ownerProfile) cerebroUserId = ownerProfile.id;
-
-            // Membros não acessam Cérebro nem Materiais
-            setAcesso(prev => ({ ...prev, acesso_cerebro: false, acesso_materiais: false }));
+            // Membros não acessam Materiais
+            setAcesso(prev => ({ ...prev, acesso_materiais: false }));
           }
         }
 
         setIsMember(isTeamMember);
 
-        // Carregar em paralelo
-        const [cerebroRes, modulesRes] = await Promise.all([
-          supabase.from('platform_cerebro').select('*').eq('user_id', cerebroUserId).maybeSingle(),
-          supabase.from('platform_modules').select('id', { count: 'exact', head: true }).eq('active', true),
-        ]);
+        const { count: modulesCount } = await supabase
+          .from('platform_modules')
+          .select('id', { count: 'exact', head: true })
+          .eq('active', true);
 
-        setCerebro(cerebroRes.data);
-        setTotalModules(modulesRes.count || 0);
+        setTotalModules(modulesCount || 0);
         await refreshProgress();
       } catch (err) {
         console.error('PlataformaContext load error:', err);
@@ -277,13 +261,6 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
   const completedModules = progress.filter(p => p.completed).length;
   const progressPercent = totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
 
-  let cerebroPercent = 0;
-  if (cerebro) {
-     const fields = ['clinic_name', 'specialty_preset', 'anchor_procedure', 'voice_tone', 'differentials', 'working_hours', 'icp'];
-     const filled = fields.filter(f => cerebro[f] !== null && cerebro[f] !== undefined && cerebro[f] !== '' && Object.keys(cerebro[f] || {}).length > 0).length;
-     cerebroPercent = Math.round((filled / fields.length) * 100);
-  }
-
   const hasPlataformaAccess = acesso.acesso_arsenal || acesso.acesso_os ||
     acesso.acesso_sessoes_taticas || acesso.acesso_materiais;
 
@@ -292,9 +269,6 @@ export function PlataformaProvider({ children }: { children: ReactNode }) {
       plataformaUser,
       plan: plataformaUser?.plan || null,
       progress,
-      cerebro,
-      cerebroPercent,
-      isCerebroComplete: plataformaUser?.cerebro_complete || cerebroPercent === 100,
       totalModules,
       completedModules,
       progressPercent,

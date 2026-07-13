@@ -1,15 +1,17 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { useLeads } from "@/hooks/useLeads";
 import MaskedInput, { PhoneInput, CpfInput } from "@/components/MaskedInput";
-import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Pencil, MessageCircle, Briefcase, Globe, ImageOff, Megaphone, Calendar, Hash, UserCheck, ChevronRight, Plus, ArrowRight, Sparkles, Target, Activity, Zap, Copy, ExternalLink, CalendarDays, Shield, UserCog } from "lucide-react";
-import { parse, format, differenceInYears, isValid, startOfDay, parseISO, formatDistanceToNow } from "date-fns";
+import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Pencil, MessageCircle, Briefcase, Globe, ImageOff, Megaphone, Calendar as CalendarIcon, Hash, UserCheck, ChevronRight, Plus, ArrowRight, Sparkles, Target, Activity, Zap, Copy, ExternalLink, CalendarDays, Shield, UserCog } from "lucide-react";
+import { parse, format, differenceInYears, isValid, startOfDay, parseISO, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,10 +26,12 @@ import { VendaModal } from "@/components/vendas/VendaModal";
 import AgendamentoLeadModal from "@/components/agendamentos/AgendamentoLeadModal";
 import { FormattedText } from "@/components/FormattedText";
 import { TagManager } from "@/components/tags/TagManager";
-import { CardCriativoOrigem } from "@/components/leads/CardCriativoOrigem";
 import LeadNotas from "@/components/leads/LeadNotas";
 import { cn } from "@/lib/utils";
 import { useTeamMembersForSelect, MemberSelectOption } from "@/hooks/useTeamMembersForSelect";
+import { useJornadaPaciente, EventoTipo } from "@/hooks/useJornadaPaciente";
+import { useLeadFotos, LeadFoto } from "@/hooks/useLeadFotos";
+import { Loader2, History as HistoryIcon, Syringe, ImagePlus, Trash2, Camera, BellRing, X, ChevronDown } from "lucide-react";
 
 // --- Funções Auxiliares (mantidas) ---
 const calculateAge = (dobString: string | undefined): number | '' => {
@@ -108,6 +112,666 @@ const InfoItem = ({ icon: Icon, label, value, className }: { icon: any, label: s
     </div>
   </div>
 );
+
+// ── Timeline compacta (aba Histórico) — reaproveita useJornadaPaciente ──
+const HISTORICO_STYLE: Record<EventoTipo, { icon: any; dot: string }> = {
+  entrada:     { icon: UserCheck,     dot: 'bg-emerald-500' },
+  mensagem:    { icon: MessageCircle, dot: 'bg-blue-500' },
+  agendamento: { icon: CalendarIcon,  dot: 'bg-indigo-500' },
+  venda:       { icon: DollarSign,    dot: 'bg-violet-500' },
+  scoring:     { icon: Target,        dot: 'bg-amber-500' },
+  nota:        { icon: MessageSquare, dot: 'bg-slate-400' },
+  tag:         { icon: Tag,           dot: 'bg-slate-400' },
+  cadencia:    { icon: Zap,           dot: 'bg-cyan-500' },
+  responsavel: { icon: UserCog,       dot: 'bg-teal-500' },
+  ia:          { icon: Sparkles,      dot: 'bg-amber-500' },
+  confirmacao: { icon: BellRing,      dot: 'bg-sky-500' },
+};
+
+const HistoricoTimeline = ({ leadId }: { leadId: string }) => {
+  const { data, isLoading } = useJornadaPaciente(leadId);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const eventos = data?.eventos || []; // cronológico — mais antigo no topo, mais recente embaixo
+
+  if (eventos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="p-3 rounded-xl bg-muted/40 mb-3">
+          <HistoryIcon className="h-6 w-6 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">Nenhum evento ainda</p>
+        <p className="text-[11px] text-muted-foreground/50 mt-0.5">O histórico do lead aparecerá aqui</p>
+      </div>
+    );
+  }
+
+  // Agrupa eventos por dia (fuso local — nunca .slice(0,10), que usaria UTC)
+  const grupos: { diaKey: string; data: Date; itens: typeof eventos }[] = [];
+  for (const e of eventos) {
+    const d = new Date(e.data);
+    const diaKey = format(d, 'yyyy-MM-dd');
+    const grupoAtual = grupos[grupos.length - 1];
+    if (grupoAtual && grupoAtual.diaKey === diaKey) {
+      grupoAtual.itens.push(e);
+    } else {
+      grupos.push({ diaKey, data: d, itens: [e] });
+    }
+  }
+
+  const diaLabel = (d: Date): string => {
+    if (isToday(d)) return 'Hoje';
+    if (isYesterday(d)) return 'Ontem';
+    return format(d, "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
+  };
+
+  return (
+    <div className="space-y-5">
+      {grupos.map((grupo) => (
+        <div key={grupo.diaKey} className="rounded-2xl border border-border/60 bg-card p-4">
+          <div className="flex items-center gap-2.5 mb-3.5">
+            <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{diaLabel(grupo.data)}</span>
+            <div className="h-px flex-1 bg-border/60" />
+          </div>
+          {grupo.itens.map((e, i) => {
+            const style = HISTORICO_STYLE[e.tipo] ?? HISTORICO_STYLE.nota;
+            const Icon = style.icon;
+            const isLast = i === grupo.itens.length - 1;
+            let quando = '';
+            try {
+              quando = format(new Date(e.data), 'HH:mm', { locale: ptBR });
+            } catch { /* data inválida */ }
+            return (
+              <div key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
+                {!isLast && <div className="absolute left-[13px] top-7 bottom-0 w-px bg-border/60" />}
+                <div className="relative z-10 h-7 w-7 rounded-full bg-muted flex items-center justify-center shrink-0 ring-4 ring-card">
+                  <span className={cn("absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-card", style.dot)} />
+                  <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-[13px] font-semibold text-foreground leading-snug">{e.titulo}</p>
+                    <span className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0 mt-0.5">{quando}</span>
+                  </div>
+                  {e.descricao && (
+                    <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed break-words">{e.descricao}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+// ── Aba de IA — resumo da conversa, tempo atendido pela IA e análise de follow-up ──
+const formatMinutosLabel = (min: number): string => {
+  if (min < 1) return 'menos de 1 min';
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return m > 0 ? `${h}h ${m}min` : `${h}h`;
+};
+
+const IaTab = ({ lead }: { lead: any }) => {
+  const { data, isLoading } = useQuery({
+    queryKey: ['lead-ia-tab', lead.id],
+    queryFn: async () => {
+      const [msgsRes, fuRes, handoffRes] = await Promise.all([
+        supabase
+          .from('mensagens')
+          .select('remetente, direcao, criado_em')
+          .eq('lead_id', lead.id)
+          .eq('automatica', false) // ignora confirmação/lembrete de agendamento
+          .order('criado_em', { ascending: true }),
+        supabase
+          .from('leads')
+          .select('resumo, objetivo, objecao, followup_gap, followup_gap_motivo, followup_tentativas, followup_ultima_tentativa, ultimo_contato')
+          .eq('id', lead.id)
+          .maybeSingle(),
+        // Handoff REAL: a IA transferiu e disparou a notificação (etapa 'notificacao_enviada')
+        supabase
+          .from('ai_execution_logs')
+          .select('id')
+          .eq('lead_id', lead.id)
+          .eq('etapa', 'notificacao_enviada')
+          .limit(1),
+      ]);
+      return {
+        msgs: (msgsRes.data || []) as any[],
+        fu: (fuRes.data || {}) as any,
+        hasHandoff: (handoffRes.data?.length ?? 0) > 0,
+      };
+    },
+    enabled: !!lead.id,
+    staleTime: 2 * 60 * 1000,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const msgs = data?.msgs || [];
+  const fu = data?.fu || {};
+  const resumo = fu.resumo || lead.resumo;
+
+  const botMsgs = msgs.filter((m) => m.remetente === 'bot');
+  const respondeuIA = botMsgs.length > 0;
+
+  let tempoIAmin: number | null = null;
+  let humanoAssumiu = false;
+  if (respondeuIA) {
+    const idxFirstBot = msgs.findIndex((m) => m.remetente === 'bot');
+    const firstBotT = new Date(msgs[idxFirstBot].criado_em).getTime();
+    const primeiraHumana = msgs.find((m, i) => i > idxFirstBot && m.direcao === 'saida' && m.remetente !== 'bot' && m.remetente !== 'ia');
+    humanoAssumiu = !!primeiraHumana;
+    const fimT = primeiraHumana
+      ? new Date(primeiraHumana.criado_em).getTime()
+      : new Date(botMsgs[botMsgs.length - 1].criado_em).getTime();
+    tempoIAmin = Math.max(0, Math.round((fimT - firstBotT) / 60000));
+  }
+
+  const hasHandoff = data?.hasHandoff ?? false;
+  // 3 estados distintos: transferência real da IA (handoff) × humano que entrou no meio × ainda na IA
+  const statusAtendimento = hasHandoff
+    ? { label: 'Transferido pela IA para atendente humano', cls: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-950/30 dark:border-blue-900' }
+    : humanoAssumiu
+      ? { label: 'Um humano entrou na conversa (sem transferência da IA)', cls: 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-900' }
+      : { label: 'Em atendimento pela IA', cls: 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-950/30 dark:border-emerald-900' };
+
+  const horasSemContato = fu.ultimo_contato
+    ? Math.floor((Date.now() - new Date(fu.ultimo_contato).getTime()) / 3600000)
+    : null;
+  const temFollowup = !!(fu.followup_gap_motivo || fu.followup_gap === 'PRECISA_FOLLOW' || (fu.followup_tentativas ?? 0) > 0);
+
+  if (!resumo && !respondeuIA && !temFollowup && !fu.objetivo && !fu.objecao) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <div className="p-3 rounded-xl bg-muted/40 mb-3">
+          <Sparkles className="h-6 w-6 text-muted-foreground/40" />
+        </div>
+        <p className="text-sm font-medium text-muted-foreground">Nenhuma atividade de IA ainda</p>
+        <p className="text-[11px] text-muted-foreground/50 mt-0.5">Resumo e análises aparecem quando a IA atua neste lead</p>
+      </div>
+    );
+  }
+
+  const gapLabels: Record<string, { label: string; cls: string }> = {
+    PRECISA_FOLLOW: { label: 'Precisa de follow-up', cls: 'text-amber-700 bg-amber-50 border-amber-200' },
+    PENDENTE:       { label: 'Em análise',           cls: 'text-muted-foreground bg-muted border-border/60' },
+    NAO_PRECISA:    { label: 'Sem necessidade',      cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  };
+  const labelCls = "text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5";
+  const valueCls = "text-[13px] font-semibold text-foreground";
+
+  return (
+    <div className="space-y-4">
+
+      {/* Atendimento pela IA */}
+      {respondeuIA && (
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Atendimento pela IA</span>
+          </div>
+          <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-3">
+            <div>
+              <span className={labelCls}>Tempo atendido pela IA</span>
+              <span className={cn(valueCls, "tabular-nums")}>{tempoIAmin != null ? formatMinutosLabel(tempoIAmin) : '—'}</span>
+            </div>
+            <div>
+              <span className={labelCls}>Respostas da IA</span>
+              <span className={cn(valueCls, "tabular-nums")}>{botMsgs.length}</span>
+            </div>
+            <div className="col-span-2">
+              <span className={labelCls}>Status</span>
+              <span className={cn("inline-flex items-center text-[11px] font-semibold px-2 py-1 rounded-md border", statusAtendimento.cls)}>
+                {statusAtendimento.label}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resumo da conversa (IA) */}
+      {resumo && (
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Resumo da conversa (IA)</span>
+          </div>
+          <div className="p-4 text-[13px] text-foreground/90 leading-relaxed space-y-2">
+            <FormattedText content={resumo} />
+          </div>
+        </div>
+      )}
+
+      {/* Leitura do lead — objetivo e objeção (extraídos pelo Athos Escriba) */}
+      {(fu.objetivo || fu.objecao) && (
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+            <Target className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Leitura do lead</span>
+          </div>
+          <div className="p-4 space-y-3">
+            {fu.objetivo && (
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">Objetivo</span>
+                <span className="text-[13px] text-foreground/90 leading-relaxed">{fu.objetivo}</span>
+              </div>
+            )}
+            {fu.objecao && (
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">Objeção</span>
+                <span className="text-[13px] text-foreground/90 leading-relaxed">{fu.objecao}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Análise de Follow-Up (Athos) */}
+      {temFollowup && (
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Análise de Follow-Up</span>
+          </div>
+          <div className="p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {fu.followup_gap && gapLabels[fu.followup_gap] && (
+                <span className={cn("inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-md border", gapLabels[fu.followup_gap].cls)}>
+                  {gapLabels[fu.followup_gap].label}
+                </span>
+              )}
+              {horasSemContato != null && (
+                <span className="text-[11px] text-muted-foreground">Sem contato há <span className="font-semibold text-foreground tabular-nums">{horasSemContato}h</span></span>
+              )}
+            </div>
+            {fu.followup_gap_motivo && (
+              <p className="text-[13px] text-foreground/80 leading-relaxed break-words">{fu.followup_gap_motivo}</p>
+            )}
+            {((fu.followup_tentativas ?? 0) > 0 || fu.followup_ultima_tentativa) && (
+              <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1 border-t border-border/40">
+                {(fu.followup_tentativas ?? 0) > 0 && (
+                  <span className="text-[11px] text-muted-foreground pt-2">Tentativas: <span className="font-semibold text-foreground tabular-nums">{fu.followup_tentativas}</span></span>
+                )}
+                {fu.followup_ultima_tentativa && (
+                  <span className="text-[11px] text-muted-foreground pt-2">Última: <span className="font-semibold text-foreground">{formatDistanceToNow(new Date(fu.followup_ultima_tentativa), { addSuffix: true, locale: ptBR })}</span></span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Slot individual de upload (antes ou depois) com pré-visualização ──
+const FotoSlot = ({
+  label, file, onChange,
+}: {
+  label: "Antes" | "Depois"; file: File | null; onChange: (f: File | null) => void;
+}) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!file) { setPreview(null); return; }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  return (
+    <div className="space-y-1.5">
+      <span
+        className={cn(
+          "inline-block text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md border",
+          label === "Antes" ? "bg-slate-50 text-slate-700 border-slate-200" : "bg-emerald-50 text-emerald-700 border-emerald-200",
+        )}
+      >
+        {label}
+      </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+      />
+      {preview ? (
+        <div className="group relative rounded-lg overflow-hidden border border-border/50 bg-muted/20 aspect-square">
+          <img src={preview} className="h-full w-full object-cover" />
+          <button
+            type="button"
+            onClick={() => { onChange(null); if (inputRef.current) inputRef.current.value = ""; }}
+            className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+            title="Remover"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="w-full aspect-square flex flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-border/60 hover:bg-muted/30 transition-colors"
+        >
+          <Camera className="h-5 w-5 text-muted-foreground/50" />
+          <span className="text-[11px] text-muted-foreground">Selecionar foto</span>
+        </button>
+      )}
+    </div>
+  );
+};
+
+// ── Miniatura de uma foto (antes ou depois) ──
+const FotoThumb = ({ foto, onRemove, onOpenImage }: { foto: LeadFoto; onRemove: (f: LeadFoto) => void; onOpenImage: (url: string) => void }) => (
+  <div className="group relative rounded-lg overflow-hidden border border-border/50 bg-muted/20 aspect-square">
+    {foto.signedUrl ? (
+      <button
+        type="button"
+        onClick={() => onOpenImage(foto.signedUrl!)}
+        className="block h-full w-full cursor-zoom-in"
+      >
+        <img src={foto.signedUrl} className="h-full w-full object-cover" />
+      </button>
+    ) : (
+      <div className="h-full w-full flex items-center justify-center">
+        <ImageOff className="h-5 w-5 text-muted-foreground/40" />
+      </div>
+    )}
+    <span
+      className={cn(
+        "absolute top-1.5 left-1.5 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-md border pointer-events-none",
+        foto.tipo === "antes" ? "bg-slate-50 text-slate-700 border-slate-200" : "bg-emerald-50 text-emerald-700 border-emerald-200",
+      )}
+    >
+      {foto.tipo}
+    </span>
+    <button
+      onClick={() => onRemove(foto)}
+      className="absolute top-1.5 right-1.5 p-1 rounded-md bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+      title="Remover foto"
+    >
+      <Trash2 className="h-3 w-3" />
+    </button>
+  </div>
+);
+
+// ── Bloco de uma sessão (par antes/depois de uma data) — colapsável, escondido por padrão ──
+const FotoBlocoAccordion = ({
+  grupo, data, fotos, onRemove, onOpenImage,
+}: {
+  grupo: string; data: string; fotos: LeadFoto[]; onRemove: (f: LeadFoto) => void; onOpenImage: (url: string) => void;
+}) => {
+  const [open, setOpen] = useState(false);
+  const antes = fotos.filter((f) => f.tipo === "antes");
+  const depois = fotos.filter((f) => f.tipo === "depois");
+
+  return (
+    <div>
+      <div className="w-full flex items-center justify-between px-2 hover:bg-muted/20 transition-colors">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex-1 flex items-center justify-between gap-2 px-2 py-3 text-left"
+        >
+          <span className="text-[12px] font-medium text-foreground flex items-center gap-1.5">
+            {grupo}
+            <span className="text-muted-foreground/50">—</span>
+            <span className="tabular-nums text-muted-foreground">{format(parseISO(data), "dd/MM/yyyy")}</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-[11px] text-muted-foreground">{fotos.length} foto{fotos.length !== 1 ? "s" : ""}</span>
+            <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => fotos.forEach((f) => onRemove(f))}
+          className="p-1.5 rounded-md text-muted-foreground/60 hover:text-red-600 hover:bg-red-50 transition-colors shrink-0"
+          title="Excluir este antes/depois"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {open && (
+        <div className="p-4 flex justify-center">
+          <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
+            {antes.map((f) => <FotoThumb key={f.id} foto={f} onRemove={onRemove} onOpenImage={onOpenImage} />)}
+            {depois.map((f) => <FotoThumb key={f.id} foto={f} onRemove={onRemove} onOpenImage={onOpenImage} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Card de um grupo (procedimento) — blocos por sessão (data), cada um colapsável ──
+const FotoGrupoCard = ({
+  grupo, items, onRemove, onOpenImage,
+}: {
+  grupo: string; items: LeadFoto[]; onRemove: (f: LeadFoto) => void; onOpenImage: (url: string) => void;
+}) => {
+  const blocos = new Map<string, LeadFoto[]>();
+  for (const f of items) {
+    const k = (f.data_procedimento || f.criado_em).slice(0, 10);
+    if (!blocos.has(k)) blocos.set(k, []);
+    blocos.get(k)!.push(f);
+  }
+  const blocosOrdenados = [...blocos.entries()].sort((a, b) => b[0].localeCompare(a[0]));
+
+  return (
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+        <Syringe className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{grupo}</span>
+      </div>
+      <div className="divide-y divide-border/40">
+        {blocosOrdenados.map(([data, fotos]) => (
+          <FotoBlocoAccordion key={data} grupo={grupo} data={data} fotos={fotos} onRemove={onRemove} onOpenImage={onOpenImage} />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ── Aba de Galeria — antes/depois vinculada ao procedimento fechado ──
+const FotosTab = ({ lead, vendasLead = [] }: { lead: any; vendasLead?: any[] }) => {
+  const { fotos, isLoading, upload, remove } = useLeadFotos(lead.id);
+  const [showForm, setShowForm] = useState(false);
+  const [antesFile, setAntesFile] = useState<File | null>(null);
+  const [depoisFile, setDepoisFile] = useState<File | null>(null);
+  const [proc, setProc] = useState("");
+  const [dataProcedimento, setDataProcedimento] = useState<Date>(new Date());
+  const [dataAutoPreenchida, setDataAutoPreenchida] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+
+  // Primário: procedimentos realmente fechados (vendas). Fallback: interesse declarado no lead.
+  const procedimentosFechados = [...new Set(
+    (vendasLead as any[]).map((v) => v.produto_servico?.trim()).filter(Boolean)
+  )] as string[];
+  const procOptions = procedimentosFechados.length > 0
+    ? procedimentosFechados
+    : String(lead.procedimento_interesse || "")
+        .split(/[,;•\n]|\s+e\s+/i)
+        .map((p) => p.trim())
+        .filter(Boolean);
+
+  // Data de pagamento mais recente por procedimento — usada pra preencher a data automaticamente
+  const dataPagamentoPorProduto = new Map<string, string>();
+  for (const v of vendasLead as any[]) {
+    const key = v.produto_servico?.trim();
+    if (!key || !v.data_fechamento) continue;
+    const atual = dataPagamentoPorProduto.get(key);
+    if (!atual || v.data_fechamento > atual) dataPagamentoPorProduto.set(key, v.data_fechamento);
+  }
+
+  useEffect(() => {
+    const dataPagamento = proc ? dataPagamentoPorProduto.get(proc) : undefined;
+    if (dataPagamento) {
+      setDataProcedimento(parseISO(dataPagamento));
+      setDataAutoPreenchida(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proc]);
+
+  const resetForm = () => {
+    setAntesFile(null); setDepoisFile(null); setProc(""); setDataProcedimento(new Date()); setDataAutoPreenchida(false); setShowForm(false);
+  };
+
+  const isSaving = upload.isPending;
+
+  const handleSubmit = async () => {
+    if (!antesFile && !depoisFile) return;
+    const data_procedimento = format(dataProcedimento, "yyyy-MM-dd");
+    try {
+      if (antesFile) await upload.mutateAsync({ file: antesFile, tipo: "antes", procedimento: proc || undefined, data_procedimento });
+      if (depoisFile) await upload.mutateAsync({ file: depoisFile, tipo: "depois", procedimento: proc || undefined, data_procedimento });
+      resetForm();
+    } catch {
+      // erro já sinalizado via toast pela mutation
+    }
+  };
+
+  const grupos = new Map<string, LeadFoto[]>();
+  for (const f of fotos) {
+    const k = f.procedimento?.trim() || "Sem procedimento";
+    if (!grupos.has(k)) grupos.set(k, []);
+    grupos.get(k)!.push(f);
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Galeria antes / depois</span>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowForm((v) => !v)}
+          className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"
+        >
+          <ImagePlus className="h-3.5 w-3.5" /> Adicionar fotos
+        </Button>
+      </div>
+
+      {/* Form de upload */}
+      {showForm && (
+        <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Procedimento</span>
+            {procedimentosFechados.length === 0 && (
+              <p className="text-[10px] text-muted-foreground/50">Nenhuma venda registrada para este lead ainda — digite um procedimento manualmente ou registre a venda.</p>
+            )}
+            <CreatableSelect
+              options={procOptions}
+              value={proc}
+              onChange={setProc}
+              placeholder="Selecione o procedimento fechado..."
+              searchPlaceholder="Buscar ou criar procedimento..."
+              emptyPlaceholder="Nenhum procedimento encontrado."
+            />
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <CalendarDays className="h-3 w-3" /> Data do procedimento
+            </span>
+            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal h-9 rounded-lg text-sm border-border/60 bg-background"
+                >
+                  <CalendarDays className="mr-2 h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  {format(dataProcedimento, "EEE, dd 'de' MMM", { locale: ptBR })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 rounded-xl border-border/60" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dataProcedimento}
+                  onSelect={(d) => { if (d) { setDataProcedimento(d); setDataAutoPreenchida(false); setIsDatePickerOpen(false); } }}
+                  initialFocus
+                  locale={ptBR}
+                />
+              </PopoverContent>
+            </Popover>
+            {dataAutoPreenchida && (
+              <p className="text-[10px] text-muted-foreground/60">Preenchida automaticamente pela data do pagamento — pode ser alterada.</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <FotoSlot label="Antes" file={antesFile} onChange={setAntesFile} />
+            <FotoSlot label="Depois" file={depoisFile} onChange={setDepoisFile} />
+          </div>
+
+          <div className="flex justify-end gap-1.5">
+            <Button size="sm" variant="ghost" className="text-[11px] h-8 text-muted-foreground" onClick={resetForm}>Cancelar</Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={(!antesFile && !depoisFile) || isSaving}
+              className="h-8 rounded-lg text-[11px] font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 px-4"
+            >
+              {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <ImagePlus className="h-3 w-3" />} Salvar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!isLoading && fotos.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="p-3 rounded-xl bg-muted/40 mb-3">
+            <Camera className="h-6 w-6 text-muted-foreground/40" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">Nenhuma foto ainda</p>
+          <p className="text-[11px] text-muted-foreground/50 mt-0.5">Registre o antes e o depois dos procedimentos</p>
+        </div>
+      )}
+
+      {[...grupos.entries()].map(([grupo, items]) => (
+        <FotoGrupoCard key={grupo} grupo={grupo} items={items} onRemove={(f) => remove.mutate(f)} onOpenImage={setLightboxUrl} />
+      ))}
+
+      {/* Lightbox — expande a foto centralizada em vez de abrir nova aba */}
+      <Dialog open={!!lightboxUrl} onOpenChange={(open) => !open && setLightboxUrl(null)}>
+        <DialogContent className="max-w-3xl p-2 bg-background/95 border-border/60">
+          <DialogTitle className="sr-only">Foto ampliada</DialogTitle>
+          {lightboxUrl && (
+            <img src={lightboxUrl} className="w-full h-auto max-h-[80vh] object-contain rounded-lg" />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
 
 const ViewContent = ({
   lead, creativeName, creativeAd,
@@ -200,6 +864,18 @@ const ViewContent = ({
   const displayName = isEditing && formData ? formData.nome : lead.nome;
   const initials = (displayName || "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
 
+  const [activeTab, setActiveTab] = useState<'resumo' | 'ia' | 'historico' | 'consultas' | 'financeiro' | 'fotos' | 'etiquetas' | 'notas'>('resumo');
+  const TABS = [
+    { id: 'resumo',     label: 'Resumo',     icon: User },
+    { id: 'ia',         label: 'IA',         icon: Sparkles },
+    { id: 'historico',  label: 'Histórico',  icon: Activity },
+    { id: 'consultas',  label: 'Consultas',  icon: CalendarIcon, count: agendamentos.length },
+    { id: 'financeiro', label: 'Financeiro', icon: DollarSign, count: vendasLead.length },
+    { id: 'fotos',      label: 'Galeria',    icon: Camera },
+    { id: 'etiquetas',  label: 'Etiquetas',  icon: Tag },
+    { id: 'notas',      label: 'Notas',      icon: MessageSquare },
+  ] as const;
+
   const lastContactRaw = lead.ultimo_contato || lastMessage?.criado_em || null;
   const lastContactTime = lastContactRaw
     ? formatDistanceToNow(new Date(lastContactRaw), { addSuffix: true, locale: ptBR })
@@ -208,35 +884,41 @@ const ViewContent = ({
     ? formatDistanceToNow(new Date(lead.criado_em), { addSuffix: true, locale: ptBR })
     : null;
 
-  const darkInput = "bg-white/10 border-white/15 text-white placeholder:text-white/30 focus-visible:ring-1 focus-visible:ring-white/20 focus-visible:border-white/25 rounded-lg";
+  const proxAgendamento = (agendamentos as any[])
+    .filter((a) => a.data_hora_inicio && new Date(a.data_hora_inicio).getTime() > Date.now() && a.status !== 'cancelado')
+    .sort((a, b) => new Date(a.data_hora_inicio).getTime() - new Date(b.data_hora_inicio).getTime())[0];
+  const hasProcedimentoInteresse = !!(lead.procedimento_interesse && String(lead.procedimento_interesse).trim());
+  const respLead = teamMembers.find((m) => m.id === lead.responsavel_id);
+  const hasInfoBlock = !!(respLead || lead.data_nascimento || lead.genero || lead.cpf || lead.endereco);
+  const resumoIsEmpty = !proxAgendamento && vendasLead.length === 0 && !hasProcedimentoInteresse && !hasInfoBlock && !scoreConfig;
 
   return (
-    <div className="max-h-[80vh] overflow-y-auto">
+    <div className="bg-[#fafaf8] dark:bg-[#141414]">
 
-      {/* ═══════════════ DARK HERO HEADER ═══════════════ */}
-      <div className="bg-[#1a1a1a] px-6 pt-7 pb-6 -mt-[1px]">
-        <div className="flex items-start gap-5">
+      {/* ═══════════════ HEADER ═══════════════ */}
+      <div className="bg-card px-6 pt-6 pb-5 border-b border-border/60">
+        <div className="flex items-start gap-4">
           <div className="relative shrink-0">
-            <div className="h-[72px] w-[72px] rounded-2xl bg-[#2a2a2a] flex items-center justify-center ring-2 ring-white/10">
-              <span className="text-2xl font-extrabold text-white/80 select-none font-display tracking-tight">{initials}</span>
+            <div className="h-16 w-16 rounded-2xl bg-muted flex items-center justify-center ring-1 ring-border/60">
+              <span className="text-xl font-extrabold text-muted-foreground select-none font-display tracking-tight">{initials}</span>
             </div>
-            <div className={cn("absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-[3px] border-[#1a1a1a]", statusConfig.dot)} />
+            <div className={cn("absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-card", statusConfig.dot)} />
           </div>
 
           <div className="flex-1 min-w-0 pt-0.5">
             {isEditing ? (
               /* ── Edit mode hero ── */
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 max-w-md">
                 <Input
                   value={formData.nome}
                   onChange={(e) => onEdit('nome', e.target.value)}
                   placeholder="Nome do lead"
-                  className={cn(darkInput, "h-10 text-lg font-bold tracking-tight")}
+                  className="h-10 text-lg font-bold tracking-tight rounded-lg border-border/60 bg-background"
                 />
                 <PhoneInput
                   value={formData.telefone}
                   onChange={(e: any) => onEdit('telefone', e.target.value)}
-                  className={cn(darkInput, "h-8 text-[12px]")}
+                  className="h-9 text-[13px] rounded-lg border-border/60 bg-background"
                   required
                 />
                 <div className="flex items-center gap-2.5">
@@ -245,16 +927,16 @@ const ViewContent = ({
                     onCheckedChange={(checked) => onEdit('is_qualified', checked)}
                     className="data-[state=checked]:bg-emerald-500 scale-[0.8]"
                   />
-                  <span className="text-[11px] font-medium text-white/50">Lead Qualificado</span>
+                  <span className="text-[11px] font-medium text-muted-foreground">Lead Qualificado</span>
                 </div>
               </div>
             ) : (
               /* ── View mode hero ── */
               <>
-                <div className="flex items-center gap-2.5 flex-wrap">
-                  <h3 className="text-[22px] font-extrabold tracking-tight text-white font-display leading-tight">{lead.nome || 'Lead sem nome'}</h3>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-xl font-extrabold tracking-tight text-foreground font-display leading-tight">{lead.nome || 'Lead sem nome'}</h3>
                   {lead.is_qualified && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                       <UserCheck className="h-3 w-3" />
                       Qualificado
                     </span>
@@ -266,7 +948,7 @@ const ViewContent = ({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-4 mt-2 text-[12px] text-white/50">
+                <div className="flex items-center gap-x-4 gap-y-1 mt-2 text-[12px] text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1.5">
                     <Phone className="h-3 w-3" />
                     <span className="font-mono tabular-nums">{formatPhoneDisplay(lead.telefone)}</span>
@@ -277,45 +959,85 @@ const ViewContent = ({
                       {lead.email}
                     </span>
                   )}
-                  {createdDate && (
-                    <span className="flex items-center gap-1.5 ml-auto">
-                      <CalendarDays className="h-3 w-3" />
-                      {createdDate}
+                  {lead.idade ? (
+                    <span className="flex items-center gap-1.5">
+                      <User className="h-3 w-3" />
+                      {lead.idade} anos
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </>
             )}
           </div>
+
+          {/* Ações rápidas — topo do card */}
+          {!isEditing && (
+            <div className="flex items-center gap-2 shrink-0 mr-8">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setShowAgendamentoModal(true)}
+                className="h-9 rounded-lg text-xs font-semibold gap-1.5 border-border/60 hover:bg-muted/50"
+              >
+                <CalendarIcon className="h-3.5 w-3.5" />
+                Agendar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => setShowVendaModal(true)}
+                className="h-9 rounded-lg text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm px-4"
+              >
+                <DollarSign className="h-3.5 w-3.5" />
+                Registrar Venda
+              </Button>
+            </div>
+          )}
         </div>
 
       </div>
 
-      {/* ═══════════════ QUICK STATS ROW ═══════════════ */}
-      <div className="px-6 -mt-4 relative z-10">
-        <div className="grid grid-cols-3 gap-3">
+      {/* ═══════════════ TABS (somente view mode) ═══════════════ */}
+      {!isEditing && (
+        <div className="px-6 pt-5 flex justify-center">
+          <div className="inline-flex items-center gap-0.5 bg-muted/40 rounded-xl p-1 max-w-full overflow-x-auto">
+            {TABS.map((t) => {
+              const TabIcon = t.icon;
+              const active = activeTab === t.id;
+              const count = (t as any).count as number | undefined;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setActiveTab(t.id)}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11.5px] font-semibold transition-colors whitespace-nowrap",
+                    active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <TabIcon className="h-3.5 w-3.5" />
+                  {t.label}
+                  {count != null && count > 0 && (
+                    <span className={cn(
+                      "text-[9px] font-bold px-1 rounded tabular-nums",
+                      active ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"
+                    )}>{count}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
-          {/* Origem */}
-          <div className="rounded-xl border border-border/60 p-3.5 bg-white dark:bg-[#1f1f1f] shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Megaphone className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Origem</span>
-            </div>
-            {isEditing ? (
-              <Select value={formData.origem} onValueChange={(v) => onEdit('origem', v)}>
-                <SelectTrigger className="h-8 text-sm font-bold rounded-lg border-border/60 bg-background w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="marketing"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-amber-500" />Marketing</div></SelectItem>
-                  <SelectItem value="organico"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-emerald-500" />Orgânico</div></SelectItem>
-                  <SelectItem value="reativacao"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-cyan-500" />Reativação</div></SelectItem>
-                  <SelectItem value="paciente"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-teal-500" />Paciente</div></SelectItem>
-                  {isAnnaClaraOrg && <SelectItem value="convenio"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-violet-500" />Convênio</div></SelectItem>}
-                </SelectContent>
-              </Select>
-            ) : (
-              <span className={cn("text-sm font-bold", {
+      {/* ═══════════════ ORIGEM / CADASTRO / ÚLTIMO CONTATO (centralizado, sempre visível) ═══════════════ */}
+      {!isEditing && (
+        <div className="px-6 pt-3 flex justify-center">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px]">
+            <span>
+              <span className="text-muted-foreground">Origem: </span>
+              <span className={cn("font-semibold", {
                 'text-amber-600': lead.origem === 'marketing',
                 'text-emerald-600': lead.origem === 'organico' || lead.origem === 'indicacao',
                 'text-cyan-600': lead.origem === 'reativacao',
@@ -325,31 +1047,23 @@ const ViewContent = ({
               })}>
                 {{ marketing: 'Marketing', organico: 'Orgânico', indicacao: 'Orgânico', reativacao: 'Reativação', paciente: 'Paciente', convenio: 'Convênio' }[lead.origem as string] ?? lead.origem ?? '—'}
               </span>
-            )}
-          </div>
-
-          {/* Cadastro */}
-          <div className="rounded-xl border border-border/60 p-3.5 bg-white dark:bg-[#1f1f1f] shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-            <div className="flex items-center gap-2 mb-1.5">
-              <CalendarDays className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Cadastro</span>
-            </div>
-            <span className="text-sm font-bold text-foreground truncate block">{createdDate || '—'}</span>
-          </div>
-
-          {/* Último contato */}
-          <div className="rounded-xl border border-border/60 p-3.5 bg-white dark:bg-[#1f1f1f] shadow-[0_2px_8px_rgba(0,0,0,0.06)]">
-            <div className="flex items-center gap-2 mb-1.5">
-              <Clock className="h-3 w-3 text-muted-foreground" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Últ. contato</span>
-            </div>
-            <span className={cn("text-sm font-bold truncate block", lastContactTime ? "text-foreground" : "text-muted-foreground/50")}>{lastContactTime || 'Sem contato'}</span>
+            </span>
+            <span className="text-border/60">•</span>
+            <span>
+              <span className="text-muted-foreground">Cadastro: </span>
+              <span className="font-semibold text-foreground">{createdDate || '—'}</span>
+            </span>
+            <span className="text-border/60">•</span>
+            <span>
+              <span className="text-muted-foreground">Último contato: </span>
+              <span className={cn("font-semibold", lastContactTime ? "text-foreground" : "text-muted-foreground/50")}>{lastContactTime || 'Sem contato'}</span>
+            </span>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* ═══════════════ RESPONSÁVEL ═══════════════ */}
-      {(isEditing || lead.responsavel_id) && (
+      {/* ═══════════════ RESPONSÁVEL (edição) ═══════════════ */}
+      {isEditing && (
         <div className="px-6 pt-4">
           <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/20">
@@ -410,55 +1124,144 @@ const ViewContent = ({
       {/* ═══════════════ BODY CONTENT ═══════════════ */}
       <div className="px-6 pt-5 pb-2 space-y-4">
 
-        {/* Tags */}
-        <div>
-          <TagManager leadId={lead.id} />
-        </div>
 
-        {/* ═══════════════ TWO-COLUMN DETAIL GRID ═══════════════ */}
-        <div className="grid grid-cols-5 gap-4">
+        {/* ═══════════════ INFORMAÇÕES (edição) ═══════════════ */}
+        {isEditing && (
+          <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+              <User className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Informações</span>
+            </div>
+            <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-3">
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Origem</label>
+                <Select value={formData.origem} onValueChange={(v) => onEdit('origem', v)}>
+                  <SelectTrigger className="h-9 text-sm rounded-lg border-border/60 bg-background">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="marketing"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-amber-500" />Marketing</div></SelectItem>
+                    <SelectItem value="organico"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-emerald-500" />Orgânico</div></SelectItem>
+                    <SelectItem value="reativacao"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-cyan-500" />Reativação</div></SelectItem>
+                    <SelectItem value="paciente"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-teal-500" />Paciente</div></SelectItem>
+                    {isAnnaClaraOrg && <SelectItem value="convenio"><div className="flex items-center gap-2"><div className="h-2 w-2 rounded-full bg-violet-500" />Convênio</div></SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Data de Cadastro</label>
+                <MaskedInput
+                  mask="99/99/9999"
+                  placeholder="DD/MM/AAAA"
+                  value={formData.criado_em_display}
+                  onChange={(e: any) => onEdit('criado_em_display', e.target.value)}
+                  className="h-9 text-sm rounded-lg border-border/60 bg-background placeholder:text-muted-foreground/40"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
-          {/* LEFT COLUMN — 3/5 */}
-          <div className="col-span-3 space-y-4">
+        {/* ═══════════════ RESUMO (view) ═══════════════ */}
+        {!isEditing && activeTab === 'resumo' && (
+          <div className="space-y-4">
 
-            {/* ── Informações pessoais ── */}
-            {(isEditing || lead.data_nascimento || lead.genero || lead.cpf || lead.endereco || lead.fonte || lead.criado_em) && (
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-                  <User className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Informações</span>
+            {/* Empty state — nenhuma informação relevante ainda */}
+            {resumoIsEmpty && (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                  <User className="h-6 w-6 text-muted-foreground/40" />
                 </div>
+                <p className="text-sm font-medium text-muted-foreground">Nenhuma atividade registrada ainda</p>
+                <p className="text-[11px] text-muted-foreground/50 mt-0.5">Agendamentos, vendas e procedimentos de interesse aparecem aqui</p>
+              </div>
+            )}
 
-                {isEditing ? (
-                  /* ── Edit mode: only Fonte + Data de Cadastro ── */
-                  <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-3">
-                    <div>
-                      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Fonte</label>
-                      <CreatableSelect
-                        options={allSources || []}
-                        value={formData.fonte}
-                        onChange={handleSourceChange || (() => {})}
-                        placeholder="Ex: Instagram"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Data de Cadastro</label>
-                      <MaskedInput
-                        mask="99/99/9999"
-                        placeholder="DD/MM/AAAA"
-                        value={formData.criado_em_display}
-                        onChange={(e: any) => onEdit('criado_em_display', e.target.value)}
-                        className="h-9 text-sm rounded-lg border-border/60 bg-background placeholder:text-muted-foreground/40"
-                      />
+            {/* Próximo agendamento em destaque */}
+            {proxAgendamento && (
+              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <span className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 shrink-0">
+                    <CalendarIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                  </span>
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">Próximo agendamento</span>
+                    <span className="text-[13px] font-semibold text-foreground">
+                      {proxAgendamento.titulo || 'Agendamento'} · {format(parseISO(proxAgendamento.data_hora_inicio), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Resumo financeiro — vendas fechadas com este lead */}
+            {vendasLead.length > 0 && (() => {
+              const total = (vendasLead as any[]).reduce((s, v) => s + (Number(v.valor_fechado) || 0), 0);
+              return (
+                <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                  <div className="flex items-center gap-3 px-4 py-3">
+                    <span className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 shrink-0">
+                      <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </span>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">
+                        {vendasLead.length} procedimento{vendasLead.length !== 1 ? 's' : ''} fechado{vendasLead.length !== 1 ? 's' : ''}
+                      </span>
+                      <span className="text-[13px] font-semibold text-foreground tabular-nums font-display">
+                        R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
                     </div>
                   </div>
-                ) : (
-                  /* ── View mode: display values ── */
-                  <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-3">
-                    {lead.fonte && (
-                      <div>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">Fonte</span>
-                        <span className="text-[13px] font-semibold text-foreground">{lead.fonte}</span>
+                </div>
+              );
+            })()}
+
+            {/* Procedimento(s) de interesse — preenchido automaticamente pela IA */}
+            {hasProcedimentoInteresse && (
+              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+                  <Syringe className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Procedimento de interesse</span>
+                </div>
+                <div className="p-4 flex flex-wrap gap-2">
+                  {String(lead.procedimento_interesse)
+                    .split(/[,;•\n]|\s+e\s+/i)
+                    .map((p) => p.trim())
+                    .filter(Boolean)
+                    .map((proc, i) => (
+                      <span
+                        key={i}
+                        className="inline-flex items-center text-[12px] font-semibold text-foreground bg-muted/60 border border-border/50 px-2.5 py-1 rounded-lg"
+                      >
+                        {proc}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {/* Informações — dados do lead que não estão no topo (inclui Responsável) */}
+            {hasInfoBlock && (() => {
+              const resp = respLead;
+              return (
+                <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+                    <User className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Informações</span>
+                  </div>
+                  <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4">
+                    {resp && (
+                      <div className="col-span-2 flex items-center gap-2.5 pb-3.5 border-b border-border/40">
+                        <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden ring-1 ring-border">
+                          {resp.url_avatar
+                            ? <img src={resp.url_avatar} className="h-full w-full object-cover" />
+                            : <span className="text-[11px] font-bold text-muted-foreground">{resp.nome.charAt(0).toUpperCase()}</span>
+                          }
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block">Responsável</span>
+                          <span className="text-[13px] font-semibold text-foreground truncate block">{resp.nome}</span>
+                        </div>
                       </div>
                     )}
                     {lead.data_nascimento && (
@@ -488,42 +1291,17 @@ const ViewContent = ({
                         <span className="text-[13px] font-medium text-foreground">{lead.endereco}</span>
                       </div>
                     )}
-                    {lead.criado_em && (
-                      <div>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">Cadastro</span>
-                        <span className="text-[13px] font-semibold text-foreground tabular-nums">{toDisplayDateFromTimestamp(lead.criado_em)}</span>
-                      </div>
-                    )}
                   </div>
-                )}
-              </div>
-            )}
-
-            {/* Resumo IA — SOMENTE em view mode */}
-            {!isEditing && lead.resumo && (
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-amber-50/60 dark:bg-amber-950/20">
-                  <div className="p-1 rounded-md bg-amber-100 dark:bg-amber-900/40">
-                    <Sparkles className="h-3 w-3 text-amber-700 dark:text-amber-400" />
-                  </div>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-amber-800 dark:text-amber-400">Resumo IA</span>
                 </div>
-                <div className="p-4 text-[13px] text-foreground leading-relaxed">
-                  <FormattedText content={lead.resumo} />
-                </div>
-              </div>
-            )}
-          </div>
+              );
+            })()}
 
-          {/* RIGHT COLUMN — 2/5 */}
-          <div className="col-span-2 space-y-4">
-
-            {/* Lead Score Card */}
+            {/* Lead Score — só quando definido */}
             {scoreConfig && (
               <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="p-5 flex items-center gap-4">
+                <div className="p-4 flex items-center gap-4">
                   <div className="relative shrink-0">
-                    <svg width="64" height="64" viewBox="0 0 64 64" className="transform -rotate-90">
+                    <svg width="56" height="56" viewBox="0 0 64 64" className="transform -rotate-90">
                       <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/60" />
                       <circle
                         cx="32" cy="32" r="28" fill="none" stroke={scoreConfig.color} strokeWidth="4" strokeLinecap="round"
@@ -533,7 +1311,7 @@ const ViewContent = ({
                       />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xl font-extrabold font-display" style={{ color: scoreConfig.color }}>{scoreConfig.label}</span>
+                      <span className="text-lg font-extrabold font-display" style={{ color: scoreConfig.color }}>{scoreConfig.label}</span>
                     </div>
                   </div>
                   <div className="min-w-0">
@@ -543,68 +1321,17 @@ const ViewContent = ({
                 </div>
               </div>
             )}
-
-            {/* Criativo de Origem */}
-            {creativeName && (
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-                  <Megaphone className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Criativo</span>
-                </div>
-                <div className="p-4">
-                  <div className="flex items-center gap-3">
-                    {creativeAd?.url_thumbnail ? (
-                      <img src={creativeAd.url_thumbnail} className="w-11 h-11 rounded-lg object-cover shrink-0 ring-1 ring-border" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : (
-                      <div className="w-11 h-11 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                        <Megaphone className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <span className="text-[12px] font-semibold text-foreground truncate block">{creativeName}</span>
-                      {creativeAd?.meta_ad_id && <span className="text-[10px] text-muted-foreground font-mono">#{creativeAd.meta_ad_id.slice(-6)}</span>}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <CardCriativoOrigem leadId={lead.id} />
-
-            {/* Activity Summary */}
-            {!isEditing && lastContactTime && (
-              <div className="rounded-xl border border-border/60 bg-card p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Atividade</span>
-                </div>
-                <div className="space-y-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                    <span className="text-[12px] text-foreground">Último contato <span className="font-semibold">{lastContactTime}</span></span>
-                  </div>
-                  {lead.criado_em && (
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                      <span className="text-[12px] text-foreground">Cadastrado <span className="font-semibold">{createdDate}</span></span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
-        </div>
+        )}
 
-        {/* ═══════════════ AGENDAMENTOS & FECHAMENTOS ═══════════════ */}
-        <div className="grid grid-cols-2 gap-4">
-
-            {/* Agendamentos */}
+        {/* ═══════════════ CONSULTAS (agendamentos) ═══════════════ */}
+        {!isEditing && activeTab === 'consultas' && (
             <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
               <div className="px-4 py-3.5 border-b border-border/40 bg-blue-50/50 dark:bg-blue-950/10">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <span className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                      <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                      <CalendarIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
                     </span>
                     <div>
                       <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Agendamentos</p>
@@ -626,7 +1353,7 @@ const ViewContent = ({
               {agendamentos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <div className="p-3 rounded-xl bg-muted/40 mb-3">
-                    <Calendar className="h-6 w-6 text-muted-foreground/30" />
+                    <CalendarIcon className="h-6 w-6 text-muted-foreground/30" />
                   </div>
                   <p className="text-sm font-medium text-muted-foreground">Nenhum agendamento</p>
                   <p className="text-[11px] text-muted-foreground/50 mt-0.5">Nada registrado ainda</p>
@@ -670,8 +1397,10 @@ const ViewContent = ({
                 </div>
               )}
             </div>
+        )}
 
-            {/* Fechamentos */}
+        {/* ═══════════════ FINANCEIRO (fechamentos) ═══════════════ */}
+        {!isEditing && activeTab === 'financeiro' && (
             <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
               <div className="px-4 py-3.5 border-b border-border/40 bg-emerald-50/50 dark:bg-emerald-950/10">
                 <div className="flex items-center justify-between">
@@ -749,8 +1478,32 @@ const ViewContent = ({
                 </div>
               )}
             </div>
+        )}
 
-          </div>
+        {/* ═══════════════ IA ═══════════════ */}
+        {!isEditing && activeTab === 'ia' && (
+          <IaTab lead={lead} />
+        )}
+
+        {/* ═══════════════ HISTÓRICO ═══════════════ */}
+        {!isEditing && activeTab === 'historico' && (
+          <HistoricoTimeline leadId={lead.id} />
+        )}
+
+        {/* ═══════════════ FOTOS ═══════════════ */}
+        {!isEditing && activeTab === 'fotos' && (
+          <FotosTab lead={lead} vendasLead={vendasLead} />
+        )}
+
+        {/* ═══════════════ ETIQUETAS ═══════════════ */}
+        {!isEditing && activeTab === 'etiquetas' && (
+          <TagManager leadId={lead.id} fullPage />
+        )}
+
+        {/* ═══════════════ NOTAS ═══════════════ */}
+        {!isEditing && activeTab === 'notas' && lead.organization_id && (
+          <LeadNotas leadId={lead.id} organizationId={lead.organization_id} />
+        )}
 
         {/* Sub-modais de criação */}
         <AgendamentoLeadModal
@@ -892,16 +1645,6 @@ const FormContent = ({ formData, handleInputChange, handleSubmit, stages, handle
                     )}
                   </SelectContent>
                 </Select>
-              </FormField>
-            </div>
-            <div data-tutorial="lead-field-fonte">
-              <FormField label="Fonte">
-                <CreatableSelect
-                  options={allSources}
-                  value={formData.fonte}
-                  onChange={handleSourceChange}
-                  placeholder="Ex: Facebook, Instagram"
-                />
               </FormField>
             </div>
             <div data-tutorial="lead-field-data">
@@ -1157,122 +1900,117 @@ export function LeadModal({ open, onOpenChange, lead, mode = 'create' }: LeadMod
         <DialogContent data-tutorial="lead-modal" className={cn(
           "max-h-[90vh] rounded-2xl p-0 gap-0 overflow-hidden",
           (isView || isEdit)
-            ? "max-w-3xl overflow-y-auto bg-[#fafaf8] dark:bg-[#141414]"
+            ? "max-w-4xl flex flex-col bg-[#fafaf8] dark:bg-[#141414]"
             : "max-w-2xl bg-white dark:bg-[#1a1a1a]"
         )}>
-          {/* Header */}
           {(isView || isEdit) ? (
-            /* View/Edit mode — hero takes over, sr-only for accessibility */
-            <DialogHeader className="sr-only">
-              <DialogTitle>{isEdit ? 'Editar Lead' : 'Detalhes do Lead'}</DialogTitle>
-            </DialogHeader>
-          ) : (
-            /* Create mode — separate header */
-            <div className="px-6 pt-6 pb-4 border-b border-border/40">
-              <DialogHeader>
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-emerald-50">
-                    <Plus className="h-4 w-4 text-emerald-600" />
-                  </div>
-                  <div>
-                    <DialogTitle className="font-display font-bold tracking-tight text-lg">
-                      Novo Lead
-                    </DialogTitle>
-                    <p className="text-[12px] text-muted-foreground mt-0.5">
-                      Preencha os dados para adicionar um novo lead
-                    </p>
-                  </div>
-                </div>
-              </DialogHeader>
-            </div>
-          )}
+            <>
+              {/* Área rolável — header + abas + conteúdo. O rodapé de ações fica FORA
+                  desta div (ver abaixo), como item de flex separado, para nunca sobrepor
+                  o conteúdo enquanto o usuário rola uma aba longa (ex: Histórico). */}
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <DialogHeader className="sr-only">
+                  <DialogTitle>{isEdit ? 'Editar Lead' : 'Detalhes do Lead'}</DialogTitle>
+                </DialogHeader>
 
-          {(isView || isEdit) && lead ? (
-            <div className="pb-0">
-              <ViewContent
-                lead={lead}
-                creativeName={creativeName}
-                creativeAd={creativeAd}
-                isEditing={isEdit}
-                formData={isEdit ? formData : undefined}
-                handleInputChange={isEdit ? handleInputChange : undefined}
-                handleSourceChange={isEdit ? handleSourceChange : undefined}
-                allSources={isEdit ? allSources : undefined}
+                {lead ? (
+                  <div className="pb-0 min-w-0">
+                    <ViewContent
+                      lead={lead}
+                      creativeName={creativeName}
+                      creativeAd={creativeAd}
+                      isEditing={isEdit}
+                      formData={isEdit ? formData : undefined}
+                      handleInputChange={isEdit ? handleInputChange : undefined}
+                      handleSourceChange={isEdit ? handleSourceChange : undefined}
+                      allSources={isEdit ? allSources : undefined}
+                      teamMembers={teamMembers}
+                    />
+                  </div>
+                ) : (
+                  <FormContent
+                    formData={formData}
+                    handleInputChange={handleInputChange}
+                    handleSubmit={handleSubmit}
+                    handleClose={handleClose}
+                    isEdit={false}
+                    handleSourceChange={handleSourceChange}
+                    teamMembers={teamMembers}
+                  />
+                )}
+
+                {/* Notas do lead — em view mode fica na aba Notas */}
+                {isEdit && lead?.id && lead?.organization_id && (
+                  <div className="border-t border-border/40 pt-5 pb-3 px-6">
+                    <LeadNotas leadId={lead.id} organizationId={lead.organization_id} />
+                  </div>
+                )}
+              </div>
+
+              {isView && (
+                <div className="flex items-center gap-2 px-6 py-4 border-t border-border/40 bg-white dark:bg-[#1a1a1a] shrink-0">
+                  <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={handleClose}>Fechar</Button>
+                  <div className="flex-1" />
+                  <Button type="button" size="sm" variant="outline" onClick={handleOpenConversation} className="h-8 rounded-lg text-xs font-semibold gap-1.5 border-border/60 hover:bg-muted/50">
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    Conversa
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleEditClient} className="h-8 rounded-lg text-xs font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 shadow-sm">
+                    <Pencil className="h-3.5 w-3.5" />
+                    Editar
+                  </Button>
+                </div>
+              )}
+
+              {isEdit && (
+                <div className="flex items-center gap-2 px-6 py-4 border-t border-border/40 bg-white dark:bg-[#1a1a1a] shrink-0">
+                  <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCurrentMode('view')}>
+                    Cancelar
+                  </Button>
+                  <div className="flex-1" />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={doSubmit}
+                    className="h-8 rounded-lg text-xs font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 shadow-sm px-5"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Salvar Alterações
+                  </Button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Create mode — separate header */}
+              <div className="px-6 pt-6 pb-4 border-b border-border/40">
+                <DialogHeader>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-emerald-50">
+                      <Plus className="h-4 w-4 text-emerald-600" />
+                    </div>
+                    <div>
+                      <DialogTitle className="font-display font-bold tracking-tight text-lg">
+                        Novo Lead
+                      </DialogTitle>
+                      <p className="text-[12px] text-muted-foreground mt-0.5">
+                        Preencha os dados para adicionar um novo lead
+                      </p>
+                    </div>
+                  </div>
+                </DialogHeader>
+              </div>
+
+              <FormContent
+                formData={formData}
+                handleInputChange={handleInputChange}
+                handleSubmit={handleSubmit}
+                handleClose={handleClose}
+                isEdit={false}
+                handleSourceChange={handleSourceChange}
                 teamMembers={teamMembers}
               />
-            </div>
-          ) : (
-            <FormContent
-              formData={formData}
-              handleInputChange={handleInputChange}
-              handleSubmit={handleSubmit}
-              handleClose={handleClose}
-              isEdit={false}
-              handleSourceChange={handleSourceChange}
-              teamMembers={teamMembers}
-            />
-          )}
-
-          {/* Notas do lead */}
-          {lead?.id && lead?.organization_id && (
-            <div className={cn(
-              "border-t border-border/40 pt-5 pb-3",
-              isView ? "px-6 bg-[#fafaf8] dark:bg-[#141414]" : "px-6"
-            )}>
-              <LeadNotas leadId={lead.id} organizationId={lead.organization_id} />
-            </div>
-          )}
-
-          {isView && (
-            <div className="flex items-center gap-2 px-6 py-4 border-t border-border/40 bg-white dark:bg-[#1a1a1a] sticky bottom-0">
-              <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={handleClose}>Fechar</Button>
-              <div className="flex-1" />
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => setIsVendaModalOpen(true)}
-                className="h-8 rounded-lg text-xs font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
-              >
-                <DollarSign className="h-3.5 w-3.5" />
-                Registrar Venda
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => { navigate(`/crm/leads/${lead?.id}`); onOpenChange(false); }}
-                className="h-8 rounded-lg text-xs font-semibold gap-1.5 border-border/60 hover:bg-muted/50"
-              >
-                <Activity className="h-3.5 w-3.5" />
-                Jornada
-              </Button>
-              <Button type="button" size="sm" variant="outline" onClick={handleOpenConversation} className="h-8 rounded-lg text-xs font-semibold gap-1.5 border-border/60 hover:bg-muted/50">
-                <MessageCircle className="h-3.5 w-3.5" />
-                Conversa
-              </Button>
-              <Button type="button" size="sm" onClick={handleEditClient} className="h-8 rounded-lg text-xs font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 shadow-sm">
-                <Pencil className="h-3.5 w-3.5" />
-                Editar
-              </Button>
-            </div>
-          )}
-
-          {isEdit && (
-            <div className="flex items-center gap-2 px-6 py-4 border-t border-border/40 bg-white dark:bg-[#1a1a1a] sticky bottom-0">
-              <Button type="button" variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground" onClick={() => setCurrentMode('view')}>
-                Cancelar
-              </Button>
-              <div className="flex-1" />
-              <Button
-                type="button"
-                size="sm"
-                onClick={doSubmit}
-                className="h-8 rounded-lg text-xs font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 shadow-sm px-5"
-              >
-                <Pencil className="h-3 w-3" />
-                Salvar Alterações
-              </Button>
-            </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

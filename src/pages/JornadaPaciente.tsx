@@ -7,7 +7,7 @@ import {
   MessageSquare, CalendarDays, DollarSign, Bot, Zap,
   StickyNote, Tag, UserPlus, Clock, TrendingUp, Activity,
   ChevronDown, ChevronUp, ExternalLink, AlertCircle,
-  Send, Inbox, FileText, UserCog,
+  Send, Inbox, FileText, UserCog, BellRing,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +34,7 @@ const EVENTO_CONFIG: Record<EventoTipo, {
   ia:          { icon: Bot,           bgColor: "bg-violet-50",   iconColor: "text-violet-600",  borderColor: "border-violet-200/60", label: "IA" },
   cadencia:    { icon: Zap,           bgColor: "bg-teal-50",     iconColor: "text-teal-600",    borderColor: "border-teal-200/60",   label: "Cadencias" },
   responsavel: { icon: UserCog,       bgColor: "bg-indigo-50",   iconColor: "text-indigo-600",  borderColor: "border-indigo-200/60", label: "Responsável" },
+  confirmacao: { icon: BellRing,      bgColor: "bg-sky-50",      iconColor: "text-sky-600",     borderColor: "border-sky-200/60",    label: "Confirmação" },
 };
 
 const SCORING_CONFIG: Record<string, { label: string; bg: string; text: string }> = {
@@ -43,7 +44,7 @@ const SCORING_CONFIG: Record<string, { label: string; bg: string; text: string }
   D: { label: "Fora do ICP", bg: "bg-red-50 border-red-200/60", text: "text-red-700" },
 };
 
-const ALL_TIPOS: EventoTipo[] = ["entrada","mensagem","agendamento","venda","scoring","tag","nota","ia","cadencia","responsavel"];
+const ALL_TIPOS: EventoTipo[] = ["entrada","mensagem","agendamento","venda","scoring","tag","nota","ia","cadencia","responsavel","confirmacao"];
 const MACRO_TIPOS: EventoTipo[] = ["entrada", "scoring", "agendamento", "venda"];
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -295,7 +296,7 @@ function EventoCard({ evento, isLast }: { evento: JornadaEvento; isLast: boolean
                     : "bg-red-50 border-red-200/60 text-red-700"
                 )}>
                   <Clock className="h-2.5 w-2.5" />
-                  {evento.metadata.tempo_apos_handoff_min < 1 ? '< 1 min' : `${evento.metadata.tempo_apos_handoff_min} min apos handoff`}
+                  {evento.metadata.tempo_apos_handoff_min < 1 ? 'menos de 1 min' : `${evento.metadata.tempo_apos_handoff_min} min apos handoff`}
                 </span>
               )}
             </div>
@@ -325,7 +326,7 @@ function EventoCard({ evento, isLast }: { evento: JornadaEvento; isLast: boolean
                     : "bg-red-50 border-red-200/60 text-red-700"
                 )}>
                   <Clock className="h-2.5 w-2.5" />
-                  {evento.metadata.tempo_resposta_min < 1 ? '< 1 min' : `${evento.metadata.tempo_resposta_min} min`}
+                  {evento.metadata.tempo_resposta_min < 1 ? 'menos de 1 min' : `${evento.metadata.tempo_resposta_min} min`}
                 </span>
               )}
             </div>
@@ -678,7 +679,7 @@ export default function JornadaPaciente() {
                     : "bg-red-50/60 border-red-200/40 text-red-700"
                 )}>
                   <Clock className="h-3.5 w-3.5 shrink-0" />
-                  <span>Tempo de resposta: {stats.tempoRespostaMin < 1 ? '< 1 min' : `${stats.tempoRespostaMin} min`}</span>
+                  <span>Tempo de resposta: {stats.tempoRespostaMin < 1 ? 'menos de 1 min' : `${stats.tempoRespostaMin} min`}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground/60 bg-muted/30 rounded-xl px-3 py-2 border border-border/40">

@@ -117,7 +117,7 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
       });
       setAtivarFluxo(true);
     }
-  }, [isOpen, agendamentoExistente, leadId, leadNome]);
+  }, [isOpen, agendamentoExistente, leadId, leadNome, financeiroConfig]);
 
   function toLocalDatetimeStr(isoStr: string): string {
     const d = new Date(isoStr);
