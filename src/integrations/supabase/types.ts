@@ -3857,6 +3857,92 @@ export type Database = {
           },
         ]
       }
+      lead_documento_pastas: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          id: string
+          lead_id: string
+          nome: string
+          organization_id: string
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          lead_id: string
+          nome: string
+          organization_id: string
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          lead_id?: string
+          nome?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_documento_pastas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_documentos: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          id: string
+          lead_id: string
+          nome_arquivo: string
+          organization_id: string
+          pasta_id: string | null
+          storage_path: string
+          tamanho_bytes: number | null
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          lead_id: string
+          nome_arquivo: string
+          organization_id: string
+          pasta_id?: string | null
+          storage_path: string
+          tamanho_bytes?: number | null
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          lead_id?: string
+          nome_arquivo?: string
+          organization_id?: string
+          pasta_id?: string | null
+          storage_path?: string
+          tamanho_bytes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_documentos_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_documentos_pasta_id_fkey"
+            columns: ["pasta_id"]
+            isOneToOne: false
+            referencedRelation: "lead_documento_pastas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_fotos: {
         Row: {
           criado_em: string

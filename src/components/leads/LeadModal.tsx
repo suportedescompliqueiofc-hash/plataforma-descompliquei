@@ -14,7 +14,6 @@ import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Penci
 import { parse, format, differenceInYears, isValid, startOfDay, parseISO, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { CreatableSelect } from "@/components/ui/CreatableSelect";
 import { useLeadSources } from "@/hooks/useLeadSources";
@@ -31,7 +30,8 @@ import { cn } from "@/lib/utils";
 import { useTeamMembersForSelect, MemberSelectOption } from "@/hooks/useTeamMembersForSelect";
 import { useJornadaPaciente, EventoTipo } from "@/hooks/useJornadaPaciente";
 import { useLeadFotos, LeadFoto } from "@/hooks/useLeadFotos";
-import { Loader2, History as HistoryIcon, Syringe, ImagePlus, Trash2, Camera, BellRing, X, ChevronDown } from "lucide-react";
+import { useLeadDocumentos, LeadDocumento, LeadDocumentoPasta } from "@/hooks/useLeadDocumentos";
+import { Loader2, History as HistoryIcon, Syringe, ImagePlus, Trash2, Camera, BellRing, X, ChevronDown, FileText, Folder, FolderPlus, Upload, Download } from "lucide-react";
 
 // --- Funções Auxiliares (mantidas) ---
 const calculateAge = (dobString: string | undefined): number | '' => {
@@ -773,6 +773,213 @@ const FotosTab = ({ lead, vendasLead = [] }: { lead: any; vendasLead?: any[] }) 
   );
 };
 
+// ── Aba de Documentos — PDFs organizados em pastas simples ──
+const formatBytes = (bytes: number | null): string => {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const DocumentoRow = ({ doc, onRemove }: { doc: LeadDocumento; onRemove: (d: LeadDocumento) => void }) => (
+  <div className="flex items-center gap-3 px-4 py-2.5 group">
+    <div className="p-1.5 rounded-lg bg-muted/50 shrink-0">
+      <FileText className="h-3.5 w-3.5 text-muted-foreground/70" />
+    </div>
+    <div className="min-w-0 flex-1">
+      <p className="text-[13px] text-foreground truncate">{doc.nome_arquivo}</p>
+      <p className="text-[10px] text-muted-foreground/50">{formatBytes(doc.tamanho_bytes)}</p>
+    </div>
+    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {doc.signedUrl && (
+        <Button size="icon" variant="ghost" className="h-7 w-7" asChild>
+          <a href={doc.signedUrl} target="_blank" rel="noopener noreferrer" download={doc.nome_arquivo}>
+            <Download className="h-3.5 w-3.5 text-muted-foreground" />
+          </a>
+        </Button>
+      )}
+      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onRemove(doc)}>
+        <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+      </Button>
+    </div>
+  </div>
+);
+
+const DocumentoPastaCard = ({
+  pasta, documentos, onRemoveDoc, onRemovePasta,
+}: {
+  pasta: LeadDocumentoPasta | null;
+  documentos: LeadDocumento[];
+  onRemoveDoc: (d: LeadDocumento) => void;
+  onRemovePasta?: (p: LeadDocumentoPasta) => void;
+}) => (
+  <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+    <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
+      <div className="flex items-center gap-2">
+        <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
+          {pasta ? pasta.nome : "Sem pasta"}
+        </span>
+      </div>
+      {pasta && onRemovePasta && (
+        <Button size="icon" variant="ghost" className="h-6 w-6 opacity-50 hover:opacity-100" onClick={() => onRemovePasta(pasta)}>
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
+    {documentos.length === 0 ? (
+      <p className="text-[11px] text-muted-foreground/50 px-4 py-3">Nenhum documento nesta pasta</p>
+    ) : (
+      <div className="divide-y divide-border/40">
+        {documentos.map((d) => <DocumentoRow key={d.id} doc={d} onRemove={onRemoveDoc} />)}
+      </div>
+    )}
+  </div>
+);
+
+const DocumentosTab = ({ lead }: { lead: any }) => {
+  const { pastas, documentos, isLoading, createPasta, removePasta, upload, remove } = useLeadDocumentos(lead.id);
+  const [showPastaForm, setShowPastaForm] = useState(false);
+  const [novaPastaNome, setNovaPastaNome] = useState("");
+  const [showUploadForm, setShowUploadForm] = useState(false);
+  const [uploadPastaId, setUploadPastaId] = useState<string>("none");
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCreatePasta = async () => {
+    if (!novaPastaNome.trim()) return;
+    await createPasta.mutateAsync(novaPastaNome.trim());
+    setNovaPastaNome("");
+    setShowPastaForm(false);
+  };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    await upload.mutateAsync({ file, pastaId: uploadPastaId === "none" ? null : uploadPastaId });
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setShowUploadForm(false);
+  };
+
+  const documentosSemPasta = documentos.filter((d) => !d.pasta_id);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Documentos do cliente</span>
+        <div className="flex items-center gap-1.5">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowPastaForm((v) => !v)}
+            className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"
+          >
+            <FolderPlus className="h-3.5 w-3.5" /> Nova pasta
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowUploadForm((v) => !v)}
+            className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"
+          >
+            <Upload className="h-3.5 w-3.5" /> Adicionar PDF
+          </Button>
+        </div>
+      </div>
+
+      {showPastaForm && (
+        <div className="rounded-xl border border-border/60 bg-card p-4 flex items-center gap-2">
+          <Input
+            value={novaPastaNome}
+            onChange={(e) => setNovaPastaNome(e.target.value)}
+            placeholder="Nome da pasta"
+            className="h-9 text-sm rounded-lg border-border/60"
+          />
+          <Button size="sm" variant="ghost" className="h-8 text-[11px] text-muted-foreground shrink-0" onClick={() => { setShowPastaForm(false); setNovaPastaNome(""); }}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleCreatePasta}
+            disabled={!novaPastaNome.trim() || createPasta.isPending}
+            className="h-8 rounded-lg text-[11px] font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 px-4 shrink-0"
+          >
+            {createPasta.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <FolderPlus className="h-3 w-3" />} Criar
+          </Button>
+        </div>
+      )}
+
+      {showUploadForm && (
+        <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pasta</span>
+            <Select value={uploadPastaId} onValueChange={setUploadPastaId}>
+              <SelectTrigger className="h-9 text-sm rounded-lg border-border/60">
+                <SelectValue placeholder="Sem pasta" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sem pasta</SelectItem>
+                {pastas.map((p) => <SelectItem key={p.id} value={p.id}>{p.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Arquivo (PDF)</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="block w-full text-[13px] text-muted-foreground file:mr-3 file:h-8 file:rounded-lg file:border-0 file:bg-muted file:px-3 file:text-[11px] file:font-medium"
+            />
+          </div>
+          <div className="flex justify-end gap-1.5">
+            <Button size="sm" variant="ghost" className="text-[11px] h-8 text-muted-foreground" onClick={() => { setShowUploadForm(false); setFile(null); }}>Cancelar</Button>
+            <Button
+              size="sm"
+              onClick={handleUpload}
+              disabled={!file || upload.isPending}
+              className="h-8 rounded-lg text-[11px] font-semibold gap-1.5 bg-foreground text-background hover:bg-foreground/90 px-4"
+            >
+              {upload.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />} Salvar
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {!isLoading && pastas.length === 0 && documentos.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <div className="p-3 rounded-xl bg-muted/40 mb-3">
+            <FileText className="h-6 w-6 text-muted-foreground/40" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">Nenhum documento ainda</p>
+          <p className="text-[11px] text-muted-foreground/50 mt-0.5">Organize os documentos do cliente em pastas</p>
+        </div>
+      )}
+
+      {pastas.map((p) => (
+        <DocumentoPastaCard
+          key={p.id}
+          pasta={p}
+          documentos={documentos.filter((d) => d.pasta_id === p.id)}
+          onRemoveDoc={(d) => remove.mutate(d)}
+          onRemovePasta={(pasta) => removePasta.mutate(pasta)}
+        />
+      ))}
+
+      {documentosSemPasta.length > 0 && (
+        <DocumentoPastaCard pasta={null} documentos={documentosSemPasta} onRemoveDoc={(d) => remove.mutate(d)} />
+      )}
+    </div>
+  );
+};
+
 const ViewContent = ({
   lead, creativeName, creativeAd,
   isEditing = false, formData, handleInputChange, handleSourceChange, allSources,
@@ -864,7 +1071,7 @@ const ViewContent = ({
   const displayName = isEditing && formData ? formData.nome : lead.nome;
   const initials = (displayName || "?").split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase();
 
-  const [activeTab, setActiveTab] = useState<'resumo' | 'ia' | 'historico' | 'consultas' | 'financeiro' | 'fotos' | 'etiquetas' | 'notas'>('resumo');
+  const [activeTab, setActiveTab] = useState<'resumo' | 'ia' | 'historico' | 'consultas' | 'financeiro' | 'fotos' | 'documentos' | 'etiquetas' | 'notas'>('resumo');
   const TABS = [
     { id: 'resumo',     label: 'Resumo',     icon: User },
     { id: 'ia',         label: 'IA',         icon: Sparkles },
@@ -872,6 +1079,7 @@ const ViewContent = ({
     { id: 'consultas',  label: 'Consultas',  icon: CalendarIcon, count: agendamentos.length },
     { id: 'financeiro', label: 'Financeiro', icon: DollarSign, count: vendasLead.length },
     { id: 'fotos',      label: 'Galeria',    icon: Camera },
+    { id: 'documentos', label: 'Documentos', icon: FileText },
     { id: 'etiquetas',  label: 'Etiquetas',  icon: Tag },
     { id: 'notas',      label: 'Notas',      icon: MessageSquare },
   ] as const;
@@ -913,7 +1121,7 @@ const ViewContent = ({
                   value={formData.nome}
                   onChange={(e) => onEdit('nome', e.target.value)}
                   placeholder="Nome do lead"
-                  className="h-10 text-lg font-bold tracking-tight rounded-lg border-border/60 bg-background"
+                  className="h-10 text-lg font-bold tracking-tight rounded-lg border-border/60 bg-background font-display"
                 />
                 <PhoneInput
                   value={formData.telefone}
@@ -1495,6 +1703,11 @@ const ViewContent = ({
           <FotosTab lead={lead} vendasLead={vendasLead} />
         )}
 
+        {/* ═══════════════ DOCUMENTOS ═══════════════ */}
+        {!isEditing && activeTab === 'documentos' && (
+          <DocumentosTab lead={lead} />
+        )}
+
         {/* ═══════════════ ETIQUETAS ═══════════════ */}
         {!isEditing && activeTab === 'etiquetas' && (
           <TagManager leadId={lead.id} fullPage />
@@ -1570,7 +1783,7 @@ const FormContent = ({ formData, handleInputChange, handleSubmit, stages, handle
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground truncate">{formData.nome || 'Novo lead'}</p>
+          <p className="text-sm font-semibold text-foreground truncate font-display">{formData.nome || 'Novo lead'}</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             {formData.telefone ? formData.telefone : 'Preencha os dados abaixo'}
           </p>
