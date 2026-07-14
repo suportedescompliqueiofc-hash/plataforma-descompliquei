@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -26,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { PageHero } from "@/components/PageHero";
+import { StatCard, StatCardGrid } from "@/components/StatCard";
+import { formatBRL, formatInt, formatPct } from "@/lib/format";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Tooltip as RechartsTooltip, Cell, ReferenceLine } from "recharts";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -85,20 +86,11 @@ interface Meta {
 }
 
 // ── Helpers ────────────────────────────────────────────────────
+// Delegam para @/lib/format (fonte única da verdade de formatação).
 
-function fmtBRL(v: number | null | undefined): string {
-  if (v == null) return "R$ 0";
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: 0 });
-}
-
-function fmtNum(v: number | null | undefined): string {
-  if (v == null) return "0";
-  return Math.round(v).toLocaleString("pt-BR");
-}
-function fmtPct(v: number | null | undefined): string {
-  if (v == null) return "0%";
-  return `${Number(v).toFixed(1)}%`;
-}
+const fmtBRL = formatBRL;
+const fmtNum = formatInt;
+const fmtPct = (v: number | null | undefined): string => formatPct(v, 1);
 function pctColor(pct: number): string {
   if (pct >= 80) return "#10b981";
   if (pct >= 50) return "#f59e0b";
@@ -126,7 +118,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
           <div key={i} className="flex items-center gap-2 py-0.5">
             <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.color }} />
             <span className="text-[11px] text-muted-foreground">{entry.name}:</span>
-            <span className="text-[11px] font-bold text-foreground tabular-nums">{fmtBRL(entry.value)}</span>
+            <span className="text-[11px] font-bold text-foreground font-display tabular-nums">{fmtBRL(entry.value)}</span>
           </div>
         ))}
       </div>
@@ -464,18 +456,23 @@ export default function Metas() {
   if (!meta) {
     return (
       <div className="space-y-6 pb-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">Metas</h1>
-            <p className="text-[13px] text-muted-foreground mt-0.5">Defina metas e acompanhe o progresso do funil</p>
-          </div>
-          <Button data-tutorial="metas-criar" onClick={openCriar} className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-4 w-full sm:w-auto">
-            <Plus className="h-3.5 w-3.5" /> Nova Meta
-          </Button>
-        </div>
+        <PageHero
+          icon={Target}
+          title="Metas"
+          subtitle="Defina metas e acompanhe o progresso do funil"
+          right={
+            <Button
+              data-tutorial="metas-criar"
+              onClick={openCriar}
+              className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
+            >
+              <Plus className="h-3.5 w-3.5" /> Nova Meta
+            </Button>
+          }
+        />
         <div className="flex flex-col items-center justify-center py-20 rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="bg-muted/30 p-5 rounded-2xl mb-4"><Target className="h-10 w-10 text-muted-foreground/30" /></div>
-          <h3 className="text-base font-semibold text-foreground mb-1">Nenhuma meta ativa</h3>
+          <h3 className="text-base font-semibold text-foreground mb-1 font-display">Nenhuma meta ativa</h3>
           <p className="text-sm text-muted-foreground/60 mb-5">Crie sua primeira meta para acompanhar o funil</p>
           <Button data-tutorial="metas-criar" onClick={openCriar} className="gap-1.5 h-9 text-xs font-semibold rounded-lg bg-foreground text-background hover:bg-foreground/90">
             <Plus className="h-3.5 w-3.5" /> Criar Meta
@@ -522,7 +519,7 @@ export default function Metas() {
           {/* Header */}
           <div className="px-5 pt-5 pb-4 border-b border-border/40">
             <DialogHeader className="space-y-1">
-              <DialogTitle className="text-base font-semibold">{editingMeta ? "Editar Meta" : "Nova Meta"}</DialogTitle>
+              <DialogTitle className="text-base font-semibold font-display">{editingMeta ? "Editar Meta" : "Nova Meta"}</DialogTitle>
               <p className="text-xs text-muted-foreground/70">Configure sua meta de receita e taxas do funil</p>
             </DialogHeader>
           </div>
@@ -665,7 +662,7 @@ export default function Metas() {
   // ── RENDER ─────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10">
       {/* ═══ PAGE HERO ═══ */}
       <PageHero
         icon={Target}
@@ -746,11 +743,11 @@ export default function Metas() {
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] text-muted-foreground tabular-nums">
+                              <span className="text-[10px] text-muted-foreground font-display tabular-nums">
                                 {format(parseISO(mt.data_inicio), "dd/MM", { locale: ptBR })} — {format(parseISO(mt.data_fim), "dd/MM/yy", { locale: ptBR })}
                               </span>
                               <span className="text-[10px] text-muted-foreground">·</span>
-                              <span className="text-[10px] font-semibold tabular-nums" style={{ color: pctColor(pctR) }}>
+                              <span className="text-[10px] font-semibold font-display tabular-nums" style={{ color: pctColor(pctR) }}>
                                 {fmtPct(pctR)}
                               </span>
                             </div>
@@ -785,7 +782,7 @@ export default function Metas() {
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-muted/50 border-border/60 text-muted-foreground capitalize">
                 {m.periodo_tipo}
               </span>
-              <span className="text-[11px] text-muted-foreground tabular-nums">
+              <span className="text-[11px] text-muted-foreground font-display tabular-nums">
                 {format(parseISO(m.data_inicio), "dd/MM", { locale: ptBR })} — {format(parseISO(m.data_fim), "dd/MM/yyyy", { locale: ptBR })}
               </span>
               {!m.ativo && (
@@ -794,7 +791,7 @@ export default function Metas() {
                 </span>
               )}
               {todasMetas.length > 1 && (
-                <span className="text-[10px] text-muted-foreground/50 tabular-nums">
+                <span className="text-[10px] text-muted-foreground/50 font-display tabular-nums">
                   {selectedIndex + 1} de {todasMetas.length}
                 </span>
               )}
@@ -819,12 +816,12 @@ export default function Metas() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground shrink-0">
             <Clock className="h-3 w-3" />
-            <span className="tabular-nums font-medium">{diasRestantes}d restantes</span>
+            <span className="font-display tabular-nums font-medium">{diasRestantes}d restantes</span>
           </div>
           <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
             <div className="h-full bg-foreground rounded-full transition-all duration-700" style={{ width: `${progressoTempo}%` }} />
           </div>
-          <span className="text-[11px] text-muted-foreground tabular-nums font-medium">{progressoTempo}%</span>
+          <span className="text-[11px] text-muted-foreground font-display tabular-nums font-medium">{progressoTempo}%</span>
         </div>
       </div>
 
@@ -871,7 +868,7 @@ export default function Metas() {
               </Tooltip>
             </div>
             <p className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground font-display mt-2 tabular-nums">{card.value}</p>
-            {card.metaVal > 0 && <p className="text-[11px] text-muted-foreground mt-1.5 tabular-nums">{card.meta}</p>}
+            {card.metaVal > 0 && <p className="text-[11px] text-muted-foreground mt-1.5 font-display tabular-nums">{card.meta}</p>}
 
             {showNiveis ? (
               /* ── Barra de 3 níveis ── */
@@ -891,7 +888,7 @@ export default function Metas() {
                     <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500" />Super</span>
                   </div>
                   {nivelAtingido !== 'none' && (
-                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border tabular-nums", nivelBadgeColor)}>
+                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border font-display tabular-nums", nivelBadgeColor)}>
                       {nivelLabel} atingida
                     </span>
                   )}
@@ -906,7 +903,7 @@ export default function Metas() {
                     style={{ width: `${Math.min(card.pct, 100)}%`, backgroundColor: card.accent ? "hsl(var(--primary))" : pctColor(card.pct) }}
                   />
                 </div>
-                <span className={cn("text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md border", pctBg(card.pct))}>{fmtPct(card.pct)}</span>
+                <span className={cn("text-[10px] font-bold font-display tabular-nums px-1.5 py-0.5 rounded-md border", pctBg(card.pct))}>{fmtPct(card.pct)}</span>
               </div>
             ) : null}
           </div>
@@ -916,8 +913,8 @@ export default function Metas() {
       </TooltipProvider>
 
       {/* ═══ TABS ═══ */}
-      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); if (v === "evolucao") initSimulator(); }}>
-        <div className="flex rounded-xl border border-border/60 bg-muted/30 p-1 gap-0.5 self-start w-fit" data-tutorial="metas-tabs">
+      <div>
+        <div className="flex bg-muted/40 rounded-xl p-1 gap-0.5 self-start w-fit" data-tutorial="metas-tabs">
           {[
             { value: "visao-geral", label: "Visão Geral", icon: Target },
             { value: "evolucao", label: "Evolução", icon: TrendingUp },
@@ -936,7 +933,8 @@ export default function Metas() {
         </div>
 
         {/* ═════════ VISAO GERAL ═════════ */}
-        <TabsContent value="visao-geral" className="mt-6 space-y-6" data-tutorial="metas-cards">
+        {activeTab === "visao-geral" && (
+        <div className="mt-6 space-y-6" data-tutorial="metas-cards">
 
           {tipoMeta === 'niveis' ? (() => {
             // ── META COM NÍVEIS ──────────────────────────────────────
@@ -963,34 +961,21 @@ export default function Metas() {
                         <p className="text-[11px] text-muted-foreground/40">{nivel.label} não configurado</p>
                       </div>
                     );
-                    if (nivel.beaten) return (
-                      <div key={nivel.key} className={cn("rounded-2xl border p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]", nivel.classes.border, nivel.classes.bg)}>
-                        <div className="flex items-center gap-1.5 mb-3">
-                          <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: nivel.dot }} />
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{nivel.label}</p>
-                          <span className={cn("ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-md", nivel.classes.badge)}>✓ Batida</span>
-                        </div>
-                        <p className="text-2xl font-extrabold font-display tabular-nums" style={{ color: nivel.dot }}>{fmtBRL(nivel.target)}</p>
-                        <p className={cn("text-[11px] mt-1.5", nivel.classes.text)}>+{fmtBRL(receitaT - nivel.target)} acima do {nivel.label.toLowerCase()}</p>
-                        <div className="h-1.5 bg-white/40 rounded-full overflow-hidden mt-3">
-                          <div className="h-full w-full rounded-full" style={{ backgroundColor: nivel.dot }} />
-                        </div>
-                      </div>
-                    );
                     return (
-                      <div key={nivel.key} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
-                        <div className="flex items-center gap-1.5 mb-3">
-                          <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: nivel.dot }} />
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{nivel.label}</p>
-                          <span className="ml-auto text-[9px] font-bold tabular-nums text-muted-foreground/50 bg-muted px-1.5 py-0.5 rounded-md">{pct}%</span>
-                        </div>
-                        <p className="text-2xl font-extrabold font-display tabular-nums text-foreground">{fmtBRL(nivel.target)}</p>
-                        <p className="text-[11px] text-muted-foreground/60 mt-1.5">
-                          Faltam <span className="font-semibold text-foreground">{fmtBRL(falta)}</span>
-                          {receitaDia > 0 && <> · <span className="font-semibold text-foreground">{fmtBRL(receitaDia)}/dia</span></>}
-                        </p>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-3">
-                          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: nivel.dot }} />
+                      <div key={nivel.key} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                        <StatCard
+                          dotColor={nivel.dot}
+                          label={nivel.label}
+                          delta={nivel.beaten ? { label: "Batida", positive: true } : undefined}
+                          value={fmtBRL(nivel.target)}
+                          sublabel={nivel.beaten
+                            ? `+${fmtBRL(receitaT - nivel.target)} acima do ${nivel.label.toLowerCase()}`
+                            : `${pct}% · Faltam ${fmtBRL(falta)}${receitaDia > 0 ? ` · ${fmtBRL(receitaDia)}/dia` : ""}`}
+                        />
+                        <div className="px-5 pb-5 -mt-1">
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${nivel.beaten ? 100 : pct}%`, backgroundColor: nivel.dot }} />
+                          </div>
                         </div>
                       </div>
                     );
@@ -999,7 +984,7 @@ export default function Metas() {
 
                 {/* Ritmo dark card + Ticket Médio */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="rounded-2xl bg-[#1a1a1a] p-5 relative overflow-hidden">
+                  <div className="rounded-2xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] p-5 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
                     <div className="absolute top-4 right-4">
                       <div className="h-8 w-8 rounded-xl bg-white/[0.06] flex items-center justify-center">
@@ -1019,18 +1004,13 @@ export default function Metas() {
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="h-8 w-8 rounded-xl bg-muted flex items-center justify-center">
-                        <DollarSign className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Ticket Médio</p>
-                    </div>
-                    <p className="text-2xl font-extrabold text-foreground font-display tabular-nums">
-                      {fechamentosT > 0 ? fmtBRL(receitaT / fechamentosT) : <span className="text-muted-foreground/40 text-base">—</span>}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground/60 mt-1.5">{fechamentosT > 0 ? `por venda · ${fechamentosT} fechamentos` : 'Nenhum fechamento ainda'}</p>
-                  </div>
+                  <StatCard
+                    standalone
+                    icon={DollarSign}
+                    label="Ticket Médio"
+                    value={fechamentosT > 0 ? fmtBRL(receitaT / fechamentosT) : <span className="text-muted-foreground/40 text-base">—</span>}
+                    sublabel={fechamentosT > 0 ? `por venda · ${fechamentosT} fechamentos` : 'Nenhum fechamento ainda'}
+                  />
                 </div>
 
                 {/* Insight para níveis */}
@@ -1063,7 +1043,7 @@ export default function Metas() {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Ritmo necessário — dark card */}
-                <div className="rounded-2xl bg-[#1a1a1a] p-5 relative overflow-hidden">
+                <div className="rounded-2xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] p-5 relative overflow-hidden">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
                   <div className="absolute top-4 right-4">
                     <div className="h-8 w-8 rounded-xl bg-white/[0.06] flex items-center justify-center">
@@ -1080,43 +1060,27 @@ export default function Metas() {
                 </div>
 
                 {/* Ticket Médio */}
-                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="h-8 w-8 rounded-xl bg-muted flex items-center justify-center">
-                      <DollarSign className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Ticket Médio</p>
-                  </div>
-                  <p className="text-2xl font-extrabold text-foreground font-display tabular-nums">
-                    {fechamentosT > 0 ? fmtBRL(receitaT / fechamentosT) : <span className="text-muted-foreground/40 text-base">—</span>}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/60 mt-1.5">{fechamentosT > 0 ? `por venda · ${fechamentosT} fechamentos` : 'Nenhum fechamento ainda'}</p>
-                </div>
+                <StatCard
+                  standalone
+                  icon={DollarSign}
+                  label="Ticket Médio"
+                  value={fechamentosT > 0 ? fmtBRL(receitaT / fechamentosT) : <span className="text-muted-foreground/40 text-base">—</span>}
+                  sublabel={fechamentosT > 0 ? `por venda · ${fechamentosT} fechamentos` : 'Nenhum fechamento ainda'}
+                />
 
                 {/* Receita faltante */}
                 {(() => {
                   const falta = Math.max(Number(m.meta_receita) - receitaT, 0);
                   const bateu = receitaT >= Number(m.meta_receita);
                   return (
-                    <div className={cn("rounded-2xl border p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]", bateu ? "border-emerald-200/60 bg-emerald-50/30" : "border-border/60 bg-card")}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center", bateu ? "bg-emerald-100" : "bg-muted")}>
-                          <Target className={cn("h-4 w-4", bateu ? "text-emerald-600" : "text-muted-foreground")} />
-                        </div>
-                        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{bateu ? 'Meta Batida' : 'Falta para a meta'}</p>
-                      </div>
-                      {bateu ? (
-                        <>
-                          <p className="text-2xl font-extrabold text-emerald-600 font-display tabular-nums">Meta atingida</p>
-                          <p className="text-[11px] text-emerald-600/60 mt-1.5">+{fmtBRL(receitaT - Number(m.meta_receita))} acima do alvo</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className="text-2xl font-extrabold text-foreground font-display tabular-nums">{fmtBRL(falta)}</p>
-                          <p className="text-[11px] text-muted-foreground/60 mt-1.5">de {fmtBRL(Number(m.meta_receita))} no total</p>
-                        </>
-                      )}
-                    </div>
+                    <StatCard
+                      standalone
+                      icon={Target}
+                      dotColor={bateu ? "#10b981" : undefined}
+                      label={bateu ? 'Meta Batida' : 'Falta para a meta'}
+                      value={bateu ? 'Meta atingida' : fmtBRL(falta)}
+                      sublabel={bateu ? `+${fmtBRL(receitaT - Number(m.meta_receita))} acima do alvo` : `de ${fmtBRL(Number(m.meta_receita))} no total`}
+                    />
                   );
                 })()}
               </div>
@@ -1148,7 +1112,7 @@ export default function Metas() {
           <div className="flex items-center gap-2 mb-4 mt-2">
             <div className="p-1.5 rounded-lg bg-muted"><History className="h-3.5 w-3.5 text-muted-foreground" /></div>
             <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Histórico de Metas</span>
-            {todasMetas.length > 0 && <span className="text-[10px] font-bold tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{todasMetas.length}</span>}
+            {todasMetas.length > 0 && <span className="text-[10px] font-bold font-display tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">{todasMetas.length}</span>}
           </div>
 
           {/* Desktop table */}
@@ -1178,10 +1142,10 @@ export default function Metas() {
                               <span className="text-[13px] font-medium">{mt.nome}</span>
                             </div>
                           </td>
-                          <td className="px-5 py-3.5 text-xs text-muted-foreground tabular-nums">{format(parseISO(mt.data_inicio), "dd/MM/yy")} — {format(parseISO(mt.data_fim), "dd/MM/yy")}</td>
-                          <td className="px-5 py-3.5 text-right text-xs font-bold tabular-nums">{fmtBRL(Number(mt.meta_receita))}</td>
-                          <td className="px-5 py-3.5 text-right text-xs tabular-nums">{fmtBRL(Number(mt.receita_total))}</td>
-                          <td className="px-5 py-3.5 text-right"><span className={cn("inline-flex text-[10px] font-bold px-2 py-0.5 rounded-md border tabular-nums", pctBg(pctR))}>{fmtPct(pctR)}</span></td>
+                          <td className="px-5 py-3.5 text-xs text-muted-foreground font-display tabular-nums">{format(parseISO(mt.data_inicio), "dd/MM/yy")} — {format(parseISO(mt.data_fim), "dd/MM/yy")}</td>
+                          <td className="px-5 py-3.5 text-right text-xs font-bold font-display tabular-nums">{fmtBRL(Number(mt.meta_receita))}</td>
+                          <td className="px-5 py-3.5 text-right text-xs font-display tabular-nums">{fmtBRL(Number(mt.receita_total))}</td>
+                          <td className="px-5 py-3.5 text-right"><span className={cn("inline-flex text-[10px] font-bold px-2 py-0.5 rounded-md border font-display tabular-nums", pctBg(pctR))}>{fmtPct(pctR)}</span></td>
                           <td className="px-5 py-3.5 text-right">
                             {mt.ativo ? (
                               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md border bg-blue-50 text-blue-700 border-blue-200/60">Em andamento</span>
@@ -1206,17 +1170,17 @@ export default function Metas() {
                               <div className="flex items-center gap-6 justify-center text-xs">
                                 <div className="text-center px-3 py-1">
                                   <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Fechamentos</p>
-                                  <p className="text-xs font-bold tabular-nums mt-0.5">{fmtNum(Number(mt.fechamentos_total))}</p>
+                                  <p className="text-xs font-bold font-display tabular-nums mt-0.5">{fmtNum(Number(mt.fechamentos_total))}</p>
                                 </div>
                                 <div className="text-center px-3 py-1">
                                   <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Ticket Médio</p>
-                                  <p className="text-xs font-bold tabular-nums mt-0.5">
+                                  <p className="text-xs font-bold font-display tabular-nums mt-0.5">
                                     {Number(mt.fechamentos_total) > 0 ? fmtBRL(Number(mt.receita_total) / Number(mt.fechamentos_total)) : '—'}
                                   </p>
                                 </div>
                                 <div className="text-center px-3 py-1">
                                   <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Dias do período</p>
-                                  <p className="text-xs font-bold tabular-nums mt-0.5">{Number(mt.total_dias) || '—'}</p>
+                                  <p className="text-xs font-bold font-display tabular-nums mt-0.5">{Number(mt.total_dias) || '—'}</p>
                                 </div>
                               </div>
                             </td>
@@ -1254,7 +1218,7 @@ export default function Metas() {
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="min-w-0">
                         <p className="text-[13px] font-semibold text-foreground truncate">{mt.nome}</p>
-                        <p className="text-[10px] text-muted-foreground/60 tabular-nums mt-0.5">
+                        <p className="text-[10px] text-muted-foreground/60 font-display tabular-nums mt-0.5">
                           {format(parseISO(mt.data_inicio), "dd/MM/yy")} — {format(parseISO(mt.data_fim), "dd/MM/yy")}
                         </p>
                       </div>
@@ -1269,7 +1233,7 @@ export default function Metas() {
                     <div className="flex items-baseline gap-2 mb-2">
                       <span className="text-lg font-extrabold font-display tabular-nums">{fmtBRL(Number(mt.receita_total))}</span>
                       <span className="text-[10px] text-muted-foreground/50">/ {fmtBRL(Number(mt.meta_receita))}</span>
-                      <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border tabular-nums ml-auto", pctBg(pctR))}>{fmtPct(pctR)}</span>
+                      <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border font-display tabular-nums ml-auto", pctBg(pctR))}>{fmtPct(pctR)}</span>
                     </div>
                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                       <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(pctR, 100)}%`, backgroundColor: pctColor(pctR) }} />
@@ -1285,7 +1249,7 @@ export default function Metas() {
                         ].map((item) => (
                           <div key={item.l} className="text-center">
                             <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">{item.l}</p>
-                            <p className="text-xs font-bold tabular-nums mt-0.5">{item.v}</p>
+                            <p className="text-xs font-bold font-display tabular-nums mt-0.5">{item.v}</p>
                           </div>
                         ))}
                       </div>
@@ -1308,10 +1272,12 @@ export default function Metas() {
             )}
           </div>
           </div>
-        </TabsContent>
+        </div>
+        )}
 
         {/* ═════════ EVOLUCAO ═════════ */}
-        <TabsContent value="evolucao" className="mt-6 space-y-8" data-tutorial="metas-projecao">
+        {activeTab === "evolucao" && (
+        <div className="mt-6 space-y-8" data-tutorial="metas-projecao">
           {/* ── SEÇÃO 1: Comparativo de Períodos ── */}
           <div>
             <div className="flex items-center gap-2 mb-5">
@@ -1353,8 +1319,8 @@ export default function Metas() {
                         const pct = Number(tm.meta_receita) > 0 ? Math.round((Number(tm.receita_total) / Number(tm.meta_receita)) * 100) : 0;
                         return (
                           <div className="flex items-center justify-between mt-3">
-                            <span className="text-xs font-bold tabular-nums text-foreground">{fmtBRL(Number(tm.receita_total))}</span>
-                            <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md tabular-nums", pctBg(pct))}>{pct}% da meta</span>
+                            <span className="text-xs font-bold font-display tabular-nums text-foreground">{fmtBRL(Number(tm.receita_total))}</span>
+                            <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md font-display tabular-nums", pctBg(pct))}>{pct}% da meta</span>
                           </div>
                         );
                       })()}
@@ -1373,42 +1339,28 @@ export default function Metas() {
                     { icon: Users, label: "Leads", a: msA.leads, b: msB.leads, fmt: fmtNum, unit: '' },
                     { icon: CheckCircle2, label: "Qualificados", a: msA.mqls, b: msB.mqls, fmt: fmtNum, unit: '' },
                     { icon: Calendar, label: "Agendamentos", a: msA.reunioes, b: msB.reunioes, fmt: fmtNum, unit: '' },
-                    { icon: Percent, label: "Taxa MQL", a: msA.txMql, b: msB.txMql, fmt: (v: number) => `${v.toFixed(1)}%`, unit: 'pp' },
-                    { icon: Percent, label: "Taxa Conv. Global", a: msA.txGlobal, b: msB.txGlobal, fmt: (v: number) => `${v.toFixed(1)}%`, unit: 'pp' },
-                    { icon: Target, label: "% da Meta", a: msA.pctMeta, b: msB.pctMeta, fmt: (v: number) => `${v.toFixed(1)}%`, unit: 'pp' },
+                    { icon: Percent, label: "Taxa MQL", a: msA.txMql, b: msB.txMql, fmt: fmtPct, unit: 'pp' },
+                    { icon: Percent, label: "Taxa Conv. Global", a: msA.txGlobal, b: msB.txGlobal, fmt: fmtPct, unit: 'pp' },
+                    { icon: Target, label: "% da Meta", a: msA.pctMeta, b: msB.pctMeta, fmt: fmtPct, unit: 'pp' },
                   ];
                   return (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <StatCardGrid cols={3}>
                       {metrics.map((met) => {
                         const d = deltaPct(met.a, met.b);
                         const isPos = d !== null && d > 0;
                         const isNeg = d !== null && d < 0;
                         return (
-                          <div key={met.label} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4">
-                            <div className="flex items-center gap-1.5 mb-3">
-                              <met.icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{met.label}</p>
-                              {d !== null && (
-                                <span className={cn("ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-md tabular-nums flex items-center gap-0.5",
-                                  isPos ? "bg-emerald-50 text-emerald-600" : isNeg ? "bg-red-50 text-red-500" : "bg-muted text-muted-foreground"
-                                )}>
-                                  {isPos ? <ArrowUp className="h-2.5 w-2.5" /> : isNeg ? <ArrowDown className="h-2.5 w-2.5" /> : null}
-                                  {Math.abs(Math.round(d))}%
-                                </span>
-                              )}
-                            </div>
-                            {/* Valor A — destaque */}
-                            <p className="text-xl font-extrabold font-display tabular-nums text-foreground">{met.fmt(met.a)}</p>
-                            <p className="text-[10px] text-primary/60 font-semibold uppercase tracking-wider mt-0.5">{labelA}</p>
-                            {/* Divisor */}
-                            <div className="h-px bg-border/30 my-2.5" />
-                            {/* Valor B — secundário */}
-                            <p className="text-base font-bold font-display tabular-nums text-muted-foreground">{met.fmt(met.b)}</p>
-                            <p className="text-[10px] text-muted-foreground/50 font-semibold uppercase tracking-wider mt-0.5">{labelB}</p>
-                          </div>
+                          <StatCard
+                            key={met.label}
+                            icon={met.icon}
+                            label={met.label}
+                            value={met.fmt(met.a)}
+                            sublabel={`${labelA} vs ${labelB}: ${met.fmt(met.b)}`}
+                            delta={d !== null && (isPos || isNeg) ? { label: `${Math.abs(Math.round(d))}%`, positive: isPos } : undefined}
+                          />
                         );
                       })}
-                    </div>
+                    </StatCardGrid>
                   );
                 })()}
               </>
@@ -1441,11 +1393,11 @@ export default function Metas() {
                         return (
                           <div className="bg-card border border-border/60 rounded-xl p-3 shadow-lg text-xs min-w-[160px]">
                             <p className="font-bold text-foreground mb-2">{label}</p>
-                            <div className="flex justify-between gap-3 mb-1"><span className="text-muted-foreground">Realizado</span><span className="font-bold tabular-nums">{fmtBRL(d.receita)}</span></div>
-                            <div className="flex justify-between gap-3 mb-1"><span className="text-muted-foreground">Meta</span><span className="tabular-nums text-muted-foreground">{fmtBRL(d.meta)}</span></div>
+                            <div className="flex justify-between gap-3 mb-1"><span className="text-muted-foreground">Realizado</span><span className="font-bold font-display tabular-nums">{fmtBRL(d.receita)}</span></div>
+                            <div className="flex justify-between gap-3 mb-1"><span className="text-muted-foreground">Meta</span><span className="font-display tabular-nums text-muted-foreground">{fmtBRL(d.meta)}</span></div>
                             <div className="flex justify-between gap-3 mt-1.5 pt-1.5 border-t border-border/30">
                               <span className="text-muted-foreground">Atingimento</span>
-                              <span className={cn("font-bold tabular-nums", d.pct >= 100 ? "text-emerald-600" : d.pct >= 60 ? "text-amber-600" : "text-red-500")}>{Math.round(d.pct)}%</span>
+                              <span className={cn("font-bold font-display tabular-nums", d.pct >= 100 ? "text-emerald-600" : d.pct >= 60 ? "text-amber-600" : "text-red-500")}>{Math.round(d.pct)}%</span>
                             </div>
                           </div>
                         );
@@ -1498,19 +1450,19 @@ export default function Metas() {
                           <p className="text-[10px] text-muted-foreground/60 mt-0.5">{format(parseISO(String(tm.data_inicio)), "dd/MM")} – {format(parseISO(String(tm.data_fim)), "dd/MM/yy")}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-xs font-bold tabular-nums text-foreground">{fmtBRL(rec)}</p>
+                          <p className="text-xs font-bold font-display tabular-nums text-foreground">{fmtBRL(rec)}</p>
                           <div className="flex items-center justify-end gap-1 mt-0.5">
-                            <span className={cn("text-[9px] font-bold tabular-nums", pctBg(pct), "px-1 py-0.5 rounded")}>{pct}%</span>
+                            <span className={cn("text-[9px] font-bold font-display tabular-nums", pctBg(pct), "px-1 py-0.5 rounded")}>{pct}%</span>
                             {recDelta !== null && (
-                              <span className={cn("text-[9px] font-bold tabular-nums flex items-center gap-0.5", recDelta > 0 ? "text-emerald-500" : "text-red-400")}>
+                              <span className={cn("text-[9px] font-bold font-display tabular-nums flex items-center gap-0.5", recDelta > 0 ? "text-emerald-500" : "text-red-400")}>
                                 {recDelta > 0 ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}{Math.abs(Math.round(recDelta))}%
                               </span>
                             )}
                           </div>
                         </div>
-                        <p className="text-xs tabular-nums text-right text-muted-foreground">{ticket > 0 ? fmtBRL(ticket) : '—'}</p>
-                        <p className="text-xs tabular-nums text-right text-muted-foreground">{txMql > 0 ? `${txMql.toFixed(1)}%` : '—'}</p>
-                        <p className="text-xs tabular-nums text-right text-muted-foreground">{txGlobal > 0 ? `${txGlobal.toFixed(1)}%` : '—'}</p>
+                        <p className="text-xs font-display tabular-nums text-right text-muted-foreground">{ticket > 0 ? fmtBRL(ticket) : '—'}</p>
+                        <p className="text-xs font-display tabular-nums text-right text-muted-foreground">{txMql > 0 ? `${txMql.toFixed(1)}%` : '—'}</p>
+                        <p className="text-xs font-display tabular-nums text-right text-muted-foreground">{txGlobal > 0 ? `${txGlobal.toFixed(1)}%` : '—'}</p>
                       </div>
                     );
                   })}
@@ -1538,7 +1490,7 @@ export default function Metas() {
                     <div key={s.label}>
                       <div className="flex items-center justify-between mb-1.5">
                         <Label className="text-xs text-muted-foreground">{s.label}</Label>
-                        <span className="text-xs font-bold text-foreground tabular-nums">{s.fmt(s.value)}</span>
+                        <span className="text-xs font-bold text-foreground font-display tabular-nums">{s.fmt(s.value)}</span>
                       </div>
                       <Slider value={[s.value]} onValueChange={(v) => s.set(v[0])} min={s.min} max={s.max} step={s.step} />
                     </div>
@@ -1548,7 +1500,7 @@ export default function Metas() {
               <div className="space-y-3">
                 {simulacao && (
                   <>
-                    <div className="rounded-2xl bg-[#1a1a1a] p-5 relative overflow-hidden">
+                    <div className="rounded-2xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] p-5 relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] via-transparent to-primary/[0.03]" />
                       <div className="relative grid grid-cols-2 gap-4">
                         <div>
@@ -1556,13 +1508,13 @@ export default function Metas() {
                           <p className="text-2xl font-extrabold text-white font-display tabular-nums leading-none">{fmtBRL(simulacao.receita)}</p>
                           {(() => {
                             const pct = Number(m.meta_receita) > 0 ? Math.round((simulacao.receita / Number(m.meta_receita)) * 100) : 0;
-                            return <p className={cn("text-[10px] mt-1 tabular-nums font-bold", pct >= 100 ? "text-emerald-400" : pct >= 60 ? "text-amber-400" : "text-red-400")}>{pct}% da meta</p>;
+                            return <p className={cn("text-[10px] mt-1 font-display tabular-nums font-bold", pct >= 100 ? "text-emerald-400" : pct >= 60 ? "text-amber-400" : "text-red-400")}>{pct}% da meta</p>;
                           })()}
                         </div>
                         <div>
                           <p className="text-[10px] text-white/35 uppercase tracking-wider mb-1">Fechamentos</p>
                           <p className="text-2xl font-extrabold text-primary font-display tabular-nums leading-none">{fmtNum(simulacao.fechamentos)}</p>
-                          <p className="text-[10px] text-white/30 mt-1 tabular-nums">Ticket: {fmtBRL(simulacao.receita > 0 && simulacao.fechamentos > 0 ? simulacao.receita / simulacao.fechamentos : 0)}</p>
+                          <p className="text-[10px] text-white/30 mt-1 font-display tabular-nums">Ticket: {fmtBRL(simulacao.receita > 0 && simulacao.fechamentos > 0 ? simulacao.receita / simulacao.fechamentos : 0)}</p>
                         </div>
                       </div>
                     </div>
@@ -1576,7 +1528,7 @@ export default function Metas() {
                         ].map(row => (
                           <div key={row.label} className="flex items-center justify-between">
                             <span className="text-muted-foreground">{row.label}</span>
-                            <span className="font-bold tabular-nums">{fmtNum(row.sim ?? row.val)}</span>
+                            <span className="font-bold font-display tabular-nums">{fmtNum(row.sim ?? row.val)}</span>
                           </div>
                         ))}
                       </div>
@@ -1586,8 +1538,9 @@ export default function Metas() {
               </div>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
+        </div>
+        )}
+      </div>
 
       {renderModal()}
 
@@ -1596,7 +1549,7 @@ export default function Metas() {
         <DialogContent className="w-[95vw] max-w-sm rounded-2xl border-border/60 p-0 gap-0">
           <div className="px-5 pt-5 pb-4 border-b border-border/40">
             <DialogHeader className="space-y-1">
-              <DialogTitle className="text-base font-semibold text-foreground">Excluir Meta</DialogTitle>
+              <DialogTitle className="text-base font-semibold text-foreground font-display">Excluir Meta</DialogTitle>
             </DialogHeader>
           </div>
           <div className="px-5 py-5">

@@ -238,7 +238,7 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
             </span>
           )}
           {agend.valor_orcado && (
-            <span className="text-[9px] font-mono text-muted-foreground/70 tabular-nums shrink-0">
+            <span className="text-[9px] font-display text-muted-foreground/70 tabular-nums shrink-0">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(agend.valor_orcado)}
             </span>
           )}
@@ -413,7 +413,7 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
             <div className="flex items-center gap-2">
               <p className="text-[12px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
               {lead.horasSemContato != null && lead.horasSemContato > 0 && (
-                <span className="text-[9px] font-mono tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded px-1.5 py-0.5 shrink-0">
+                <span className="text-[9px] font-display tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded px-1.5 py-0.5 shrink-0">
                   {lead.horasSemContato < 24 ? `${lead.horasSemContato}h` : `${Math.floor(lead.horasSemContato / 24)}d ${lead.horasSemContato % 24}h`}
                 </span>
               )}
@@ -424,14 +424,14 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
                 {lead.followup_gap_motivo}
               </p>
             ) : (lead.atualizado_em || lead.criado_em) ? (
-              <p className="text-[10px] text-muted-foreground truncate">
+              <p className="text-[10px] text-muted-foreground truncate font-display tabular-nums">
                 {format(new Date(lead.atualizado_em || lead.criado_em!), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
               </p>
             ) : lead.telefone ? (
-              <p className="text-[10px] text-muted-foreground truncate">{lead.telefone}</p>
+              <p className="text-[10px] text-muted-foreground truncate font-display tabular-nums">{lead.telefone}</p>
             ) : null}
             {lead.criado_em && (
-              <p className="text-[10px] text-muted-foreground/50 truncate">
+              <p className="text-[10px] text-muted-foreground/50 truncate font-display tabular-nums">
                 Cad. {format(new Date(lead.criado_em), "dd/MM/yy", { locale: ptBR })}
               </p>
             )}
@@ -635,7 +635,7 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-[12px] font-semibold text-foreground">{meta.label}</p>
                         {f.status !== 'lead_respondeu' && (
-                          <span className="text-[9px] font-mono font-bold tabular-nums text-muted-foreground bg-muted rounded px-1.5 py-0.5">T{f.tentativa}</span>
+                          <span className="text-[9px] font-display font-bold tabular-nums text-muted-foreground bg-muted rounded px-1.5 py-0.5">T{f.tentativa}</span>
                         )}
                       </div>
                       <p className="text-[10px] text-muted-foreground/60 font-mono">
@@ -680,8 +680,8 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-bold truncate">{title}</p>
-                <p className="text-[10px] text-muted-foreground">{localLeads.length} lead{localLeads.length !== 1 ? 's' : ''}</p>
+                <p className="text-[12px] font-bold truncate font-display">{title}</p>
+                <p className="text-[10px] text-muted-foreground font-display tabular-nums">{localLeads.length} lead{localLeads.length !== 1 ? 's' : ''}</p>
               </div>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground shrink-0" onClick={handleClose}>
                 <X className="h-4 w-4" />
@@ -831,8 +831,8 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
           {/* Header */}
           <div className="flex items-center gap-2 px-5 py-4 border-b border-border/40 shrink-0">
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-bold truncate">{title}</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">{localLeads.length} lead{localLeads.length !== 1 ? 's' : ''}</p>
+              <p className="text-[13px] font-bold truncate font-display">{title}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5 font-display tabular-nums">{localLeads.length} lead{localLeads.length !== 1 ? 's' : ''}</p>
             </div>
           </div>
 
@@ -855,7 +855,7 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
                     <div className="flex items-center gap-2">
                       <p className="text-[13px] font-medium truncate">{lead.nome || 'Sem nome'}</p>
                       {lead.horasSemContato != null && lead.horasSemContato > 0 && (
-                        <span className="text-[9px] font-mono tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded px-1.5 py-0.5 shrink-0">
+                        <span className="text-[9px] font-display tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded px-1.5 py-0.5 shrink-0">
                           {lead.horasSemContato < 24 ? `${lead.horasSemContato}h` : `${Math.floor(lead.horasSemContato / 24)}d ${lead.horasSemContato % 24}h`}
                         </span>
                       )}
@@ -869,11 +869,11 @@ export function DashboardLeadsModal({ open, onClose, title, leads, context }: Da
                   </div>
                   {(lead.atualizado_em || lead.criado_em) && (
                     <div className="text-right flex-shrink-0 mr-1">
-                      <p className="text-[10px] text-muted-foreground">
+                      <p className="text-[10px] text-muted-foreground font-display tabular-nums">
                         {format(new Date(lead.atualizado_em || lead.criado_em!), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
                       </p>
                       {lead.criado_em && (
-                        <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                        <p className="text-[10px] text-muted-foreground/50 mt-0.5 font-display tabular-nums">
                           Cadastrado {format(new Date(lead.criado_em), "dd/MM/yy", { locale: ptBR })}
                         </p>
                       )}

@@ -40,7 +40,7 @@ export default function JornadaEstagioPage() {
 
   if (!found) {
     return (
-      <div className="max-w-3xl mx-auto py-24 flex flex-col items-center text-center px-6">
+      <div className="max-w-[1400px] mx-auto py-24 flex flex-col items-center text-center px-6">
         <div className="mb-6 p-4 rounded-2xl bg-muted/40"><Route className="h-8 w-8 text-muted-foreground/30" /></div>
         <h2 className="text-xl font-bold text-foreground font-display mb-2">Etapa não encontrada</h2>
         <p className="text-[13px] text-muted-foreground max-w-sm leading-relaxed mb-6">Essa etapa pode ter sido removida ou faz parte de outra jornada.</p>
@@ -57,7 +57,7 @@ export default function JornadaEstagioPage() {
   const passos = estagio.jornada_passos ?? [];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-[1400px] mx-auto space-y-5">
       {/* Voltar */}
       <button onClick={() => navigate('/plataforma/jornada')}
         className="inline-flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -83,7 +83,7 @@ export default function JornadaEstagioPage() {
                 <div className="flex-1 h-2 rounded-full bg-muted/50 overflow-hidden max-w-[280px]">
                   <div className={cn('h-full rounded-full transition-all duration-500', isDone ? 'bg-emerald-500' : 'bg-foreground/70')} style={{ width: `${Math.max(pct, total > 0 ? 3 : 0)}%` }} />
                 </div>
-                <span className="text-[12px] font-mono tabular-nums text-muted-foreground">{done}/{total} tarefas · {pct}%</span>
+                <span className="text-[12px] font-display tabular-nums text-muted-foreground">{done}/{total} tarefas · {pct}%</span>
               </div>
             </div>
           </div>

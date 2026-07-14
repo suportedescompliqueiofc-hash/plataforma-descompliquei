@@ -102,7 +102,7 @@ export function AiTriageLogsTab() {
           ].map((s) => (
             <div key={s.label} className="px-5 py-4">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">{s.label}</p>
-              <p className={`text-2xl font-bold font-mono tabular-nums mt-1 ${s.color}`}>{s.value}</p>
+              <p className={`text-2xl font-bold font-display tabular-nums mt-1 ${s.color}`}>{s.value}</p>
             </div>
           ))}
         </div>
@@ -146,7 +146,7 @@ export function AiTriageLogsTab() {
             <div className="p-3 rounded-xl bg-muted/40 mb-3">
               <MessageSquare className="h-6 w-6 text-muted-foreground/40" />
             </div>
-            <p className="text-sm font-medium text-muted-foreground">Nenhum registro encontrado</p>
+            <p className="text-sm font-medium font-display text-muted-foreground">Nenhum registro encontrado</p>
             <p className="text-[11px] text-muted-foreground/50 mt-0.5">
               {filtro === "todos"
                 ? "Nenhum registro neste período"
@@ -208,7 +208,7 @@ export function AiTriageLogsTab() {
                 </p>
 
                 {/* Duração */}
-                <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                <div className="flex items-center gap-1 text-[11px] text-muted-foreground/60 font-display tabular-nums">
                   <Clock className="h-3 w-3 shrink-0" />
                   {log.duracao_ms != null ? `${log.duracao_ms}ms` : "—"}
                 </div>
@@ -218,7 +218,7 @@ export function AiTriageLogsTab() {
                   <p className="text-[11px] text-muted-foreground/60">
                     {formatDistanceToNow(new Date(log.created_at), { addSuffix: true, locale: ptBR })}
                   </p>
-                  <p className="text-[10px] text-muted-foreground/40 mt-0.5">
+                  <p className="text-[10px] text-muted-foreground/40 mt-0.5 font-display tabular-nums">
                     {format(new Date(log.created_at), "dd/MM HH:mm", { locale: ptBR })}
                   </p>
                 </div>

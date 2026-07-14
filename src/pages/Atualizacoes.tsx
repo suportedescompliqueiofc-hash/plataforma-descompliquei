@@ -123,7 +123,7 @@ export default function Atualizacoes() {
   };
 
   return (
-    <div className="space-y-6 pb-10 max-w-full overflow-hidden">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10 overflow-hidden">
       <PageHero
         icon={Megaphone}
         title="Atualizações"

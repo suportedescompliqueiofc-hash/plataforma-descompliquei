@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { FileText, Users2, Lock, Share2, Smile, Maximize2, Minimize2, Headset, PanelLeft, ArrowLeft } from "lucide-react";
+import { FileText, Users2, Lock, Share2, Smile, Maximize2, Minimize2, Headset, ArrowLeft } from "lucide-react";
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink,
   BreadcrumbPage, BreadcrumbSeparator,
@@ -24,10 +24,9 @@ interface PaginaEditorProps {
   onGoHome?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
-  onToggleSidebar?: () => void;
 }
 
-export function PaginaEditor({ paginaId, arvore, onNavigate, onGoHome, isFullscreen = false, onToggleFullscreen, onToggleSidebar }: PaginaEditorProps) {
+export function PaginaEditor({ paginaId, arvore, onNavigate, onGoHome, isFullscreen = false, onToggleFullscreen }: PaginaEditorProps) {
   const { profile } = useProfile();
   const { data: pagina, isLoading } = usePagina(paginaId);
   const atualizar = useAtualizarPagina();
@@ -81,15 +80,6 @@ export function PaginaEditor({ paginaId, arvore, onNavigate, onGoHome, isFullscr
       <div className="w-full px-10 py-8">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-1">
-            {onToggleSidebar && (
-              <button
-                onClick={onToggleSidebar}
-                title="Abrir/fechar a árvore de páginas"
-                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
-              >
-                <PanelLeft className="h-3.5 w-3.5" />
-              </button>
-            )}
             {onGoHome && (
               <button
                 onClick={onGoHome}
@@ -217,7 +207,7 @@ export function PaginaEditor({ paginaId, arvore, onNavigate, onGoHome, isFullscr
                 className={cn(
                   "inline-flex items-center gap-1.5 text-[11px] font-semibold transition-colors",
                   pagina.disponivel_atendimento
-                    ? "text-[#E85D24]"
+                    ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >

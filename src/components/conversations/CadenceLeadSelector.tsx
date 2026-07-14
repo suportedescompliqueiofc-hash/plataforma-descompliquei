@@ -50,7 +50,7 @@ export function CadenceLeadSelector({ leadId }: CadenceLeadSelectorProps) {
         {activeCadence ? (
           <div className="p-4 space-y-4">
             <div className="space-y-1">
-              <h4 className="text-sm font-bold flex items-center gap-2">
+              <h4 className="text-sm font-bold font-display flex items-center gap-2">
                 <Check className="h-4 w-4 text-emerald-500" /> {activeCadence.cadencias?.nome}
               </h4>
               <p className="text-[11px] text-muted-foreground">O fluxo de mensagens automáticas está em andamento para este cliente.</p>
@@ -76,7 +76,7 @@ export function CadenceLeadSelector({ leadId }: CadenceLeadSelectorProps) {
                         : `Passo ${activeCadence.passo_atual_ordem} enviado`}
                     </span>
                   </div>
-                  <span className="text-[10px] opacity-70">
+                  <span className="text-[10px] opacity-70 font-display tabular-nums">
                     {format(parseISO(activeCadence.ultima_execucao), "HH:mm", { locale: ptBR })}
                   </span>
                 </div>
@@ -92,7 +92,7 @@ export function CadenceLeadSelector({ leadId }: CadenceLeadSelectorProps) {
             {activeCadence.proxima_execucao && (
                 <div className="bg-muted/50 p-2 rounded-md flex items-center gap-2 text-xs">
                     <Clock className="h-3.5 w-3.5 text-primary" />
-                    <span>Próximo envio: <strong>{format(parseISO(activeCadence.proxima_execucao), "dd/MM 'às' HH:mm", { locale: ptBR })}</strong></span>
+                    <span>Próximo envio: <strong className="font-display tabular-nums">{format(parseISO(activeCadence.proxima_execucao), "dd/MM 'às' HH:mm", { locale: ptBR })}</strong></span>
                 </div>
             )}
 

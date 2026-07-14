@@ -21,7 +21,7 @@ export default function IAHub() {
   const iasLiberadas = acesso.ias_liberadas ?? [];
 
   return (
-    <div className="max-w-[1000px] mx-auto space-y-8 pb-12">
+    <div className="max-w-[1400px] mx-auto space-y-8 pb-12">
       {/* HEADER */}
       <PageHero
         dataTutorial="iahub-header"
@@ -31,7 +31,7 @@ export default function IAHub() {
       />
 
       {/* GRID DE IAS */}
-      <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden divide-y divide-border">
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden divide-y divide-border/60">
         {IA_LIST.map((ia) => {
           const Icon = ia.icon;
           const isLocked = !iasLiberadas.includes(ia.id);
@@ -52,7 +52,7 @@ export default function IAHub() {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className={`text-sm font-semibold ${isLocked ? 'text-muted-foreground' : 'text-foreground'}`}>{ia.title}</p>
+                  <p className={`text-sm font-semibold font-display ${isLocked ? 'text-muted-foreground' : 'text-foreground'}`}>{ia.title}</p>
                   <span className="text-[10px] font-medium text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded">
                     {ia.badge}
                   </span>
@@ -61,7 +61,7 @@ export default function IAHub() {
               </div>
 
               {!isLocked && (
-                <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-[#E85D24] group-hover:translate-x-0.5 transition-all shrink-0" />
+                <ArrowRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
               )}
             </div>
           );

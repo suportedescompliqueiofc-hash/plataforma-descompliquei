@@ -258,7 +258,7 @@ export function NotasSidebarTree({ paginas, activeId, onSelect }: NotasSidebarTr
       <AlertDialog open={!!aExcluir} onOpenChange={(open) => !open && setAExcluir(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
+            <AlertDialogTitle className="font-display">
               {aExcluir?.tipo === "pasta" ? "Excluir pasta" : "Excluir nota"}
             </AlertDialogTitle>
             <AlertDialogDescription>

@@ -138,7 +138,7 @@ export default function Notifications() {
   const currentList = activeTab === 'pendentes' ? pending : resolved;
 
   return (
-    <div className="space-y-6 pb-10 max-w-full overflow-hidden">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10 overflow-hidden">
       {/* Page Header */}
       <PageHero
         icon={Bell}
@@ -161,7 +161,7 @@ export default function Notifications() {
           >
             Pendentes
             <span className={cn(
-              "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md",
+              "text-[10px] font-bold font-display tabular-nums px-1.5 py-0.5 rounded-md",
               activeTab === 'pendentes'
                 ? "bg-background/20 text-background"
                 : pending.length > 0 ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"
@@ -180,7 +180,7 @@ export default function Notifications() {
           >
             Resolvidas
             <span className={cn(
-              "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md",
+              "text-[10px] font-bold font-display tabular-nums px-1.5 py-0.5 rounded-md",
               activeTab === 'resolvidas'
                 ? "bg-background/20 text-background"
                 : "bg-muted text-muted-foreground"

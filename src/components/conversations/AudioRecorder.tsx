@@ -51,7 +51,7 @@ export function AudioRecorder({ onSend, onCancel }: AudioRecorderProps) {
         <div className="relative flex-shrink-0">
           <div className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
         </div>
-        <span className="text-sm font-mono font-medium text-destructive flex-shrink-0">
+        <span className="text-sm font-display tabular-nums font-medium text-destructive flex-shrink-0">
           {formatTime(recordingTime)}
         </span>
         <span className="text-[10px] sm:text-xs text-muted-foreground ml-auto truncate opacity-70">

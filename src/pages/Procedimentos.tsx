@@ -13,12 +13,10 @@ import { ProcedimentoModal } from "@/components/procedimentos/ProcedimentoModal"
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { PageHero } from "@/components/PageHero";
+import { StatCard, StatCardGrid } from "@/components/StatCard";
+import { formatBRL, formatInt } from "@/lib/format";
 
 // ── Helpers ──────────────────────────────────────────────────
-
-function formatCurrency(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 function formatDuracao(minutos: number | null) {
   if (!minutos) return null;
@@ -126,7 +124,7 @@ export default function Procedimentos() {
   // ── Render ──
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10">
 
       {/* ═══ PAGE HEADER ═══ */}
       <PageHero
@@ -138,7 +136,7 @@ export default function Procedimentos() {
           <Button
             onClick={handleNew}
             data-tutorial="procedimentos-add"
-            className="h-9 rounded-lg text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 px-5 gap-1.5 shrink-0"
+            className="h-9 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-5 gap-1.5 shrink-0"
           >
             <Plus className="h-3.5 w-3.5" />
             Novo Procedimento
@@ -147,60 +145,33 @@ export default function Procedimentos() {
       />
 
       {/* ═══ METRICS ═══ */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-tutorial="procedimentos-metrics">
-        {[
-          {
-            label: "Ativos",
-            value: isLoading ? "—" : metricas.ativos.toString(),
-            icon: Package,
-            accent: false,
-          },
-          {
-            label: "Fechamentos",
-            value: isLoading ? "—" : metricas.totalVendas.toString(),
-            icon: ShoppingCart,
-            accent: false,
-          },
-          {
-            label: "Faturamento",
-            value: isLoading ? "—" : metricas.totalFaturamento > 0
-              ? metricas.totalFaturamento >= 1000
-                ? `R$ ${(metricas.totalFaturamento / 1000).toFixed(1)}K`
-                : formatCurrency(metricas.totalFaturamento)
-              : "R$ 0",
-            icon: DollarSign,
-            accent: true,
-          },
-          {
-            label: "Ticket Medio",
-            value: isLoading ? "—" : metricas.ticketMedio > 0 ? formatCurrency(metricas.ticketMedio) : "—",
-            icon: TrendingUp,
-            accent: false,
-          },
-        ].map(stat => (
-          <div
-            key={stat.label}
-            className={cn(
-              "rounded-2xl px-4 py-3.5 border transition-colors",
-              stat.accent
-                ? "bg-primary/[0.04] border-primary/20"
-                : "bg-card border-border/60 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-            )}
-          >
-            <div className="flex items-center gap-1.5 mb-2">
-              <stat.icon className={cn("h-3 w-3", stat.accent ? "text-primary" : "text-muted-foreground")} />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-                {stat.label}
-              </span>
-            </div>
-            <p className={cn(
-              "text-xl font-extrabold tracking-tight font-display tabular-nums",
-              stat.accent ? "text-primary" : "text-foreground"
-            )}>
-              {stat.value}
-            </p>
-          </div>
-        ))}
+      <div data-tutorial="procedimentos-metrics">
+        <StatCardGrid cols={4}>
+          {[
+            {
+              label: "Ativos",
+              value: isLoading ? "—" : formatInt(metricas.ativos),
+              icon: Package,
+            },
+            {
+              label: "Fechamentos",
+              value: isLoading ? "—" : formatInt(metricas.totalVendas),
+              icon: ShoppingCart,
+            },
+            {
+              label: "Faturamento",
+              value: isLoading ? "—" : formatBRL(metricas.totalFaturamento),
+              icon: DollarSign,
+            },
+            {
+              label: "Ticket Médio",
+              value: isLoading ? "—" : metricas.ticketMedio > 0 ? formatBRL(metricas.ticketMedio) : "—",
+              icon: TrendingUp,
+            },
+          ].map(stat => (
+            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
+          ))}
+        </StatCardGrid>
       </div>
 
       {/* ═══ MAIS VENDIDO BANNER ═══ */}
@@ -213,20 +184,20 @@ export default function Procedimentos() {
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-0.5">
               Procedimento mais vendido
             </p>
-            <p className="text-[14px] font-semibold text-foreground truncate">
+            <p className="text-[14px] font-semibold text-foreground truncate font-display">
               {metricas.maisVendido.nome}
             </p>
           </div>
           <div className="text-right shrink-0">
             <p className="text-[10px] text-muted-foreground/50">Fechamentos</p>
-            <p className="text-lg font-extrabold tabular-nums text-foreground font-display">
+            <p className="text-lg font-extrabold font-display tabular-nums text-foreground">
               {metricasPorProcedimento[metricas.maisVendido.id]?.vendas ?? 0}
             </p>
           </div>
           <div className="text-right shrink-0">
             <p className="text-[10px] text-muted-foreground/50">Faturado</p>
-            <p className="text-[13px] font-bold tabular-nums text-emerald-600">
-              {formatCurrency(metricasPorProcedimento[metricas.maisVendido.id]?.faturamento ?? 0)}
+            <p className="text-[13px] font-bold font-display tabular-nums text-emerald-600">
+              {formatBRL(metricasPorProcedimento[metricas.maisVendido.id]?.faturamento ?? 0)}
             </p>
           </div>
         </div>
@@ -245,7 +216,7 @@ export default function Procedimentos() {
               Catalogo
             </span>
             {filtered.length > 0 && (
-              <span className="text-[10px] font-bold tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+              <span className="text-[10px] font-bold font-display tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
                 {filtered.length}
               </span>
             )}
@@ -324,7 +295,7 @@ export default function Procedimentos() {
                   <div className="px-4 pt-4 pb-3">
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-[14px] font-semibold text-foreground truncate">{proc.nome}</h3>
+                        <h3 className="text-[14px] font-semibold text-foreground truncate font-display">{proc.nome}</h3>
                         {proc.categoria && (
                           <span className={cn("inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-md border mt-1", categoriaClass)}>
                             {proc.categoria}
@@ -351,15 +322,15 @@ export default function Procedimentos() {
                       <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 block mb-0.5">
                         Valor Base
                       </span>
-                      <span className="text-[13px] font-bold text-foreground tabular-nums">
-                        {proc.valor_base != null ? formatCurrency(proc.valor_base) : "—"}
+                      <span className="text-[13px] font-bold text-foreground font-display tabular-nums">
+                        {proc.valor_base != null ? formatBRL(proc.valor_base) : "—"}
                       </span>
                     </div>
                     <div className="bg-muted/30 rounded-xl px-3 py-2 border border-border/40">
                       <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 block mb-0.5">
                         Duracao
                       </span>
-                      <span className="text-[13px] font-bold text-foreground">
+                      <span className="text-[13px] font-bold text-foreground font-display tabular-nums">
                         {formatDuracao(proc.duracao_minutos) ?? "—"}
                       </span>
                     </div>
@@ -371,13 +342,13 @@ export default function Procedimentos() {
                       <div className="flex items-center gap-1.5">
                         <ShoppingCart className="h-3 w-3 text-muted-foreground/50" />
                         <span className="text-[11px] text-muted-foreground/70">
-                          <span className="font-bold text-foreground tabular-nums">{m.vendas}</span>
+                          <span className="font-bold text-foreground font-display tabular-nums">{m.vendas}</span>
                           {" "}fechamento{m.vendas !== 1 ? "s" : ""}
                         </span>
                       </div>
                       {m.faturamento > 0 && (
-                        <span className="text-[11px] font-bold text-emerald-600 tabular-nums">
-                          {formatCurrency(m.faturamento)}
+                        <span className="text-[11px] font-bold text-emerald-600 font-display tabular-nums">
+                          {formatBRL(m.faturamento)}
                         </span>
                       )}
                     </div>
@@ -425,7 +396,7 @@ export default function Procedimentos() {
       <AlertDialog open={!!deletingProcedimento} onOpenChange={() => setDeletingProcedimento(null)}>
         <AlertDialogContent className="w-[90vw] max-w-md rounded-2xl border-border/60">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base font-semibold">Excluir procedimento?</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-semibold font-display">Excluir procedimento?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-muted-foreground">
               O procedimento <strong>{deletingProcedimento?.nome}</strong> sera removido do seu catalogo. O historico de vendas nao sera afetado.
             </AlertDialogDescription>

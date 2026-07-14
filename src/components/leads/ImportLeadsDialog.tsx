@@ -279,7 +279,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-display">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
             Importar Leads por Planilha
           </DialogTitle>
@@ -295,7 +295,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
             <div
               className={cn(
                 "border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-3 cursor-pointer transition-colors",
-                dragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/60 hover:bg-muted/40"
+                dragging ? "border-primary bg-primary/5" : "border-border/60 hover:border-primary/60 hover:bg-muted/40"
               )}
               onClick={() => inputRef.current?.click()}
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -330,7 +330,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
               )}
             </div>
 
-            <div className="overflow-auto rounded-lg border border-border flex-1 max-h-80">
+            <div className="overflow-auto rounded-lg border border-border/60 flex-1 max-h-80">
               <table className="w-full text-xs">
                 <thead className="bg-muted sticky top-0">
                   <tr>
@@ -345,7 +345,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
                 </thead>
                 <tbody>
                   {rows.map((row, i) => (
-                    <tr key={i} className={cn("border-t border-border", !row.valid && "bg-red-50")}>
+                    <tr key={i} className={cn("border-t border-border/60", !row.valid && "bg-red-50")}>
                       <td className="p-2">
                         {row.valid
                           ? <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
@@ -433,7 +433,7 @@ export function ImportLeadsDialog({ open, onOpenChange }: ImportLeadsDialogProps
           <div className="flex flex-col items-center gap-4 py-8">
             <CheckCircle2 className="h-12 w-12 text-green-500" />
             <div className="text-center">
-              <p className="text-lg font-semibold">{importedCount} lead{importedCount !== 1 ? 's' : ''} importado{importedCount !== 1 ? 's' : ''}!</p>
+              <p className="text-lg font-semibold font-display"><span className="font-display tabular-nums">{importedCount}</span> lead{importedCount !== 1 ? 's' : ''} importado{importedCount !== 1 ? 's' : ''}!</p>
               {tagCount > 0 && (
                 <p className="text-sm text-muted-foreground mt-1">
                   {tagCount} etiqueta{tagCount !== 1 ? 's' : ''} atribuída{tagCount !== 1 ? 's' : ''} e sincronizada{tagCount !== 1 ? 's' : ''} com o WhatsApp.

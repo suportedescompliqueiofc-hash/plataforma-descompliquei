@@ -223,7 +223,7 @@ function BubbleAthos({ content, streaming, loadingLabel }: { content: string; st
   return (
     <div className="flex gap-3 items-start">
       <AvatarAthos />
-      <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-white border border-border/40 px-4 py-3 shadow-sm">
+      <div className="max-w-[82%] rounded-2xl rounded-tl-sm bg-card border border-border/60 px-4 py-3 shadow-sm">
         {isEmpty ? (
           <div className="space-y-2">
             <p className="text-[13px] text-muted-foreground/70 italic">{loadingLabel ?? "Pensando..."}</p>
@@ -262,7 +262,7 @@ function TypingDots() {
   return (
     <div className="flex gap-3 items-start">
       <AvatarAthos />
-      <div className="rounded-2xl rounded-tl-sm bg-white border border-border/40 px-4 py-3 shadow-sm">
+      <div className="rounded-2xl rounded-tl-sm bg-card border border-border/60 px-4 py-3 shadow-sm">
         <div className="flex gap-1 items-center h-5">
           {[0, 1, 2].map((i) => (
             <span
@@ -282,7 +282,7 @@ function JornadaPronta({ nomeClinica, onClick, loading }: { nomeClinica: string;
     <div className="flex gap-3 items-start">
       <AvatarAthos />
       <div className="max-w-[82%] space-y-3">
-        <div className="rounded-2xl rounded-tl-sm bg-white border border-border/40 px-4 py-3 shadow-sm">
+        <div className="rounded-2xl rounded-tl-sm bg-card border border-border/60 px-4 py-3 shadow-sm">
           <p className="text-[14px] text-foreground leading-relaxed">
             Sua jornada está pronta, <strong>{nomeClinica || "você"}</strong>. A partir de agora você sabe exatamente o que fazer, em qual ordem e em qual prazo. Estou aqui sempre que precisar.
           </p>
@@ -290,7 +290,7 @@ function JornadaPronta({ nomeClinica, onClick, loading }: { nomeClinica: string;
         <button
           onClick={onClick}
           disabled={loading}
-          className="flex items-center gap-2 h-10 px-5 rounded-xl bg-foreground text-background text-[13px] font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60"
+          className="flex items-center gap-1.5 h-9 px-5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60"
         >
           {loading ? "Abrindo..." : "Ir para o Athos"}
           <ArrowRight className="h-3.5 w-3.5" />
@@ -579,17 +579,17 @@ export default function OnboardingAthos() {
   const inputBloqueado = inicializando || enviando || jornadaSalva || erroJornada;
 
   return (
-    <div className="fixed inset-0 bg-[#F2F1EE] flex flex-col z-50">
+    <div className="fixed inset-0 bg-background flex flex-col z-50">
 
       {/* Header */}
-      <header className="shrink-0 h-14 flex items-center justify-between px-6 border-b border-border/30 bg-[#F2F1EE]/95 backdrop-blur-sm">
+      <header className="shrink-0 h-14 flex items-center justify-between px-6 border-b border-border/30 bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-foreground flex items-center justify-center">
             <span className="text-background text-[12px] font-bold">A</span>
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <p className="text-[14px] font-bold text-foreground leading-none">Athos</p>
+              <p className="text-[14px] font-bold text-foreground leading-none font-display">Athos</p>
               <span className="px-2 py-0.5 rounded-full bg-foreground/8 border border-border/50 text-[10px] font-semibold text-muted-foreground">
                 Inteligência Descompliquei
               </span>
@@ -609,7 +609,7 @@ export default function OnboardingAthos() {
               />
             ))}
           </div>
-          <span className="font-medium">Etapa 3 de 3 — Montando sua jornada</span>
+          <span className="font-medium"><span className="font-display tabular-nums">Etapa 3 de 3</span> — Montando sua jornada</span>
           {!inicializando && mensagens.length > 0 && (
             <button
               onClick={handleConcluir}
@@ -630,7 +630,7 @@ export default function OnboardingAthos() {
           {inicializando && mensagens.length === 0 && (
             <div className="flex gap-3 items-start">
               <AvatarAthos />
-              <div className="rounded-2xl rounded-tl-sm bg-white border border-border/40 px-4 py-3 shadow-sm">
+              <div className="rounded-2xl rounded-tl-sm bg-card border border-border/60 px-4 py-3 shadow-sm">
                 <p className="text-[13px] text-muted-foreground/70 italic mb-2">Analisando seu diagnóstico...</p>
                 <div className="flex gap-1 items-center">
                   {[0, 1, 2].map((i) => (
@@ -678,11 +678,11 @@ export default function OnboardingAthos() {
       </div>
 
       {/* Input */}
-      <div className="shrink-0 border-t border-border/30 bg-[#F2F1EE]/95 backdrop-blur-sm px-5 py-4">
+      <div className="shrink-0 border-t border-border/30 bg-background/95 backdrop-blur-sm px-5 py-4">
         <div className="max-w-2xl mx-auto">
           <div
             className={cn(
-              "flex gap-3 items-end rounded-2xl border bg-white px-4 py-3 shadow-sm transition-all",
+              "flex gap-3 items-end rounded-2xl border bg-card px-4 py-3 shadow-sm transition-all",
               inputBloqueado
                 ? "border-border/30 opacity-60"
                 : "border-border/60 focus-within:ring-1 focus-within:ring-foreground/20 focus-within:border-foreground/40"
@@ -713,7 +713,7 @@ export default function OnboardingAthos() {
               onClick={enviar}
               disabled={inputBloqueado || !input.trim()}
               className={cn(
-                "shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all",
+                "shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-all",
                 !inputBloqueado && input.trim()
                   ? "bg-foreground text-background hover:bg-foreground/90"
                   : "bg-muted text-muted-foreground cursor-not-allowed"

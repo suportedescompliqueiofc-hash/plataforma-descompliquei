@@ -182,7 +182,7 @@ export default function LeadNotas({ leadId, organizationId }: LeadNotasProps) {
           Notas
         </span>
         {notas.length > 0 && (
-          <span className="text-[10px] font-bold tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+          <span className="text-[10px] font-bold font-display tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
             {notas.length}
           </span>
         )}

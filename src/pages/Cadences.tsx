@@ -13,7 +13,6 @@ import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { CadenceMonitoringTab } from "@/components/cadences/CadenceMonitoringTab";
@@ -58,7 +57,7 @@ export default function Cadences() {
   ];
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10">
       {/* ═══ PAGE HEADER ═══ */}
       <PageHero
         icon={GitMerge}
@@ -67,7 +66,7 @@ export default function Cadences() {
         right={
           <Button
             onClick={handleOpenCreate}
-            className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 px-4"
+            className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
             data-tutorial="cadences-create"
           >
             <Plus className="h-3.5 w-3.5" /> Nova Cadência
@@ -80,12 +79,12 @@ export default function Cadences() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <GitMerge className="h-3 w-3" />
-            <span className="tabular-nums font-medium">{cadences.length} fluxos</span>
+            <span className="font-display tabular-nums font-medium">{cadences.length} fluxos</span>
           </div>
           <div className="w-px h-3 bg-border" />
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <Zap className="h-3 w-3" />
-            <span className="tabular-nums font-medium">
+            <span className="font-display tabular-nums font-medium">
               {cadences.reduce((sum, c) => sum + (c.passos?.length || 0), 0)} passos totais
             </span>
           </div>
@@ -96,7 +95,7 @@ export default function Cadences() {
       </div>
 
       {/* ═══ TABS ═══ */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <div className="w-full">
         <div data-tutorial="cadences-tabs" className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit">
           {TAB_ITEMS.map(tab => (
             <button
@@ -116,7 +115,8 @@ export default function Cadences() {
         </div>
 
         {/* ── FLUXOS TAB ── */}
-        <TabsContent value="fluxos" className="mt-6" data-tutorial="cadences-list">
+        {activeTab === "fluxos" && (
+        <div className="mt-6" data-tutorial="cadences-list">
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {[1, 2, 3].map(i => <Skeleton key={i} className="h-56 rounded-2xl" />)}
@@ -126,7 +126,7 @@ export default function Cadences() {
               <div className="bg-muted/30 p-5 rounded-2xl mb-4">
                 <GitMerge className="h-10 w-10 text-muted-foreground/30" />
               </div>
-              <h3 className="text-base font-semibold text-foreground mb-1">Nenhuma cadência criada</h3>
+              <h3 className="text-base font-semibold text-foreground mb-1 font-display">Nenhuma cadência criada</h3>
               <p className="text-sm text-muted-foreground/60 mb-5 text-center max-w-sm">
                 Crie fluxos automáticos de mensagens para nutrir seus leads
               </p>
@@ -178,7 +178,7 @@ export default function Cadences() {
                       </span>
 
                       {/* Title */}
-                      <h3 className="text-base font-semibold text-foreground line-clamp-1 mb-1 pr-8">
+                      <h3 className="text-base font-semibold text-foreground line-clamp-1 mb-1 pr-8 font-display">
                         {cadence.nome}
                       </h3>
                       <p className="text-[11px] text-muted-foreground/60 line-clamp-2 leading-relaxed mb-4">
@@ -189,11 +189,11 @@ export default function Cadences() {
                       <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-4">
                         <div className="flex items-center gap-1.5">
                           <Layout className="h-3 w-3" />
-                          <span className="tabular-nums font-medium">{stepsCount} passos</span>
+                          <span className="font-display tabular-nums font-medium">{stepsCount} passos</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-3 w-3" />
-                          <span className="tabular-nums font-medium">
+                          <span className="font-display tabular-nums font-medium">
                             {format(new Date(cadence.criado_em), "dd MMM yy", { locale: ptBR })}
                           </span>
                         </div>
@@ -204,7 +204,7 @@ export default function Cadences() {
                         {Array.from({ length: Math.min(stepsCount, 5) }).map((_, i) => (
                           <div key={i} className="flex items-center gap-1.5">
                             <div className={cn(
-                              "h-7 w-7 rounded-lg flex items-center justify-center text-[10px] font-bold tabular-nums border",
+                              "h-7 w-7 rounded-lg flex items-center justify-center text-[10px] font-bold font-display tabular-nums border",
                               i === 0
                                 ? "bg-foreground text-background border-foreground"
                                 : "bg-muted/50 text-muted-foreground border-border/60"
@@ -219,7 +219,7 @@ export default function Cadences() {
                         {stepsCount > 5 && (
                           <>
                             <ChevronRight className="h-3 w-3 text-muted-foreground/30 shrink-0" />
-                            <span className="text-[10px] text-muted-foreground/40 font-medium">+{stepsCount - 5}</span>
+                            <span className="text-[10px] text-muted-foreground/40 font-medium font-display tabular-nums">+{stepsCount - 5}</span>
                           </>
                         )}
                       </div>
@@ -260,18 +260,23 @@ export default function Cadences() {
               })}
             </div>
           )}
-        </TabsContent>
+        </div>
+        )}
 
         {/* ── MONITORAMENTO TAB ── */}
-        <TabsContent value="monitoramento" className="mt-6" data-tutorial="cadences-monitoring">
+        {activeTab === "monitoramento" && (
+        <div className="mt-6" data-tutorial="cadences-monitoring">
           <CadenceMonitoringTab dateRange={dateRange} />
-        </TabsContent>
+        </div>
+        )}
 
         {/* ── RELATORIO TAB ── */}
-        <TabsContent value="relatorio" className="mt-6" data-tutorial="cadences-report">
+        {activeTab === "relatorio" && (
+        <div className="mt-6" data-tutorial="cadences-report">
           <CadenceDispatchReportTab />
-        </TabsContent>
-      </Tabs>
+        </div>
+        )}
+      </div>
 
       {/* ═══ MODALS ═══ */}
       <CadenceModal open={isModalOpen} onOpenChange={setIsModalOpen} cadence={selectedCadence} />
@@ -282,7 +287,7 @@ export default function Cadences() {
       <AlertDialog open={!!cadenceToDelete} onOpenChange={() => setCadenceToDelete(null)}>
         <AlertDialogContent className="rounded-2xl border-border/60">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base font-semibold">Excluir Cadência?</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-semibold font-display">Excluir Cadência?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-muted-foreground">
               O fluxo "{cadenceToDelete?.nome}" será removido permanentemente. Leads neste fluxo deixarão de receber mensagens agendadas.
             </AlertDialogDescription>

@@ -1865,14 +1865,14 @@ function UsageBar({ usage }: { usage: NonNullable<OSMessage["usage"]> }) {
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 border-t border-border/15 select-none">
 
       {/* Input tokens */}
-      <div className="flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground/40"
+      <div className="flex items-center gap-1 text-[10px] font-display tabular-nums text-muted-foreground/40"
            title="Tokens de entrada (contexto enviado ao modelo)">
         <ArrowDownToLine className="h-2.5 w-2.5 shrink-0" />
         <span>{fmtN(usage.inputTokens)}</span>
       </div>
 
       {/* Output tokens */}
-      <div className="flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground/40"
+      <div className="flex items-center gap-1 text-[10px] font-display tabular-nums text-muted-foreground/40"
            title="Tokens gerados pelo modelo">
         <ArrowUpFromLine className="h-2.5 w-2.5 shrink-0" />
         <span>{fmtN(usage.outputTokens)}</span>

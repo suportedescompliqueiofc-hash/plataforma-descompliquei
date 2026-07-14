@@ -198,7 +198,7 @@ export function TagSettings() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">{editingTag ? "Editar Etiqueta" : "Nova Etiqueta"}</DialogTitle>
+            <DialogTitle className="text-base font-semibold font-display">{editingTag ? "Editar Etiqueta" : "Nova Etiqueta"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-3">
             <div className="space-y-1.5">
@@ -266,7 +266,7 @@ export function TagSettings() {
       <AlertDialog open={!!isDeleting} onOpenChange={() => setIsDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir a etiqueta "{isDeleting?.name}"? Esta ação não pode ser desfeita.
             </AlertDialogDescription>

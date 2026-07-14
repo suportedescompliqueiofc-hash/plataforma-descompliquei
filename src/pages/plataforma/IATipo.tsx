@@ -6,11 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Loader2, Copy, History, Save, Maximize2, BrainCircuit, Zap } from "lucide-react";
+import { ArrowLeft, Loader2, Copy, History, Save, Maximize2, BrainCircuit, Zap, Check } from "lucide-react";
 import { toast } from "sonner"; // Using standard toast if sonner is available.
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormattedText } from "@/components/FormattedText";
+import { PageHero } from "@/components/PageHero";
 
 export default function IATipo() {
   const { tipo } = useParams();
@@ -20,10 +21,10 @@ export default function IATipo() {
 
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [history, setHistory] = useState<{id: string, input_prompt: string, output_response: string, created_at: string}[]>([]);
-  
+
   const [generating, setGenerating] = useState(false);
   const [output, setOutput] = useState("");
-  
+
   // Dynamic fields
   const [fields, setFields] = useState<any>({});
 
@@ -108,14 +109,14 @@ export default function IATipo() {
       setLoadingHistory(false);
     }
     loadHistory();
-    
+
     // Load persisted state for this specific IA
     if (user && tipo) {
       const storageKey = `ia_state_${user.id}_${tipo}`;
       try {
         const savedFields = localStorage.getItem(storageKey + '_fields');
         setFields(savedFields ? JSON.parse(savedFields) : {});
-        
+
         const savedOutput = localStorage.getItem(storageKey + '_output');
         setOutput(savedOutput || "");
       } catch {
@@ -141,12 +142,12 @@ export default function IATipo() {
 
   const replaceVariables = (template: string) => {
     let prompt = template;
-    
+
     // Injete Cérebro
     prompt = prompt.replace(/{CLINIC_DIFFERENTIALS}/g, cerebroData?.differentials || 'Excelência e resultado em saúde.');
     prompt = prompt.replace(/{ANCHOR}/g, cerebroData?.anchor_procedure || 'Procedimento Ouro');
     prompt = prompt.replace(/{VOICE_TONE}/g, cerebroData?.voice_tone || 'Sério e Profissional');
-    
+
     const icpAgeStr = cerebroData?.icp?.age ? `Idade: ${cerebroData.icp.age}` : '';
     const icpMotiv = cerebroData?.icp?.motivations ? `Desejos: ${cerebroData.icp.motivations}` : '';
     const icpFears = cerebroData?.icp?.fears || 'Dor, frustração ou preço';
@@ -182,7 +183,7 @@ export default function IATipo() {
            user_id: user.id
         }
       });
-      
+
       if (error) {
         console.error('Erro na Edge Function:', error);
         if (error.message?.includes('401')) {
@@ -190,10 +191,10 @@ export default function IATipo() {
         }
         throw new Error(error.message || "Erro ao chamar a IA");
       }
-      
+
       if (data && data.text) {
          setOutput(data.text);
-         
+
          // Atualiza o histórico local para mostrar imediatamente (já foi salvo real pela cloud function)
          const inputSummary = JSON.stringify(fields).substring(0, 50) + "...";
          const newHist = {
@@ -217,8 +218,8 @@ export default function IATipo() {
   };
 
   const handleOpenSaveModal = () => {
-       const initialTitle = typeof fields === 'object' && Object.values(fields).length > 0 
-           ? String(Object.values(fields)[0]).substring(0, 30) 
+       const initialTitle = typeof fields === 'object' && Object.values(fields).length > 0
+           ? String(Object.values(fields)[0]).substring(0, 30)
            : "Material Gerado";
        setSaveTitle(`${iaConfig.name} - ${initialTitle}`);
        setSaveCategory("Outros");
@@ -246,7 +247,7 @@ export default function IATipo() {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(output);
-    toast("Copiado com sucesso! ✅");
+    toast("Copiado com sucesso!", { icon: <Check className="h-4 w-4" /> });
   };
 
   const handleLoadHistory = (h: any) => {
@@ -257,8 +258,8 @@ export default function IATipo() {
   // Guard: verificar se a IA está liberada no produto
   if (!iaLiberada) {
     return (
-      <div className="max-w-2xl mx-auto py-20 text-center space-y-4">
-        <h2 className="text-2xl font-bold text-foreground">IA não disponível</h2>
+      <div className="max-w-[1400px] mx-auto py-20 text-center space-y-4">
+        <h2 className="text-2xl font-bold text-foreground font-display">IA não disponível</h2>
         <p className="text-muted-foreground">Esta IA não está incluída no seu plano atual.</p>
         <Button variant="outline" onClick={() => navigate('/plataforma/ia-comercial')}>
           Voltar para IAs
@@ -268,27 +269,30 @@ export default function IATipo() {
   }
 
   return (
-    <div className="max-w-[1200px] mx-auto min-h-[calc(100vh-100px)] pb-12 flex flex-col">
+    <div className="max-w-[1400px] mx-auto min-h-[calc(100vh-100px)] pb-12 flex flex-col">
       {/* HEADER */}
-      <div className="space-y-1 border-b border-border pb-6 mb-8">
-        <button onClick={() => navigate('/plataforma/ia-comercial')} className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors mb-3 tracking-[0.06em]">
+      <div className="space-y-4 mb-8">
+        <button onClick={() => navigate('/plataforma/ia-comercial')} className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors tracking-[0.06em]">
           <ArrowLeft className="w-3.5 h-3.5" /> Voltar para IAs Comerciais
         </button>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground font-display">{iaConfig.name}</h1>
-        <p className="text-muted-foreground text-[15px]">{iaConfig.benefit}</p>
+        <PageHero
+          icon={Zap}
+          title={iaConfig.name}
+          subtitle={iaConfig.benefit}
+        />
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 flex-1">
         {/* COLUNA ESQUERDA - INSTRUÇÕES & HISTÓRICO */}
         <div className="w-full lg:w-[340px] shrink-0 space-y-5 lg:sticky lg:top-4 h-fit">
           {/* Instruções */}
-          <div className="rounded-xl border border-border bg-card p-5 shadow-card space-y-4">
+          <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-4">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-2">Como usar</p>
               <p className="text-[13px] text-foreground/90 leading-relaxed">{iaConfig.howTo}</p>
             </div>
             {!cerebroData?.differentials && (
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
+              <div className="flex items-center gap-3 rounded-lg border border-border/60 bg-muted/30 p-3">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted">
                   <BrainCircuit className="h-3.5 w-3.5 text-foreground" />
                 </div>
@@ -298,19 +302,19 @@ export default function IATipo() {
           </div>
 
           {/* Histórico */}
-          <div className="rounded-xl border border-border bg-card p-5 shadow-card">
+          <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
             <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground mb-4 flex items-center gap-2">
               <History className="w-3.5 h-3.5" /> Histórico Recente
             </p>
             {loadingHistory ? (
               <div className="flex justify-center p-4"><Loader2 className="w-4 h-4 animate-spin opacity-40" /></div>
             ) : history.length === 0 ? (
-              <p className="text-[12px] text-muted-foreground text-center py-6 bg-muted/30 rounded-lg border border-dashed border-border">Nenhuma consulta realizada ainda.</p>
+              <p className="text-[12px] text-muted-foreground text-center py-6 bg-muted/30 rounded-lg border border-dashed border-border/60">Nenhuma consulta realizada ainda.</p>
             ) : (
               <div className="space-y-2">
                 {history.map(h => (
-                  <div key={h.id} onClick={() => handleLoadHistory(h)} className="border border-border bg-background p-3 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors group">
-                    <p className="text-[10px] text-muted-foreground font-mono mb-1">{new Date(h.created_at).toLocaleString()}</p>
+                  <div key={h.id} onClick={() => handleLoadHistory(h)} className="border border-border/60 bg-background p-3 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors group">
+                    <p className="text-[10px] text-muted-foreground font-display tabular-nums mb-1">{new Date(h.created_at).toLocaleString()}</p>
                     <p className="text-xs text-foreground font-medium line-clamp-2">{h.input_prompt}</p>
                   </div>
                 ))}
@@ -321,10 +325,10 @@ export default function IATipo() {
 
         {/* COLUNA DIREITA - PROMPT E OUTPUT (65%) */}
         <div className="flex-1 flex flex-col space-y-6">
-          
+
           {/* AREA INPUT */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-card space-y-5">
-             <div className="flex items-center gap-3 pb-4 border-b border-border">
+          <div className="rounded-2xl border border-border/60 bg-card p-6 shadow-[0_1px_3px_rgba(0,0,0,0.04)] space-y-5">
+             <div className="flex items-center gap-3 pb-4 border-b border-border/40">
                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted">
                  <Zap className="h-4 w-4 text-foreground" />
                </div>
@@ -337,17 +341,17 @@ export default function IATipo() {
              <div className="space-y-5">
                 {iaConfig.inputs.map((inp: any) => (
                   <div key={inp.id} className="space-y-1.5">
-                    <label className="text-[13px] font-medium text-foreground">{inp.label}</label>
+                    <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{inp.label}</label>
                     {inp.type === 'textarea' ? (
                       <Textarea
-                        className="bg-background border-border min-h-[100px] text-sm resize-y"
+                        className="bg-background border-border/60 rounded-lg min-h-[100px] text-sm resize-y"
                         value={fields[inp.id] || ''}
                         onChange={e => setFields({...fields, [inp.id]: e.target.value})}
                         placeholder={inp.label}
                       />
                     ) : (
                       <Input
-                        className="bg-background border-border"
+                        className="h-10 text-sm rounded-lg border-border/60 bg-background"
                         value={fields[inp.id] || ''}
                         onChange={e => setFields({...fields, [inp.id]: e.target.value})}
                         placeholder={inp.label}
@@ -357,13 +361,13 @@ export default function IATipo() {
                 ))}
              </div>
 
-             <div className="pt-1 flex flex-col sm:flex-row gap-3 items-center border-t border-border pt-5">
+             <div className="pt-1 flex flex-col sm:flex-row gap-3 items-center border-t border-border/40 pt-5">
                <Button
                  onClick={handleGenerate}
                  disabled={generating}
-                 className="w-full sm:w-auto bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold h-10 px-6 text-sm"
+                 className="w-full sm:w-auto h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5"
                >
-                 {generating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processando...</> : 'Gerar Resposta'}
+                 {generating ? <><Loader2 className="w-4 h-4 animate-spin" /> Processando...</> : 'Gerar Resposta'}
                </Button>
                <Button variant="ghost" size="sm" onClick={() => {setFields({}); setOutput("");}} className="text-muted-foreground text-xs">Nova Consulta</Button>
              </div>
@@ -371,23 +375,23 @@ export default function IATipo() {
 
           {/* AREA OUTPUT */}
           {output && (
-            <div className="rounded-xl border border-border bg-card shadow-card overflow-hidden animate-in fade-in duration-300">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden animate-in fade-in duration-300">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border/40">
                 <p className="text-sm font-semibold text-foreground font-display">Resposta Gerada</p>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setExpandModalOpen(true)} className="h-8 text-xs border-border hover:bg-muted font-medium">
-                    <Maximize2 className="w-3.5 h-3.5 mr-1.5" /> Expandir
+                  <Button variant="outline" size="sm" onClick={() => setExpandModalOpen(true)} className="h-8 rounded-lg text-[11px] border-border/60 hover:bg-muted font-medium gap-1.5 px-3">
+                    <Maximize2 className="w-3.5 h-3.5" /> Expandir
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleOpenSaveModal} className="h-8 text-xs border-border hover:bg-muted font-medium">
-                    <Save className="w-3.5 h-3.5 mr-1.5" /> Salvar
+                  <Button variant="outline" size="sm" onClick={handleOpenSaveModal} className="h-8 rounded-lg text-[11px] border-border/60 hover:bg-muted font-medium gap-1.5 px-3">
+                    <Save className="w-3.5 h-3.5" /> Salvar
                   </Button>
-                  <Button variant="outline" size="sm" onClick={copyToClipboard} className="h-8 text-xs border-border hover:bg-muted font-medium">
-                    <Copy className="w-3.5 h-3.5 mr-1.5" /> Copiar
+                  <Button variant="outline" size="sm" onClick={copyToClipboard} className="h-8 rounded-lg text-[11px] border-border/60 hover:bg-muted font-medium gap-1.5 px-3">
+                    <Copy className="w-3.5 h-3.5" /> Copiar
                   </Button>
                 </div>
               </div>
               <div className="p-6">
-                <div className="bg-background border border-border rounded-lg p-5 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
+                <div className="bg-background border border-border/60 rounded-lg p-5 max-h-[500px] overflow-y-auto scrollbar-thin scrollbar-thumb-border">
                   <FormattedText content={output} className="text-sm" />
                 </div>
               </div>
@@ -398,7 +402,7 @@ export default function IATipo() {
       </div>
 
       <Dialog open={saveModalOpen} onOpenChange={setSaveModalOpen}>
-        <DialogContent className="border-border bg-card sm:max-w-md">
+        <DialogContent className="border-border/60 bg-card sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-foreground font-display">Salvar como Material</DialogTitle>
             <DialogDescription className="text-muted-foreground text-[13px]">
@@ -407,20 +411,20 @@ export default function IATipo() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-foreground">Título do Material</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Título do Material</label>
               <Input
                 value={saveTitle}
                 onChange={(e) => setSaveTitle(e.target.value)}
-                className="bg-background border-border"
+                className="h-10 text-sm rounded-lg border-border/60 bg-background"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="text-[13px] font-medium text-foreground">Categoria</label>
+              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Categoria</label>
               <Select value={saveCategory} onValueChange={setSaveCategory}>
-                <SelectTrigger className="bg-background border-border">
+                <SelectTrigger className="h-10 text-sm rounded-lg border-border/60 bg-background">
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
-                <SelectContent className="border-border bg-card">
+                <SelectContent className="border-border/60 bg-card">
                   <SelectItem value="ICP">ICP / Persona</SelectItem>
                   <SelectItem value="Oferta">Oferta</SelectItem>
                   <SelectItem value="Script">Script de Venda</SelectItem>
@@ -433,26 +437,26 @@ export default function IATipo() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveModalOpen(false)} className="font-medium">Cancelar</Button>
-            <Button onClick={handleConfirmSaveMaterial} className="bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold">Salvar</Button>
+            <Button variant="outline" onClick={() => setSaveModalOpen(false)} className="h-9 rounded-lg text-xs font-medium border-border/60">Cancelar</Button>
+            <Button onClick={handleConfirmSaveMaterial} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5">Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Expand Modal */}
       <Dialog open={expandModalOpen} onOpenChange={setExpandModalOpen}>
-        <DialogContent className="sm:max-w-3xl h-[85vh] flex flex-col p-0 border-border overflow-hidden gap-0 bg-card">
-          <DialogHeader className="p-6 border-b border-border shrink-0">
+        <DialogContent className="sm:max-w-3xl h-[85vh] flex flex-col p-0 border-border/60 overflow-hidden gap-0 bg-card">
+          <DialogHeader className="p-6 border-b border-border/40 shrink-0">
             <DialogTitle className="text-lg text-foreground font-bold font-display">{iaConfig.name} — Resposta</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-border bg-background">
             <FormattedText content={output} className="text-sm" />
           </div>
-          <div className="p-4 border-t border-border flex justify-end gap-3 shrink-0">
-            <Button variant="outline" onClick={copyToClipboard} className="font-medium border-border">
-              <Copy className="w-4 h-4 mr-2" /> Copiar Texto
+          <div className="p-4 border-t border-border/40 flex justify-end gap-3 shrink-0">
+            <Button variant="outline" onClick={copyToClipboard} className="h-9 rounded-lg text-xs font-medium border-border/60 gap-1.5">
+              <Copy className="w-4 h-4" /> Copiar Texto
             </Button>
-            <Button onClick={() => setExpandModalOpen(false)} className="bg-[#E85D24] hover:bg-[#D04E1A] text-white font-semibold">
+            <Button onClick={() => setExpandModalOpen(false)} className="h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5 gap-1.5">
               Fechar
             </Button>
           </div>

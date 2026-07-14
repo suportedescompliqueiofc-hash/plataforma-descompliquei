@@ -52,7 +52,7 @@ function StepCard({
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             </div>
           ) : (
-            <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold bg-foreground/10 text-foreground">
+            <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold font-display tabular-nums bg-foreground/10 text-foreground">
               {index + 1}
             </div>
           )}
@@ -60,7 +60,7 @@ function StepCard({
 
         <div className="flex-1 min-w-0">
           <p className={cn(
-            'text-[13px] font-semibold mb-0.5',
+            'text-[13px] font-semibold font-display mb-0.5',
             step.completed ? 'text-emerald-800 line-through' : 'text-foreground',
           )}>
             {step.title}
@@ -262,7 +262,7 @@ export function OnboardingPlataformaChecklist() {
                       style={{ width: `${progress}%` }}
                     />
                   </div>
-                  <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0">
+                  <span className="text-[11px] text-muted-foreground/60 font-display tabular-nums shrink-0">
                     {completedCount}/{steps.length}
                   </span>
                 </div>

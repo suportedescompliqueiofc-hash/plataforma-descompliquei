@@ -176,7 +176,7 @@ export default function DescompliqueiOS() {
 
       {/* ── Conversation Sidebar ─────────────────────────────────────────── */}
       <aside className={cn(
-        "relative z-10 flex-shrink-0 flex flex-col border-r border-border/50 bg-background/40 backdrop-blur-sm transition-[width] duration-200 overflow-hidden",
+        "relative z-10 flex-shrink-0 flex flex-col border-r border-border/60 bg-background/40 backdrop-blur-sm transition-[width] duration-200 overflow-hidden",
         sidebarOpen ? "w-60" : "w-0"
       )}>
         {/* Keep content visible only when sidebar is open */}
@@ -203,7 +203,7 @@ export default function DescompliqueiOS() {
             </div>
             <button
               onClick={() => { newConversation(); setTimeout(() => textareaRef.current?.focus(), 50); }}
-              className="flex items-center justify-center gap-1.5 w-full h-8 rounded-lg border border-border/60 bg-background text-[12px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              className="flex items-center justify-center gap-1.5 w-full h-8 rounded-lg border border-border/60 bg-background text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               Nova conversa
@@ -639,7 +639,7 @@ function ConvItem({ conv, active, isPinned, onSelect, onRename, onPin, onArchive
             onBlur={submitRename}
             onKeyDown={e => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenaming(false); }}
             onClick={e => e.stopPropagation()}
-            className="w-full bg-transparent border-b border-border text-[12px] font-medium outline-none py-0.5 text-foreground"
+            className="w-full bg-transparent border-b border-border/60 text-[12px] font-medium outline-none py-0.5 text-foreground"
           />
         ) : (
           <>
@@ -859,7 +859,7 @@ function MessageBubble({ msg, onImageClick }: { msg: OSMessage; onImageClick: (u
               <span className="text-[13px] text-muted-foreground">Pensando...</span>
             )}
             {elapsedSec > 0 && (
-              <span className="text-[11px] text-muted-foreground/50 tabular-nums">{elapsedSec}s</span>
+              <span className="text-[11px] text-muted-foreground/50 font-display tabular-nums">{elapsedSec}s</span>
             )}
           </div>
         ) : null}
@@ -906,14 +906,14 @@ function UsageBar({ usage }: { usage: NonNullable<OSMessage["usage"]> }) {
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 pt-2 border-t border-border/15 select-none">
 
       {/* Input tokens */}
-      <div className="flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground/40"
+      <div className="flex items-center gap-1 text-[10px] font-display tabular-nums text-muted-foreground/40"
            title="Tokens de entrada (contexto enviado ao modelo)">
         <ArrowDownToLine className="h-2.5 w-2.5 shrink-0" />
         <span>{fmtN(usage.inputTokens)}</span>
       </div>
 
       {/* Output tokens */}
-      <div className="flex items-center gap-1 text-[10px] font-mono tabular-nums text-muted-foreground/40"
+      <div className="flex items-center gap-1 text-[10px] font-display tabular-nums text-muted-foreground/40"
            title="Tokens gerados pelo modelo">
         <ArrowUpFromLine className="h-2.5 w-2.5 shrink-0" />
         <span>{fmtN(usage.outputTokens)}</span>

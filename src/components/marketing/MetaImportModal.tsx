@@ -191,7 +191,7 @@ export function MetaImportModal({ open, onOpenChange, criativos, onImport }: Met
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-display">
             <FileSpreadsheet className="h-5 w-5 text-green-600" />
             Importar Métricas do Meta Ads
           </DialogTitle>
@@ -277,10 +277,10 @@ export function MetaImportModal({ open, onOpenChange, criativos, onImport }: Met
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right text-xs">
+                        <TableCell className="text-right text-xs font-display tabular-nums">
                           R$ {match.row.metrics.spend.toFixed(2)}
                         </TableCell>
-                        <TableCell className="text-right text-xs">
+                        <TableCell className="text-right text-xs font-display tabular-nums">
                           {match.row.metrics.results}
                         </TableCell>
                         <TableCell>

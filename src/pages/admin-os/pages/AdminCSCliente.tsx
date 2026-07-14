@@ -1395,7 +1395,7 @@ function NPSDialog({ open, onClose, clientId, clientName }: { open: boolean; onC
             <p className={cn('text-sm font-bold', category.color)}>{category.label}</p>
             <p className="text-[11px] text-muted-foreground/60 mt-0.5">{category.desc}</p>
           </div>
-          <span className={cn('text-4xl font-bold font-mono tabular-nums', category.color)}>{score}</span>
+          <span className={cn('text-4xl font-bold font-display tabular-nums', category.color)}>{score}</span>
         </div>
 
         <div className="px-6 pb-5 space-y-5 mt-4">
@@ -1691,7 +1691,7 @@ export default function AdminCSCliente() {
                     {marcos.map(m => (
                       <span
                         key={m.d}
-                        className="absolute text-[9px] font-mono font-bold text-muted-foreground/40 tabular-nums"
+                        className="absolute text-[9px] font-display font-bold text-muted-foreground/40 tabular-nums"
                         style={{ left: `${m.pct}%`, transform: 'translateX(-50%)' }}
                       >
                         {m.label}
@@ -1699,7 +1699,7 @@ export default function AdminCSCliente() {
                     ))}
                     {/* Label da posição atual */}
                     <span
-                      className="absolute text-[9px] font-mono font-bold text-foreground tabular-nums -top-0.5"
+                      className="absolute text-[9px] font-display font-bold text-foreground tabular-nums -top-0.5"
                       style={{ left: `${pctPos}%`, transform: 'translateX(-50%)' }}
                     >
                       D{dias}

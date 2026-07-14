@@ -290,7 +290,7 @@ function TrackPanel({
               }`}
             />
           ))}
-          <span className="ml-1.5 text-[10px] font-mono text-muted-foreground tabular-nums">
+          <span className="ml-1.5 text-[10px] font-display text-muted-foreground tabular-nums">
             T{tentativas}
           </span>
         </div>
@@ -343,7 +343,7 @@ function TrackPanel({
               <div className="p-3 rounded-xl bg-muted/40 mb-3">
                 <TrendingUp className="h-5 w-5 text-muted-foreground/40" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">Sem dados no período</p>
+              <p className="text-sm font-medium font-display text-muted-foreground">Sem dados no período</p>
               <p className="text-[11px] text-muted-foreground/50 mt-0.5">
                 Nenhum follow-up {meta.label.toLowerCase()} foi enviado neste intervalo
               </p>
@@ -414,10 +414,10 @@ function TrackPanel({
                             style={{ width: `${barWidth}%` }}
                           />
                         </div>
-                        <span className="text-[11px] tabular-nums text-foreground font-medium w-4 text-right shrink-0">
+                        <span className="text-[11px] font-display tabular-nums text-foreground font-medium w-4 text-right shrink-0">
                           {count}
                         </span>
-                        <span className="text-[10px] text-muted-foreground/50 w-12 shrink-0">
+                        <span className="text-[10px] font-display tabular-nums text-muted-foreground/50 w-12 shrink-0">
                           ({pct}% env.)
                         </span>
                       </div>
@@ -451,7 +451,7 @@ function TrackPanel({
                   Em acompanhamento e aguardando a próxima tentativa
                 </p>
               </div>
-              <span className="ml-auto text-[11px] font-bold tabular-nums bg-muted text-muted-foreground rounded-lg px-2.5 py-1">
+              <span className="ml-auto text-[11px] font-bold font-display tabular-nums bg-muted text-muted-foreground rounded-lg px-2.5 py-1">
                 {activeLeads.length + pausedLeads.length}
               </span>
             </div>
@@ -493,7 +493,7 @@ function TrackPanel({
               <div className="p-3 rounded-xl bg-muted/40 mb-3">
                 <Bot className="h-6 w-6 text-muted-foreground/40" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium font-display text-muted-foreground">
                 Nenhum follow-up {meta.label.toLowerCase()} no período
               </p>
               <p className="text-[11px] text-muted-foreground/50 mt-0.5">
@@ -559,7 +559,7 @@ function TrackPanel({
                             {leadName}
                           </td>
                           <td className="py-2.5 pr-3">
-                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-muted text-[11px] font-bold tabular-nums">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-md bg-muted text-[11px] font-bold font-display tabular-nums">
                               {log.tentativa}
                             </span>
                           </td>
@@ -577,7 +577,7 @@ function TrackPanel({
                             </span>
                           </td>
                           <td className="py-2.5 whitespace-nowrap">
-                            <p className="text-[11px] text-foreground/70">
+                            <p className="text-[11px] text-foreground/70 font-display tabular-nums">
                               {format(new Date(log.enviado_em), "dd/MM HH:mm")}
                             </p>
                             <p className="text-[10px] text-muted-foreground/50">

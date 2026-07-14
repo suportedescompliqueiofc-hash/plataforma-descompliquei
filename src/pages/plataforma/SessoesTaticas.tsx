@@ -9,6 +9,7 @@ import {
 import { format, isPast, isFuture, addHours, isSameDay, subWeeks, addWeeks, startOfWeek, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { PageHero } from "@/components/PageHero";
 
 type Session = {
   id: string;
@@ -79,53 +80,29 @@ export default function SessoesTaticas() {
     (type || '').toLowerCase() === 'comercial' ? 'Comercial' : 'Demanda';
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-12">
 
       {/* ─── Hero ─── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-8 py-10 sm:px-12 sm:py-12">
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }} />
-        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full opacity-55 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, #ea580c, transparent 65%)' }} />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-35 blur-[80px]"
-          style={{ background: 'radial-gradient(circle, #d97706, transparent 65%)' }} />
-
-        <div className="relative z-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-8">
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-white/[0.07] backdrop-blur-sm border border-white/[0.08]">
-                <Tv2 className="h-5 w-5 text-white/80" />
-              </div>
-              <div className="h-px flex-1 max-w-[100px] bg-gradient-to-r from-white/20 to-transparent" />
+      <PageHero
+        dataTutorial="sessoes-header"
+        icon={Tv2}
+        title="Sessões Táticas"
+        subtitle="Mentorias ao vivo toda semana com o time da Descompliquei."
+        right={nextSession && (
+          <div className="shrink-0 flex items-center gap-3 bg-white/[0.04] backdrop-blur-sm rounded-2xl px-5 py-4 border border-white/[0.06]">
+            <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', typeColor(nextSession.type))}>
+              <Video className="h-4 w-4 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white font-display leading-[1.15]">
-                Sessões Táticas
-              </h1>
-              <p className="text-[13px] text-white/40 mt-2 max-w-sm leading-relaxed">
-                Mentorias ao vivo toda semana com o time da Descompliquei.
+              <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Próxima sessão</p>
+              <p className="text-[13px] font-semibold text-white leading-snug mt-0.5 max-w-[180px] line-clamp-1">{nextSession.title}</p>
+              <p className="text-[11px] text-white/40 mt-0.5">
+                {format(new Date(nextSession.scheduled_at), "dd MMM 'às' HH:mm", { locale: ptBR })}
               </p>
             </div>
           </div>
-
-          {nextSession && (
-            <div className="shrink-0 flex items-center gap-3 bg-white/[0.04] backdrop-blur-sm rounded-2xl px-5 py-4 border border-white/[0.06]">
-              <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', typeColor(nextSession.type))}>
-                <Video className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Próxima sessão</p>
-                <p className="text-[13px] font-semibold text-white leading-snug mt-0.5 max-w-[180px] line-clamp-1">{nextSession.title}</p>
-                <p className="text-[11px] text-white/40 mt-0.5">
-                  {format(new Date(nextSession.scheduled_at), "dd MMM 'às' HH:mm", { locale: ptBR })}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+        )}
+      />
 
       {/* ─── Próxima Sessão (destaque) ─── */}
       {nextSession && (
@@ -250,7 +227,7 @@ export default function SessoesTaticas() {
                       <div className={cn('absolute top-0 left-0 w-[3px] h-full', typeColor(session.type))} />
                       <div className="pl-2.5">
                         <div className="font-semibold leading-snug text-foreground line-clamp-2">{session.title}</div>
-                        <div className="flex items-center gap-1 mt-1 text-muted-foreground/60">
+                        <div className="flex items-center gap-1 mt-1 text-muted-foreground/60 font-display tabular-nums">
                           <Clock className="h-2.5 w-2.5" />
                           {format(new Date(session.scheduled_at), 'HH:mm')}
                         </div>
@@ -309,7 +286,7 @@ export default function SessoesTaticas() {
                         {format(new Date(session.scheduled_at), 'dd MMM yy', { locale: ptBR })}
                       </span>
                     </div>
-                    <h4 className="text-[13px] font-semibold text-foreground leading-snug line-clamp-2">{session.title}</h4>
+                    <h4 className="text-[13px] font-semibold text-foreground leading-snug line-clamp-2 font-display">{session.title}</h4>
                   </div>
                 </div>
               </button>

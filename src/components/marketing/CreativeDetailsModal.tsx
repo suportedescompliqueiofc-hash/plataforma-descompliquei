@@ -50,7 +50,7 @@ export function CreativeDetailsModal({ open, onOpenChange, criativo, onEditName 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-xl">
+          <DialogTitle className="flex items-center gap-2 text-xl font-display">
             Detalhes do Conjunto
             {criativo.plataforma && <Badge variant="outline" className="capitalize font-normal">{criativo.plataforma}</Badge>}
           </DialogTitle>
@@ -117,49 +117,49 @@ export function CreativeDetailsModal({ open, onOpenChange, criativo, onEditName 
           {/* Seção de Métricas do Meta */}
           {metaMetrics && metaMetrics.spend > 0 && (
             <div className="space-y-3 pt-2">
-              <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-600">
+              <h4 className="font-semibold text-sm flex items-center gap-2 text-blue-600 font-display">
                 <BarChart2 className="h-4 w-4" /> Métricas da Plataforma (Meta Ads)
               </h4>
               <div className="bg-blue-50/50 p-5 rounded-lg border border-blue-100">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Valor Usado</span>
-                    <div className="text-xl font-bold text-foreground">R$ {formatMoney(metaMetrics.spend)}</div>
+                    <div className="text-xl font-bold text-foreground font-display tabular-nums">R$ {formatMoney(metaMetrics.spend)}</div>
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Impressões</span>
-                    <div className="text-xl font-bold text-foreground flex items-center gap-2">
-                      {metaMetrics.impressions.toLocaleString('pt-BR')} 
+                    <div className="text-xl font-bold text-foreground flex items-center gap-2 font-display tabular-nums">
+                      {metaMetrics.impressions.toLocaleString('pt-BR')}
                       <Eye className="h-4 w-4 text-muted-foreground opacity-40" />
                     </div>
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Cliques (Link)</span>
-                    <div className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <div className="text-xl font-bold text-foreground flex items-center gap-2 font-display tabular-nums">
                       {metaMetrics.clicks.toLocaleString('pt-BR')}
                       <MousePointerClick className="h-4 w-4 text-muted-foreground opacity-40" />
                     </div>
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">CTR</span>
-                    <div className="text-xl font-bold text-blue-600">{metaMetrics.ctr.toFixed(2)}%</div>
+                    <div className="text-xl font-bold text-blue-600 font-display tabular-nums">{metaMetrics.ctr.toFixed(2)}%</div>
                   </div>
-                  
+
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">CPC (Custo/Clique)</span>
-                    <div className="text-lg font-medium text-foreground/90">R$ {formatMoney(metaMetrics.cpc)}</div>
+                    <div className="text-lg font-medium text-foreground/90 font-display tabular-nums">R$ {formatMoney(metaMetrics.cpc)}</div>
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Alcance</span>
-                    <div className="text-lg font-medium text-foreground/90">{metaMetrics.reach.toLocaleString('pt-BR')}</div>
+                    <div className="text-lg font-medium text-foreground/90 font-display tabular-nums">{metaMetrics.reach.toLocaleString('pt-BR')}</div>
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Resultados</span>
-                    <div className="text-lg font-medium text-foreground/90">{metaMetrics.results}</div>
+                    <div className="text-lg font-medium text-foreground/90 font-display tabular-nums">{metaMetrics.results}</div>
                   </div>
                   <div className="space-y-1">
                     <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Custo/Resultado</span>
-                    <div className="text-lg font-bold text-amber-600">R$ {formatMoney(metaMetrics.cost_per_result)}</div>
+                    <div className="text-lg font-bold text-amber-600 font-display tabular-nums">R$ {formatMoney(metaMetrics.cost_per_result)}</div>
                   </div>
                 </div>
               </div>
@@ -170,7 +170,7 @@ export function CreativeDetailsModal({ open, onOpenChange, criativo, onEditName 
 
           {/* Stats Section (CRM) */}
           <div className="space-y-3">
-            <h4 className="font-semibold text-sm flex items-center gap-2 text-foreground/80">
+            <h4 className="font-semibold text-sm flex items-center gap-2 text-foreground/80 font-display">
               <TrendingUp className="h-4 w-4 text-primary" /> Performance CRM (Interno)
             </h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -181,7 +181,7 @@ export function CreativeDetailsModal({ open, onOpenChange, criativo, onEditName 
                   <span className="text-[10px] font-bold uppercase tracking-wider">Leads</span>
                 </div>
                 <div>
-                  <span className="text-3xl font-bold text-foreground block">{stats.contagem_leads}</span>
+                  <span className="text-3xl font-bold text-foreground block font-display tabular-nums">{stats.contagem_leads}</span>
                   <span className="text-[10px] text-muted-foreground">Total captado</span>
                 </div>
               </div>
@@ -193,7 +193,7 @@ export function CreativeDetailsModal({ open, onOpenChange, criativo, onEditName 
                   <span className="text-[10px] font-bold uppercase tracking-wider">Vendas</span>
                 </div>
                 <div>
-                  <span className="text-3xl font-bold text-foreground block">{stats.contagem_vendas}</span>
+                  <span className="text-3xl font-bold text-foreground block font-display tabular-nums">{stats.contagem_vendas}</span>
                   <div className="flex items-center gap-1 mt-1">
                     <Badge variant="secondary" className="text-[10px] h-5 px-1.5 bg-green-50 text-green-700 hover:bg-green-100 font-medium">
                       {taxaConversao}% conv.
@@ -209,7 +209,7 @@ export function CreativeDetailsModal({ open, onOpenChange, criativo, onEditName 
                   <span className="text-[10px] font-bold uppercase tracking-wider">Faturamento</span>
                 </div>
                 <div>
-                  <span className="text-3xl font-bold text-foreground tracking-tight block">{formatCurrency(stats.faturamento)}</span>
+                  <span className="text-3xl font-bold text-foreground tracking-tight block font-display tabular-nums">{formatCurrency(stats.faturamento)}</span>
                   <span className="text-[10px] text-muted-foreground">Total gerado</span>
                 </div>
               </div>
@@ -221,7 +221,7 @@ export function CreativeDetailsModal({ open, onOpenChange, criativo, onEditName 
                   <span className="text-[10px] font-bold uppercase tracking-wider">Ticket Médio</span>
                 </div>
                 <div>
-                  <span className="text-3xl font-bold text-foreground tracking-tight block">{formatCurrency(ticketMedio)}</span>
+                  <span className="text-3xl font-bold text-foreground tracking-tight block font-display tabular-nums">{formatCurrency(ticketMedio)}</span>
                   <span className="text-[10px] text-muted-foreground">Por venda</span>
                 </div>
               </div>

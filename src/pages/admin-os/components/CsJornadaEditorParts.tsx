@@ -77,7 +77,7 @@ function TarefaEditor({ passo, index, onChange, onDelete }: {
           <div className="flex items-center gap-1 shrink-0">
             {passo.obrigatorio && <span className="hidden sm:inline text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">Obrig.</span>}
             {passo.tipo === 'material' && <Sparkles className="h-3.5 w-3.5 text-violet-500" />}
-            {passo.subtarefas.length > 0 && <span className="text-[10px] text-muted-foreground/50 font-mono tabular-nums px-0.5">{subsDone}/{passo.subtarefas.length}</span>}
+            {passo.subtarefas.length > 0 && <span className="text-[10px] text-muted-foreground/50 font-display tabular-nums px-0.5">{subsDone}/{passo.subtarefas.length}</span>}
             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover/t:opacity-100 text-destructive hover:text-destructive" onClick={onDelete}><Trash2 className="h-3.5 w-3.5" /></Button>
             <button type="button" onClick={() => setOpen(true)} className="h-6 w-6 inline-flex items-center justify-center rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted" title="Abrir detalhes">
               <ChevronRight className="h-4 w-4" />

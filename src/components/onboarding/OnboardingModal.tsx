@@ -49,7 +49,7 @@ function StepCard({
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             </div>
           ) : (
-            <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold bg-foreground/10 text-foreground">
+            <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold font-display tabular-nums bg-foreground/10 text-foreground">
               {index + 1}
             </div>
           )}
@@ -58,7 +58,7 @@ function StepCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
             <p className={cn(
-              'text-[13px] font-semibold',
+              'text-[13px] font-semibold font-display',
               step.completed ? 'text-emerald-800 line-through' : 'text-foreground',
             )}>
               {step.title}
@@ -127,7 +127,7 @@ function PasswordStepCard({
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-emerald-800 line-through">{step.title}</p>
+            <p className="text-[13px] font-semibold font-display text-emerald-800 line-through">{step.title}</p>
             <p className="text-[11px] text-muted-foreground/70 leading-relaxed">{step.description}</p>
           </div>
           <div className="p-2 rounded-lg bg-emerald-100 shrink-0">
@@ -153,11 +153,11 @@ function PasswordStepCard({
   return (
     <div className="rounded-xl border border-border/70 bg-card p-4">
       <div className="flex items-start gap-3 mb-3">
-        <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold bg-foreground/10 text-foreground shrink-0 mt-0.5">
+        <div className="h-7 w-7 rounded-full flex items-center justify-center text-[11px] font-bold font-display tabular-nums bg-foreground/10 text-foreground shrink-0 mt-0.5">
           {index + 1}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-semibold text-foreground">{step.title}</p>
+          <p className="text-[13px] font-semibold font-display text-foreground">{step.title}</p>
           <p className="text-[11px] text-muted-foreground/70 leading-relaxed mt-0.5">{step.description}</p>
         </div>
         <div className="p-2 rounded-lg bg-muted shrink-0">
@@ -364,7 +364,7 @@ export function OnboardingModal() {
                   <div className="flex-1 h-2 rounded-full bg-muted/40 overflow-hidden">
                     <div className="h-full rounded-full bg-foreground transition-all duration-700" style={{ width: `${progress}%` }} />
                   </div>
-                  <span className="text-[11px] text-muted-foreground/60 tabular-nums shrink-0">
+                  <span className="text-[11px] text-muted-foreground/60 font-display tabular-nums shrink-0">
                     {completedCount}/{steps.length}
                   </span>
                 </div>

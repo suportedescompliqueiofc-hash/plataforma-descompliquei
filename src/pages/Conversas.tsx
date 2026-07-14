@@ -188,7 +188,7 @@ export default function Conversations() {
               <div className="bg-muted/40 p-8 rounded-3xl mb-5">
                 <MessageSquare className="h-10 w-10 text-muted-foreground/30" />
               </div>
-              <h2 className="text-base font-semibold text-foreground/80 tracking-tight">Selecione uma conversa</h2>
+              <h2 className="text-base font-semibold text-foreground/80 tracking-tight font-display">Selecione uma conversa</h2>
               <p className="text-xs text-muted-foreground/60 mt-1">Escolha um cliente na lista para iniciar o atendimento.</p>
             </div>
           )}

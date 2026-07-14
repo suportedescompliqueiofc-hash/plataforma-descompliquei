@@ -260,7 +260,7 @@ export function VendaModal({ open, onOpenChange, lead: preselectedLead, venda: e
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-border/40">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-base font-semibold text-foreground">
+            <DialogTitle className="text-base font-semibold text-foreground font-display">
               {isEditMode ? "Editar Venda" : "Registrar Venda"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground/70">

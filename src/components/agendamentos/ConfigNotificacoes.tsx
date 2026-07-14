@@ -337,7 +337,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
               <Bell className="h-3.5 w-3.5 text-muted-foreground" />
             </span>
             <div>
-              <p className="text-[13px] font-semibold text-foreground">Configurar Notificações</p>
+              <p className="text-[13px] font-semibold text-foreground font-display">Configurar Notificações</p>
               <p className="text-[10px] text-muted-foreground/50 mt-0.5">Lembretes automáticos e confirmação por WhatsApp</p>
             </div>
           </div>
@@ -414,7 +414,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
                           <div className="flex items-center gap-1.5 ml-1">
                             <Input
                               type="number"
-                              className="w-16 h-7 text-[11px] rounded-lg border-border/60 text-center tabular-nums"
+                              className="w-16 h-7 text-[11px] rounded-lg border-border/60 text-center font-display tabular-nums"
                               value={lembrete.minutos_antes}
                               onChange={(e) => updateLembrete(i, { minutos_antes: parseInt(e.target.value) || 15 })}
                               min={1}
@@ -504,7 +504,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
                       <span className="text-[13px] text-muted-foreground">Alertar</span>
                       <Input
                         type="number"
-                        className="w-16 h-8 text-sm rounded-lg border-border/60 text-center tabular-nums"
+                        className="w-16 h-8 text-sm rounded-lg border-border/60 text-center font-display tabular-nums"
                         value={config.notif_interna_minutos_antes}
                         onChange={(e) => setConfig({ ...config, notif_interna_minutos_antes: parseInt(e.target.value) || 30 })}
                         min={5}
@@ -570,7 +570,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
                           </div>
                           <div className="flex items-center gap-2 shrink-0 ml-3">
                             <div className="text-right">
-                              <p className="text-[11px] font-medium text-foreground tabular-nums">
+                              <p className="text-[11px] font-medium text-foreground font-display tabular-nums">
                                 {formatMomentoEnvio(notif.momento_envio)}
                               </p>
                               <p className="text-[10px] text-muted-foreground/60 mt-0.5">
@@ -635,7 +635,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
                             <p className="text-[13px] font-medium text-foreground truncate">
                               {log.lead?.nome || "—"}
                             </p>
-                            <p className="text-[11px] text-muted-foreground/60 tabular-nums">
+                            <p className="text-[11px] text-muted-foreground/60 font-display tabular-nums">
                               {log.criado_em ? format(parseISO(log.criado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR }) : "—"}
                             </p>
                           </div>

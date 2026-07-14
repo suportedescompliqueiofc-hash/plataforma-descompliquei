@@ -95,7 +95,7 @@ export function AthosInlineToolbar({ editor }: { editor: Editor | null }) {
         >
           {loading
             ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            : <Sparkles className="h-3.5 w-3.5 text-[#E85D24]" />}
+            : <Sparkles className="h-3.5 w-3.5 text-primary" />}
           {loading ? ACOES.find((a) => a.key === loading)?.label : "Perguntar ao Athos"}
           {!loading && <ChevronDown className="h-3 w-3 opacity-50" />}
         </button>

@@ -162,7 +162,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Configuração do Score de Criativos</DialogTitle>
+          <DialogTitle className="font-display">Configuração do Score de Criativos</DialogTitle>
           <DialogDescription>
             Defina os critérios que fazem sentido para a operação da Descompliquei
           </DialogDescription>
@@ -176,7 +176,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
           <div className="space-y-6 py-2">
             {/* SEÇÃO 1: CPL */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">CPL — Custo por Lead (R$)</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">CPL — Custo por Lead (R$)</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Ótimo (abaixo de)</Label>
@@ -196,7 +196,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 2: CTR */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">CTR — Taxa de Clique (%)</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">CTR — Taxa de Clique (%)</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Ótimo (acima de)</Label>
@@ -216,7 +216,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 3: CPMQL A */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">CPMQL A — Custo por MQL Scoring A (R$)</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">CPMQL A — Custo por MQL Scoring A (R$)</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Ótimo (abaixo de)</Label>
@@ -236,7 +236,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 4: CPMQL B */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">CPMQL B — Custo por MQL Scoring B (R$)</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">CPMQL B — Custo por MQL Scoring B (R$)</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Ótimo (abaixo de)</Label>
@@ -256,7 +256,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 5: AGENDAMENTO */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">Taxa de Agendamento (%)</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">Taxa de Agendamento (%)</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Ótimo (acima de)</Label>
@@ -276,7 +276,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 6: FECHAMENTO */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">Taxa de Fechamento (%)</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">Taxa de Fechamento (%)</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Ótimo (acima de)</Label>
@@ -296,7 +296,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 7: PESOS */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">Pesos do Score (total deve ser 100)</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">Pesos do Score (total deve ser 100)</h3>
               <div className="space-y-4">
                 {([
                   ["CPL", "peso_cpl"],
@@ -328,7 +328,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
                     style={{ width: `${Math.min(pesoTotal, 100)}%` }}
                   />
                 </div>
-                <span className={`text-sm font-semibold ${pesoValido ? "text-emerald-600" : "text-red-500"}`}>
+                <span className={`text-sm font-semibold font-display tabular-nums ${pesoValido ? "text-emerald-600" : "text-red-500"}`}>
                   {pesoTotal}/100
                 </span>
               </div>
@@ -336,7 +336,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 4: REGRAS OPERACIONAIS */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">Regras Operacionais</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">Regras Operacionais</h3>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs text-muted-foreground">Leads mínimos para entrar no ranking</Label>
@@ -351,7 +351,7 @@ export function ConfiguracaoScore({ isOpen, onClose }: Props) {
 
             {/* SEÇÃO 5: TAGS */}
             <div>
-              <h3 className="text-sm font-semibold mb-3">Tags de Decisão</h3>
+              <h3 className="text-sm font-semibold mb-3 font-display">Tags de Decisão</h3>
               <div className="space-y-2">
                 {([
                   ["tag_escalar", "cor_escalar"],

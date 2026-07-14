@@ -6,7 +6,6 @@ import {
   Clock, TrendingUp, Zap, ChevronRight, Filter
 } from "lucide-react";
 import { DateRange } from "react-day-picker";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -38,7 +37,7 @@ function MetricItem({ icon: Icon, label, value, color }: {
       </div>
       <div>
         <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">{label}</p>
-        <p className="text-base font-bold text-foreground leading-tight">{value}</p>
+        <p className="text-base font-bold text-foreground leading-tight font-display tabular-nums">{value}</p>
       </div>
     </div>
   );
@@ -50,11 +49,11 @@ function DispatchCard({ dispatch, onClick }: { dispatch: DispatchReport; onClick
   const emAndamento = dispatch.leads_ativos > 0;
 
   return (
-    <Card
-      className="group hover:border-primary/50 hover:shadow-md transition-all duration-300 shadow-sm cursor-pointer"
+    <div
+      className="group rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:border-primary/50 hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden"
       onClick={onClick}
     >
-      <CardHeader className="pb-3">
+      <div className="px-5 pt-4 pb-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <Badge
@@ -63,8 +62,8 @@ function DispatchCard({ dispatch, onClick }: { dispatch: DispatchReport; onClick
             >
               <Zap className="h-2.5 w-2.5 mr-1" /> Disparo em Massa
             </Badge>
-            <CardTitle className="text-base truncate">{dispatch.cadencia_nome}</CardTitle>
-            <CardDescription className="text-xs mt-0.5">{dataFormatada}</CardDescription>
+            <p className="text-base font-semibold font-display text-foreground truncate">{dispatch.cadencia_nome}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{dataFormatada}</p>
           </div>
           <Badge
             variant="outline"
@@ -76,16 +75,16 @@ function DispatchCard({ dispatch, onClick }: { dispatch: DispatchReport; onClick
             {emAndamento ? 'Em andamento' : 'Finalizado'}
           </Badge>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="pt-0">
+      <div className="px-5 pb-4">
         {/* Resumo mínimo */}
         <div className="flex items-center gap-4 text-sm text-muted-foreground border-t border-dashed pt-3">
           <span className="flex items-center gap-1.5">
-            <Users className="h-3.5 w-3.5" /> {dispatch.total_leads} leads
+            <Users className="h-3.5 w-3.5" /> <span className="font-display tabular-nums">{dispatch.total_leads}</span> leads
           </span>
           <span className="flex items-center gap-1.5 text-primary font-medium">
-            <MessageSquareReply className="h-3.5 w-3.5" /> {dispatch.taxa_resposta}% responderam
+            <MessageSquareReply className="h-3.5 w-3.5" /> <span className="font-display tabular-nums">{dispatch.taxa_resposta}%</span> responderam
           </span>
         </div>
         <div className="mt-2 space-y-1">
@@ -94,8 +93,8 @@ function DispatchCard({ dispatch, onClick }: { dispatch: DispatchReport; onClick
         <p className="text-[11px] text-muted-foreground/60 mt-3 flex items-center gap-1 group-hover:text-primary transition-colors">
           Ver relatório completo <ChevronRight className="h-3 w-3" />
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -128,7 +127,7 @@ function DispatchDetailModal({ dispatch, open, onClose }: {
               {emAndamento ? 'Em andamento' : 'Finalizado'}
             </Badge>
           </div>
-          <DialogTitle className="text-xl">{dispatch.cadencia_nome}</DialogTitle>
+          <DialogTitle className="text-xl font-display">{dispatch.cadencia_nome}</DialogTitle>
           <DialogDescription>{dataFormatada}</DialogDescription>
         </DialogHeader>
 
@@ -160,7 +159,7 @@ function DispatchDetailModal({ dispatch, open, onClose }: {
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <MessageSquareReply className="h-3.5 w-3.5" /> Taxa de Resposta
                 </span>
-                <span className="text-sm font-bold text-primary">{dispatch.taxa_resposta}%</span>
+                <span className="text-sm font-bold text-primary font-display tabular-nums">{dispatch.taxa_resposta}%</span>
               </div>
               <RateBar value={dispatch.taxa_resposta} color="bg-primary" />
             </div>
@@ -170,7 +169,7 @@ function DispatchDetailModal({ dispatch, open, onClose }: {
                 <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                   <CheckCircle2 className="h-3.5 w-3.5" /> Taxa de Conclusão
                 </span>
-                <span className="text-sm font-bold text-emerald-600">{dispatch.taxa_conclusao}%</span>
+                <span className="text-sm font-bold text-emerald-600 font-display tabular-nums">{dispatch.taxa_conclusao}%</span>
               </div>
               <RateBar value={dispatch.taxa_conclusao} color="bg-emerald-500" />
             </div>
@@ -181,7 +180,7 @@ function DispatchDetailModal({ dispatch, open, onClose }: {
                   <span className="text-sm text-muted-foreground flex items-center gap-1.5">
                     <TrendingUp className="h-3.5 w-3.5" /> Ainda em andamento
                   </span>
-                  <span className="text-sm font-bold text-amber-600">{dispatch.taxa_andamento}%</span>
+                  <span className="text-sm font-bold text-amber-600 font-display tabular-nums">{dispatch.taxa_andamento}%</span>
                 </div>
                 <RateBar value={dispatch.taxa_andamento} color="bg-amber-400" />
               </div>
@@ -293,22 +292,22 @@ export function CadenceDispatchReportTab() {
 
       {/* Estado vazio */}
       {filtered.length === 0 ? (
-        <Card className="border-dashed border-2 bg-muted/5 flex flex-col items-center justify-center py-20 text-center">
+        <div className="rounded-2xl border-2 border-dashed border-border/60 bg-muted/5 flex flex-col items-center justify-center py-20 text-center">
           <div className="bg-muted p-4 rounded-full mb-4">
             <GitMerge className="h-10 w-10 text-muted-foreground/40" />
           </div>
           {dispatches.length === 0 ? (
             <>
-              <CardTitle className="text-muted-foreground mb-1">Nenhum disparo em massa realizado ainda.</CardTitle>
-              <CardDescription>Use o botão "Disparar" em uma cadência para iniciar um envio em massa.</CardDescription>
+              <p className="text-sm font-semibold font-display text-muted-foreground mb-1">Nenhum disparo em massa realizado ainda.</p>
+              <p className="text-[11px] text-muted-foreground/50">Use o botão "Disparar" em uma cadência para iniciar um envio em massa.</p>
             </>
           ) : (
             <>
-              <CardTitle className="text-muted-foreground mb-1">Nenhum disparo encontrado para os filtros aplicados.</CardTitle>
-              <CardDescription>Tente ajustar o período ou os filtros selecionados.</CardDescription>
+              <p className="text-sm font-semibold font-display text-muted-foreground mb-1">Nenhum disparo encontrado para os filtros aplicados.</p>
+              <p className="text-[11px] text-muted-foreground/50">Tente ajustar o período ou os filtros selecionados.</p>
             </>
           )}
-        </Card>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filtered.map(dispatch => (

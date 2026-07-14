@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import { getRichExtensions, EDITOR_STYLES, RichToolbar } from "@/components/editor/RichEditor";
 import { SlashMenu } from "@/components/editor/SlashMenu";
+import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
 import { cn } from "@/lib/utils";
 
 interface BlockEditorProps {
@@ -51,7 +52,12 @@ export function BlockEditor({ content, onChange, editable = true, className }: B
       <div className={cn(EDITOR_STYLES, "pb-24")}>
         <EditorContent editor={editor} />
       </div>
-      {editable && <SlashMenu editor={editor} />}
+      {editable && (
+        <>
+          <SlashMenu editor={editor} />
+          <SelectionToolbar editor={editor} />
+        </>
+      )}
     </div>
   );
 }

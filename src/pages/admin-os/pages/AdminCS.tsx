@@ -934,7 +934,7 @@ function JornadasTab({ clients, onOpenJornada }: { clients: CSClient[]; onOpenJo
                     </div>
                     <div className="flex items-center gap-3 text-[11px] text-muted-foreground/60 mt-0.5">
                       {atual && <span className="truncate max-w-[240px]">{atual.titulo}</span>}
-                      {atual && <span className="font-mono tabular-nums">{atual.done}/{atual.total} · {pct}%</span>}
+                      {atual && <span className="font-display tabular-nums">{atual.done}/{atual.total} · {pct}%</span>}
                       {totalJornadas > 0 && <span>{totalJornadas} jornada{totalJornadas > 1 ? 's' : ''}</span>}
                     </div>
                   </div>

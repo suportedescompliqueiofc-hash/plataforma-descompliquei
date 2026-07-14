@@ -19,8 +19,8 @@ interface MaterialsSidebarProps {
 // Prose compacto — versão reduzida para a coluna estreita do sidebar (~256px),
 // menor que o PROSE_STYLES da tela cheia de Materiais.
 const SIDEBAR_PROSE = `
-  [&_h1]:text-[14px] [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mb-1.5 [&_h1]:mt-4 [&_h1]:leading-snug [&_h1:first-child]:mt-0
-  [&_h2]:text-[13px] [&_h2]:font-bold [&_h2]:text-foreground [&_h2]:mb-1.5 [&_h2]:mt-4 [&_h2:first-child]:mt-0
+  [&_h1]:text-[14px] [&_h1]:font-bold [&_h1]:font-display [&_h1]:text-foreground [&_h1]:mb-1.5 [&_h1]:mt-4 [&_h1]:leading-snug [&_h1:first-child]:mt-0
+  [&_h2]:text-[13px] [&_h2]:font-bold [&_h2]:font-display [&_h2]:text-foreground [&_h2]:mb-1.5 [&_h2]:mt-4 [&_h2:first-child]:mt-0
   [&_h3]:text-[10px] [&_h3]:font-bold [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-foreground/60 [&_h3]:mb-1.5 [&_h3]:mt-4 [&_h3]:pt-3 [&_h3]:border-t [&_h3]:border-border/40 [&_h3:first-child]:mt-0 [&_h3:first-child]:pt-0 [&_h3:first-child]:border-t-0
   [&_p]:text-[12px] [&_p]:text-foreground/80 [&_p]:leading-[1.55] [&_p]:mb-1.5 [&_p:last-child]:mb-0
   [&_strong]:font-bold [&_strong]:text-foreground
@@ -102,7 +102,7 @@ export function MaterialsSidebar({ onClose }: MaterialsSidebarProps) {
     <div className="h-full flex flex-col bg-background w-full flex-shrink-0">
       <div className="p-3 border-b shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-semibold flex items-center gap-2 text-sm text-foreground">
+          <h3 className="font-semibold font-display flex items-center gap-2 text-sm text-foreground">
             <FileText className="h-4 w-4 text-primary" /> Materiais
           </h3>
           {onClose && (

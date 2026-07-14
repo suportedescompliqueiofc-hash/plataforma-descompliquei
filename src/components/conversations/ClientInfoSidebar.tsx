@@ -13,7 +13,7 @@ export function ClientInfoSidebar({ lead, open, onOpenChange }: ClientInfoSideba
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Informações do Cliente</SheetTitle>
+          <SheetTitle className="font-display">Informações do Cliente</SheetTitle>
           <SheetDescription>
             Detalhes completos do lead e histórico de interações.
           </SheetDescription>

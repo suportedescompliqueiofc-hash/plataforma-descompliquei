@@ -142,7 +142,7 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 font-display">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
                 <Check className="h-4 w-4 text-emerald-600" />
               </div>
@@ -188,7 +188,7 @@ function AddMemberModal({ open, onClose }: { open: boolean; onClose: () => void 
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-display">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
               <Users className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -308,7 +308,7 @@ function EditMemberModal({ member, onClose, initialTab = 'permissions' }: { memb
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 font-display">
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted">
               <Pencil className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -512,7 +512,7 @@ function TeamPerformanceDashboard() {
                       <div className="text-right shrink-0">
                         <span className="text-[11px] text-muted-foreground/50 block">Conversão</span>
                         <span className={cn(
-                          "text-[18px] font-extrabold tabular-nums font-display",
+                          "text-[18px] font-extrabold font-display tabular-nums",
                           ms.taxaConversao >= 20 ? 'text-emerald-600' : ms.taxaConversao >= 10 ? 'text-amber-600' : 'text-foreground'
                         )}>{ms.taxaConversao}%</span>
                       </div>
@@ -532,7 +532,7 @@ function TeamPerformanceDashboard() {
                           <Icon className={cn("h-3.5 w-3.5", color)} />
                           <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider">{label}</span>
                         </div>
-                        <span className={cn("text-[22px] font-extrabold tabular-nums font-display", color)}>{value}</span>
+                        <span className={cn("text-[22px] font-extrabold font-display tabular-nums", color)}>{value}</span>
                       </div>
                     ))}
                   </div>
@@ -542,7 +542,7 @@ function TeamPerformanceDashboard() {
                     <div className="flex items-center gap-2 mb-3 px-1">
                       <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
                       <span className="text-[12px] text-muted-foreground">Faturamento atribuído:</span>
-                      <span className="text-[13px] font-bold text-emerald-600 tabular-nums">{formatCurrency(ms.faturamento)}</span>
+                      <span className="text-[13px] font-bold text-emerald-600 font-display tabular-nums">{formatCurrency(ms.faturamento)}</span>
                     </div>
                   )}
 
@@ -825,7 +825,7 @@ export function TeamSettings() {
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover membro</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Remover membro</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja remover <strong>{deleting?.nome || deleting?.email}</strong>?
               O acesso ao CRM será revogado imediatamente.

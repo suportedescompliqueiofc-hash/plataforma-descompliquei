@@ -65,7 +65,7 @@ function AreaTooltip({ active, payload, label }: any) {
   return (
     <div className="rounded-xl border border-border/60 bg-card shadow-lg px-3 py-2.5 text-xs">
       <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
-      <p className="font-bold text-foreground">{fmt(payload[0].value)}</p>
+      <p className="font-bold text-foreground font-display tabular-nums">{fmt(payload[0].value)}</p>
       {payload[0].payload.count > 0 && (
         <p className="text-muted-foreground mt-0.5">
           {payload[0].payload.count} venda{payload[0].payload.count !== 1 ? "s" : ""}
@@ -80,7 +80,7 @@ function BarTooltip({ active, payload, label }: any) {
   return (
     <div className="rounded-xl border border-border/60 bg-card shadow-lg px-3 py-2.5 text-xs">
       <p className="text-[10px] text-muted-foreground mb-1">{label}</p>
-      <p className="font-bold text-foreground">{payload[0].value} venda{payload[0].value !== 1 ? "s" : ""}</p>
+      <p className="font-bold text-foreground"><span className="font-display tabular-nums">{payload[0].value}</span> venda{payload[0].value !== 1 ? "s" : ""}</p>
       {payload[0].payload.total > 0 && (
         <p className="text-muted-foreground mt-0.5">{fmt(payload[0].payload.total)}</p>
       )}
@@ -466,15 +466,15 @@ export function VendasRelatorios({ vendas, isLoading, dateRange }: Props) {
                       <span className="text-[12px] font-medium text-foreground truncate max-w-[120px]">
                         {p.displayName}
                       </span>
-                      <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                      <span className="text-[10px] text-muted-foreground/60 font-display tabular-nums">
                         {p.count}x
                       </span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[11px] font-bold text-foreground tabular-nums">
+                      <span className="text-[11px] font-bold text-foreground font-display tabular-nums">
                         {fmt(p.total)}
                       </span>
-                      <span className="text-[10px] text-muted-foreground/60 tabular-nums w-10 text-right">
+                      <span className="text-[10px] text-muted-foreground/60 font-display tabular-nums w-10 text-right">
                         {p.pct.toFixed(0)}%
                       </span>
                     </div>
@@ -523,7 +523,7 @@ export function VendasRelatorios({ vendas, isLoading, dateRange }: Props) {
                 <div key={s.name} className="px-5 py-3 hover:bg-muted/20 transition-colors group">
                   <div className="flex items-center gap-3">
                     <span className={cn(
-                      "text-[10px] font-bold tabular-nums w-5 text-center shrink-0",
+                      "text-[10px] font-bold font-display tabular-nums w-5 text-center shrink-0",
                       i === 0 ? "text-amber-500" : i === 1 ? "text-muted-foreground" : i === 2 ? "text-orange-400" : "text-muted-foreground/40"
                     )}>
                       {i + 1}º
@@ -532,9 +532,9 @@ export function VendasRelatorios({ vendas, isLoading, dateRange }: Props) {
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[12px] font-medium text-foreground truncate">{s.name}</span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] text-muted-foreground/60">{s.count}x</span>
-                          <span className="text-[12px] font-bold text-foreground tabular-nums">{fmt(s.total)}</span>
-                          <span className="text-[10px] text-muted-foreground/50 w-8 text-right">{s.pct.toFixed(0)}%</span>
+                          <span className="text-[10px] text-muted-foreground/60 font-display tabular-nums">{s.count}x</span>
+                          <span className="text-[12px] font-bold text-foreground font-display tabular-nums">{fmt(s.total)}</span>
+                          <span className="text-[10px] text-muted-foreground/50 font-display tabular-nums w-8 text-right">{s.pct.toFixed(0)}%</span>
                         </div>
                       </div>
                       <div className="h-1 bg-muted/50 rounded-full overflow-hidden">
@@ -577,7 +577,7 @@ export function VendasRelatorios({ vendas, isLoading, dateRange }: Props) {
                 <div key={c.nome + i} className="px-5 py-3 hover:bg-muted/20 transition-colors group">
                   <div className="flex items-center gap-3">
                     <span className={cn(
-                      "text-[10px] font-bold tabular-nums w-5 text-center shrink-0",
+                      "text-[10px] font-bold font-display tabular-nums w-5 text-center shrink-0",
                       i === 0 ? "text-amber-500" : i === 1 ? "text-muted-foreground" : i === 2 ? "text-orange-400" : "text-muted-foreground/40"
                     )}>
                       {i + 1}º
@@ -589,8 +589,8 @@ export function VendasRelatorios({ vendas, isLoading, dateRange }: Props) {
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[12px] font-medium text-foreground truncate">{c.nome}</span>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[10px] text-muted-foreground/60">{c.count}x</span>
-                          <span className="text-[12px] font-bold text-foreground tabular-nums">{fmt(c.total)}</span>
+                          <span className="text-[10px] text-muted-foreground/60 font-display tabular-nums">{c.count}x</span>
+                          <span className="text-[12px] font-bold text-foreground font-display tabular-nums">{fmt(c.total)}</span>
                         </div>
                       </div>
                       <div className="h-1 bg-muted/50 rounded-full overflow-hidden">
@@ -632,7 +632,7 @@ export function VendasRelatorios({ vendas, isLoading, dateRange }: Props) {
                 <div key={f.label} className="flex flex-col items-center gap-2">
                   {/* Barra vertical */}
                   <div className="w-full flex flex-col items-center gap-1">
-                    <span className="text-[11px] font-bold text-foreground tabular-nums">{f.count}</span>
+                    <span className="text-[11px] font-bold text-foreground font-display tabular-nums">{f.count}</span>
                     <div className="w-full h-24 bg-muted/40 rounded-lg overflow-hidden flex items-end">
                       <div
                         className="w-full rounded-t-lg transition-all duration-500"
@@ -649,11 +649,11 @@ export function VendasRelatorios({ vendas, isLoading, dateRange }: Props) {
                       {f.label}
                     </p>
                     {f.total > 0 && (
-                      <p className="text-[10px] text-muted-foreground/60 tabular-nums mt-0.5">
+                      <p className="text-[10px] text-muted-foreground/60 font-display tabular-nums mt-0.5">
                         {fmt(f.total)}
                       </p>
                     )}
-                    <p className="text-[9px] text-muted-foreground/40 mt-0.5">
+                    <p className="text-[9px] text-muted-foreground/40 font-display tabular-nums mt-0.5">
                       {totalPct.toFixed(0)}%
                     </p>
                   </div>

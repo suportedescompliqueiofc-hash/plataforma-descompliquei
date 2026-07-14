@@ -82,7 +82,7 @@ export function NpsSurveyPopup() {
             <span className={cn('h-2 w-2 rounded-full', tone.dot)} />
           </span>
           <div className="flex-1 min-w-0">
-            <p className={cn('text-sm font-bold', tone.text)}>{copy.title}</p>
+            <p className={cn('text-sm font-bold font-display', tone.text)}>{copy.title}</p>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{copy.description}</p>
           </div>
           <button
@@ -159,7 +159,7 @@ export function NpsSurveyPopup() {
                       key={i}
                       onClick={() => setScores(s => ({ ...s, [p.perguntaId]: i }))}
                       className={cn(
-                        'w-7 h-7 rounded-lg text-xs font-semibold border transition-all',
+                        'w-7 h-7 rounded-lg text-xs font-semibold font-display tabular-nums border transition-all',
                         scores[p.perguntaId] === i ? npsColor(i) : 'border-border/60 text-muted-foreground hover:border-foreground/30'
                       )}
                     >

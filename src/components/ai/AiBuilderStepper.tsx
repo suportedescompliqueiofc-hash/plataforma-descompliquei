@@ -246,7 +246,7 @@ export function AiBuilderStepper({
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800">Prompt fora do padrão</p>
+              <p className="text-sm font-semibold font-display text-amber-800">Prompt fora do padrão</p>
               <p className="mt-1 text-sm leading-relaxed text-amber-700">{warningMessage}</p>
               <Button
                 type="button"
@@ -386,7 +386,7 @@ export function AiBuilderStepper({
                     {data.procedures.map((proc, idx) => {
                       const isFromCrm = crmProcedimentos.some((p) => p.nome.toLowerCase().trim() === proc.name.toLowerCase().trim());
                       return (
-                        <div key={proc.id} className="rounded-lg border border-border bg-muted/20 p-3">
+                        <div key={proc.id} className="rounded-lg border border-border/60 bg-muted/20 p-3">
                           <div className="mb-2 flex items-center justify-between gap-3">
                             {isFromCrm ? (
                               <span className="text-sm font-medium text-foreground">{proc.name}</span>
@@ -416,7 +416,7 @@ export function AiBuilderStepper({
                 </div>
                 <div className="space-y-3">
                   {data.faqs.map((faq, idx) => (
-                    <div key={faq.id} className="rounded-lg border border-border bg-muted/20 p-3">
+                    <div key={faq.id} className="rounded-lg border border-border/60 bg-muted/20 p-3">
                       <div className="mb-3 flex items-center justify-between gap-3">
                         <span className="text-sm font-medium text-foreground">FAQ {idx + 1}</span>
                         <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => onRemoveFaq(faq.id)} disabled={disabled || data.faqs.length === 1}>
@@ -458,7 +458,7 @@ export function AiBuilderStepper({
                   <Label>Horário de atendimento humano</Label>
                   <p className="text-sm text-muted-foreground">A IA usa para informar quando a equipe estará disponível.</p>
                 </div>
-                <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+                <div className="space-y-3 rounded-lg border border-border/60 bg-muted/20 p-3">
                   <div className="flex items-center gap-3">
                     <span className="w-28 shrink-0 text-sm font-medium">Seg a Sex</span>
                     <Input type="time" value={horarioAtendimento.weekday_open} onChange={(e) => onHorarioChange({ ...horarioAtendimento, weekday_open: e.target.value })} disabled={disabled} className={`${IC} w-32`} />
@@ -518,9 +518,9 @@ export function AiBuilderStepper({
               {/* Passo 1 — Abertura */}
               <div className="rounded-2xl border border-border/60 bg-muted/[0.15] overflow-hidden">
                 <div className="flex items-start gap-3 px-5 py-4 bg-background border-b border-border/60">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold tabular-nums">1</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold font-display tabular-nums">1</span>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-semibold text-foreground">Abertura</p>
+                    <p className="text-sm font-semibold font-display text-foreground">Abertura</p>
                     <p className="text-sm text-muted-foreground mt-0.5">O lead chega e a IA dá boas-vindas, coletando o nome.</p>
                   </div>
                 </div>
@@ -547,9 +547,9 @@ export function AiBuilderStepper({
               {/* Passo 2 — Diagnóstico */}
               <div className="rounded-2xl border border-border/60 bg-muted/[0.15] overflow-hidden">
                 <div className="flex items-start gap-3 px-5 py-4 bg-background border-b border-border/60">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold tabular-nums">2</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold font-display tabular-nums">2</span>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-semibold text-foreground">Diagnóstico</p>
+                    <p className="text-sm font-semibold font-display text-foreground">Diagnóstico</p>
                     <p className="text-sm text-muted-foreground mt-0.5">A IA entende a dor real do lead antes de apresentar qualquer solução.</p>
                   </div>
                 </div>
@@ -563,7 +563,7 @@ export function AiBuilderStepper({
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuestionCount(data.diagnosticQuestions - 1)} disabled={disabled || data.diagnosticQuestions <= 1}>
                         <Minus className="h-4 w-4" />
                       </Button>
-                      <span className="w-10 text-center text-lg font-bold tabular-nums font-mono">{data.diagnosticQuestions}</span>
+                      <span className="w-10 text-center text-lg font-bold tabular-nums font-display">{data.diagnosticQuestions}</span>
                       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={() => setQuestionCount(data.diagnosticQuestions + 1)} disabled={disabled || data.diagnosticQuestions >= 10}>
                         <Plus className="h-4 w-4" />
                       </Button>
@@ -606,9 +606,9 @@ export function AiBuilderStepper({
               {/* Passo 3 — Apresentação */}
               <div className="rounded-2xl border border-border/60 bg-muted/[0.15] overflow-hidden">
                 <div className="flex items-start gap-3 px-5 py-4 bg-background border-b border-border/60">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold tabular-nums">3</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold font-display tabular-nums">3</span>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-semibold text-foreground">Apresentação</p>
+                    <p className="text-sm font-semibold font-display text-foreground">Apresentação</p>
                     <p className="text-sm text-muted-foreground mt-0.5">A IA apresenta a solução conectada à dor do lead.</p>
                   </div>
                 </div>
@@ -653,9 +653,9 @@ export function AiBuilderStepper({
               {/* Passo 4 — Handoff */}
               <div className="rounded-2xl border border-border/60 bg-muted/[0.15] overflow-hidden">
                 <div className="flex items-start gap-3 px-5 py-4 bg-background border-b border-border/60">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold tabular-nums">4</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-foreground text-background text-sm font-bold font-display tabular-nums">4</span>
                   <div className="min-w-0 flex-1 pt-0.5">
-                    <p className="text-sm font-semibold text-foreground">Handoff</p>
+                    <p className="text-sm font-semibold font-display text-foreground">Handoff</p>
                     <p className="text-sm text-muted-foreground mt-0.5">A IA passa o atendimento para a equipe humana.</p>
                   </div>
                 </div>
@@ -732,7 +732,7 @@ export function AiBuilderStepper({
           <Button variant="outline" onClick={() => setStep((s) => s - 1)} disabled={step === 0 || disabled} className="h-8 rounded-lg text-sm font-medium border-border/60 gap-1.5 px-3">
             <ChevronLeft className="h-3.5 w-3.5" /> Anterior
           </Button>
-          <span className="text-xs font-bold text-muted-foreground/40 tabular-nums">{step + 1} de {STEPS.length}</span>
+          <span className="text-xs font-bold font-display text-muted-foreground/40 tabular-nums">{step + 1} de {STEPS.length}</span>
           <Button variant="outline" onClick={() => setStep((s) => s + 1)} disabled={step === STEPS.length - 1 || disabled} className="h-8 rounded-lg text-sm font-medium border-border/60 gap-1.5 px-3">
             Próximo <ChevronRight className="h-3.5 w-3.5" />
           </Button>
@@ -741,7 +741,7 @@ export function AiBuilderStepper({
 
       {/* Preview markdown */}
       <Collapsible open={previewOpen} onOpenChange={onPreviewOpenChange}>
-        <div className="rounded-lg border border-border bg-muted/10">
+        <div className="rounded-lg border border-border/60 bg-muted/10">
           <CollapsibleTrigger asChild>
             <button type="button" className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
               <span className="text-sm font-medium text-foreground">Ver como o agente vai receber essas informações</span>
@@ -749,7 +749,7 @@ export function AiBuilderStepper({
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="border-t border-border px-4 py-3">
+            <div className="border-t border-border/60 px-4 py-3">
               <pre className="whitespace-pre-wrap break-words rounded-md bg-background p-4 font-mono text-xs leading-6 text-foreground">{previewMarkdown}</pre>
             </div>
           </CollapsibleContent>

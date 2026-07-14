@@ -117,7 +117,7 @@ function MacroTimelineStrip({ eventos }: { eventos: JornadaEvento[] }) {
             </span>
             <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Visão Geral da Jornada</p>
           </div>
-          <span className="text-[10px] text-muted-foreground/40 tabular-nums">{milestones.length} marcos</span>
+          <span className="text-[10px] text-muted-foreground/40 font-display tabular-nums">{milestones.length} marcos</span>
         </div>
       </div>
       <div className="px-5 py-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
@@ -148,7 +148,7 @@ function MacroTimelineStrip({ eventos }: { eventos: JornadaEvento[] }) {
                   <p className="text-[9px] font-semibold text-foreground/70 text-center leading-tight line-clamp-2 w-full px-0.5">
                     {label}
                   </p>
-                  <p className="text-[8px] text-muted-foreground/40 tabular-nums whitespace-nowrap font-mono">
+                  <p className="text-[8px] text-muted-foreground/40 font-display tabular-nums whitespace-nowrap">
                     {(() => { try { return format(parseISO(m.data), "dd/MM", { locale: ptBR }); } catch { return '' } })()}
                     <br />
                     {(() => { try { return format(parseISO(m.data), "HH:mm", { locale: ptBR }); } catch { return '' } })()}
@@ -246,7 +246,7 @@ function EventoCard({ evento, isLast }: { evento: JornadaEvento; isLast: boolean
             )}>
               {evento.titulo}
             </p>
-            <span className="text-[10px] tabular-nums text-muted-foreground/50 shrink-0 mt-0.5 font-mono">
+            <span className="text-[10px] font-display tabular-nums text-muted-foreground/50 shrink-0 mt-0.5">
               {formatEventDate(evento.data)}
             </span>
           </div>
@@ -459,7 +459,7 @@ export default function JornadaPaciente() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 pb-10">
+      <div className="max-w-[1400px] mx-auto space-y-6 pb-10">
         <div className="flex items-center gap-3">
           <Skeleton className="h-8 w-8 rounded-lg" />
           <Skeleton className="h-6 w-48" />
@@ -506,7 +506,7 @@ export default function JornadaPaciente() {
   const tiposPresentes = new Set(data.eventos.map(e => e.tipo));
 
   return (
-    <div className="space-y-5 pb-10">
+    <div className="max-w-[1400px] mx-auto space-y-5 pb-10">
 
       {/* ═══ HEADER ═══ */}
       <div className="flex items-center gap-3">
@@ -558,10 +558,10 @@ export default function JornadaPaciente() {
                   <span className="text-[15px] font-bold text-muted-foreground">{initials}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-bold text-foreground truncate">
+                  <p className="text-[15px] font-bold text-foreground truncate font-display">
                     {lead.nome || "Sem nome"}
                   </p>
-                  <p className="text-[12px] text-muted-foreground/60 tabular-nums">
+                  <p className="text-[12px] text-muted-foreground/60 font-display tabular-nums">
                     {formatPhone(lead.telefone)}
                   </p>
                 </div>
@@ -819,7 +819,7 @@ export default function JornadaPaciente() {
                     </span>
                     <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Timeline</p>
                   </div>
-                  <span className="text-[10px] font-bold tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+                  <span className="text-[10px] font-bold font-display tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
                     {eventosFiltrados.length}
                   </span>
                 </div>

@@ -294,7 +294,7 @@ export default function Leads() {
   // --- Loading State ---
   if (isLoading) {
     return (
-      <div className="space-y-8 pb-20">
+      <div className="max-w-[1400px] mx-auto space-y-8 pb-20">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <Skeleton className="h-8 w-48 rounded-lg" />
@@ -331,7 +331,7 @@ export default function Leads() {
   const qualifiedLeads = leads.filter(l => l.is_qualified).length;
 
   return (
-    <div className="space-y-8 pb-20">
+    <div className="max-w-[1400px] mx-auto space-y-8 pb-20">
       {/* ══════════ Page Header ══════════ */}
       <PageHero
         icon={Users}
@@ -351,7 +351,7 @@ export default function Leads() {
             </Button>
             <Button
               size="sm"
-              className="h-8 rounded-lg text-xs font-medium gap-1.5 bg-white text-[#1a0e06] hover:bg-white/90"
+              className="h-8 rounded-lg text-xs font-medium gap-1.5 bg-white/10 hover:bg-white/15 border border-white/15 text-white hover:text-white"
               onClick={handleCreate}
               data-tutorial="leads-add"
             >
@@ -377,7 +377,7 @@ export default function Leads() {
           <ShieldBan className="h-3 w-3" />
           Blacklist
           {blacklistEntries.length > 0 && (
-            <span className={cn("text-[10px] rounded-full px-1.5 py-0.5 font-mono tabular-nums", activeView === 'blacklist' ? "bg-background/20" : "bg-muted text-muted-foreground")}>{blacklistEntries.length}</span>
+            <span className={cn("text-[10px] rounded-full px-1.5 py-0.5 font-display tabular-nums", activeView === 'blacklist' ? "bg-background/20" : "bg-muted text-muted-foreground")}>{blacklistEntries.length}</span>
           )}
         </button>
       </div>
@@ -408,7 +408,7 @@ export default function Leads() {
             Filtros
             {activeFilterCount > 0 && (
               <span className={cn(
-                "text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-md",
+                "text-[10px] font-bold font-display tabular-nums px-1.5 py-0.5 rounded-md",
                 showFilters ? "bg-background/20 text-background" : "bg-foreground text-background"
               )}>
                 {activeFilterCount}
@@ -522,7 +522,7 @@ export default function Leads() {
             <div className="flex items-center justify-center h-6 w-6 rounded-md bg-background/15 text-background">
               <Users className="h-3.5 w-3.5" />
             </div>
-            <span className="text-xs font-bold tabular-nums">{selectedIds.size}</span>
+            <span className="text-xs font-bold font-display tabular-nums">{selectedIds.size}</span>
             <span className="text-xs font-medium text-background/70">selecionado{selectedIds.size !== 1 ? 's' : ''}</span>
           </div>
 
@@ -621,7 +621,7 @@ export default function Leads() {
                             <LeadAvatar name={lead.nome} />
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px]">{lead.nome}</span>
+                                <span className="text-[13px] font-semibold text-foreground truncate max-w-[160px] font-display">{lead.nome}</span>
                                 {lead.is_qualified && (
                                   <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-200/60">
                                     <UserCheck className="h-2.5 w-2.5" />
@@ -639,7 +639,7 @@ export default function Leads() {
                         {/* Contato — Phone + Last Contact */}
                         <TableCell>
                           <div className="space-y-0.5">
-                            <span className="text-[12px] text-foreground/80 font-mono tabular-nums whitespace-nowrap">{formatPhone(lead.telefone)}</span>
+                            <span className="text-[12px] text-foreground/80 font-display tabular-nums whitespace-nowrap">{formatPhone(lead.telefone)}</span>
                             {lead.ultimo_contato && (
                               <div className="flex items-center gap-1 text-[10px] text-muted-foreground/50">
                                 <Clock className="h-2.5 w-2.5" />
@@ -764,7 +764,7 @@ export default function Leads() {
         {/* ══════════ Pagination ══════════ */}
         {filteredLeads.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/40" data-tutorial="leads-pagination">
-            <span className="text-[11px] text-muted-foreground/60 tabular-nums">
+            <span className="text-[11px] text-muted-foreground/60 font-display tabular-nums">
               {startIndex + 1}–{Math.min(endIndex, filteredLeads.length)} de {filteredLeads.length}
             </span>
             <div className="flex items-center gap-1">
@@ -786,7 +786,7 @@ export default function Leads() {
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
-              <span className="text-[11px] font-medium text-muted-foreground px-2 tabular-nums">
+              <span className="text-[11px] font-medium text-muted-foreground px-2 font-display tabular-nums">
                 {currentPage} / {totalPages}
               </span>
               <Button
@@ -848,7 +848,7 @@ export default function Leads() {
                       <ShieldBan className="h-3.5 w-3.5 text-red-400" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-foreground font-mono tabular-nums">{entry.telefone}</p>
+                      <p className="text-[13px] font-semibold text-foreground font-display tabular-nums">{entry.telefone}</p>
                       <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                         {entry.motivo || 'Sem motivo registrado'}
                         <span className="mx-1.5 text-border">·</span>

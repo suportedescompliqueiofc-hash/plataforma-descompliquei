@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const MENSAGENS: Record<string, string> = {
   'acesso-nao-encontrado': 'Acesso não encontrado. Entre em contato com a equipe da Descompliquei.',
@@ -98,17 +99,14 @@ export default function PlataformaLogin() {
           {/* Top — Logo mark */}
           <div>
             <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: 'rgba(232,93,36,0.12)', border: '1px solid rgba(232,93,36,0.2)' }}
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M2 17L12 22L22 17" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
-                  <path d="M2 12L12 17L22 12" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.75"/>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-primary/[0.12] border border-primary/20">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
+                  <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.75"/>
                 </svg>
               </div>
-              <span className="text-[13px] font-semibold tracking-wide" style={{ color: 'rgba(255,255,255,0.4)' }}>
+              <span className="text-[13px] font-semibold tracking-wide text-white/40">
                 Descompliquei
               </span>
             </div>
@@ -117,21 +115,15 @@ export default function PlataformaLogin() {
           {/* Center — Hero text */}
           <div className="max-w-lg">
             <div className="mb-6">
-              <p
-                className="text-[11px] font-bold uppercase tracking-[0.25em] mb-4"
-                style={{ color: '#E85D24' }}
-              >
+              <p className="text-[11px] font-bold uppercase tracking-[0.25em] mb-4 text-primary">
                 Growth Labs
               </p>
-              <h1
-                className="text-[42px] font-extrabold leading-[1.1] tracking-tight font-display"
-                style={{ color: 'rgba(255,255,255,0.95)' }}
-              >
+              <h1 className="text-[42px] font-extrabold leading-[1.1] tracking-tight font-display text-white/95">
                 Escale seus
                 <br />
                 resultados com
                 <br />
-                <span style={{ color: '#E85D24' }}>inteligência.</span>
+                <span className="text-primary">inteligência.</span>
               </h1>
             </div>
 
@@ -139,15 +131,14 @@ export default function PlataformaLogin() {
 
           {/* Bottom — Footer */}
           <div className="flex items-center justify-between">
-            <p className="text-[11px]" style={{ color: 'rgba(255,255,255,0.15)' }}>
+            <p className="text-[11px] text-white/15">
               &copy; {new Date().getFullYear()} Descompliquei Growth Labs
             </p>
             <div className="flex gap-1">
               {[0, 1, 2].map(i => (
                 <div
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: i === 0 ? '#E85D24' : 'rgba(255,255,255,0.1)' }}
+                  className={cn("w-1.5 h-1.5 rounded-full", i === 0 ? "bg-primary" : "bg-white/10")}
                 />
               ))}
             </div>
@@ -160,19 +151,16 @@ export default function PlataformaLogin() {
         <div className="w-full max-w-[400px]">
           {/* Mobile logo */}
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: 'rgba(232,93,36,0.1)', border: '1px solid rgba(232,93,36,0.15)' }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
-                <path d="M2 12L12 17L22 12" stroke="#E85D24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.75"/>
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-primary/10 border border-primary/15">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-primary">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/>
+                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.75"/>
               </svg>
             </div>
             <div>
               <span className="text-[11px] font-medium text-muted-foreground">Descompliquei</span>
-              <span className="text-[11px] font-bold ml-1" style={{ color: '#E85D24' }}>Growth Labs</span>
+              <span className="text-[11px] font-bold ml-1 text-primary">Growth Labs</span>
             </div>
           </div>
 
@@ -190,11 +178,8 @@ export default function PlataformaLogin() {
               {forgotSent ? (
                 /* Estado de sucesso */
                 <div className="text-center py-4">
-                  <div
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
-                    style={{ background: 'rgba(232,93,36,0.08)', border: '1px solid rgba(232,93,36,0.15)' }}
-                  >
-                    <MailCheck className="h-7 w-7" style={{ color: '#E85D24' }} />
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5 bg-primary/[0.08] border border-primary/15">
+                    <MailCheck className="h-7 w-7 text-primary" />
                   </div>
                   <h2 className="text-[22px] font-extrabold tracking-tight text-foreground font-display mb-2">
                     Verifique seu e-mail
@@ -230,7 +215,7 @@ export default function PlataformaLogin() {
                         id="forgot-email"
                         type="email"
                         placeholder="seu.email@empresa.com"
-                        className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
+                        className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-primary/10 focus:border-primary/40"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
                         required
@@ -239,8 +224,7 @@ export default function PlataformaLogin() {
                     </div>
 
                     <Button
-                      className="w-full h-11 text-sm font-bold rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
-                      style={{ background: '#E85D24', color: '#ffffff', boxShadow: '0 2px 8px rgba(232,93,36,0.25)' }}
+                      className="w-full h-11 text-sm font-bold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_2px_8px_hsl(var(--primary)/0.25)] transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
                       type="submit"
                       disabled={forgotLoading}
                     >
@@ -287,7 +271,7 @@ export default function PlataformaLogin() {
                     id="email"
                     type="email"
                     placeholder="seu.email@empresa.com"
-                    className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
+                    className="h-11 text-sm rounded-xl border-border/60 bg-background transition-all duration-200 focus:ring-2 focus:ring-primary/10 focus:border-primary/40"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -303,7 +287,7 @@ export default function PlataformaLogin() {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Digite sua senha"
-                      className="h-11 text-sm rounded-xl border-border/60 bg-background pr-10 transition-all duration-200 focus:ring-2 focus:ring-[#E85D24]/10 focus:border-[#E85D24]/40"
+                      className="h-11 text-sm rounded-xl border-border/60 bg-background pr-10 transition-all duration-200 focus:ring-2 focus:ring-primary/10 focus:border-primary/40"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
@@ -330,8 +314,7 @@ export default function PlataformaLogin() {
                 </div>
 
                 <Button
-                  className="w-full h-11 text-sm font-bold rounded-xl gap-2 transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
-                  style={{ background: '#E85D24', color: '#ffffff', boxShadow: '0 2px 8px rgba(232,93,36,0.25)' }}
+                  className="w-full h-11 text-sm font-bold rounded-xl gap-2 bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_2px_8px_hsl(var(--primary)/0.25)] transition-all duration-200 hover:translate-y-[-1px] hover:shadow-lg"
                   type="submit"
                   disabled={loading}
                 >
@@ -344,7 +327,7 @@ export default function PlataformaLogin() {
               </form>
 
               {/* Footer */}
-              <div className="mt-8 pt-6" style={{ borderTop: '1px solid hsl(var(--border) / 0.4)' }}>
+              <div className="mt-8 pt-6 border-t border-border/40">
                 <p className="text-center text-[11px] text-muted-foreground/40">
                   Para solicitar acesso, entre em contato com a equipe da Descompliquei.
                 </p>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Clock, Unlock, Loader2, Trash2, Save, RefreshCw, Bot, Sparkles } from "lucide-react";
+import { Clock, Unlock, Loader2, Trash2, Save, RefreshCw, Bot, Sparkles, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Label } from "@/components/ui/label";
@@ -143,7 +143,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
 
       if (leadsErr) throw leadsErr;
 
-      toast.success("✅ IA reiniciada! A próxima mensagem será tratada do zero.");
+      toast.success("IA reiniciada! A próxima mensagem será tratada do zero.");
       setIsPopoverOpen(false);
     } catch (err: any) {
       console.error("Erro ao reiniciar IA:", err);
@@ -208,7 +208,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
             iaPermBlocked
               ? "bg-red-50 text-red-600 border-red-300 hover:bg-red-100 hover:text-red-700"
               : isBlocked
-              ? "bg-[#FEF3C7] text-[#D97706] border-[#FCD34D] hover:bg-[#FDE68A] hover:text-[#B45309]"
+              ? "bg-amber-100 text-amber-700 border-amber-300 hover:bg-amber-200 hover:text-amber-800"
               : "text-muted-foreground hover:text-foreground"
           )}
         >
@@ -220,7 +220,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
           ) : isBlocked ? (
             <>
               <Clock className="h-4 w-4" />
-              <span>{timeDisplay || "Bloqueado"}</span>
+              <span className="font-display tabular-nums">{timeDisplay || "Bloqueado"}</span>
             </>
           ) : (
             <>
@@ -234,7 +234,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
       <PopoverContent className="w-80">
         <div className="grid gap-4">
           <div className="space-y-2">
-            <h4 className="font-medium leading-none">Controle da IA</h4>
+            <h4 className="font-medium font-display leading-none">Controle da IA</h4>
             <p className="text-sm text-muted-foreground">
               Gerencie o bloqueio e reinicialização da IA para este lead.
             </p>
@@ -243,7 +243,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
           {/* Aviso de transbordo ativo */}
           {iaPermBlocked && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-sm font-medium text-red-800">⚠️ IA desativada por transbordo</p>
+              <p className="text-sm font-medium text-red-800 flex items-center gap-1.5"><AlertTriangle className="h-3.5 w-3.5 shrink-0" /> IA desativada por transbordo</p>
               <p className="text-xs text-red-600 mt-1">
                 A IA foi pausada quando um atendente humano foi notificado.
                 Use "Reiniciar IA" abaixo para voltar ao atendimento automático.
@@ -257,7 +257,7 @@ export function AiLockControl({ lead, lastIncomingMessage, lastIncomingMessageTy
               <div className="flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium text-amber-800">Bloqueio Ativo</p>
-                  <p className="text-xs text-amber-600">Tempo restante: ~{timeDisplay}</p>
+                  <p className="text-xs text-amber-600">Tempo restante: ~<span className="font-display tabular-nums">{timeDisplay}</span></p>
                 </div>
                 <Button
                   variant="ghost"

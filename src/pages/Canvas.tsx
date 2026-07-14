@@ -347,7 +347,7 @@ function BoardCard({
       {/* Info */}
       <div className="p-3 space-y-1">
         <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-sm truncate flex-1">{board.titulo}</h3>
+          <h3 className="font-semibold text-sm truncate flex-1 font-display">{board.titulo}</h3>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-muted transition-all shrink-0">
@@ -769,7 +769,7 @@ export default function Canvas() {
         <div className="p-4 border-b">
           <div className="flex items-center gap-2 mb-4">
             <PenLine className="h-5 w-5 text-primary" />
-            <h2 className="font-bold text-lg">Canvas</h2>
+            <h2 className="font-bold text-lg font-display">Canvas</h2>
           </div>
           <div className="space-y-2">
             <Button
@@ -922,7 +922,7 @@ export default function Canvas() {
           ) : filteredBoards.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-[400px] text-center">
               <PenLine className="h-16 w-16 text-muted-foreground/30 mb-4" />
-              <h3 className="font-semibold text-lg mb-1">Nenhum canvas ainda</h3>
+              <h3 className="font-semibold text-lg mb-1 font-display">Nenhum canvas ainda</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Crie seu primeiro canvas para comecar a desenhar
               </p>
@@ -1066,7 +1066,7 @@ export default function Canvas() {
       <Dialog open={!!renameBoardDialog} onOpenChange={() => setRenameBoardDialog(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Renomear Canvas</DialogTitle>
+            <DialogTitle className="font-display">Renomear Canvas</DialogTitle>
           </DialogHeader>
           <div>
             <Label>Titulo</Label>

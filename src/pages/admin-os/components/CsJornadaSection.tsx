@@ -109,7 +109,7 @@ export function CsJornadaSection({ crmUserId, clientOrgId, clientName }: { crmUs
                       </div>
                       <div className="flex items-center gap-3 text-[11px] text-muted-foreground/60">
                         <span className="capitalize">{tipoLabel(j)}</span>
-                        <span className="font-mono tabular-nums">{j._done}/{j._total} tarefas · {pct}%</span>
+                        <span className="font-display tabular-nums">{j._done}/{j._total} tarefas · {pct}%</span>
                       </div>
                       <div className="mt-2 h-1.5 rounded-full bg-muted/50 overflow-hidden max-w-[220px]">
                         <div className={cn('h-full rounded-full', pct === 100 ? 'bg-emerald-500' : 'bg-foreground/70')} style={{ width: `${Math.max(pct, j._total > 0 ? 2 : 0)}%` }} />

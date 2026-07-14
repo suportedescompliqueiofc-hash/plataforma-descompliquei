@@ -36,7 +36,7 @@ export function CadenceMonitoringTab({ dateRange }: CadenceMonitoringTabProps) {
 
   if (logs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center bg-muted/5 rounded-xl border border-dashed">
+      <div className="flex flex-col items-center justify-center py-16 text-center bg-muted/5 rounded-2xl border border-dashed border-border/60">
         <History className="h-12 w-12 text-muted-foreground mb-3 opacity-20" />
         <p className="text-muted-foreground">Nenhum registro de envio encontrado no período.</p>
         <p className="text-xs text-muted-foreground/60 mt-1">Os envios automáticos aparecerão aqui assim que forem processados.</p>
@@ -45,7 +45,7 @@ export function CadenceMonitoringTab({ dateRange }: CadenceMonitoringTabProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-card overflow-hidden shadow-sm animate-in fade-in duration-500">
+    <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden animate-in fade-in duration-500">
       <Table>
         <TableHeader className="bg-muted/30">
           <TableRow>
@@ -72,13 +72,13 @@ export function CadenceMonitoringTab({ dateRange }: CadenceMonitoringTabProps) {
                 <div className="flex flex-col">
                   <span className="text-sm font-medium">{log.cadencias?.nome || "Fluxo Removido"}</span>
                   <div className="flex items-center gap-1 text-[10px] text-primary font-bold uppercase">
-                    <MessageSquare className="h-3 w-3" /> Passo {log.passo_ordem}
+                    <MessageSquare className="h-3 w-3" /> <span className="font-display tabular-nums">Passo {log.passo_ordem}</span>
                   </div>
                 </div>
               </TableCell>
               <TableCell>
                 <div className="flex flex-col">
-                  <span className="text-sm">
+                  <span className="text-sm font-display tabular-nums">
                     {format(parseISO(log.enviado_em), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
                   </span>
                 </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useLayoutEffect, useMemo } from "react";
-import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply, StickyNote, ShieldBan, Megaphone, Leaf, HeartPulse, Building2, RotateCcw, Users, Clock, Plus } from "lucide-react";
+import { Send, Smile, AlertTriangle, CheckCircle, Check, Phone, User, Bot, ChevronDown, Trash2, Mic, Zap, MoreVertical, ChevronLeft, Paperclip, Loader2, ImageIcon, FileText, Globe, Sparkles, Info, Pencil, UserCheck, Download, X, CalendarCheck, BadgeCheck, EyeOff, Reply, StickyNote, ShieldBan, Megaphone, Leaf, HeartPulse, Building2, RotateCcw, Users, Clock, Plus, Video } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -108,6 +108,15 @@ const AttachmentRenderer = ({
   }
 
   return <div className="p-2 bg-muted/20 border rounded text-xs text-muted-foreground mb-1 break-all">Anexo: {attachment.file_path}</div>;
+};
+
+// Ícone + rótulo para preview de mídia em citações/respostas (substitui glyphs de emoji por lucide-react)
+const getMediaPreviewMeta = (tipo?: string): { Icon: React.ElementType; label: string } | null => {
+  if (tipo === 'audio') return { Icon: Mic, label: 'Áudio' };
+  if (tipo === 'imagem') return { Icon: ImageIcon, label: 'Imagem' };
+  if (tipo === 'video') return { Icon: Video, label: 'Vídeo' };
+  if (tipo === 'pdf') return { Icon: FileText, label: 'Documento' };
+  return null;
 };
 
 const groupMessagesByDay = (messages: Message[]) => {
@@ -696,7 +705,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                           ? isDescompliqueiOrg && lead.lead_scoring
                             ? "border-none shadow-sm active:scale-95"
                             : "bg-emerald-500 text-white hover:bg-emerald-600 border-none shadow-sm active:scale-95"
-                          : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
+                          : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border/60"
                       )}
                       style={lead.is_qualified && lead.lead_scoring && isDescompliqueiOrg ? {
                         backgroundColor: SCORING_OPTIONS.find(s => s.value === lead.lead_scoring)?.bg || '#E1F5EE',
@@ -724,7 +733,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                             "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
                             lead.is_scheduled
                               ? "bg-blue-500 text-white hover:bg-blue-600 border-none shadow-sm"
-                              : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
+                              : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border/60"
                           )}
                         >
                           <CalendarCheck className={cn("h-3 w-3", lead.is_scheduled ? "fill-current" : "")} />
@@ -742,7 +751,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                                 <CalendarCheck className="h-4 w-4 text-blue-500" />
                               </span>
                               <div>
-                                <p className="text-sm font-bold text-foreground">Agendamentos</p>
+                                <p className="text-sm font-bold font-display text-foreground">Agendamentos</p>
                                 <p className="text-[11px] text-muted-foreground/60 mt-0.5">
                                   {lead.nome} · {allAgendamentos.length} registrado{allAgendamentos.length !== 1 ? 's' : ''}
                                 </p>
@@ -803,7 +812,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                               <div className="p-3 rounded-xl bg-muted/40 mb-3">
                                 <CalendarCheck className="h-6 w-6 text-muted-foreground/30" />
                               </div>
-                              <p className="text-sm font-medium text-muted-foreground">Sem agendamentos ainda</p>
+                              <p className="text-sm font-medium font-display text-muted-foreground">Sem agendamentos ainda</p>
                               <p className="text-[11px] text-muted-foreground/50 mt-0.5">Clique em novo para agendar</p>
                             </div>
                           ) : (
@@ -863,7 +872,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                             "h-6 px-2 text-[10px] font-bold gap-1 transition-all duration-200 rounded-full uppercase tracking-wider shrink-0",
                             lead.is_closed
                               ? "bg-violet-500 text-white hover:bg-violet-600 border-none shadow-sm"
-                              : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border"
+                              : "border-border/50 bg-transparent text-muted-foreground/70 hover:bg-muted/30 hover:text-foreground hover:border-border/60"
                           )}
                         >
                           <BadgeCheck className={cn("h-3 w-3", lead.is_closed ? "fill-current" : "")} />
@@ -879,7 +888,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                                 <BadgeCheck className="h-4 w-4 text-violet-500" />
                               </span>
                               <div>
-                                <p className="text-sm font-bold text-foreground">Fechamentos</p>
+                                <p className="text-sm font-bold font-display text-foreground">Fechamentos</p>
                                 <p className="text-[11px] text-muted-foreground/60 mt-0.5">
                                   {lead.nome} · {allVendas.length} venda{allVendas.length !== 1 ? 's' : ''} registrada{allVendas.length !== 1 ? 's' : ''}
                                 </p>
@@ -900,14 +909,14 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                               <div className="flex items-center gap-6 mt-3 pt-3 border-t border-border/30">
                                 <div>
                                   <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Receita total</p>
-                                  <p className="text-[15px] font-bold text-foreground tabular-nums mt-0.5">
+                                  <p className="text-[15px] font-bold font-display text-foreground tabular-nums mt-0.5">
                                     R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
                                 </div>
                                 <div className="h-8 w-px bg-border/40" />
                                 <div>
                                   <p className="text-[10px] text-muted-foreground/50 uppercase tracking-wider font-medium">Ticket médio</p>
-                                  <p className="text-[15px] font-bold text-foreground tabular-nums mt-0.5">
+                                  <p className="text-[15px] font-bold font-display text-foreground tabular-nums mt-0.5">
                                     R$ {media.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                   </p>
                                 </div>
@@ -925,7 +934,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                               <div className="p-3 rounded-xl bg-muted/40 mb-3">
                                 <BadgeCheck className="h-6 w-6 text-muted-foreground/30" />
                               </div>
-                              <p className="text-sm font-medium text-muted-foreground">Nenhum fechamento ainda</p>
+                              <p className="text-sm font-medium font-display text-muted-foreground">Nenhum fechamento ainda</p>
                               <p className="text-[11px] text-muted-foreground/50 mt-0.5">Clique em nova venda para registrar</p>
                             </div>
                           ) : (
@@ -937,7 +946,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                                     <div className="flex items-start justify-between gap-3">
                                       <p className="text-[12px] font-semibold text-foreground leading-tight">{v.produto_servico || 'Venda'}</p>
                                       {v.valor_fechado != null && (
-                                        <span className="text-[13px] font-bold text-emerald-600 shrink-0 tabular-nums">
+                                        <span className="text-[13px] font-bold font-display text-emerald-600 shrink-0 tabular-nums">
                                           R$ {Number(v.valor_fechado).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </span>
                                       )}
@@ -1089,12 +1098,12 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
       )}
 
       {isExportMode && (
-        <div className="border-b bg-[#FFF4EE] px-3 py-3 text-[#7A3617] flex-shrink-0">
+        <div className="border-b border-border/40 bg-primary/10 px-3 py-3 text-foreground flex-shrink-0">
           <div className="max-w-5xl mx-auto flex flex-col gap-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-semibold">Selecione a primeira e a última mensagem para exportar</p>
-                <p className="text-xs leading-relaxed text-[#96512E]">
+                <p className="text-xs leading-relaxed text-muted-foreground">
                   Use os botões "Início" e "Fim" dentro da conversa. O PDF será gerado apenas com o trecho marcado e usando a identidade visual do CRM.
                 </p>
               </div>
@@ -1102,14 +1111,14 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-[#E85D24] bg-white text-[#E85D24] hover:bg-white/90"
+                  className="border-primary bg-background text-primary hover:bg-primary/10"
                   onClick={handleCancelExportSelection}
                 >
                   Cancelar
                 </Button>
                 <Button
                   size="sm"
-                  className="bg-[#E85D24] text-white hover:bg-[#D6531E]"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                   disabled={!hasValidExportRange || isExportingPdf}
                   onClick={handleExportConversationPdf}
                 >
@@ -1119,17 +1128,17 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-xl border border-[#F3CBB8] bg-white/80 px-3 py-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-[#B85D32]">Mensagem inicial</div>
-                <div className="mt-1 text-xs text-[#6B3A20]">
+              <div className="rounded-xl border border-primary/20 bg-card/80 px-3 py-2">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-primary/70">Mensagem inicial</div>
+                <div className="mt-1 text-xs text-muted-foreground">
                   {exportStartMessage
                     ? getMessageSelectionLabel(exportStartMessage)
                     : "Selecione a primeira mensagem do trecho."}
                 </div>
               </div>
-              <div className="rounded-xl border border-[#F3CBB8] bg-white/80 px-3 py-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-[#B85D32]">Mensagem final</div>
-                <div className="mt-1 text-xs text-[#6B3A20]">
+              <div className="rounded-xl border border-primary/20 bg-card/80 px-3 py-2">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-primary/70">Mensagem final</div>
+                <div className="mt-1 text-xs text-muted-foreground">
                   {exportEndMessage
                     ? getMessageSelectionLabel(exportEndMessage)
                     : "Selecione a última mensagem do trecho."}
@@ -1231,7 +1240,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                             "h-6 rounded-full px-2 text-[10px] font-bold uppercase tracking-wider",
                             isOutgoing
                               ? "border-white/80 bg-white text-primary hover:bg-white/90"
-                              : "border-border bg-background text-foreground hover:bg-muted",
+                              : "border-border/60 bg-background text-foreground hover:bg-muted",
                             isStartSelected && "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                           )}
                           onClick={() => handleSelectExportStart(msg.id)}
@@ -1246,7 +1255,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                             "h-6 rounded-full px-2 text-[10px] font-bold uppercase tracking-wider",
                             isOutgoing
                               ? "border-white/80 bg-white text-primary hover:bg-white/90"
-                              : "border-border bg-background text-foreground hover:bg-muted",
+                              : "border-border/60 bg-background text-foreground hover:bg-muted",
                             isEndSelected && "bg-primary text-primary-foreground border-primary hover:bg-primary/90"
                           )}
                           onClick={() => handleSelectExportEnd(msg.id)}
@@ -1284,11 +1293,14 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                           {quotedMsg.remetente === 'lead' ? (lead?.nome || 'Lead') : (quotedMsg.remetente === 'bot' ? 'Agente IA' : 'Equipe')}
                         </p>
                         <p className={cn("line-clamp-2 text-[11px]", isOutgoing ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                          {quotedMsg.tipo_conteudo === 'audio' ? '🎤 Áudio' :
-                           quotedMsg.tipo_conteudo === 'imagem' ? '📷 Imagem' :
-                           quotedMsg.tipo_conteudo === 'video' ? '🎥 Vídeo' :
-                           quotedMsg.tipo_conteudo === 'pdf' ? '📄 Documento' :
-                           (quotedMsg.conteudo || '').substring(0, 100) || 'Mensagem'}
+                          {(() => {
+                            const media = getMediaPreviewMeta(quotedMsg.tipo_conteudo);
+                            if (media) {
+                              const { Icon, label } = media;
+                              return <span className="inline-flex items-center gap-1 align-middle"><Icon className="h-3 w-3" />{label}</span>;
+                            }
+                            return (quotedMsg.conteudo || '').substring(0, 100) || 'Mensagem';
+                          })()}
                           {quotedMsg.conteudo && quotedMsg.conteudo.length > 100 ? '...' : ''}
                         </p>
                       </div>
@@ -1400,11 +1412,14 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
                   {replyingTo.remetente === 'lead' ? (lead?.nome || 'Lead') : (replyingTo.remetente === 'bot' ? 'Agente IA' : 'Equipe')}
                 </p>
                 <p className="text-xs text-muted-foreground truncate">
-                  {replyingTo.tipo_conteudo === 'audio' ? '🎤 Áudio' :
-                   replyingTo.tipo_conteudo === 'imagem' ? '📷 Imagem' :
-                   replyingTo.tipo_conteudo === 'video' ? '🎥 Vídeo' :
-                   replyingTo.tipo_conteudo === 'pdf' ? '📄 Documento' :
-                   (replyingTo.conteudo || '').substring(0, 100) || 'Mensagem'}
+                  {(() => {
+                    const media = getMediaPreviewMeta(replyingTo.tipo_conteudo);
+                    if (media) {
+                      const { Icon, label } = media;
+                      return <span className="inline-flex items-center gap-1 align-middle"><Icon className="h-3 w-3" />{label}</span>;
+                    }
+                    return (replyingTo.conteudo || '').substring(0, 100) || 'Mensagem';
+                  })()}
                 </p>
               </div>
               <Button
@@ -1515,7 +1530,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
 
       <AlertDialog open={!!deletingMessage} onOpenChange={(open) => !open && setDeletingMessage(null)}>
         <AlertDialogContent className="w-[90vw] max-w-md rounded-2xl">
-          <AlertDialogHeader><AlertDialogTitle>Excluir mensagem?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle className="font-display">Excluir mensagem?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter className="flex-row gap-2">
             <AlertDialogCancel className="flex-1 rounded-xl">Cancelar</AlertDialogCancel>
             <AlertDialogAction className="flex-1 bg-destructive hover:bg-destructive/90 rounded-xl" onClick={() => { if (deletingMessage) { deleteMessage({ messageId: deletingMessage.id, leadId, id_mensagem: deletingMessage.id_mensagem }); setDeletingMessage(null); } }}>Excluir</AlertDialogAction>
@@ -1526,7 +1541,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
       <AlertDialog open={showBlacklistConfirm} onOpenChange={setShowBlacklistConfirm}>
         <AlertDialogContent className="w-[90vw] max-w-md rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
+            <AlertDialogTitle className="flex items-center gap-2 font-display">
               <ShieldBan className="h-5 w-5 text-red-500" />
               Bloquear número permanentemente?
             </AlertDialogTitle>
@@ -1588,7 +1603,7 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
       <Dialog open={showScoringModal} onOpenChange={setShowScoringModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold">Qualificar Lead</DialogTitle>
+            <DialogTitle className="text-lg font-bold font-display">Qualificar Lead</DialogTitle>
             <p className="text-sm text-muted-foreground">Selecione a classificação deste lead antes de qualificá-lo.</p>
           </DialogHeader>
           <div className="space-y-2 py-2">

@@ -450,7 +450,7 @@ export default function ModalCriativo({ criativoId, pastaId, isOpen, onClose, on
               </div>
 
               {/* ── Right: Info panel ── */}
-              <div className="w-full lg:w-[380px] border-l border-border flex flex-col overflow-hidden">
+              <div className="w-full lg:w-[380px] border-l border-border/60 flex flex-col overflow-hidden">
                 <div className="flex-1 overflow-y-auto">
                   <div className="p-5 space-y-5">
 
@@ -466,7 +466,7 @@ export default function ModalCriativo({ criativoId, pastaId, isOpen, onClose, on
 
                     {/* ── Info block ── */}
                     <div className="space-y-3">
-                      <h2 className="text-lg font-bold text-foreground leading-tight break-words">{criativo.nome}</h2>
+                      <h2 className="text-lg font-bold text-foreground leading-tight break-words font-display">{criativo.nome}</h2>
 
                       {/* Status inline edit */}
                       <div className="flex items-center gap-2">
@@ -642,7 +642,7 @@ export default function ModalCriativo({ criativoId, pastaId, isOpen, onClose, on
                 </div>
 
                 {/* ── Footer actions ── */}
-                <div className="border-t border-border p-3 flex items-center gap-2 bg-background shrink-0">
+                <div className="border-t border-border/60 p-3 flex items-center gap-2 bg-background shrink-0">
                   <Button size="sm" variant="outline" className="gap-1.5 text-xs flex-1" onClick={abrirEdit}>
                     <Edit2 className="h-3 w-3" /> Editar
                   </Button>
@@ -660,7 +660,7 @@ export default function ModalCriativo({ criativoId, pastaId, isOpen, onClose, on
       <Dialog open={showEditModal} onOpenChange={(o) => !o && setShowEditModal(false)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <div className="space-y-4 py-2">
-            <h3 className="text-lg font-bold">Editar Criativo</h3>
+            <h3 className="text-lg font-bold font-display">Editar Criativo</h3>
             <div>
               <Label>Nome</Label>
               <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} className="mt-1" />
@@ -720,7 +720,7 @@ export default function ModalCriativo({ criativoId, pastaId, isOpen, onClose, on
       <AlertDialog open={showDeleteAlert} onOpenChange={(o) => !o && setShowDeleteAlert(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir "{criativo?.nome}"?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Excluir "{criativo?.nome}"?</AlertDialogTitle>
             <AlertDialogDescription>O arquivo sera removido permanentemente do storage e do banco.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

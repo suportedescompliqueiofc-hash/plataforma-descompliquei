@@ -84,7 +84,7 @@ export function ClienteRotinaCard({
                 <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded-md', FASE_COLORS[faseEfetiva] ?? 'bg-muted text-muted-foreground')}>
                   {FASE_LABELS[faseEfetiva] ?? faseEfetiva}
                 </span>
-                <span className="text-[10px] text-muted-foreground/60 font-mono tabular-nums">
+                <span className="text-[10px] text-muted-foreground/60 font-display tabular-nums">
                   D{dias} · S{semana} · M{mes}
                 </span>
                 {diasRestantes !== null && diasRestantes <= 10 && (

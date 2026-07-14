@@ -121,8 +121,8 @@ export function MessageContent({ content }: { content: string }) {
 
           case "heading": {
             const styles: Record<number, string> = {
-              1: "text-[15px] font-bold text-foreground mt-2 mb-0.5",
-              2: "text-[13px] font-bold text-foreground mt-2 mb-0.5",
+              1: "text-[15px] font-bold font-display text-foreground mt-2 mb-0.5",
+              2: "text-[13px] font-bold font-display text-foreground mt-2 mb-0.5",
               3: "text-[11px] font-bold text-muted-foreground uppercase tracking-widest mt-2 mb-0.5",
               4: "text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-widest mt-1",
             };

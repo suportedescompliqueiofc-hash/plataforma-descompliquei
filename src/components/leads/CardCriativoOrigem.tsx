@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Megaphone, Instagram, Facebook, ImageOff, Loader2 } from "lucide-react";
@@ -98,11 +97,11 @@ export function CardCriativoOrigem({ leadId }: CardCriativoOrigemProps) {
 
   if (isLoading) {
     return (
-      <Card className="shadow-sm">
-        <CardContent className="p-4 flex items-center justify-center gap-2 text-muted-foreground text-sm">
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="p-4 flex items-center justify-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando origem...
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
@@ -120,19 +119,19 @@ export function CardCriativoOrigem({ leadId }: CardCriativoOrigemProps) {
     const platform = leadAd.meta_ad_platform || leadAd.fonte;
 
     return (
-      <Card className="shadow-sm border-l-4 border-l-orange-500">
-        <CardHeader className="pb-2">
+      <div className="rounded-2xl border border-border/60 border-l-4 border-l-orange-500 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="px-4 pt-3.5 pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
+            <span className="text-base font-semibold font-display flex items-center gap-2">
               <Megaphone className="h-4 w-4 text-orange-500" />
               Origem do Lead
-            </CardTitle>
+            </span>
             <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-[10px] font-semibold">
               Meta Ads
             </Badge>
           </div>
-        </CardHeader>
-        <CardContent className="pt-0">
+        </div>
+        <div className="px-4 pb-4">
           <div className="flex gap-3">
             {thumb ? (
               <TooltipProvider delayDuration={200}>
@@ -171,19 +170,19 @@ export function CardCriativoOrigem({ leadId }: CardCriativoOrigemProps) {
                   <div className="border-t border-dashed my-1" />
                   <p className="text-xs text-muted-foreground">
                     {insights.cpl_medio > 0 && (
-                      <span>CPL medio: <strong className="text-foreground">R${insights.cpl_medio.toFixed(2)}</strong></span>
+                      <span>CPL medio: <strong className="text-foreground font-display tabular-nums">R${insights.cpl_medio.toFixed(2)}</strong></span>
                     )}
                     {insights.cpl_medio > 0 && insights.ctr_medio > 0 && <span> · </span>}
                     {insights.ctr_medio > 0 && (
-                      <span>CTR: <strong className="text-foreground">{insights.ctr_medio.toFixed(2)}%</strong></span>
+                      <span>CTR: <strong className="text-foreground font-display tabular-nums">{insights.ctr_medio.toFixed(2)}%</strong></span>
                     )}
                   </p>
                 </>
               )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
@@ -191,14 +190,14 @@ export function CardCriativoOrigem({ leadId }: CardCriativoOrigemProps) {
   if (hasPartialTracking) {
     const platform = leadAd.meta_ad_platform || leadAd.fonte;
     return (
-      <Card className="shadow-sm border-l-4 border-l-amber-400">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
+      <div className="rounded-2xl border border-border/60 border-l-4 border-l-amber-400 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="px-4 pt-3.5 pb-2">
+          <span className="text-base font-semibold font-display flex items-center gap-2">
             <Megaphone className="h-4 w-4 text-amber-500" />
             Origem do Lead
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0 space-y-1">
+          </span>
+        </div>
+        <div className="px-4 pb-4 space-y-1">
           <div className="flex items-center gap-1.5 text-sm">
             <PlatformIcon platform={platform} />
             <span>Veio de anuncio {platformLabel(platform)}</span>
@@ -206,25 +205,25 @@ export function CardCriativoOrigem({ leadId }: CardCriativoOrigemProps) {
           <p className="text-xs text-muted-foreground">
             Sincronize o Meta Ads para ver os detalhes do criativo
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   // Estado 3: Sem rastreamento
   return (
-    <Card className="shadow-sm">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2 text-muted-foreground">
+    <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div className="px-4 pt-3.5 pb-2">
+        <span className="text-base font-semibold font-display flex items-center gap-2 text-muted-foreground">
           <Megaphone className="h-4 w-4" />
           Origem: {isMarketing ? "Marketing" : "Organico"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
+        </span>
+      </div>
+      <div className="px-4 pb-4">
         <p className="text-xs text-muted-foreground">
           Criativo nao rastreado (chegou antes do rastreamento ser ativado)
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

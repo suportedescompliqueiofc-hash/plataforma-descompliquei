@@ -50,7 +50,7 @@ export function CadenceDispatchMonitorModal({ open, onOpenChange, cadenceId, cad
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-primary">
+          <DialogTitle className="flex items-center gap-2 text-primary font-display">
             <Users className="h-5 w-5" /> Fila em Tempo Real: {cadenceName}
           </DialogTitle>
           <DialogDescription>Acompanhe os leads que estão ativos nesta cadência.</DialogDescription>
@@ -118,8 +118,8 @@ function TimerRow({ log }: { log: LeadCadenceRow }) {
                 <div className="font-semibold text-sm">{log.leads.nome || "Lead sem nome"}</div>
                 <div className="text-xs text-muted-foreground">{log.leads.telefone}</div>
             </TableCell>
-            <TableCell>Passo {log.passo_atual_ordem + 1}</TableCell>
-            <TableCell>{format(parseISO(log.proxima_execucao), "dd/MM/yyyy 'às' HH:mm:ss")}</TableCell>
+            <TableCell className="font-display tabular-nums">Passo {log.passo_atual_ordem + 1}</TableCell>
+            <TableCell className="font-display tabular-nums">{format(parseISO(log.proxima_execucao), "dd/MM/yyyy 'às' HH:mm:ss")}</TableCell>
             <TableCell className="font-mono text-primary font-medium">{timeLeft}</TableCell>
         </TableRow>
     )

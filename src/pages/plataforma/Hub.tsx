@@ -83,7 +83,7 @@ export default function Hub() {
 
   if (!plataformaUser) {
     return (
-      <div className="max-w-5xl mx-auto space-y-6 py-6">
+      <div className="max-w-[1400px] mx-auto space-y-6 py-6">
         <Skeleton className="h-40 w-full rounded-3xl" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-40 rounded-2xl" />)}
@@ -93,7 +93,7 @@ export default function Hub() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-12">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-12">
 
       {/* ─── Hero ─── */}
       <PageHero
@@ -125,7 +125,7 @@ export default function Hub() {
                       <tool.icon className="h-[18px] w-[18px] text-muted-foreground" />
                     </div>
                     {tool.progress !== undefined && (
-                      <span className={`text-[11px] font-bold tabular-nums ${tool.progress >= 100 ? 'text-emerald-500' : 'text-muted-foreground/50'}`}>
+                      <span className={`text-[11px] font-bold font-display tabular-nums ${tool.progress >= 100 ? 'text-emerald-500' : 'text-muted-foreground/50'}`}>
                         {tool.progress}%
                       </span>
                     )}

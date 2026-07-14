@@ -141,7 +141,7 @@ export function ModalNovaPasta({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Editar Pasta" : "Nova Pasta"}</DialogTitle>
+          <DialogTitle className="font-display">{isEdit ? "Editar Pasta" : "Nova Pasta"}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -202,7 +202,7 @@ export function ModalNovaPasta({
                     "w-9 h-9 rounded-lg border flex items-center justify-center transition-all",
                     icone === value
                       ? "border-primary bg-primary/10 text-primary shadow-sm"
-                      : "border-border hover:bg-muted text-muted-foreground"
+                      : "border-border/60 hover:bg-muted text-muted-foreground"
                   )}
                   onClick={() => setIcone(value)}
                 >

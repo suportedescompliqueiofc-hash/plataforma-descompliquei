@@ -75,7 +75,7 @@ export function CompartilharDialog({ paginaId, open, onOpenChange }: Compartilha
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Compartilhar página</DialogTitle>
+          <DialogTitle className="text-base font-display">Compartilhar página</DialogTitle>
         </DialogHeader>
 
         <div className="relative">

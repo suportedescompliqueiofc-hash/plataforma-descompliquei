@@ -31,11 +31,11 @@ export function FullscreenMediaViewer({ mediaUrl, type, fileName, onClose }: Ful
             <X className="h-6 w-6" />
           </Button>
           <div className="flex flex-col">
-            <span className="font-medium text-sm sm:text-base truncate max-w-[200px] sm:max-w-md">
+            <span className="font-medium font-display text-sm sm:text-base truncate max-w-[200px] sm:max-w-md">
               {fileName || (type === 'imagem' ? 'Imagem' : type === 'video' ? 'Vídeo' : 'Documento')}
             </span>
             {type === 'pdf' && numPages && (
-              <span className="text-[10px] text-zinc-400">Página {pageNumber} de {numPages}</span>
+              <span className="text-[10px] text-zinc-400 font-display tabular-nums">Página {pageNumber} de {numPages}</span>
             )}
           </div>
         </div>
@@ -44,7 +44,7 @@ export function FullscreenMediaViewer({ mediaUrl, type, fileName, onClose }: Ful
           {type === 'pdf' && (
             <div className="hidden sm:flex items-center gap-1 mr-4 bg-zinc-800/50 rounded-lg p-1">
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.max(0.5, s - 0.1))}><ZoomOut className="h-4 w-4" /></Button>
-              <span className="text-xs w-12 text-center">{Math.round(scale * 100)}%</span>
+              <span className="text-xs w-12 text-center font-display tabular-nums">{Math.round(scale * 100)}%</span>
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.min(2.5, s + 0.1))}><ZoomIn className="h-4 w-4" /></Button>
             </div>
           )}
@@ -105,7 +105,7 @@ export function FullscreenMediaViewer({ mediaUrl, type, fileName, onClose }: Ful
                 >
                   <ChevronLeft className="h-6 w-6" />
                 </Button>
-                <span className="text-sm font-medium px-2">{pageNumber} / {numPages}</span>
+                <span className="text-sm font-medium font-display tabular-nums px-2">{pageNumber} / {numPages}</span>
                 <Button 
                   variant="ghost" 
                   size="icon" 

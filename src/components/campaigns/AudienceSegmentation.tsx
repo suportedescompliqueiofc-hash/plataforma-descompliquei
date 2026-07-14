@@ -143,7 +143,7 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
   const isAllDisplayedSelected = filteredLeads.length > 0 && filteredLeads.every(lead => selectedLeadIds.has(lead.id));
 
   return (
-    <div className="space-y-4 mt-2 p-4 border rounded-lg">
+    <div className="space-y-4 mt-2 p-4 border border-border/60 rounded-lg">
       <RadioGroup value={segmentType} onValueChange={setSegmentType} className="flex flex-wrap items-center gap-6">
         <div className="flex items-center space-x-2">
           <RadioGroupItem value="all" id="all" />
@@ -156,7 +156,7 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
       </RadioGroup>
 
       {segmentType === 'all' && (
-        <div className="pt-4 border-t mt-4 animate-fade-in">
+        <div className="pt-4 border-t border-border/40 mt-4 animate-fade-in">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -170,7 +170,7 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
       )}
 
       {segmentType === 'advanced' && (
-        <div className="pt-4 border-t mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+        <div className="pt-4 border-t border-border/40 mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
           <div>
             <Label>Último contato há mais de (dias)</Label>
             <Input type="number" value={advancedFilters.lastContact} onChange={e => setAdvancedFilters({...advancedFilters, lastContact: e.target.value})} />
@@ -211,9 +211,9 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
         </div>
       )}
 
-      <div className="pt-4 border-t mt-4">
+      <div className="pt-4 border-t border-border/40 mt-4">
         <div className="flex items-center justify-between mb-2">
-          <h4 className="font-semibold">Leads Selecionados ({selectedCount})</h4>
+          <h4 className="font-semibold font-display">Leads Selecionados ({selectedCount})</h4>
           {filteredLeads.length > 0 && (
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -229,7 +229,7 @@ export function AudienceSegmentation({ onConfigChange, onSelectionChange, initia
           )}
         </div>
         <div className={cn(
-          "max-h-60 overflow-y-auto space-y-2 p-2 border rounded-md bg-background",
+          "max-h-60 overflow-y-auto space-y-2 p-2 border border-border/60 rounded-md bg-background",
           filteredLeads.length === 0 && 'min-h-[100px]'
         )}>
           {filteredLeads.length > 0 ? (

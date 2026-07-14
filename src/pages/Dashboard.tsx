@@ -3,14 +3,13 @@ import {
   Megaphone, Users, CalendarCheck, BadgeCheck, ArrowRight,
   Target, Activity, ChevronRight, ArrowUpRight, ArrowDownRight,
   Wallet, Zap, Bot, Clock, UserCheck, BarChart3, Stethoscope, Layers, Timer, Gauge,
-  Trophy, CheckCircle2, Bell, ListChecks, Info, PieChart
+  Trophy, CheckCircle2, Bell, ListChecks, Info, PieChart, LayoutDashboard, Check
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   Tooltip, Legend, ResponsiveContainer, Cell
 } from "recharts";
 import { useDashboard, type OrigemFilter } from "@/hooks/useDashboard";
-import { usePerformanceBadge } from "@/hooks/usePerformance";
 import { useProfile } from "@/hooks/useProfile";
 import { FollowupGapWidget } from "@/components/dashboard/FollowupGapWidget";
 import { DESCOMPLIQUEI_ORG_ID, ANNA_CLARA_ORG_ID } from "@/lib/constants";
@@ -23,6 +22,7 @@ import { ptBR } from 'date-fns/locale';
 import { supabase } from "@/integrations/supabase/client";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
+import { PageHero } from "@/components/PageHero";
 import { Button } from "@/components/ui/button";
 import { useDashboardLeadsModal } from "@/contexts/DashboardLeadsModalContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -40,7 +40,7 @@ const PremiumDot = ({ cx, cy, stroke }: any) => (
 const ChartTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl px-4 py-3 shadow-xl">
+      <div className="bg-card/95 backdrop-blur-md border border-border/60 rounded-xl px-4 py-3 shadow-xl">
         <p className="text-[13px] font-semibold text-foreground mb-2 pb-1.5 border-b border-border/60">{label}</p>
         <div className="space-y-1">
           {payload.map((entry: any, i: number) => (
@@ -49,7 +49,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
                 <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
                 <span className="text-xs text-muted-foreground">{entry.name}</span>
               </div>
-              <span className="text-[13px] font-bold text-foreground font-mono tabular-nums">
+              <span className="text-[13px] font-bold text-foreground font-display tabular-nums">
                 {entry.name === 'Faturamento'
                   ? `R$ ${Number(entry.value).toLocaleString('pt-BR')}`
                   : entry.value}
@@ -116,7 +116,7 @@ const BarLabel = (props: any) => {
 const BarChartTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-card/95 backdrop-blur-md border border-border rounded-xl px-4 py-3 shadow-xl">
+      <div className="bg-card/95 backdrop-blur-md border border-border/60 rounded-xl px-4 py-3 shadow-xl">
         <p className="text-[13px] font-semibold text-foreground mb-1">{label}</p>
         {payload.map((entry: any, i: number) => (
           <div key={i} className="flex items-center justify-between gap-4">
@@ -151,15 +151,6 @@ export default function Dashboard() {
   const isDescompliqueiOrg = profile?.organization_id === DESCOMPLIQUEI_ORG_ID;
   const isAnnaClaraOrg = profile?.organization_id === ANNA_CLARA_ORG_ID;
   const orgId = profile?.organization_id;
-  const { pending: perfPending, total: perfTotal, score: perfScore, pendingTasks: perfPendingTasks } = usePerformanceBadge();
-  const currentHour = new Date().getHours();
-  const perfUrgency = perfPending === 0
-    ? 'done'
-    : currentHour < 9  ? 'early'
-    : currentHour < 12 ? 'warning'
-    : currentHour < 18 ? 'urgent'
-    : 'critical';
-
   const firstName = (profile?.nome_completo || '').split(' ')[0] || 'Doutor(a)';
 
   /* ── Meta ativa ── */
@@ -215,7 +206,7 @@ export default function Dashboard() {
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4 p-4 text-center">
         <div className="bg-muted rounded-2xl p-6"><AlertTriangle className="h-8 w-8 text-muted-foreground" /></div>
         <h3 className="text-lg font-semibold font-display">Erro ao carregar o painel</h3>
-        <Button onClick={() => refetch()} variant="outline" className="gap-2"><RefreshCw className="h-4 w-4" /> Tentar novamente</Button>
+        <Button onClick={() => refetch()} variant="outline" className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"><RefreshCw className="h-3.5 w-3.5" /> Tentar novamente</Button>
       </div>
     );
   }
@@ -240,7 +231,7 @@ export default function Dashboard() {
         <div className="bg-muted/50 rounded-2xl p-6"><RefreshCw className="h-8 w-8 text-muted-foreground" /></div>
         <h3 className="text-lg font-semibold font-display">Sem dados disponíveis</h3>
         <p className="text-sm text-muted-foreground">Verifique sua conexão e tente novamente.</p>
-        <Button onClick={() => refetch()} variant="outline" className="gap-2"><RefreshCw className="h-4 w-4" /> Tentar novamente</Button>
+        <Button onClick={() => refetch()} variant="outline" className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3"><RefreshCw className="h-3.5 w-3.5" /> Tentar novamente</Button>
       </div>
     );
   }
@@ -284,194 +275,31 @@ export default function Dashboard() {
   return (
     <div className="space-y-5 mx-auto max-w-[1400px]">
 
-      {/* ── Performance Widget ── */}
-      {perfUrgency === 'done' ? (
-        // ─ Estado: tudo em dia ─
-        <Link
-          to="/crm/performance"
-          className="flex items-center gap-4 px-5 py-3.5 rounded-2xl border border-emerald-200/60 bg-emerald-50/40 hover:bg-emerald-50/70 transition-colors group shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100 shrink-0">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[12px] font-semibold text-emerald-800">Rotina do dia concluída!</span>
-              <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-100 border border-emerald-200/60 px-1.5 py-0.5 rounded-md">
-                {perfTotal}/{perfTotal} tarefas ✓
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-emerald-100 overflow-hidden">
-                <div className="h-full w-full rounded-full bg-emerald-500 transition-all duration-500" />
-              </div>
-              <span className="text-[11px] text-emerald-600/70 shrink-0 font-medium">100%</span>
-            </div>
-          </div>
-          <ChevronRight className="h-4 w-4 text-emerald-400 group-hover:text-emerald-600 transition-colors shrink-0" />
-        </Link>
-      ) : perfUrgency === 'early' ? (
-        // ─ Estado: cedo (antes das 9h) — informacional ─
-        <Link
-          to="/crm/performance"
-          className="flex items-center gap-4 px-5 py-3.5 rounded-2xl border border-border/60 bg-card hover:bg-muted/20 transition-colors group shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-        >
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted shrink-0">
-            <Trophy className="h-4 w-4 text-muted-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[12px] font-semibold text-foreground">Performance do dia</span>
-              <span className="text-[10px] text-muted-foreground/60 bg-muted/40 border border-border/40 px-1.5 py-0.5 rounded-md">
-                {perfPending} {perfPending === 1 ? 'tarefa' : 'tarefas'} para hoje
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-muted/40 overflow-hidden">
-                <div className="h-full rounded-full bg-muted-foreground/20 transition-all duration-500"
-                  style={{ width: `${perfTotal > 0 ? ((perfTotal - perfPending) / perfTotal) * 100 : 0}%` }} />
-              </div>
-              <span className="text-[11px] text-muted-foreground/50 shrink-0 tabular-nums">
-                {perfTotal - perfPending}/{perfTotal}
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xl font-extrabold tabular-nums font-display text-muted-foreground/40">{perfScore}%</span>
-            <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
-          </div>
-        </Link>
-      ) : perfUrgency === 'warning' ? (
-        // ─ Estado: aviso (9h–12h) — lembrete suave ─
-        <Link
-          to="/crm/performance"
-          className="flex items-center gap-4 px-5 py-3.5 rounded-2xl border border-amber-200/70 bg-amber-50/50 hover:bg-amber-50/80 transition-colors group shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-        >
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 shrink-0">
-            <Bell className="h-4 w-4 text-amber-600" />
-            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-amber-50 animate-pulse" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[12px] font-semibold text-amber-900">Rotina do dia pendente</span>
-              <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-100 border border-amber-200/60 px-1.5 py-0.5 rounded-md">
-                {perfPending} {perfPending === 1 ? 'pendente' : 'pendentes'}
-              </span>
-            </div>
-            <p className="text-[11px] text-amber-700/70 mb-1.5 truncate">
-              {perfPendingTasks.slice(0, 3).map(t => t.title).join(' · ')}{perfPendingTasks.length > 3 ? ` +${perfPendingTasks.length - 3}` : ''}
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 rounded-full bg-amber-100 overflow-hidden">
-                <div className="h-full rounded-full bg-amber-400 transition-all duration-500"
-                  style={{ width: `${perfTotal > 0 ? ((perfTotal - perfPending) / perfTotal) * 100 : 0}%` }} />
-              </div>
-              <span className="text-[11px] text-amber-600/60 shrink-0 tabular-nums">{perfTotal - perfPending}/{perfTotal}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xl font-extrabold tabular-nums font-display text-amber-600">{perfScore}%</span>
-            <ChevronRight className="h-4 w-4 text-amber-400 group-hover:text-amber-600 transition-colors" />
-          </div>
-        </Link>
-      ) : perfUrgency === 'urgent' ? (
-        // ─ Estado: urgente (12h–18h) — alerta visível ─
-        <Link
-          to="/crm/performance"
-          className="block rounded-2xl border-2 border-orange-300/80 bg-orange-50/60 hover:bg-orange-50/90 transition-colors group shadow-[0_2px_8px_rgba(234,88,12,0.08)]"
-        >
-          <div className="px-5 py-3 flex items-center justify-between border-b border-orange-200/50">
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-orange-900 uppercase tracking-wide">Rotina do dia em aberto</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-extrabold tabular-nums font-display text-orange-600">{perfScore}%</span>
-              <ChevronRight className="h-4 w-4 text-orange-400 group-hover:text-orange-600 transition-colors" />
-            </div>
-          </div>
-          <div className="px-5 py-3">
-            <p className="text-[12px] text-orange-800 mb-2 font-medium">
-              Você ainda tem <strong>{perfPending} {perfPending === 1 ? 'tarefa' : 'tarefas'}</strong> não registradas. O dia termina à meia-noite.
-            </p>
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {perfPendingTasks.slice(0, 5).map(t => (
-                <span key={t.id} className="text-[10px] font-medium text-orange-700 bg-orange-100 border border-orange-200/60 px-2 py-0.5 rounded-full">
-                  {t.title}
-                </span>
-              ))}
-              {perfPendingTasks.length > 5 && (
-                <span className="text-[10px] font-medium text-orange-600 bg-orange-100 border border-orange-200/60 px-2 py-0.5 rounded-full">
-                  +{perfPendingTasks.length - 5} mais
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 rounded-full bg-orange-100 overflow-hidden">
-                <div className="h-full rounded-full bg-orange-400 transition-all duration-500"
-                  style={{ width: `${perfTotal > 0 ? ((perfTotal - perfPending) / perfTotal) * 100 : 0}%` }} />
-              </div>
-              <span className="text-[11px] text-orange-600/70 shrink-0 tabular-nums font-medium">{perfTotal - perfPending}/{perfTotal} concluídas</span>
-            </div>
-          </div>
-        </Link>
-      ) : (
-        // ─ Estado: crítico (após 18h) — última chance ─
-        <Link
-          to="/crm/performance"
-          className="block rounded-2xl border-2 border-red-400/70 bg-red-50/70 hover:bg-red-50 transition-colors group shadow-[0_2px_8px_rgba(239,68,68,0.10)]"
-        >
-          <div className="px-5 py-3 flex items-center justify-between border-b border-red-200/60">
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-red-900 uppercase tracking-wide">Última chance — dia termina à meia-noite</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-extrabold tabular-nums font-display text-red-600">{perfScore}%</span>
-              <ChevronRight className="h-4 w-4 text-red-400 group-hover:text-red-600 transition-colors" />
-            </div>
-          </div>
-          <div className="px-5 py-3">
-            <p className="text-[12px] text-red-800 mb-2 font-medium">
-              <strong>{perfPending} {perfPending === 1 ? 'tarefa não registrada' : 'tarefas não registradas'}</strong> — se não preencher agora, o score cai permanentemente.
-            </p>
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {perfPendingTasks.map(t => (
-                <span key={t.id} className="text-[10px] font-medium text-red-700 bg-red-100 border border-red-200/60 px-2 py-0.5 rounded-full">
-                  {t.title}
-                </span>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-2 rounded-full bg-red-100 overflow-hidden">
-                <div className="h-full rounded-full bg-red-400 transition-all duration-500"
-                  style={{ width: `${perfTotal > 0 ? ((perfTotal - perfPending) / perfTotal) * 100 : 0}%` }} />
-              </div>
-              <span className="text-[11px] text-red-600/70 shrink-0 tabular-nums font-medium">{perfTotal - perfPending}/{perfTotal} concluídas</span>
-            </div>
-          </div>
-        </Link>
-      )}
+      {/* ═══════════════════════════════════════════════
+          ① HERO HEADER — PageHero canônico
+      ═══════════════════════════════════════════════ */}
+      <PageHero
+        icon={LayoutDashboard}
+        title={`Olá, ${firstName}`}
+        subtitle={`${format(today, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })} · Resumo do seu CRM no período selecionado`}
+      />
+
+      {/* Filtro de período — mantido logo ABAIXO do hero (fora do PageHero).
+          O DateRangePicker usa botões `outline`/`toggle-group` com fundo opaco; sobre o
+          fundo escuro do hero o contraste não é garantido em dark mode, e o componente é
+          compartilhado (fora do escopo deste arquivo). REVISÃO: mover para o slot `right`
+          do PageHero se/quando o contraste no escuro for resolvido. */}
+      <div className="flex justify-end">
+        <DateRangePicker date={dateRange} setDate={setDateRange} />
+      </div>
 
       {/* ═══════════════════════════════════════════════
-          ① HERO HEADER
+          FILTROS + KPIs / FUNIL (conteúdo abaixo do hero)
       ═══════════════════════════════════════════════ */}
       <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-        <div className="px-6 pt-6 pb-0 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-[12px] text-muted-foreground/60 mb-1 uppercase tracking-widest font-medium">
-              {format(today, "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
-            <h1 className="text-[26px] font-bold text-foreground font-display tracking-tight leading-tight">
-              Olá, {firstName}
-            </h1>
-            <p className="text-[13px] text-muted-foreground mt-1">
-              Aqui está o resumo do seu CRM no período selecionado
-            </p>
-          </div>
-          <DateRangePicker date={dateRange} setDate={setDateRange} />
-        </div>
         {/* Filtro de origem — centralizado */}
         <div className="flex justify-center px-6 py-4" data-tutorial="dashboard-period">
-          <div className="flex rounded-xl border border-border/60 bg-muted/30 p-1 gap-0.5">
+          <div className="flex bg-muted/40 rounded-xl p-1 gap-0.5">
             {([
               { key: 'geral',      label: 'Geral' },
               { key: 'marketing',  label: 'Marketing' },
@@ -521,7 +349,7 @@ export default function Dashboard() {
                             <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">{step.label}</span>
                           </div>
                           <div className="flex items-baseline gap-3">
-                            <span className="text-[32px] font-bold font-display text-foreground leading-none tracking-tight">{step.value}</span>
+                            <span className="text-[32px] font-bold font-display tabular-nums text-foreground leading-none tracking-tight">{step.value}</span>
                             {i < steps.length - 1 && (
                               <span className="text-xs font-semibold font-mono px-1.5 py-0.5 rounded-md" style={{ color: steps[i + 1].color, backgroundColor: steps[i + 1].color + '10' }}>
                                 {rates[i]}%
@@ -604,7 +432,7 @@ export default function Dashboard() {
                         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">{item.label}</span>
                       </div>
                       <div>
-                        <span className="text-[28px] font-bold font-display text-foreground leading-none tracking-tight">{item.value}</span>
+                        <span className="text-[28px] font-bold font-display tabular-nums text-foreground leading-none tracking-tight">{item.value}</span>
                         <p className="text-[10px] text-muted-foreground/50 mt-1">{item.sub}</p>
                       </div>
                     </div>
@@ -655,7 +483,7 @@ export default function Dashboard() {
                     <div className="h-2 w-2 rounded-full" style={{ backgroundColor: o.color }} />
                     <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{o.label}</span>
                   </div>
-                  <div className="text-[30px] font-bold font-display leading-none" style={{ color: o.color }}>{o.count}</div>
+                  <div className="text-[30px] font-bold font-display tabular-nums leading-none" style={{ color: o.color }}>{o.count}</div>
                   <div className="text-[10px] text-muted-foreground/50">{total > 0 ? ((o.count / total) * 100).toFixed(0) : 0}% do total</div>
                   <div className="w-full h-1 rounded-full bg-muted/40 overflow-hidden">
                     <div className="h-full rounded-full transition-all duration-500" style={{ width: `${total > 0 ? (o.count / total) * 100 : 0}%`, backgroundColor: o.color }} />
@@ -684,7 +512,7 @@ export default function Dashboard() {
                   <p className="text-xs text-muted-foreground">Defina metas para acompanhar seu progresso</p>
                 </div>
               </div>
-              <Button size="sm" variant="outline" onClick={() => navigate("/crm/metas")} className="shrink-0 gap-1.5 rounded-lg">
+              <Button size="sm" variant="outline" onClick={() => navigate("/crm/metas")} className="shrink-0 h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3">
                 Criar meta <ArrowRight className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -744,7 +572,7 @@ export default function Dashboard() {
                 <span className="text-[11px] font-medium text-muted-foreground">Receita no período</span>
                 <span className="text-[11px] font-bold font-mono" style={{ color: barColor(pctReceita) }}>{pctReceita}%</span>
               </div>
-              <div className="text-base font-bold font-display text-foreground">
+              <div className="text-base font-bold font-display tabular-nums text-foreground">
                 {fmtBRL(receitaPeriodo)} <span className="text-muted-foreground font-normal text-xs font-sans">/ {fmtBRL(metaPeriodo)}</span>
               </div>
               <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -786,7 +614,7 @@ export default function Dashboard() {
 
         return (
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-            <div className="lg:col-span-3 rounded-xl border border-border bg-card overflow-hidden">
+            <div className="lg:col-span-3 rounded-xl border border-border/60 bg-card overflow-hidden">
               <div className="px-5 pt-5 pb-4">
                 <h3 className="text-[15px] font-semibold font-display text-foreground">Qualidade dos Leads</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">{totalQualified} leads qualificados no período</p>
@@ -818,7 +646,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden">
+            <div className="lg:col-span-2 rounded-xl border border-border/60 bg-card overflow-hidden">
               <div className="px-5 pt-5 pb-4">
                 <h3 className="text-[15px] font-semibold font-display text-foreground">Eficiência de Aquisição</h3>
                 {aq.investment > 0 && (
@@ -841,7 +669,7 @@ export default function Dashboard() {
                         <span className="text-[11px] text-muted-foreground ml-1.5">{c.desc}</span>
                       </div>
                     </div>
-                    <span className="text-[15px] font-bold font-display text-foreground">{c.value}</span>
+                    <span className="text-[15px] font-bold font-display tabular-nums text-foreground">{c.value}</span>
                   </div>
                 ))}
               </div>
@@ -930,7 +758,7 @@ export default function Dashboard() {
                                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30" />
                                 {t.count > 0 && (
                                   <button
-                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold tabular-nums transition-colors bg-destructive/8 text-destructive/60 border border-destructive/15 hover:bg-destructive/15 hover:text-destructive/80 cursor-pointer"
+                                    className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold font-display tabular-nums transition-colors bg-destructive/8 text-destructive/60 border border-destructive/15 hover:bg-destructive/15 hover:text-destructive/80 cursor-pointer"
                                     title={t.title}
                                     onClick={() => openLeadsModal(t.title, t.lost.slice(0, t.count))}
                                   >
@@ -954,7 +782,7 @@ export default function Dashboard() {
                               </span>
                             </div>
                             <div>
-                              <div className="text-[26px] font-bold font-display text-foreground leading-none">{stage.count}</div>
+                              <div className="text-[26px] font-bold font-display tabular-nums text-foreground leading-none">{stage.count}</div>
                               <div className="text-[11px] text-muted-foreground mt-1 truncate">{stage.label}</div>
                             </div>
                             <div className="h-1 bg-border/30 rounded-full overflow-hidden mt-2.5">
@@ -1032,12 +860,12 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div>
-                      <div className="text-[28px] font-bold font-display text-foreground leading-none">
+                      <div className="text-[28px] font-bold font-display tabular-nums text-foreground leading-none">
                         {item.value}
                       </div>
                       <div className="text-[12px] font-medium text-foreground/70 mt-1.5">{item.label}</div>
                       <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-[15px] font-bold tabular-nums" style={{ color: item.color }}>{item.count}</span>
+                        <span className="text-[15px] font-bold font-display tabular-nums" style={{ color: item.color }}>{item.count}</span>
                         <span className="text-[11px] text-muted-foreground/50">de {item.total} {item.unitLabel}</span>
                       </div>
                     </div>
@@ -1237,7 +1065,7 @@ export default function Dashboard() {
                           </span>
                           <div>
                             <div
-                              className="text-[28px] font-bold font-display leading-none"
+                              className="text-[28px] font-bold font-display tabular-nums leading-none"
                               style={{ color: item.extra !== null ? barColor : 'hsl(var(--foreground))' }}
                             >
                               {item.value}
@@ -1320,7 +1148,7 @@ export default function Dashboard() {
                           {iaConversasLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
                         </div>
                         <div>
-                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaTotal}</div>
+                          <div className="text-[28px] font-bold font-display tabular-nums leading-none text-foreground">{iaTotal}</div>
                           <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Conversas com IA</div>
                           <div className="text-[10px] text-muted-foreground/50 mt-0.5">leads únicos atendidos no período</div>
                           {totalLeadsAtivos > 0 && (
@@ -1341,7 +1169,7 @@ export default function Dashboard() {
                           {iaTransferidoLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
                         </div>
                         <div>
-                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaTransferido}</div>
+                          <div className="text-[28px] font-bold font-display tabular-nums leading-none text-foreground">{iaTransferido}</div>
                           <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Transferidas pela IA</div>
                           <div className="text-[10px] text-muted-foreground/50 mt-0.5">handoff real — a IA finalizou e passou</div>
                         </div>
@@ -1357,7 +1185,7 @@ export default function Dashboard() {
                           {iaInterferiuLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
                         </div>
                         <div>
-                          <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaInterferiu}</div>
+                          <div className="text-[28px] font-bold font-display tabular-nums leading-none text-foreground">{iaInterferiu}</div>
                           <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Humano interferiu</div>
                           <div className="text-[10px] text-muted-foreground/50 mt-0.5">entrou no meio, sem a IA transferir</div>
                         </div>
@@ -1373,7 +1201,7 @@ export default function Dashboard() {
                           {iaPerdidosLista.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
                         </div>
                         <div>
-                          <div className="text-[28px] font-bold font-display leading-none" style={{ color: iaPerdidos > 0 ? '#ef4444' : 'hsl(var(--foreground))' }}>{iaPerdidos}</div>
+                          <div className="text-[28px] font-bold font-display tabular-nums leading-none" style={{ color: iaPerdidos > 0 ? '#ef4444' : 'hsl(var(--foreground))' }}>{iaPerdidos}</div>
                           <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Perdidos no Caminho</div>
                           <div className="text-[10px] text-muted-foreground/50 mt-0.5">só IA, sem atendimento humano</div>
                         </div>
@@ -1383,7 +1211,7 @@ export default function Dashboard() {
                           <Gauge className="h-4 w-4" style={{ color: taxaColor }} />
                         </span>
                         <div>
-                          <div className="text-[28px] font-bold font-display leading-none" style={{ color: taxaColor }}>{iaTaxa}%</div>
+                          <div className="text-[28px] font-bold font-display tabular-nums leading-none" style={{ color: taxaColor }}>{iaTaxa}%</div>
                           <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Taxa de Transferência</div>
                           <div className="text-[10px] text-muted-foreground/50 mt-0.5">conversas que a IA transferiu de fato</div>
                           <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
@@ -1424,7 +1252,7 @@ export default function Dashboard() {
                                 {iaFechadosList.length > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />}
                               </div>
                               <div>
-                                <div className="text-[28px] font-bold font-display leading-none text-foreground">{iaFechamentos}</div>
+                                <div className="text-[28px] font-bold font-display tabular-nums leading-none text-foreground">{iaFechamentos}</div>
                                 <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Fecharam via IA</div>
                                 <div className="text-[10px] text-muted-foreground/50 mt-0.5">leads que fecharam após interação com a IA</div>
                               </div>
@@ -1435,7 +1263,7 @@ export default function Dashboard() {
                                 <TrendingUp className="h-4 w-4" style={{ color: corConv }} />
                               </span>
                               <div>
-                                <div className="text-[28px] font-bold font-display leading-none" style={{ color: corConv }}>{iaTaxaConversaoIA}%</div>
+                                <div className="text-[28px] font-bold font-display tabular-nums leading-none" style={{ color: corConv }}>{iaTaxaConversaoIA}%</div>
                                 <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Conversão IA</div>
                                 <div className="text-[10px] text-muted-foreground/50 mt-0.5">dos leads com IA que viraram clientes</div>
                                 <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
@@ -1449,7 +1277,7 @@ export default function Dashboard() {
                                 <DollarSign className="h-4 w-4" style={{ color: '#8b5cf6' }} />
                               </span>
                               <div>
-                                <div className="text-[22px] font-bold font-display leading-none text-foreground">{fmtBRL(iaFaturamento)}</div>
+                                <div className="text-[22px] font-bold font-display tabular-nums leading-none text-foreground">{fmtBRL(iaFaturamento)}</div>
                                 <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Faturamento via IA</div>
                                 <div className="text-[10px] text-muted-foreground/50 mt-0.5">receita de fechamentos com interação da IA</div>
                               </div>
@@ -1460,7 +1288,7 @@ export default function Dashboard() {
                                 <PieChart className="h-4 w-4" style={{ color: corPct }} />
                               </span>
                               <div>
-                                <div className="text-[28px] font-bold font-display leading-none" style={{ color: corPct }}>{iaPctFaturamento}%</div>
+                                <div className="text-[28px] font-bold font-display tabular-nums leading-none" style={{ color: corPct }}>{iaPctFaturamento}%</div>
                                 <div className="text-[12px] font-medium text-foreground/70 mt-1.5">do Faturamento Total</div>
                                 <div className="text-[10px] text-muted-foreground/50 mt-0.5">receita que passou pela IA no período</div>
                                 <div className="h-1 bg-muted/40 rounded-full overflow-hidden mt-2.5">
@@ -1495,15 +1323,15 @@ export default function Dashboard() {
                         <div className="grid grid-cols-3 gap-px bg-border/30">
                           <div className="flex flex-col gap-1.5 px-5 py-4 bg-card">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Média</p>
-                            <div className="text-[22px] font-bold font-display leading-none" style={{ color: corTempo(ht.media) }}>{fmtMinutes(ht.media)}</div>
+                            <div className="text-[22px] font-bold font-display tabular-nums leading-none" style={{ color: corTempo(ht.media) }}>{fmtMinutes(ht.media)}</div>
                           </div>
                           <div className="flex flex-col gap-1.5 px-5 py-4 bg-card">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais rápido</p>
-                            <div className="text-[22px] font-bold font-display leading-none" style={{ color: '#10b981' }}>{fmtMinutes(ht.minimo)}</div>
+                            <div className="text-[22px] font-bold font-display tabular-nums leading-none" style={{ color: '#10b981' }}>{fmtMinutes(ht.minimo)}</div>
                           </div>
                           <div className="flex flex-col gap-1.5 px-5 py-4 bg-card">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Mais lento</p>
-                            <div className="text-[22px] font-bold font-display leading-none" style={{ color: corTempo(ht.maximo) }}>{fmtMinutes(ht.maximo)}</div>
+                            <div className="text-[22px] font-bold font-display tabular-nums leading-none" style={{ color: corTempo(ht.maximo) }}>{fmtMinutes(ht.maximo)}</div>
                           </div>
                         </div>
 
@@ -1526,8 +1354,8 @@ export default function Dashboard() {
                                       <div className="flex-1 h-5 bg-muted/30 rounded-full overflow-hidden">
                                         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.max((d.count / maxCount) * 100, d.count > 0 ? 4 : 0)}%`, backgroundColor: corTempo(i === 0 ? 0.5 : i === 1 ? 3 : i === 2 ? 10 : i === 3 ? 22 : i === 4 ? 45 : i === 5 ? 120 : i === 6 ? 360 : 720) }} />
                                       </div>
-                                      <div className="w-[32px] text-right text-[12px] font-bold font-mono tabular-nums text-foreground">{d.count}</div>
-                                      <div className="w-[36px] text-right text-[10px] text-muted-foreground/50 font-mono tabular-nums">{d.pct}%</div>
+                                      <div className="w-[32px] text-right text-[12px] font-bold font-display tabular-nums text-foreground">{d.count}</div>
+                                      <div className="w-[36px] text-right text-[10px] text-muted-foreground/50 font-display tabular-nums">{d.pct}%</div>
                                       {d.leads?.length > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors shrink-0" />}
                                     </div>
                                   ))}
@@ -1547,7 +1375,7 @@ export default function Dashboard() {
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
-                                          <div className="text-[13px] font-bold font-mono tabular-nums px-2 py-0.5 rounded-md" style={{ color: corTempo(d.minutos), backgroundColor: corTempo(d.minutos) + '10' }}>{fmtMinutes(d.minutos)}</div>
+                                          <div className="text-[13px] font-bold font-display tabular-nums px-2 py-0.5 rounded-md" style={{ color: corTempo(d.minutos), backgroundColor: corTempo(d.minutos) + '10' }}>{fmtMinutes(d.minutos)}</div>
                                           <ChevronRight className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors" />
                                         </div>
                                       </div>
@@ -1623,7 +1451,7 @@ export default function Dashboard() {
                         <Clock className="h-4 w-4" style={{ color: '#6366f1' }} />
                       </span>
                       <div>
-                        <div className="text-[28px] font-bold font-display leading-none">{fmtMinutes(h.tempoResposta)}</div>
+                        <div className="text-[28px] font-bold font-display tabular-nums leading-none">{fmtMinutes(h.tempoResposta)}</div>
                         <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Tempo de Primeira Resposta</div>
                         <div className="text-[10px] text-muted-foreground/50 mt-0.5">média — lead envia msg → humano responde</div>
                       </div>
@@ -1633,7 +1461,7 @@ export default function Dashboard() {
                         <Timer className="h-4 w-4" style={{ color: '#8b5cf6' }} />
                       </span>
                       <div>
-                        <div className="text-[28px] font-bold font-display leading-none">{fmtMinutes(h.duracaoAtendimento)}</div>
+                        <div className="text-[28px] font-bold font-display tabular-nums leading-none">{fmtMinutes(h.duracaoAtendimento)}</div>
                         <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Duração do Atendimento</div>
                         <div className="text-[10px] text-muted-foreground/50 mt-0.5">média — primeira à última mensagem</div>
                       </div>
@@ -1649,7 +1477,7 @@ export default function Dashboard() {
                         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
                       </div>
                       <div>
-                        <div className="text-[28px] font-bold font-display leading-none" style={{ color: (h.taxaSemResposta ?? 0) > 30 ? '#ef4444' : (h.taxaSemResposta ?? 0) > 10 ? '#f97316' : '#22c55e' }}>
+                        <div className="text-[28px] font-bold font-display tabular-nums leading-none" style={{ color: (h.taxaSemResposta ?? 0) > 30 ? '#ef4444' : (h.taxaSemResposta ?? 0) > 10 ? '#f97316' : '#22c55e' }}>
                           {(h.taxaSemResposta ?? 0).toFixed(1)}%
                         </div>
                         <div className="text-[12px] font-medium text-foreground/70 mt-1.5">Sem Resposta em 24h</div>
@@ -1715,7 +1543,7 @@ export default function Dashboard() {
                         <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">{label}</span>
                       </div>
                       <div>
-                        <span className="text-[28px] font-bold font-display text-foreground leading-none tracking-tight">{value}</span>
+                        <span className="text-[28px] font-bold font-display tabular-nums text-foreground leading-none tracking-tight">{value}</span>
                         <p className="text-[10px] text-muted-foreground/50 mt-1">{sub}</p>
                       </div>
                     </div>
@@ -1747,7 +1575,7 @@ export default function Dashboard() {
                                 }}
                               />
                             </div>
-                            <span className="text-[11px] font-semibold tabular-nums w-5 text-right">{bucket.count}</span>
+                            <span className="text-[11px] font-semibold font-display tabular-nums w-5 text-right">{bucket.count}</span>
                             <span className="text-[10px] text-muted-foreground/50 w-9 text-right">{bucket.count > 0 ? `${bucket.pct}%` : ''}</span>
                             {bucket.count > 0 ? (
                               <Button
@@ -1784,7 +1612,7 @@ export default function Dashboard() {
                                   style={{ width: `${(o.media / maxMedia) * 100}%` }}
                                 />
                               </div>
-                              <span className="text-[11px] font-semibold tabular-nums">{fmtDias(o.media)}</span>
+                              <span className="text-[11px] font-semibold font-display tabular-nums">{fmtDias(o.media)}</span>
                               <span className="text-[10px] text-muted-foreground/50 w-14 text-right">{o.count} venda{o.count !== 1 ? 's' : ''}</span>
                             </div>
                           ))}
@@ -1919,10 +1747,10 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[13px] font-semibold text-foreground truncate">{proc.name}</p>
                             <div className="flex items-center gap-3 shrink-0 ml-3">
-                              <span className="text-[11px] font-mono tabular-nums font-semibold text-foreground">
+                              <span className="text-[11px] font-display tabular-nums font-semibold text-foreground">
                                 {proc.count} venda{proc.count !== 1 ? 's' : ''}
                               </span>
-                              <span className="text-[11px] font-mono tabular-nums font-bold text-green-600">
+                              <span className="text-[11px] font-display tabular-nums font-bold text-green-600">
                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(proc.revenue)}
                               </span>
                             </div>
@@ -1940,7 +1768,7 @@ export default function Dashboard() {
                               <span className="text-[10px] text-muted-foreground/60">
                                 Ticket {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(proc.avgTicket)}
                               </span>
-                              <span className="text-[10px] font-mono tabular-nums text-muted-foreground/40">
+                              <span className="text-[10px] font-display tabular-nums text-muted-foreground/40">
                                 {proc.share}%
                               </span>
                             </div>
@@ -1965,7 +1793,7 @@ export default function Dashboard() {
         <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
 
           {/* Performance Comercial */}
-          <div data-tutorial="dashboard-performance" className="rounded-xl border border-border bg-card overflow-hidden lg:col-span-1">
+          <div data-tutorial="dashboard-performance" className="rounded-xl border border-border/60 bg-card overflow-hidden lg:col-span-1">
             <div className="px-5 pt-5 pb-4">
               <h3 className="text-[15px] font-semibold font-display text-foreground">Performance</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Taxas de conversão</p>
@@ -2001,7 +1829,7 @@ export default function Dashboard() {
                       </div>
                       <p className="text-[11px] text-muted-foreground">{item.sub}</p>
                     </div>
-                    <span className="text-lg font-bold font-display text-foreground shrink-0">{item.value}</span>
+                    <span className="text-lg font-bold font-display tabular-nums text-foreground shrink-0">{item.value}</span>
                   </div>
                 );
               })}
@@ -2010,7 +1838,7 @@ export default function Dashboard() {
           </div>
 
           {/* Gráfico Descompliquei */}
-          <div data-tutorial="dashboard-chart" className="rounded-xl border border-border bg-card overflow-hidden lg:col-span-2">
+          <div data-tutorial="dashboard-chart" className="rounded-xl border border-border/60 bg-card overflow-hidden lg:col-span-2">
             <div className="px-5 pt-5 pb-1">
               <h3 className="text-[15px] font-semibold font-display text-foreground">Evolução no Tempo</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Marketing — evolução diária</p>
@@ -2072,15 +1900,15 @@ export default function Dashboard() {
                 {/* Métricas resumo */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="rounded-xl border border-border/60 bg-card p-4 text-center">
-                    <div className="text-[26px] font-bold font-display leading-none" style={{ color: taxaColor }}>{taxa.toFixed(1)}%</div>
+                    <div className="text-[26px] font-bold font-display tabular-nums leading-none" style={{ color: taxaColor }}>{taxa.toFixed(1)}%</div>
                     <div className="text-[11px] text-muted-foreground mt-1.5">Taxa sem resposta</div>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-card p-4 text-center">
-                    <div className="text-[26px] font-bold font-display leading-none text-foreground">{semResp}</div>
+                    <div className="text-[26px] font-bold font-display tabular-nums leading-none text-foreground">{semResp}</div>
                     <div className="text-[11px] text-muted-foreground mt-1.5">Sem resposta</div>
                   </div>
                   <div className="rounded-xl border border-border/60 bg-card p-4 text-center">
-                    <div className="text-[26px] font-bold font-display leading-none text-foreground">{comResp}</div>
+                    <div className="text-[26px] font-bold font-display tabular-nums leading-none text-foreground">{comResp}</div>
                     <div className="text-[11px] text-muted-foreground mt-1.5">Com resposta</div>
                   </div>
                 </div>
@@ -2231,7 +2059,7 @@ export default function Dashboard() {
                         <div className="text-[10px] text-muted-foreground/50 mb-3">{periodoLabel(p.id)}</div>
                         {p.count > 0 ? (
                           <>
-                            <div className="text-[22px] font-bold font-display leading-none" style={{ color: barColor(p.avg) }}>
+                            <div className="text-[22px] font-bold font-display tabular-nums leading-none" style={{ color: barColor(p.avg) }}>
                               {fmtMinutes(p.avg)}
                             </div>
                             <div className="text-[10px] text-muted-foreground/60 mt-1">{p.count} amostra{p.count !== 1 ? 's' : ''}</div>
@@ -2336,7 +2164,7 @@ export default function Dashboard() {
                               <div className="text-[12px] font-semibold text-foreground">{d.label}</div>
                               <div className="text-[10px] text-muted-foreground/60">{d.count} amostra{d.count !== 1 ? 's' : ''}</div>
                             </div>
-                            <div className="text-[14px] font-bold font-display" style={{ color: '#22c55e' }}>{fmtMinutes(d.avg)}</div>
+                            <div className="text-[14px] font-bold font-display tabular-nums" style={{ color: '#22c55e' }}>{fmtMinutes(d.avg)}</div>
                           </div>
                         ))}
                       </div>
@@ -2357,7 +2185,7 @@ export default function Dashboard() {
                               <div className="text-[12px] font-semibold text-foreground">{d.label}</div>
                               <div className="text-[10px] text-muted-foreground/60">{d.count} amostra{d.count !== 1 ? 's' : ''}</div>
                             </div>
-                            <div className="text-[14px] font-bold font-display" style={{ color: barColor(d.avg) }}>{fmtMinutes(d.avg)}</div>
+                            <div className="text-[14px] font-bold font-display tabular-nums" style={{ color: barColor(d.avg) }}>{fmtMinutes(d.avg)}</div>
                           </div>
                         ))}
                       </div>

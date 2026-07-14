@@ -35,7 +35,7 @@ export default function Arsenal() {
   const { blocosComAulas, totalConcluidas: aulasConcluidas, totalAulas, isLoading: aulasLoading } = useArsenalAulasHub();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10">
+    <div className="max-w-[1400px] mx-auto space-y-10">
       {/* ─── Hero Header ─── */}
       <PageHero
         dataTutorial="arsenal-header"
@@ -71,7 +71,7 @@ export default function Arsenal() {
                     </div>
                   </div>
                   <div className="h-px flex-1 bg-border/40" />
-                  <span className="text-[11px] text-muted-foreground/50 font-mono tabular-nums flex-shrink-0">
+                  <span className="text-[11px] text-muted-foreground/50 font-display tabular-nums flex-shrink-0">
                     {bloco.concluidas}/{bloco.aulas.length} concluídas
                   </span>
                 </div>

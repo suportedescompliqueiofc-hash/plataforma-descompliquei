@@ -131,7 +131,7 @@ export default function ArsenalAula() {
   const embedUrl = aula.video_url ? toEmbedUrl(aula.video_url) : null;
 
   return (
-    <div className="max-w-6xl mx-auto pb-12">
+    <div className="max-w-[1400px] mx-auto pb-12">
 
       {/* ─── Breadcrumb ─── */}
       <nav className="flex items-center gap-1.5 text-[12px] text-muted-foreground mb-6 flex-wrap">

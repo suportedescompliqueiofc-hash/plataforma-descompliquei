@@ -51,7 +51,7 @@ function EstagioCard({ estagio, index }: { estagio: JornadaEstagio; index: numbe
           <h3 className="text-[14px] font-semibold leading-snug font-display text-foreground">{estagio.titulo}</h3>
           {estagio.descricao && <p className="text-[12px] text-muted-foreground/60 mt-0.5 line-clamp-2">{plainPreview(estagio.descricao)}</p>}
           <div className="flex items-center gap-3 text-[12px] text-muted-foreground/60 mt-1.5">
-            <span className="font-mono tabular-nums">{done}/{total} tarefas · {pct}%</span>
+            <span className="font-display tabular-nums">{done}/{total} tarefas · {pct}%</span>
           </div>
           <div className="mt-2 h-1.5 rounded-full bg-muted/50 overflow-hidden">
             <div className={cn('h-full rounded-full transition-all duration-500', isDone ? 'bg-emerald-500' : 'bg-foreground/70')} style={{ width: `${Math.max(pct, total > 0 ? 2 : 0)}%` }} />
@@ -93,7 +93,7 @@ export default function Jornada() {
   const estagios = jornada.jornada_estagios ?? [];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-[1400px] mx-auto space-y-6">
       {/* Hero */}
       <div data-tutorial="jornada-header" className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-8 py-10 sm:px-12 sm:py-12">
         <div className="absolute inset-0 opacity-[0.04]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
@@ -111,10 +111,10 @@ export default function Jornada() {
                 <circle cx="32" cy="32" r="28" fill="none" stroke="url(#jg)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(pct / 100) * 175.9} 175.9`} className="transition-all duration-700" />
                 <defs><linearGradient id="jg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor="#f59e0b" /><stop offset="100%" stopColor="#10b981" /></linearGradient></defs>
               </svg>
-              <div className="absolute inset-0 flex items-center justify-center"><span className="text-base font-bold text-white font-mono tabular-nums">{pct}%</span></div>
+              <div className="absolute inset-0 flex items-center justify-center"><span className="text-base font-bold text-white font-display tabular-nums">{pct}%</span></div>
             </div>
             <div>
-              <p className="text-2xl font-bold text-white font-mono tabular-nums leading-none">{done}<span className="text-white/30 text-base font-normal">/{total}</span></p>
+              <p className="text-2xl font-bold text-white font-display tabular-nums leading-none">{done}<span className="text-white/30 text-base font-normal">/{total}</span></p>
               <p className="text-[11px] text-white/30 uppercase tracking-wider mt-1">concluídas</p>
             </div>
           </div>

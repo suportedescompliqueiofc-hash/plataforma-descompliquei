@@ -25,13 +25,13 @@ function CountdownToNext({ targetDate }: { targetDate: Date }) {
   }, []);
 
   const diff = targetDate.getTime() - now;
-  if (diff <= 0) return <span className="font-mono tabular-nums">aguardando cron</span>;
+  if (diff <= 0) return <span className="font-display tabular-nums">aguardando cron</span>;
 
   const totalMin = Math.floor(diff / 60000);
   const h = Math.floor(totalMin / 60);
   const m = totalMin % 60;
-  if (h > 0) return <span className="font-mono tabular-nums">{h}h {m}min</span>;
-  return <span className="font-mono tabular-nums">{m}min</span>;
+  if (h > 0) return <span className="font-display tabular-nums">{h}h {m}min</span>;
+  return <span className="font-display tabular-nums">{m}min</span>;
 }
 
 export function FollowupStatusBar({
@@ -152,7 +152,7 @@ export function FollowupStatusBar({
       <div className="border-b border-amber-500/30 bg-amber-500/[0.04] px-4 py-1.5 flex items-center gap-2 flex-shrink-0">
         <CheckCircle2 className="h-3 w-3 text-amber-500 shrink-0" />
         <span className="text-[11px] font-semibold text-amber-600">
-          Follow-up concluído — {tentativas}/{totalTentativas} tentativas enviadas
+          Follow-up concluído — <span className="font-display tabular-nums">{tentativas}/{totalTentativas}</span> tentativas enviadas
         </span>
         <span className="text-[11px] text-muted-foreground/50 ml-auto">aguardando resposta do lead</span>
         <StopButton />
@@ -203,7 +203,7 @@ export function FollowupStatusBar({
       )}
 
       <span className={`text-[11px] font-semibold ${statusColor}`}>
-        Follow-up IA ativo — tentativa {nextTentativa}/{totalTentativas}
+        Follow-up IA ativo — tentativa <span className="font-display tabular-nums">{nextTentativa}/{totalTentativas}</span>
       </span>
 
       {lastLog && (

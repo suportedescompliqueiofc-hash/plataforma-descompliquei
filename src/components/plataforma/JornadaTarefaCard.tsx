@@ -49,7 +49,7 @@ export function TarefaCard({ passo, onToggle, onToggleSub, defaultOpen = false }
             <p className={cn('text-[13px] font-medium leading-snug', passo.concluido ? 'text-muted-foreground line-through' : 'text-foreground')}>{passo.titulo}</p>
             {passo.obrigatorio && <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-600">Obrigatório</span>}
             {passo.tipo === 'material' && <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-600"><Sparkles className="h-2.5 w-2.5" /> Material</span>}
-            {passo.jornada_subtarefas.length > 0 && <span className="text-[11px] text-muted-foreground/50 font-mono tabular-nums">{subsDone}/{passo.jornada_subtarefas.length}</span>}
+            {passo.jornada_subtarefas.length > 0 && <span className="text-[11px] text-muted-foreground/50 font-display tabular-nums">{subsDone}/{passo.jornada_subtarefas.length}</span>}
             {hasDetails && (open ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground/30 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground/30 ml-auto" />)}
           </button>
 

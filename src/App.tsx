@@ -296,8 +296,8 @@ const AppLayoutInner = ({ children }: { children: React.ReactNode }) => {
         />
       )}
       <main className={cn(
-        "flex-1 flex flex-col",
-        !chromeHidden && "pt-16 transition-all duration-300",
+        "flex-1 flex flex-col transition-all duration-300",
+        !chromeHidden && "pt-16",
         !chromeHidden && (isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64')
       )}>
         <div className={cn(

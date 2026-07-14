@@ -46,7 +46,7 @@ function CountdownTimer({ startedAt, totalSeconds }: { startedAt: string; totalS
     const iv = setInterval(update, 200);
     return () => clearInterval(iv);
   }, [startedAt, totalSeconds]);
-  return <span className="font-mono tabular-nums">{Math.ceil(remaining)}s</span>;
+  return <span className="font-display tabular-nums">{Math.ceil(remaining)}s</span>;
 }
 
 function ElapsedTimer({ startedAt }: { startedAt: string }) {
@@ -58,7 +58,7 @@ function ElapsedTimer({ startedAt }: { startedAt: string }) {
   }, [startedAt]);
   const s = Math.floor(elapsed / 1000);
   const ms = String(elapsed % 1000).padStart(3, "0");
-  return <span className="font-mono tabular-nums">{s}s {ms}ms</span>;
+  return <span className="font-display tabular-nums">{s}s {ms}ms</span>;
 }
 
 export function AiStatusBar({ leadId }: { leadId: string }) {

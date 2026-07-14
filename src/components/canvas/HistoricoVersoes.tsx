@@ -104,7 +104,7 @@ export function HistoricoVersoes({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-[380px] sm:w-[420px] flex flex-col">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
+            <SheetTitle className="flex items-center gap-2 font-display">
               <History className="h-5 w-5 text-primary" />
               Historico de Versoes
             </SheetTitle>
@@ -135,7 +135,7 @@ export function HistoricoVersoes({
                   return (
                     <div
                       key={versao.id}
-                      className="border rounded-lg p-3 hover:bg-muted/30 transition-colors"
+                      className="border border-border/60 rounded-lg p-3 hover:bg-muted/30 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -180,7 +180,7 @@ export function HistoricoVersoes({
       <AlertDialog open={!!confirmRestore} onOpenChange={() => setConfirmRestore(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Restaurar esta versão?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Restaurar esta versão?</AlertDialogTitle>
             <AlertDialogDescription>
               O estado atual do canvas será salvo automaticamente no histórico antes de restaurar.
               Você poderá voltar ao estado atual a qualquer momento.

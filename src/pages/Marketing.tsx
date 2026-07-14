@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Megaphone, Search, Users, Target, DollarSign, BarChart2, ArrowUpRight, Trophy, Upload, Facebook, Eye, MousePointerClick, Edit2, Trash2, Link as LinkIcon, Activity, PlusCircle, Calculator } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHero } from "@/components/PageHero";
 import { CreativeCard } from "@/components/marketing/CreativeCard";
 import { useMarketing, MetaMetrics, Criativo } from "@/hooks/useMarketing";
 import { useReports } from "@/hooks/useReports";
@@ -154,100 +153,133 @@ export default function Marketing() {
   };
 
   return (
-    <div className="space-y-6 md:space-y-8 pb-10">
-      {/* Header Responsivo */}
-      <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Marketing</h1>
-          <p className="text-sm md:text-base text-muted-foreground mt-1">Gerencie seus criativos e acompanhe resultados.</p>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex-1 min-w-0">
-            <DateRangePicker date={dateRange} setDate={setDateRange} className="w-full" />
-          </div>
-          <Button variant="outline" className="gap-2 h-10 shadow-sm" onClick={() => setIsSpendModalOpen(true)}>
-            <PlusCircle className="h-4 w-4" /> Registrar Gasto
+    <div className="max-w-[1400px] mx-auto space-y-6 md:space-y-8 pb-10">
+      {/* ═══ PAGE HEADER ═══ */}
+      <PageHero
+        icon={Megaphone}
+        title="Marketing"
+        subtitle="Gerencie seus criativos e acompanhe resultados."
+        right={
+          <Button
+            onClick={() => setIsSpendModalOpen(true)}
+            className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
+          >
+            <PlusCircle className="h-3.5 w-3.5" /> Registrar Gasto
           </Button>
+        }
+      />
+
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <DateRangePicker date={dateRange} setDate={setDateRange} className="w-full" />
         </div>
       </div>
 
       {/* KPI Cards Principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <Card className="bg-primary/5 border-primary/20 shadow-sm">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Investimento Total</p>
-              <h3 className="text-2xl font-bold text-primary truncate">{formatMoney(totalInvestment)}</h3>
-              <p className="text-[10px] text-muted-foreground mt-1 truncate">
-                Ads: {formatMoney(metaSpend)} + Manual: {formatMoney(manualSpend)}
-              </p>
-            </div>
-            <DollarSign className="h-8 w-8 text-primary opacity-30 flex-shrink-0" />
-          </CardContent>
-        </Card>
-        
-        <Card className="shadow-sm">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Vendas (Período)</p>
-              <h3 className="text-2xl font-bold truncate">{totalSales}</h3>
-              <p className="text-[10px] text-muted-foreground mt-1">Base para cálculo do CAC</p>
-            </div>
-            <Target className="h-8 w-8 text-muted-foreground opacity-30 flex-shrink-0" />
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-5 flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Investimento Total</p>
+            <h3 className="text-2xl font-bold font-display text-foreground truncate tabular-nums">{formatMoney(totalInvestment)}</h3>
+            <p className="text-[10px] text-muted-foreground mt-1 truncate">
+              Ads: {formatMoney(metaSpend)} + Manual: {formatMoney(manualSpend)}
+            </p>
+          </div>
+          <DollarSign className="h-8 w-8 text-primary opacity-30 flex-shrink-0" />
+        </div>
 
-        <Card className={cn("shadow-sm sm:col-span-2 lg:col-span-1", cac > 0 ? "border-green-200 bg-green-50/50" : "")}>
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">CAC Global</p>
-              <h3 className="text-2xl font-bold text-green-700 truncate">{formatMoney(cac)}</h3>
-              <p className="text-[10px] text-muted-foreground mt-1">Custo de Aquisição de Cliente</p>
-            </div>
-            <Calculator className="h-8 w-8 text-green-600 opacity-30 flex-shrink-0" />
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-5 flex items-center justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Vendas (Período)</p>
+            <h3 className="text-2xl font-bold font-display truncate tabular-nums">{totalSales}</h3>
+            <p className="text-[10px] text-muted-foreground mt-1">Base para cálculo do CAC</p>
+          </div>
+          <Target className="h-8 w-8 text-muted-foreground opacity-30 flex-shrink-0" />
+        </div>
+
+        <div className={cn("rounded-2xl border shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-5 flex items-center justify-between sm:col-span-2 lg:col-span-1", cac > 0 ? "border-green-200 bg-green-50/50" : "border-border/60 bg-card")}>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">CAC Global</p>
+            <h3 className="text-2xl font-bold font-display text-green-700 truncate tabular-nums">{formatMoney(cac)}</h3>
+            <p className="text-[10px] text-muted-foreground mt-1">Custo de Aquisição de Cliente</p>
+          </div>
+          <Calculator className="h-8 w-8 text-green-600 opacity-30 flex-shrink-0" />
+        </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <div className="space-y-6">
         {/* Barra de Abas e Busca Adaptável */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="overflow-x-auto pb-1 scrollbar-none">
-            <TabsList className="inline-flex w-full sm:w-auto bg-muted/50 p-1 rounded-lg">
-              <TabsTrigger value="meta" className="gap-2 text-xs sm:text-sm"><Facebook className="h-4 w-4" /> Meta Ads</TabsTrigger>
-              <TabsTrigger value="creatives" className="gap-2 text-xs sm:text-sm"><Megaphone className="h-4 w-4" /> Criativos</TabsTrigger>
-              <TabsTrigger value="reports" className="gap-2 text-xs sm:text-sm"><BarChart2 className="h-4 w-4" /> Relatórios</TabsTrigger>
-            </TabsList>
+            <div className="inline-flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit">
+              <button
+                type="button"
+                onClick={() => setActiveTab("meta")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  activeTab === "meta" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Facebook className="h-3.5 w-3.5" /> Meta Ads
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("creatives")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  activeTab === "creatives" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <Megaphone className="h-3.5 w-3.5" /> Criativos
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("reports")}
+                className={cn(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200",
+                  activeTab === "reports" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <BarChart2 className="h-3.5 w-3.5" /> Relatórios
+              </button>
+            </div>
           </div>
-          
+
           {activeTab === 'creatives' && (
             <div className="relative w-full lg:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar criativo..." 
-                className="pl-10 h-10 shadow-sm" 
-                value={searchTerm} 
-                onChange={(e) => setSearchTerm(e.target.value)} 
+              <Input
+                placeholder="Buscar criativo..."
+                className="pl-10 h-10 rounded-lg border-border/60"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           )}
         </div>
 
         {/* ABA: CAMPANHAS META (IMPORTADAS) */}
-        <TabsContent value="meta" className="space-y-6 outline-none">
+        {activeTab === "meta" && (
+        <div className="space-y-6">
           <div className="flex justify-end">
-            <Button variant="default" className="gap-2 bg-[#1877F2] hover:bg-[#1877F2]/90 text-white w-full sm:w-auto h-10 shadow-sm" onClick={() => setIsImportModalOpen(true)}>
-              <Upload className="h-4 w-4" /> Importar CSV Meta
+            <Button className="gap-2 h-9 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 w-full sm:w-auto px-5" onClick={() => setIsImportModalOpen(true)}>
+              <Upload className="h-3.5 w-3.5" /> Importar CSV Meta
             </Button>
           </div>
 
-          <Card className="border-none shadow-none sm:border sm:shadow-sm">
-            <CardHeader className="hidden sm:block">
-              <CardTitle>Performance de Anúncios (Meta Ads)</CardTitle>
-              <CardDescription>Métricas importadas do Gerenciador de Anúncios.</CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 sm:p-6">
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <div className="hidden sm:block px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-muted">
+                  <Facebook className="h-3.5 w-3.5 text-muted-foreground" />
+                </span>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Performance de Anúncios (Meta Ads)</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">Métricas importadas do Gerenciador de Anúncios.</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-0 sm:p-6">
               {isLoadingCreatives ? (
                 <div className="space-y-4 px-4 sm:px-0">
                   <Skeleton className="h-24 w-full rounded-lg" />
@@ -255,14 +287,14 @@ export default function Marketing() {
                 </div>
               ) : campanhasMeta.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                  <div className="bg-blue-50 p-4 rounded-full mb-4">
-                    <Facebook className="h-8 w-8 text-blue-500" />
+                  <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                    <Facebook className="h-6 w-6 text-muted-foreground/40" />
                   </div>
-                  <h3 className="text-lg font-semibold mb-1">Nenhuma campanha importada</h3>
-                  <p className="text-sm text-muted-foreground max-w-xs mb-6">
+                  <p className="text-sm font-medium text-muted-foreground">Nenhuma campanha importada</p>
+                  <p className="text-[11px] text-muted-foreground/50 mt-0.5 max-w-xs mb-6">
                     Faça o upload do CSV do Gerenciador para ver os custos e resultados por criativo.
                   </p>
-                  <Button variant="outline" onClick={() => setIsImportModalOpen(true)}>Importar Agora</Button>
+                  <Button variant="outline" className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3" onClick={() => setIsImportModalOpen(true)}>Importar Agora</Button>
                 </div>
               ) : (
                 <>
@@ -273,10 +305,10 @@ export default function Marketing() {
                       const isIncluded = m.included_in_dashboard;
                       
                       return (
-                        <div key={campanha.id} className="p-4 border rounded-xl bg-card shadow-sm space-y-4 hover:border-primary/30 transition-colors">
+                        <div key={campanha.id} className="p-4 border border-border/60 rounded-xl bg-card shadow-sm space-y-4 hover:border-primary/30 transition-colors">
                           <div className="flex justify-between items-start gap-3">
                             <div className="min-w-0">
-                              <h4 className="font-bold text-foreground truncate">{campanha.nome}</h4>
+                              <h4 className="font-bold text-foreground truncate font-display">{campanha.nome}</h4>
                               <p className="text-[10px] text-muted-foreground truncate italic">{campanha.titulo || '-'}</p>
                               {campanha.url_thumbnail && (
                                 <Badge variant="secondary" className="mt-2 bg-blue-50 text-blue-700 hover:bg-blue-100 text-[9px] h-5">
@@ -300,19 +332,19 @@ export default function Marketing() {
                           <div className="grid grid-cols-2 gap-3 pt-1 border-t border-dashed">
                             <div className="bg-muted/30 p-2 rounded-lg text-center">
                               <span className="text-[9px] uppercase font-bold text-muted-foreground block mb-0.5">Gasto</span>
-                              <span className="text-sm font-bold text-foreground">{formatMoney(m.spend)}</span>
+                              <span className="text-sm font-bold text-foreground font-display tabular-nums">{formatMoney(m.spend)}</span>
                             </div>
                             <div className="bg-muted/30 p-2 rounded-lg text-center">
                               <span className="text-[9px] uppercase font-bold text-muted-foreground block mb-0.5">Resultados</span>
-                              <span className="text-sm font-bold text-primary">{m.results}</span>
+                              <span className="text-sm font-bold text-primary font-display tabular-nums">{m.results}</span>
                             </div>
                             <div className="bg-muted/30 p-2 rounded-lg text-center">
                               <span className="text-[9px] uppercase font-bold text-muted-foreground block mb-0.5">Custo/Res</span>
-                              <span className="text-sm font-bold text-amber-700">{formatMoney(m.cost_per_result)}</span>
+                              <span className="text-sm font-bold text-amber-700 font-display tabular-nums">{formatMoney(m.cost_per_result)}</span>
                             </div>
                             <div className="bg-muted/30 p-2 rounded-lg text-center">
                               <span className="text-[9px] uppercase font-bold text-muted-foreground block mb-0.5">CTR</span>
-                              <span className="text-sm font-bold text-green-600">{m.ctr.toFixed(2)}%</span>
+                              <span className="text-sm font-bold text-green-600 font-display tabular-nums">{m.ctr.toFixed(2)}%</span>
                             </div>
                           </div>
 
@@ -330,7 +362,7 @@ export default function Marketing() {
                   </div>
 
                   {/* Visualização Desktop: Tabela */}
-                  <div className="hidden md:block rounded-md border overflow-hidden mb-8">
+                  <div className="hidden md:block rounded-xl border border-border/60 overflow-hidden mb-8">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -367,10 +399,10 @@ export default function Marketing() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-center text-xs text-muted-foreground">{formatDateDisplay(m.reporting_end)}</TableCell>
-                              <TableCell className="text-right font-medium">{formatMoney(m.spend)}</TableCell>
-                              <TableCell className="text-right"><Badge variant="secondary" className="font-bold">{m.results}</Badge></TableCell>
-                              <TableCell className="text-right text-amber-700 font-medium">{formatMoney(m.cost_per_result)}</TableCell>
-                              <TableCell className="text-right text-xs font-medium">{m.ctr.toFixed(2)}%</TableCell>
+                              <TableCell className="text-right font-medium font-display tabular-nums">{formatMoney(m.spend)}</TableCell>
+                              <TableCell className="text-right"><Badge variant="secondary" className="font-bold font-display tabular-nums">{m.results}</Badge></TableCell>
+                              <TableCell className="text-right text-amber-700 font-medium font-display tabular-nums">{formatMoney(m.cost_per_result)}</TableCell>
+                              <TableCell className="text-right text-xs font-medium font-display tabular-nums">{m.ctr.toFixed(2)}%</TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => handleAssociateClick(campanha)}><LinkIcon className="h-4 w-4" /></Button>
@@ -387,39 +419,43 @@ export default function Marketing() {
 
                   {/* Cards de Resumo Acumulado (Meta) */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-4 sm:px-0">
-                    <div className="p-4 bg-muted/20 border rounded-xl">
+                    <div className="p-4 bg-muted/20 border border-border/60 rounded-xl">
                       <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest block mb-1">Gasto Acumulado</span>
-                      <div className="text-xl font-bold">{formatMoney(metaSpendDisplay)}</div>
+                      <div className="text-xl font-bold font-display tabular-nums">{formatMoney(metaSpendDisplay)}</div>
                     </div>
-                    <div className="p-4 bg-muted/20 border rounded-xl">
+                    <div className="p-4 bg-muted/20 border border-border/60 rounded-xl">
                       <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest block mb-1">Resultados Totais</span>
-                      <div className="text-xl font-bold">{totalResults}</div>
+                      <div className="text-xl font-bold font-display tabular-nums">{totalResults}</div>
                     </div>
-                    <div className="p-4 bg-muted/20 border rounded-xl">
+                    <div className="p-4 bg-muted/20 border border-border/60 rounded-xl">
                       <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest block mb-1">Custo Médio / Res</span>
-                      <div className="text-xl font-bold text-amber-600">{formatMoney(avgCostPerResult)}</div>
+                      <div className="text-xl font-bold font-display text-amber-600 tabular-nums">{formatMoney(avgCostPerResult)}</div>
                     </div>
-                    <div className="p-4 bg-muted/20 border rounded-xl">
+                    <div className="p-4 bg-muted/20 border border-border/60 rounded-xl">
                       <span className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest block mb-1">CTR Médio</span>
-                      <div className="text-xl font-bold text-green-600">{avgCTR.toFixed(2)}%</div>
+                      <div className="text-xl font-bold font-display text-green-600 tabular-nums">{avgCTR.toFixed(2)}%</div>
                     </div>
                   </div>
                 </>
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+            </div>
+          </div>
+        </div>
+        )}
 
-        <TabsContent value="creatives" className="outline-none">
+        {activeTab === "creatives" && (
+        <div>
           {isLoadingCreatives ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 px-4 sm:px-0">
               {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-80 w-full rounded-xl" />)}
             </div>
           ) : criativosFiltrados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-              <Megaphone className="h-16 w-16 text-muted-foreground mb-4 opacity-30" />
-              <h3 className="text-lg font-semibold">Nenhum criativo manual</h3>
-              <p className="text-sm text-muted-foreground">Cadastre criativos para usar em campanhas de WhatsApp.</p>
+              <div className="p-3 rounded-xl bg-muted/40 mb-3">
+                <Megaphone className="h-6 w-6 text-muted-foreground/40" />
+              </div>
+              <p className="text-sm font-medium text-muted-foreground">Nenhum criativo manual</p>
+              <p className="text-[11px] text-muted-foreground/50 mt-0.5">Cadastre criativos para usar em campanhas de WhatsApp.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 px-4 sm:px-0">
@@ -428,29 +464,36 @@ export default function Marketing() {
               ))}
             </div>
           )}
-        </TabsContent>
+        </div>
+        )}
 
-        <TabsContent value="reports" className="space-y-6 outline-none px-4 sm:px-0">
+        {activeTab === "reports" && (
+        <div className="space-y-6 px-4 sm:px-0">
           {isLoadingReports ? (
              <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>
           ) : (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="shadow-sm">
-                  <CardHeader className="p-4 pb-2"><CardDescription className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><Users className="h-3.5 w-3.5" /> Volume Leads</CardDescription><CardTitle className="text-2xl font-bold">{reports?.marketing?.kpis?.totalMarketingLeads ?? 0}</CardTitle></CardHeader>
-                </Card>
-                <Card className="shadow-sm">
-                  <CardHeader className="p-4 pb-2"><CardDescription className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><Trophy className="h-3.5 w-3.5" /> Melhor Criativo</CardDescription><CardTitle className="text-lg font-bold truncate">{reports?.marketing?.kpis?.bestCreative?.criativo || 'N/A'}</CardTitle></CardHeader>
-                </Card>
-                <Card className="shadow-sm">
-                  <CardHeader className="p-4 pb-2"><CardDescription className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><DollarSign className="h-3.5 w-3.5" /> Maior Receita</CardDescription><CardTitle className="text-lg font-bold truncate">{reports?.marketing?.kpis?.bestSource?.name || 'N/A'}</CardTitle></CardHeader>
-                </Card>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-2"><Users className="h-3.5 w-3.5" /> Volume Leads</p>
+                  <p className="text-2xl font-bold font-display tabular-nums">{reports?.marketing?.kpis?.totalMarketingLeads ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-2"><Trophy className="h-3.5 w-3.5" /> Melhor Criativo</p>
+                  <p className="text-lg font-bold truncate font-display">{reports?.marketing?.kpis?.bestCreative?.criativo || 'N/A'}</p>
+                </div>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2 mb-2"><DollarSign className="h-3.5 w-3.5" /> Maior Receita</p>
+                  <p className="text-lg font-bold truncate font-display">{reports?.marketing?.kpis?.bestSource?.name || 'N/A'}</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card className="shadow-sm">
-                  <CardHeader><CardTitle className="text-base">Leads vs Vendas por Criativo</CardTitle></CardHeader>
-                  <CardContent className="h-[300px] p-2">
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Leads vs Vendas por Criativo</p>
+                  </div>
+                  <div className="h-[300px] p-2">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={reports?.marketing?.charts?.leadsVsConversionsByCreative || []} margin={{ left: -20, right: 10 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
@@ -462,21 +505,23 @@ export default function Marketing() {
                         <Bar dataKey="Conversões" fill="#10b981" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
 
-                <Card className="shadow-sm">
-                  <CardHeader><CardTitle className="text-base">Distribuição de Receita</CardTitle></CardHeader>
-                  <CardContent className="h-[300px] p-2">
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Distribuição de Receita</p>
+                  </div>
+                  <div className="h-[300px] p-2">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie 
-                          data={reports?.marketing?.charts?.revenueBySourceData || []} 
-                          dataKey="value" 
-                          nameKey="name" 
-                          cx="50%" 
-                          cy="50%" 
-                          outerRadius={80} 
+                        <Pie
+                          data={reports?.marketing?.charts?.revenueBySourceData || []}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
                         >
                           {(reports?.marketing?.charts?.revenueBySourceData || []).map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                         </Pie>
@@ -484,13 +529,14 @@ export default function Marketing() {
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '10px' }} />
                       </PieChart>
                     </ResponsiveContainer>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </div>
             </>
           )}
-        </TabsContent>
-      </Tabs>
+        </div>
+        )}
+      </div>
 
       <MetaImportModal open={isImportModalOpen} onOpenChange={setIsImportModalOpen} criativos={criativos || []} onImport={handleMetricsImport} />
       <MarketingSpendModal open={isSpendModalOpen} onOpenChange={setIsSpendModalOpen} onSave={adicionarInvestimentoManual} />
@@ -505,7 +551,7 @@ export default function Marketing() {
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent className="w-[90vw] max-w-md rounded-2xl">
-          <AlertDialogHeader><AlertDialogTitle>Excluir campanha?</AlertDialogTitle><AlertDialogDescription>Esta ação removerá a campanha da lista. Os leads vinculados manterão seu histórico.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle className="font-display">Excluir campanha?</AlertDialogTitle><AlertDialogDescription>Esta ação removerá a campanha da lista. Os leads vinculados manterão seu histórico.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0"><AlertDialogCancel className="rounded-xl">Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive rounded-xl">Excluir</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

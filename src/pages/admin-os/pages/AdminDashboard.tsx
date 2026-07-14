@@ -434,7 +434,7 @@ export default function AdminDashboard() {
               ].map(item => (
                 <div key={item.label} className="flex justify-between items-center">
                   <span className="text-xs text-muted-foreground">{item.label}</span>
-                  <span className={cn('text-xs font-bold tabular-nums font-mono', item.valueClass)}>{item.value}</span>
+                  <span className={cn('text-xs font-bold tabular-nums font-display', item.valueClass)}>{item.value}</span>
                 </div>
               ))}
             </div>

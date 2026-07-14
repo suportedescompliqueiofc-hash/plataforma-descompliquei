@@ -11,7 +11,6 @@ import {
   Loader2, Plus, X, ImagePlay, Eye,
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +33,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
+import { PageHero } from "@/components/PageHero";
 
 // ── Status config ──────────────────────────────────────────────
 
@@ -368,7 +368,7 @@ export default function CriativosBiblioteca() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-full overflow-hidden">
+      <div className="max-w-[1400px] mx-auto space-y-6 overflow-hidden">
         <Skeleton className="h-9 w-64" />
         <Skeleton className="h-10 w-full max-w-md" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -381,67 +381,64 @@ export default function CriativosBiblioteca() {
   }
 
   return (
-    <div className="space-y-6 max-w-full overflow-hidden">
+    <div className="max-w-[1400px] mx-auto space-y-6 overflow-hidden">
 
       {/* ── Header ── */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-              Biblioteca de Criativos
-            </h1>
+        <PageHero
+          icon={FolderOpen}
+          title="Biblioteca de Criativos"
+          subtitle="Organize campanhas e criativos por pasta."
+          right={
+            <div className="flex items-center gap-2 flex-wrap">
+              {pastaAtualId && (
+                <Button
+                  className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
+                  onClick={() => {
+                    const parentId = breadcrumb.length > 1 ? breadcrumb[breadcrumb.length - 2].id : null;
+                    navigate(parentId ? `/crm/criativos/${parentId}` : "/crm/criativos");
+                  }}
+                >
+                  <ArrowUp className="h-3.5 w-3.5" /> Pasta anterior
+                </Button>
+              )}
+              <Button className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4" onClick={abrirCriar}>
+                <FolderPlus className="h-3.5 w-3.5" /> Nova Pasta
+              </Button>
+              <Button className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4" onClick={() => navigate(pastaAtualId ? `/crm/criativos/${pastaAtualId}` : "/crm/criativos")}>
+                <Upload className="h-3.5 w-3.5" /> Upload
+              </Button>
+            </div>
+          }
+        />
 
-            {/* Breadcrumb */}
-            <nav className="flex items-center gap-1.5 mt-2 text-sm text-muted-foreground">
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <button
+            onClick={() => navigate("/crm/criativos")}
+            className={cn(
+              "flex items-center gap-1 hover:text-foreground transition-colors",
+              !pastaAtualId && "text-foreground font-medium"
+            )}
+          >
+            <Home className="h-3.5 w-3.5" />
+            <span>Biblioteca</span>
+          </button>
+          {breadcrumb.map((crumb) => (
+            <span key={crumb.id} className="flex items-center gap-1.5">
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
               <button
-                onClick={() => navigate("/crm/criativos")}
+                onClick={() => navigate(crumb.id === pastaAtualId ? "#" : `/crm/criativos/${crumb.id}`)}
                 className={cn(
-                  "flex items-center gap-1 hover:text-foreground transition-colors",
-                  !pastaAtualId && "text-foreground font-medium"
+                  "hover:text-foreground transition-colors",
+                  crumb.id === pastaAtualId && "text-foreground font-medium"
                 )}
               >
-                <Home className="h-3.5 w-3.5" />
-                <span>Biblioteca</span>
+                {crumb.nome}
               </button>
-              {breadcrumb.map((crumb) => (
-                <span key={crumb.id} className="flex items-center gap-1.5">
-                  <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-                  <button
-                    onClick={() => navigate(crumb.id === pastaAtualId ? "#" : `/crm/criativos/${crumb.id}`)}
-                    className={cn(
-                      "hover:text-foreground transition-colors",
-                      crumb.id === pastaAtualId && "text-foreground font-medium"
-                    )}
-                  >
-                    {crumb.nome}
-                  </button>
-                </span>
-              ))}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            {pastaAtualId && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={() => {
-                  const parentId = breadcrumb.length > 1 ? breadcrumb[breadcrumb.length - 2].id : null;
-                  navigate(parentId ? `/crm/criativos/${parentId}` : "/crm/criativos");
-                }}
-              >
-                <ArrowUp className="h-3.5 w-3.5" /> Pasta anterior
-              </Button>
-            )}
-            <Button size="sm" className="gap-1.5 text-xs shadow-sm" onClick={abrirCriar}>
-              <FolderPlus className="h-3.5 w-3.5" /> Nova Pasta
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => navigate(pastaAtualId ? `/crm/criativos/${pastaAtualId}` : "/crm/criativos")}>
-              <Upload className="h-3.5 w-3.5" /> Upload
-            </Button>
-          </div>
-        </div>
+            </span>
+          ))}
+        </nav>
 
         {/* Search + Filters bar */}
         <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
@@ -466,20 +463,20 @@ export default function CriativosBiblioteca() {
             <Button
               variant="outline"
               size="sm"
-              className={cn("gap-1.5 text-xs h-9", showFilters && "bg-primary text-primary-foreground")}
+              className={cn("gap-1.5 text-xs h-9 rounded-lg border-border/60", showFilters && "bg-foreground text-background hover:bg-foreground/90")}
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter className="h-3.5 w-3.5" /> Filtros
             </Button>
 
-            <div className="flex rounded-lg border border-border bg-muted/50 p-0.5 gap-0.5">
+            <div className="flex rounded-xl border border-border/60 bg-muted/40 p-1 gap-0.5">
               <button
                 onClick={() => setViewMode("grid")}
                 className={cn(
-                  "p-1.5 rounded-md transition-all",
+                  "p-1.5 rounded-lg transition-all",
                   viewMode === "grid"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background"
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <LayoutGrid className="h-4 w-4" />
@@ -487,10 +484,10 @@ export default function CriativosBiblioteca() {
               <button
                 onClick={() => setViewMode("lista")}
                 className={cn(
-                  "p-1.5 rounded-md transition-all",
+                  "p-1.5 rounded-lg transition-all",
                   viewMode === "lista"
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background"
+                    ? "bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
               >
                 <List className="h-4 w-4" />
@@ -548,24 +545,24 @@ export default function CriativosBiblioteca() {
 
       {/* ── Empty state ── */}
       {pastasFiltradas.length === 0 && (
-        <Card className="rounded-2xl shadow-sm border-border/60">
-          <CardContent className="py-16 text-center">
-            <FolderOpen className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-2">
-              {busca || filtroStatus !== "todos" ? "Nenhuma pasta encontrada" : "Nenhuma pasta criada"}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {busca || filtroStatus !== "todos"
-                ? "Tente ajustar os filtros de busca"
-                : "Crie sua primeira pasta para organizar os criativos"}
-            </p>
-            {!busca && filtroStatus === "todos" && (
-              <Button onClick={abrirCriar} className="gap-1.5">
-                <FolderPlus className="h-4 w-4" /> Nova Pasta
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden py-16 text-center">
+          <div className="p-3 rounded-xl bg-muted/40 mx-auto mb-3 w-fit">
+            <FolderOpen className="h-6 w-6 text-muted-foreground/40" />
+          </div>
+          <p className="text-sm font-medium text-muted-foreground">
+            {busca || filtroStatus !== "todos" ? "Nenhuma pasta encontrada" : "Nenhuma pasta criada"}
+          </p>
+          <p className="text-[11px] text-muted-foreground/50 mt-0.5 mb-4">
+            {busca || filtroStatus !== "todos"
+              ? "Tente ajustar os filtros de busca"
+              : "Crie sua primeira pasta para organizar os criativos"}
+          </p>
+          {!busca && filtroStatus === "todos" && (
+            <Button onClick={abrirCriar} className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-foreground text-background hover:bg-foreground/90 px-5">
+              <FolderPlus className="h-3.5 w-3.5" /> Nova Pasta
+            </Button>
+          )}
+        </div>
       )}
 
       {/* ── Grid view ── */}
@@ -574,9 +571,9 @@ export default function CriativosBiblioteca() {
           {pastasFiltradas.map((pasta) => {
             const contagem = getContagem(pasta.id);
             return (
-              <Card
+              <div
                 key={pasta.id}
-                className="group overflow-hidden shadow-sm rounded-xl border-border/60 hover:shadow-md hover:border-border transition-all duration-200 cursor-pointer relative"
+                className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md hover:border-border transition-all duration-200 cursor-pointer relative"
                 onClick={() => navigate(`/crm/criativos/${pasta.id}`)}
               >
                 {/* Top color bar */}
@@ -588,14 +585,14 @@ export default function CriativosBiblioteca() {
                   </div>
                 )}
 
-                <CardContent className="p-4 space-y-3">
+                <div className="p-4 space-y-3">
                   {/* Folder icon + name */}
                   <div className="flex items-start gap-3">
                     <div className="rounded-lg p-2 bg-muted/50 shrink-0" style={{ color: pasta.cor }}>
                       <FolderOpen className="h-6 w-6" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground text-sm truncate leading-tight">{pasta.nome}</h3>
+                      <h3 className="font-semibold text-foreground text-sm truncate leading-tight font-display">{pasta.nome}</h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {contagem.total} {contagem.total === 1 ? "criativo" : "criativos"}
                         {contagem.ativos > 0 && ` · ${contagem.ativos} ${contagem.ativos === 1 ? "ativo" : "ativos"}`}
@@ -637,8 +634,8 @@ export default function CriativosBiblioteca() {
                       <Trash2 className="h-3 w-3" /> Excluir
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -646,11 +643,11 @@ export default function CriativosBiblioteca() {
 
       {/* ── List view ── */}
       {viewMode === "lista" && pastasFiltradas.length > 0 && (
-        <Card className="rounded-xl shadow-sm border-border/60 overflow-hidden">
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-border bg-muted/30">
+                <tr className="border-b border-border/60 bg-muted/30">
                   <th className="text-left px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Nome</th>
                   <th className="text-center px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Criativos</th>
                   <th className="text-center px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Status</th>
@@ -719,14 +716,14 @@ export default function CriativosBiblioteca() {
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
       )}
 
       {/* ── Modal Criar/Editar Pasta ── */}
       <Dialog open={modalPasta} onOpenChange={(o) => !o && fecharModal()}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingPasta ? "Editar Pasta" : "Nova Pasta"}</DialogTitle>
+            <DialogTitle className="font-display">{editingPasta ? "Editar Pasta" : "Nova Pasta"}</DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
@@ -836,7 +833,7 @@ export default function CriativosBiblioteca() {
       <AlertDialog open={!!deletingPasta} onOpenChange={(o) => !o && setDeletingPasta(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir pasta "{deletingPasta?.nome}"?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Excluir pasta "{deletingPasta?.nome}"?</AlertDialogTitle>
             <AlertDialogDescription>
               Todos os criativos e subpastas dentro desta pasta também serão excluídos. Esta ação não pode ser desfeita.
             </AlertDialogDescription>

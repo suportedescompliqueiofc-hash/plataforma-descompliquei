@@ -124,20 +124,22 @@ export function DateRangePicker({ className, date, setDate, hideQuickSelect = fa
             id="date"
             variant={"outline"}
             className={cn(
-              "w-full justify-start text-left font-normal",
+              "w-full justify-start text-left text-sm font-medium",
               !date && "text-muted-foreground"
             )}
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {date?.from ? (
-              date.to ? (
-                <>
-                  {format(date.from, "LLL dd, y", { locale: ptBR })} -{" "}
-                  {format(date.to, "LLL dd, y", { locale: ptBR })}
-                </>
-              ) : (
-                format(date.from, "LLL dd, y", { locale: ptBR })
-              )
+              <span>
+                {date.to ? (
+                  <>
+                    {format(date.from, "LLL dd, y", { locale: ptBR })} -{" "}
+                    {format(date.to, "LLL dd, y", { locale: ptBR })}
+                  </>
+                ) : (
+                  format(date.from, "LLL dd, y", { locale: ptBR })
+                )}
+              </span>
             ) : (
               <span>{placeholder || "Período Personalizado"}</span>
             )}

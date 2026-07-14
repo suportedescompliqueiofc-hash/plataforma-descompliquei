@@ -408,8 +408,8 @@ function StatCard({
     <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] px-4 py-3.5">
       <p className="text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground/50">{label}</p>
       <p className={cn(
-        "mt-1.5 font-display font-extrabold tracking-tight text-foreground tabular-nums",
-        small ? "text-[16px]" : "text-[24px]"
+        "mt-1.5 font-extrabold tracking-tight text-foreground",
+        small ? "font-display text-[16px]" : "font-display tabular-nums text-[24px]"
       )}>
         {value}
         {suffix && <span className="text-[12px] font-semibold text-muted-foreground ml-1 normal-case">{suffix}</span>}
@@ -507,7 +507,7 @@ function NovaPastaCard({ onClick }: { onClick: () => void }) {
 function VisibilidadeTag({ visibilidade }: { visibilidade: PaginaResumo["visibilidade"] }) {
   if (visibilidade === "empresa") {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E85D24]/10 text-[#E85D24]">
+      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
         <Building2 className="h-2.5 w-2.5" /> Empresa
       </span>
     );

@@ -263,7 +263,7 @@ export function NonLeadAnalysisModal({ open, onClose, organizationId }: NonLeadA
                 <div className="p-3.5 rounded-2xl bg-muted/40 mb-3">
                   <Sparkles className="h-7 w-7 text-muted-foreground/40" />
                 </div>
-                <p className="text-sm font-semibold text-foreground mb-1">Limpar contatos que não são leads</p>
+                <p className="text-sm font-semibold font-display text-foreground mb-1">Limpar contatos que não são leads</p>
                 <p className="text-[12px] text-muted-foreground leading-relaxed max-w-[300px]">
                   A IA analisa até 50 contatos do período selecionado e identifica quem não é lead real — você revisa antes de qualquer remoção.
                 </p>
@@ -337,7 +337,7 @@ export function NonLeadAnalysisModal({ open, onClose, organizationId }: NonLeadA
           {phase === "analyzing" && (
             <div className="flex flex-col items-center text-center py-12">
               <Loader2 className="h-8 w-8 text-muted-foreground animate-spin mb-4" />
-              <p className="text-sm font-semibold">Analisando conversas...</p>
+              <p className="text-sm font-semibold font-display">Analisando conversas...</p>
               <p className="text-[12px] text-muted-foreground mt-1">
                 Isso pode levar alguns segundos dependendo do volume
               </p>
@@ -511,7 +511,7 @@ export function NonLeadAnalysisModal({ open, onClose, organizationId }: NonLeadA
           {phase === "removing" && (
             <div className="flex flex-col items-center text-center py-12">
               <Loader2 className="h-8 w-8 text-muted-foreground animate-spin mb-4" />
-              <p className="text-sm font-semibold">Removendo e bloqueando contatos...</p>
+              <p className="text-sm font-semibold font-display">Removendo e bloqueando contatos...</p>
             </div>
           )}
         </div>

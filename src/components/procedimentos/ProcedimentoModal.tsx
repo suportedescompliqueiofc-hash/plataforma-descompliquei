@@ -86,7 +86,7 @@ export function ProcedimentoModal({ open, onOpenChange, procedimento }: Procedim
               <Stethoscope className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
             <DialogHeader className="space-y-0">
-              <DialogTitle className="text-base font-semibold text-foreground">
+              <DialogTitle className="text-base font-semibold text-foreground font-display">
                 {isEditMode ? "Editar Procedimento" : "Novo Procedimento"}
               </DialogTitle>
             </DialogHeader>

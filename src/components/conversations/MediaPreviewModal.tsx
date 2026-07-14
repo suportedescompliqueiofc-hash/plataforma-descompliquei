@@ -81,7 +81,7 @@ export function MediaPreviewModal({ files, isOpen, onClose, onSend, onAddFiles }
           <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/10 rounded-full">
             <X className="h-6 w-6" />
           </Button>
-          <span className="font-medium">Pré-visualização</span>
+          <span className="font-medium font-display">Pré-visualização</span>
         </div>
       </div>
 

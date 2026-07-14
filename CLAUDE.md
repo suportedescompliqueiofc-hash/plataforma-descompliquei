@@ -92,15 +92,34 @@ All routes are defined in `src/App.tsx`. Every route is wrapped in `<ProtectedRo
 
 Toda a plataforma segue um design system premium consistente. **Qualquer componente novo ou alteração visual DEVE seguir estes padrões.** Não usar os componentes genéricos `Card`/`CardHeader`/`CardTitle` do shadcn — usar a estrutura customizada abaixo.
 
-**Fontes:**
-- Display (títulos, métricas): `font-display` → Plus Jakarta Sans
-- Body (texto corrido): `font-body` → DM Sans
-- Mono (valores numéricos): `font-mono` / `tabular-nums` → JetBrains Mono
+**Fontes (regra reforçada na padronização de 2026-07-13):**
+- **Título/cabeçalho → SEMPRE `font-display`** (Plus Jakarta Sans). Todo `<h1>/<h2>/<h3>`, `DialogTitle`, título de card/seção/modal DEVE ter `font-display`. Esquecer o `font-display` faz o título cair no DM Sans — foi a principal fonte de inconsistência visual. **Exceção:** overlines/labels minúsculos (`text-[10px]/[11px] uppercase tracking-wide/widest`) e labels de formulário ficam em DM Sans de propósito.
+- Body (texto corrido): DM Sans — é a fonte **padrão** (não precisa de classe).
+- **Números — convenção de DOIS níveis (nunca os dois juntos na mesma tag):**
+  - **FONTE ÚNICA DE NÚMEROS (decisão 2026-07-14):** TODO número/valor/data/métrica/contador exibido usa `font-display tabular-nums` (Plus Jakarta) — do KPI grande à célula de tabela. Um número só tem UMA fonte em toda a plataforma.
+  - ❌ **NUNCA** `font-mono` em número/valor/data da interface (parece "código" — foi reprovado pelo dono). `font-mono` fica APENAS para código cru/JSON/IDs/payloads em blocos de código.
+  - ❌ NUNCA `font-display font-mono` na mesma className (conflito de família).
 
 **Cards / Containers:**
 ```
 rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden
 ```
+
+**Cards de métrica / KPI — use SEMPRE `<StatCard>` (canônico, decidido em 2026-07-13):**
+
+Todo card de número/métrica de QUALQUER página usa `src/components/StatCard.tsx` — não recrie card de KPI inline. Garante mesma estrutura, fonte (`text-[28px] font-bold font-display tabular-nums`) e espaçamento em toda a plataforma.
+```tsx
+import { StatCard, StatCardGrid } from '@/components/StatCard';
+import { formatBRL, formatInt, formatPct } from '@/lib/format';
+
+<StatCardGrid cols={4}>
+  <StatCard label="FATURAMENTO" value={formatBRL(x)} icon={DollarSign} />
+  <StatCard label="LEADS" value={formatInt(n)} delta={{ label: '+12%', positive: true }} />
+</StatCardGrid>
+// Card isolado: <StatCard standalone ... />  ·  cor de categoria: dotColor
+```
+- **Formatação de número:** SEMPRE via `@/lib/format` (`formatBRL` = `R$ 80.300` completo, 0 casas; `formatInt`; `formatPct`; `formatNum`). ❌ **PROIBIDO abreviar** métrica (`80.3K`, `1.2M`) — só tamanho de arquivo (KB/MB) pode abreviar.
+- Exceções (não são "card de KPI"): gauges/anéis de progresso (`Performance.tsx`), heros escuros com gradiente (`Metas` "Ritmo Necessário"/Simulador) — famílias visuais próprias.
 
 **Card Headers:**
 ```html
@@ -122,7 +141,19 @@ rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] 
 flex items-center justify-end px-5 py-3.5 border-t border-border/40 bg-muted/20
 ```
 
-**Page Headers:**
+**Page Headers — `PageHero` é o cabeçalho CANÔNICO (decidido em 2026-07-13):**
+
+Toda página de conteúdo usa o componente `src/components/PageHero.tsx` (fundo escuro quente + glow laranja + pill translúcido). **Não** reconstrua cabeçalho na mão nem duplique o hero.
+```tsx
+import { PageHero } from '@/components/PageHero';
+<PageHero icon={IconLucide} title="Título" titleAccent="Subtítulo" subtitle="Descrição"
+          dataTutorial="pagina-header" right={<BotaoAcao />} />
+```
+- Botões no slot `right` ficam sobre fundo escuro → usar tom translúcido branco (`bg-white/10 border-white/15 text-white`), NÃO `bg-foreground text-background`.
+- Preserve o `data-tutorial` do cabeçalho antigo passando-o na prop `dataTutorial`.
+- **Exceção (não usa PageHero):** telas de login/auth (identidade própria). O `Dashboard` **usa** o `PageHero` no cabeçalho (decisão de 2026-07-13), preservando o layout condicional `isDescompliqueiOrg` (funil/KPIs) logo abaixo do hero.
+
+O "Page Header" simples abaixo (ícone + `h1 font-display` + descrição `ml-10`) só é usado em sub-telas/breadcrumbs onde o hero grande pesaria demais:
 ```html
 <div className="flex items-center gap-2 mb-1">
   <div className="p-1.5 rounded-lg bg-muted">

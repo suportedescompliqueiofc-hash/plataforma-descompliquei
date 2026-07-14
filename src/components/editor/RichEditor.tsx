@@ -125,7 +125,7 @@ function TableMenu({ editor, dark = false }: { editor: Editor; dark?: boolean })
 
 // Cores padrão para a fonte da escrita. Hexadecimais fixos (não tokens do tema)
 // porque é conteúdo do usuário — a cor escolhida deve valer em claro e escuro.
-const CORES_TEXTO: { nome: string; valor: string | null }[] = [
+export const CORES_TEXTO: { nome: string; valor: string | null }[] = [
   { nome: 'Padrão', valor: null },
   { nome: 'Vermelho', valor: '#E5484D' },
   { nome: 'Laranja', valor: '#E85D24' },
@@ -168,8 +168,8 @@ function ColorMenu({ editor, dark = false }: { editor: Editor; dark?: boolean })
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-50 rounded-xl border border-border/60 bg-popover shadow-lg p-2">
-          <div className="grid grid-cols-5 gap-1">
+        <div className="absolute top-full left-0 mt-1 z-50 rounded-xl border border-border/60 bg-popover shadow-lg p-2.5 w-[168px]">
+          <div className="grid grid-cols-5 gap-1.5">
             {CORES_TEXTO.map(c => (
               <button
                 key={c.nome}
@@ -181,8 +181,11 @@ function ColorMenu({ editor, dark = false }: { editor: Editor; dark?: boolean })
                   setOpen(false);
                 }}
                 className={cn(
-                  'h-6 w-6 rounded-md border flex items-center justify-center transition-transform hover:scale-110',
-                  corAtiva === c.valor ? 'border-foreground ring-1 ring-foreground/40' : 'border-border/60'
+                  'h-5 w-5 rounded-full border border-black/10 flex items-center justify-center transition-shadow',
+                  corAtiva === c.valor
+                    ? 'ring-2 ring-foreground'
+                    : 'hover:ring-2 hover:ring-foreground/20',
+                  !c.valor && 'bg-muted'
                 )}
                 style={c.valor ? { backgroundColor: c.valor } : undefined}
               >
@@ -200,8 +203,8 @@ function ColorMenu({ editor, dark = false }: { editor: Editor; dark?: boolean })
 
 export const EDITOR_STYLES = `
   [&_.ProseMirror]:outline-none
-  [&_.ProseMirror_h1]:text-[20px] [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:text-foreground [&_.ProseMirror_h1]:mb-2 [&_.ProseMirror_h1]:mt-6 [&_.ProseMirror_h1]:leading-snug [&_.ProseMirror_h1:first-child]:mt-0
-  [&_.ProseMirror_h2]:text-[17px] [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:text-foreground [&_.ProseMirror_h2]:mb-2 [&_.ProseMirror_h2]:mt-6 [&_.ProseMirror_h2:first-child]:mt-0
+  [&_.ProseMirror_h1]:text-[20px] [&_.ProseMirror_h1]:font-bold [&_.ProseMirror_h1]:font-display [&_.ProseMirror_h1]:text-foreground [&_.ProseMirror_h1]:mb-2 [&_.ProseMirror_h1]:mt-6 [&_.ProseMirror_h1]:leading-snug [&_.ProseMirror_h1:first-child]:mt-0
+  [&_.ProseMirror_h2]:text-[17px] [&_.ProseMirror_h2]:font-bold [&_.ProseMirror_h2]:font-display [&_.ProseMirror_h2]:text-foreground [&_.ProseMirror_h2]:mb-2 [&_.ProseMirror_h2]:mt-6 [&_.ProseMirror_h2:first-child]:mt-0
   [&_.ProseMirror_h3]:text-[11px] [&_.ProseMirror_h3]:font-bold [&_.ProseMirror_h3]:uppercase [&_.ProseMirror_h3]:tracking-wider [&_.ProseMirror_h3]:text-foreground/70 [&_.ProseMirror_h3]:mb-2 [&_.ProseMirror_h3]:mt-6 [&_.ProseMirror_h3]:pt-4 [&_.ProseMirror_h3]:border-t [&_.ProseMirror_h3]:border-border/40 [&_.ProseMirror_h3:first-child]:mt-0 [&_.ProseMirror_h3:first-child]:pt-0 [&_.ProseMirror_h3:first-child]:border-t-0
   [&_.ProseMirror_p]:text-[15px] [&_.ProseMirror_p]:text-foreground/80 [&_.ProseMirror_p]:leading-[1.7] [&_.ProseMirror_p]:mb-2
   [&_.ProseMirror_strong]:font-bold [&_.ProseMirror_strong]:text-foreground
@@ -223,8 +226,8 @@ export const EDITOR_STYLES = `
 
 // Versão para render read-only de HTML salvo pelo editor (dangerouslySetInnerHTML)
 export const PROSE_STYLES = `
-  [&_h1]:text-[20px] [&_h1]:font-bold [&_h1]:text-foreground [&_h1]:mb-2 [&_h1]:mt-6 [&_h1]:leading-snug [&_h1:first-child]:mt-0
-  [&_h2]:text-[17px] [&_h2]:font-bold [&_h2]:text-foreground [&_h2]:mb-2 [&_h2]:mt-6 [&_h2:first-child]:mt-0
+  [&_h1]:text-[20px] [&_h1]:font-bold [&_h1]:font-display [&_h1]:text-foreground [&_h1]:mb-2 [&_h1]:mt-6 [&_h1]:leading-snug [&_h1:first-child]:mt-0
+  [&_h2]:text-[17px] [&_h2]:font-bold [&_h2]:font-display [&_h2]:text-foreground [&_h2]:mb-2 [&_h2]:mt-6 [&_h2:first-child]:mt-0
   [&_h3]:text-[11px] [&_h3]:font-bold [&_h3]:uppercase [&_h3]:tracking-wider [&_h3]:text-foreground/70 [&_h3]:mb-2 [&_h3]:mt-6 [&_h3]:pt-4 [&_h3]:border-t [&_h3]:border-border/40 [&_h3:first-child]:mt-0 [&_h3:first-child]:pt-0 [&_h3:first-child]:border-t-0
   [&_p]:text-[15px] [&_p]:text-foreground/80 [&_p]:leading-[1.7] [&_p]:mb-2 [&_p:last-child]:mb-0
   [&_strong]:font-bold [&_strong]:text-foreground

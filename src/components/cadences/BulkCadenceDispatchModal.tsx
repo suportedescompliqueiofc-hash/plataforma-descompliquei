@@ -118,7 +118,7 @@ export function BulkCadenceDispatchModal({ open, onOpenChange, cadence, onConfir
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col gap-3 overflow-hidden">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="text-lg">Disparo em Massa: {cadence?.nome}</DialogTitle>
+          <DialogTitle className="text-lg font-display">Disparo em Massa: {cadence?.nome}</DialogTitle>
           <DialogDescription className="text-xs">Selecione o público alvo. O sistema agendará os envios com intervalos aleatórios para máxima segurança.</DialogDescription>
         </DialogHeader>
 

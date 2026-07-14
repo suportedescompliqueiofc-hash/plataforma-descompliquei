@@ -320,10 +320,10 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                 </div>
                 <div className="rounded-xl bg-muted/30 p-3.5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">DATA / HORA</p>
-                  <p className="text-sm font-semibold text-foreground">
+                  <p className="text-sm font-semibold text-foreground font-display tabular-nums">
                     {format(parseISO(ag.data_hora_inicio), "dd/MM/yyyy", { locale: ptBR })}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
+                  <p className="text-xs text-muted-foreground mt-0.5 font-display tabular-nums">
                     {format(parseISO(ag.data_hora_inicio), "HH:mm", { locale: ptBR })}
                     {" – "}
                     {format(parseISO(ag.data_hora_fim), "HH:mm", { locale: ptBR })}
@@ -550,7 +550,7 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                             <div className="flex items-center justify-between gap-4 w-full">
                               <span>{p.nome}</span>
                               {p.valor_base && (
-                                <span className="text-[10px] text-muted-foreground tabular-nums ml-4">
+                                <span className="text-[10px] text-muted-foreground font-display tabular-nums ml-4">
                                   R$ {Number(p.valor_base).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                                 </span>
                               )}

@@ -208,7 +208,7 @@ export default function AbaPerformance({ orgId }: Props) {
                 <div className={cn('h-full rounded-full transition-all', done.size === tasks.length ? 'bg-emerald-500' : 'bg-foreground/40')}
                   style={{ width: `${calcScore(done.size, tasks.length)}%` }} />
               </div>
-              <span className={cn('text-xs font-extrabold tabular-nums font-mono', scoreColor(calcScore(done.size, tasks.length)))}>
+              <span className={cn('text-xs font-extrabold tabular-nums font-display', scoreColor(calcScore(done.size, tasks.length)))}>
                 {calcScore(done.size, tasks.length)}%
               </span>
             </div>

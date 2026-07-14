@@ -151,7 +151,7 @@ export function TutorialHelpCenter() {
           <div className="mt-4 rounded-xl bg-muted/30 border border-border/40 p-3.5">
             <div className="flex items-center justify-between mb-2">
               <span className="text-[11px] font-semibold text-muted-foreground">Seu progresso</span>
-              <span className="text-[11px] font-bold text-foreground tabular-nums">{completedCount}/{totalCount}</span>
+              <span className="text-[11px] font-bold text-foreground font-display tabular-nums">{completedCount}/{totalCount}</span>
             </div>
             <div className="h-2 rounded-full bg-muted overflow-hidden">
               <div

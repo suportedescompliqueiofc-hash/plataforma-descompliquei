@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
 import { PageHero } from "@/components/PageHero";
+import { StatCard, StatCardGrid } from "@/components/StatCard";
+import { formatBRL, formatInt } from "@/lib/format";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -117,7 +119,7 @@ export default function Vendas() {
   // ── Render ─────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10">
       {/* ═══ PAGE HEADER ═══ */}
       <PageHero
         dataTutorial="vendas-header"
@@ -127,7 +129,7 @@ export default function Vendas() {
         right={
           <Button
             onClick={() => handleCloseModal(true)}
-            className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 px-4 shadow-none"
+            className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4 shadow-none"
             data-tutorial="vendas-new"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -142,59 +144,39 @@ export default function Vendas() {
           <DateRangePicker
             date={dateRange}
             setDate={setDateRange}
-            className="[&>button]:h-9 [&>button]:text-xs [&>button]:rounded-lg"
+            className="[&>button]:h-10 [&>button]:text-sm [&>button]:rounded-lg"
           />
           <ExportVendasButton vendas={vendas} dateRange={dateRange} />
         </div>
 
         {/* Metrics row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-tutorial="vendas-metrics">
-          {[
-            {
-              label: "Faturamento",
-              value: formatCurrency(metrics.totalFaturado),
-              icon: DollarSign,
-              accent: true,
-            },
-            {
-              label: "Ticket Medio",
-              value: formatCurrency(metrics.ticketMedio),
-              icon: TrendingUp,
-            },
-            {
-              label: "Vendas",
-              value: metrics.vendasNoPeriodo.toString(),
-              icon: ShoppingCart,
-            },
-            {
-              label: "Maior Venda",
-              value: formatCurrency(metrics.maiorVenda),
-              icon: TrendingUp,
-            },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className={cn(
-                "rounded-2xl px-4 py-3.5 border transition-colors",
-                stat.accent
-                  ? "bg-primary/[0.04] border-primary/20"
-                  : "bg-card border-border/60 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
-              )}
-            >
-              <div className="flex items-center gap-1.5 mb-2">
-                <stat.icon className={cn("h-3 w-3", stat.accent ? "text-primary" : "text-muted-foreground")} />
-                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-                  {stat.label}
-                </span>
-              </div>
-              <p className={cn(
-                "text-xl font-extrabold tracking-tight font-display",
-                stat.accent ? "text-primary" : "text-foreground"
-              )}>
-                {stat.value}
-              </p>
-            </div>
-          ))}
+        <div data-tutorial="vendas-metrics">
+          <StatCardGrid cols={4}>
+            {[
+              {
+                label: "Faturamento",
+                value: formatBRL(metrics.totalFaturado),
+                icon: DollarSign,
+              },
+              {
+                label: "Ticket Médio",
+                value: formatBRL(metrics.ticketMedio),
+                icon: TrendingUp,
+              },
+              {
+                label: "Vendas",
+                value: formatInt(metrics.vendasNoPeriodo),
+                icon: ShoppingCart,
+              },
+              {
+                label: "Maior Venda",
+                value: formatBRL(metrics.maiorVenda),
+                icon: TrendingUp,
+              },
+            ].map((stat) => (
+              <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} />
+            ))}
+          </StatCardGrid>
         </div>
       </div>
 
@@ -309,7 +291,7 @@ export default function Vendas() {
               Historico de Vendas
             </span>
             {filteredVendas.length > 0 && (
-              <span className="text-[10px] font-bold tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
+              <span className="text-[10px] font-bold font-display tabular-nums text-muted-foreground bg-muted px-1.5 py-0.5 rounded-md">
                 {filteredVendas.length}
               </span>
             )}
@@ -360,7 +342,7 @@ export default function Vendas() {
                         </span>
                       </div>
                       <div className="min-w-0">
-                        <h4 className="text-[13px] font-semibold text-foreground truncate">
+                        <h4 className="text-[13px] font-semibold text-foreground truncate font-display">
                           {venda.leads?.nome || "Cliente não encontrado"}
                         </h4>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
@@ -404,8 +386,8 @@ export default function Vendas() {
                     <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600/60 block mb-0.5">
                       Valor Fechado
                     </span>
-                    <span className="text-sm font-bold text-emerald-700 tabular-nums">
-                      {formatCurrency(venda.valor_fechado)}
+                    <span className="text-sm font-bold text-emerald-700 font-display tabular-nums">
+                      {formatBRL(venda.valor_fechado)}
                     </span>
                   </div>
                   <div className="bg-muted/30 rounded-xl px-3 py-2 border border-border/40">
@@ -424,7 +406,7 @@ export default function Vendas() {
                 <div className="flex items-center pt-1">
                   <div className="flex items-center gap-1.5 text-muted-foreground/50">
                     <CalendarIcon className="h-3 w-3" />
-                    <span className="text-[11px] tabular-nums">
+                    <span className="text-[11px] font-display tabular-nums">
                       {format(parseISO(venda.data_fechamento), "dd/MM/yyyy", { locale: ptBR })}
                     </span>
                   </div>
@@ -529,14 +511,14 @@ export default function Vendas() {
 
                     {/* Valor Fechado */}
                     <TableCell className="py-3.5">
-                      <span className="text-[13px] font-bold text-emerald-600 tabular-nums">
-                        {formatCurrency(venda.valor_fechado)}
+                      <span className="text-[13px] font-bold text-emerald-600 font-display tabular-nums">
+                        {formatBRL(venda.valor_fechado)}
                       </span>
                     </TableCell>
 
                     {/* Data */}
                     <TableCell className="py-3.5">
-                      <span className="text-xs text-muted-foreground tabular-nums">
+                      <span className="text-xs text-muted-foreground font-display tabular-nums">
                         {format(parseISO(venda.data_fechamento), "dd/MM/yyyy", { locale: ptBR })}
                       </span>
                     </TableCell>
@@ -590,7 +572,7 @@ export default function Vendas() {
       <AlertDialog open={!!isDeleting} onOpenChange={() => setIsDeleting(null)}>
         <AlertDialogContent className="w-[90vw] max-w-md rounded-2xl border-border/60">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base font-semibold">Excluir venda?</AlertDialogTitle>
+            <AlertDialogTitle className="text-base font-semibold font-display">Excluir venda?</AlertDialogTitle>
             <AlertDialogDescription className="text-sm text-muted-foreground">
               Esta ação não pode ser desfeita. A venda de{" "}
               <strong>{isDeleting?.leads?.nome || "este cliente"}</strong> no valor de{" "}

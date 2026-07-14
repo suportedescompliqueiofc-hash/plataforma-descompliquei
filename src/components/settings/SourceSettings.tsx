@@ -111,7 +111,7 @@ export function SourceSettings() {
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">{editingSource ? "Editar Fonte" : "Nova Fonte"}</DialogTitle>
+            <DialogTitle className="text-base font-semibold font-display">{editingSource ? "Editar Fonte" : "Nova Fonte"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-3">
             <div className="space-y-1.5">
@@ -144,7 +144,7 @@ export function SourceSettings() {
       <AlertDialog open={!!isDeleting} onOpenChange={() => setIsDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
               Tem certeza que deseja excluir a fonte "{isDeleting?.nome}"? Leads existentes com esta fonte não serão alterados.
             </AlertDialogDescription>

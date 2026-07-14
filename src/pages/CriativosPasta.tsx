@@ -11,7 +11,6 @@ import {
   Eye, MoreHorizontal, StickyNote,
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,6 +34,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
 import ModalCriativo from "@/components/criativos/ModalCriativo";
+import { PageHero } from "@/components/PageHero";
 
 // ── Status config ──────────────────────────────────────────
 
@@ -508,7 +508,7 @@ export default function CriativosPasta() {
 
   if (loadingPasta) {
     return (
-      <div className="space-y-6">
+      <div className="max-w-[1400px] mx-auto space-y-6">
         <Skeleton className="h-9 w-72" />
         <Skeleton className="h-6 w-48" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -528,67 +528,78 @@ export default function CriativosPasta() {
   }
 
   return (
-    <div className="space-y-6 max-w-full overflow-hidden">
+    <div className="max-w-[1400px] mx-auto space-y-6 overflow-hidden">
 
       {/* ── Header ── */}
       <div className="flex flex-col gap-3">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-          <div>
-            {/* Breadcrumb */}
-            <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2">
-              <button onClick={() => navigate("/crm/criativos")} className="flex items-center gap-1 hover:text-foreground transition-colors">
-                <Home className="h-3.5 w-3.5" /><span>Biblioteca</span>
-              </button>
-              {breadcrumb.map((crumb) => (
-                <span key={crumb.id} className="flex items-center gap-1.5">
-                  <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
-                  <button
-                    onClick={() => crumb.id !== pastaId && navigate(`/crm/criativos/${crumb.id}`)}
-                    className={cn("hover:text-foreground transition-colors", crumb.id === pastaId && "text-foreground font-medium")}
-                  >
-                    {crumb.nome}
-                  </button>
-                </span>
-              ))}
-            </nav>
-
-            {/* Title */}
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg p-2 bg-muted/50" style={{ color: pastaAtual.cor }}>
-                <FolderOpen className="h-6 w-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold tracking-tight text-foreground">{pastaAtual.nome}</h1>
-                  <StatusBadge status={pastaAtual.status} />
-                  {pastaAtual.fixado && <Pin className="h-3.5 w-3.5 text-primary fill-primary" />}
-                </div>
-                {pastaAtual.descricao && <p className="text-sm text-muted-foreground mt-0.5">{pastaAtual.descricao}</p>}
-              </div>
+        <PageHero
+          icon={FolderOpen}
+          title={
+            <span className="inline-flex items-center gap-2 flex-wrap">
+              <span className="w-2.5 h-2.5 rounded-full inline-block shrink-0" style={{ backgroundColor: pastaAtual.cor }} />
+              {pastaAtual.nome}
+              {pastaAtual.fixado && <Pin className="h-4 w-4 text-white/70 fill-white/70" />}
+            </span>
+          }
+          subtitle={pastaAtual.descricao || undefined}
+          right={
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
+                onClick={() => {
+                  const parentId = pastaAtual.pasta_pai_id;
+                  navigate(parentId ? `/crm/criativos/${parentId}` : "/crm/criativos");
+                }}
+              >
+                <ArrowUp className="h-3.5 w-3.5" /> Voltar
+              </Button>
+              <Button
+                className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
+                onClick={() => { setSpNome(""); setSpDescricao(""); setSpStatus("em_criacao"); setSpCor("#3b82f6"); setModalSubpasta(true); }}
+              >
+                <FolderPlus className="h-3.5 w-3.5" /> Subpasta
+              </Button>
+              <Button
+                className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5" /> Upload
+              </Button>
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-white"
+                onClick={abrirEditPasta}
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                size="icon"
+                className="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-white"
+                onClick={() => setDeletingPasta(true)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
             </div>
-          </div>
+          }
+        />
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => {
-              const parentId = pastaAtual.pasta_pai_id;
-              navigate(parentId ? `/crm/criativos/${parentId}` : "/crm/criativos");
-            }}>
-              <ArrowUp className="h-3.5 w-3.5" /> Voltar
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => { setSpNome(""); setSpDescricao(""); setSpStatus("em_criacao"); setSpCor("#3b82f6"); setModalSubpasta(true); }}>
-              <FolderPlus className="h-3.5 w-3.5" /> Subpasta
-            </Button>
-            <Button size="sm" className="gap-1.5 text-xs shadow-sm" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="h-3.5 w-3.5" /> Upload
-            </Button>
-            <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={abrirEditPasta}>
-              <Edit2 className="h-3.5 w-3.5" />
-            </Button>
-            <Button size="sm" variant="ghost" className="gap-1 text-xs text-destructive hover:text-destructive" onClick={() => setDeletingPasta(true)}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        </div>
+        {/* Breadcrumb */}
+        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <button onClick={() => navigate("/crm/criativos")} className="flex items-center gap-1 hover:text-foreground transition-colors">
+            <Home className="h-3.5 w-3.5" /><span>Biblioteca</span>
+          </button>
+          {breadcrumb.map((crumb) => (
+            <span key={crumb.id} className="flex items-center gap-1.5">
+              <ChevronRight className="h-3 w-3 text-muted-foreground/50" />
+              <button
+                onClick={() => crumb.id !== pastaId && navigate(`/crm/criativos/${crumb.id}`)}
+                className={cn("hover:text-foreground transition-colors", crumb.id === pastaId && "text-foreground font-medium")}
+              >
+                {crumb.nome}
+              </button>
+            </span>
+          ))}
+        </nav>
 
         {/* Search + Filters */}
         <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
@@ -598,14 +609,14 @@ export default function CriativosPasta() {
             {busca && <button onClick={() => setBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2"><X className="h-3.5 w-3.5 text-muted-foreground" /></button>}
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs h-9", showFilters && "bg-primary text-primary-foreground")} onClick={() => setShowFilters(!showFilters)}>
+            <Button variant="outline" size="sm" className={cn("gap-1.5 text-xs h-9 rounded-lg border-border/60", showFilters && "bg-foreground text-background hover:bg-foreground/90")} onClick={() => setShowFilters(!showFilters)}>
               <Filter className="h-3.5 w-3.5" /> Filtros
             </Button>
-            <div className="flex rounded-lg border border-border bg-muted/50 p-0.5 gap-0.5">
-              <button onClick={() => setViewMode("grid")} className={cn("p-1.5 rounded-md transition-all", viewMode === "grid" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background")}>
+            <div className="flex rounded-xl border border-border/60 bg-muted/40 p-1 gap-0.5">
+              <button onClick={() => setViewMode("grid")} className={cn("p-1.5 rounded-lg transition-all", viewMode === "grid" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <LayoutGrid className="h-4 w-4" />
               </button>
-              <button onClick={() => setViewMode("lista")} className={cn("p-1.5 rounded-md transition-all", viewMode === "lista" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-background")}>
+              <button onClick={() => setViewMode("lista")} className={cn("p-1.5 rounded-lg transition-all", viewMode === "lista" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                 <List className="h-4 w-4" />
               </button>
             </div>
@@ -649,26 +660,24 @@ export default function CriativosPasta() {
 
       {/* ── Upload progress ── */}
       {uploads.length > 0 && (
-        <Card className="rounded-xl border-border/60 shadow-sm">
-          <CardContent className="p-4 space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Uploads</p>
-            {uploads.map((u, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <span className="text-xs text-foreground truncate flex-1 min-w-0">{u.file.name}</span>
-                <div className="w-32">
-                  <Progress value={u.progress} className="h-1.5" />
-                </div>
-                <span className={cn("text-[10px] font-medium w-16 text-right",
-                  u.status === "done" && "text-green-600",
-                  u.status === "error" && "text-destructive",
-                  u.status === "uploading" && "text-primary"
-                )}>
-                  {u.status === "done" ? "Concluido" : u.status === "error" ? "Erro" : u.status === "uploading" ? `${u.progress}%` : "Aguardando"}
-                </span>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden p-4 space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">Uploads</p>
+          {uploads.map((u, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-xs text-foreground truncate flex-1 min-w-0">{u.file.name}</span>
+              <div className="w-32">
+                <Progress value={u.progress} className="h-1.5" />
               </div>
-            ))}
-          </CardContent>
-        </Card>
+              <span className={cn("text-[10px] font-medium w-16 text-right font-display tabular-nums",
+                u.status === "done" && "text-green-600",
+                u.status === "error" && "text-destructive",
+                u.status === "uploading" && "text-primary"
+              )}>
+                {u.status === "done" ? "Concluido" : u.status === "error" ? "Erro" : u.status === "uploading" ? `${u.progress}%` : "Aguardando"}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {/* ── Subpastas section ── */}
@@ -681,19 +690,19 @@ export default function CriativosPasta() {
             {subpastas.map((sp) => {
               const count = sp.criativo_biblioteca?.[0]?.count || 0;
               return (
-                <Card key={sp.id} className="group overflow-hidden shadow-sm rounded-xl border-border/60 hover:shadow-md transition-all cursor-pointer" onClick={() => navigate(`/crm/criativos/${sp.id}`)}>
+                <div key={sp.id} className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md transition-all cursor-pointer" onClick={() => navigate(`/crm/criativos/${sp.id}`)}>
                   <div className="h-1.5" style={{ backgroundColor: sp.cor }} />
-                  <CardContent className="p-4 space-y-2">
+                  <div className="p-4 space-y-2">
                     <div className="flex items-start gap-2">
                       <FolderOpen className="h-5 w-5 shrink-0 mt-0.5" style={{ color: sp.cor }} />
                       <div className="min-w-0">
-                        <p className="font-semibold text-sm truncate">{sp.nome}</p>
+                        <p className="font-semibold text-sm truncate font-display">{sp.nome}</p>
                         <p className="text-xs text-muted-foreground">{count} criativos</p>
                       </div>
                     </div>
                     <StatusBadge status={sp.status} />
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -718,10 +727,12 @@ export default function CriativosPasta() {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           >
-            <Upload className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm font-medium text-foreground mb-1">Arraste e solte criativos aqui</p>
-            <p className="text-xs text-muted-foreground">ou clique para selecionar</p>
-            <p className="text-[10px] text-muted-foreground mt-2">JPG, PNG, GIF, WEBP, MP4, MOV, AVI, WEBM (max 50MB)</p>
+            <div className="p-3 rounded-xl bg-muted/40 mx-auto mb-3 w-fit">
+              <Upload className="h-6 w-6 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm font-medium text-muted-foreground">Arraste e solte criativos aqui</p>
+            <p className="text-[11px] text-muted-foreground/50 mt-0.5">ou clique para selecionar</p>
+            <p className="text-[10px] text-muted-foreground/50 mt-2">JPG, PNG, GIF, WEBP, MP4, MOV, AVI, WEBM (max 50MB)</p>
           </div>
         )}
 
@@ -747,7 +758,7 @@ export default function CriativosPasta() {
             {criativosFiltrados.map((c) => {
               const notasCount = c.criativo_notas?.[0]?.count || 0;
               return (
-                <Card key={c.id} className="group overflow-hidden shadow-sm rounded-xl border-border/60 hover:shadow-md transition-all cursor-pointer" onClick={() => setModalCriativoId(c.id)}>
+                <div key={c.id} className="group overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-md transition-all cursor-pointer" onClick={() => setModalCriativoId(c.id)}>
                   {/* Thumbnail */}
                   <div className="relative aspect-square bg-muted/30 overflow-hidden">
                     {c.tipo === "video" ? (
@@ -775,7 +786,7 @@ export default function CriativosPasta() {
                     )}
                   </div>
 
-                  <CardContent className="p-3 space-y-1.5">
+                  <div className="p-3 space-y-1.5">
                     <p className="text-xs font-medium text-foreground truncate">{c.nome}</p>
                     <div className="flex items-center gap-2">
                       <StatusBadge status={c.status} />
@@ -800,8 +811,8 @@ export default function CriativosPasta() {
                         </span>
                       )}
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -809,11 +820,11 @@ export default function CriativosPasta() {
 
         {/* List view */}
         {viewMode === "lista" && criativosFiltrados.length > 0 && (
-          <Card className="rounded-xl shadow-sm border-border/60 overflow-hidden">
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-border bg-muted/30">
+                  <tr className="border-b border-border/60 bg-muted/30">
                     <th className="text-left px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest w-12">Preview</th>
                     <th className="text-left px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Nome</th>
                     <th className="text-center px-4 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Tipo</th>
@@ -866,7 +877,7 @@ export default function CriativosPasta() {
                 </tbody>
               </table>
             </div>
-          </Card>
+          </div>
         )}
       </div>
 
@@ -889,7 +900,7 @@ export default function CriativosPasta() {
       {/* ── Modal Nova Subpasta ── */}
       <Dialog open={modalSubpasta} onOpenChange={(o) => !o && setModalSubpasta(false)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Nova Subpasta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-display">Nova Subpasta</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>Nome *</Label>
@@ -938,7 +949,7 @@ export default function CriativosPasta() {
       {/* ── Modal Editar Pasta ── */}
       <Dialog open={modalEditPasta} onOpenChange={(o) => !o && setModalEditPasta(false)}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Editar Pasta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle className="font-display">Editar Pasta</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
             <div>
               <Label>Nome *</Label>
@@ -1002,7 +1013,7 @@ export default function CriativosPasta() {
       <AlertDialog open={deletingPasta} onOpenChange={(o) => !o && setDeletingPasta(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir pasta "{pastaAtual.nome}"?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Excluir pasta "{pastaAtual.nome}"?</AlertDialogTitle>
             <AlertDialogDescription>Todos os criativos e subpastas serão excluídos permanentemente.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1016,7 +1027,7 @@ export default function CriativosPasta() {
       <AlertDialog open={!!deletingCriativo} onOpenChange={(o) => !o && setDeletingCriativo(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir "{deletingCriativo?.nome}"?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Excluir "{deletingCriativo?.nome}"?</AlertDialogTitle>
             <AlertDialogDescription>O arquivo será removido permanentemente do storage e do banco.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

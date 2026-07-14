@@ -308,7 +308,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
             );
             const Icon = item.icon as any;
 
-            const linkClasses = `flex items-center gap-3 py-2 rounded-md transition-all duration-150 relative ${isCollapsed ? 'justify-center px-2' : 'px-3'} ${isActive ? 'bg-[#E85D24]/[0.12] text-white font-medium' : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'}`;
+            const linkClasses = `flex items-center gap-3 py-2 rounded-md transition-all duration-150 relative ${isCollapsed ? 'justify-center px-2' : 'px-3'} ${isActive ? 'bg-primary/[0.12] text-white font-medium' : 'text-white/50 hover:bg-white/[0.05] hover:text-white/80'}`;
 
             const isAcessarCRM = item.title === 'Acessar CRM';
             const linkProps: any = isAcessarCRM ? { target: "_blank", rel: "noopener noreferrer" } : {};
@@ -319,7 +319,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
               <Tooltip key={`tooltip-${index}`} delayDuration={0}>
                 <TooltipTrigger asChild>
                   <Link to={item.path || '#'} {...linkProps} className={linkClasses} onClick={(e) => handleLinkClick(e, item.path || '#')} {...(tutorialAttr ? { 'data-tutorial': tutorialAttr } : {})}>
-                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[#E85D24]" />}
+                    {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-primary" />}
                     <Icon className="h-5 w-5 flex-shrink-0" />
                   </Link>
                 </TooltipTrigger>
@@ -327,7 +327,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
               </Tooltip>
             ) : (
               <Link key={`link-${index}`} to={item.path || '#'} {...linkProps} className={linkClasses} onClick={(e) => handleLinkClick(e, item.path || '#')} {...(tutorialAttr ? { 'data-tutorial': tutorialAttr } : {})}>
-                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-[#E85D24]" />}
+                {isActive && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-primary" />}
                 <Icon className="h-[18px] w-[18px] flex-shrink-0" />
                 <span className="truncate text-[13px] flex-1">{item.title}</span>
                 {item.title === 'Performance' && performancePending > 0 && (
@@ -360,7 +360,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
         {/* User Footer */}
         <div className={`${isCollapsed ? 'p-2' : 'px-3 py-3'} border-t border-white/[0.06] flex-shrink-0 space-y-2`}>
           {showBackToAdmin && (
-             <Button variant="default" className={`w-full h-8 bg-[#E85D24] hover:bg-[#D04E1A] text-white text-xs ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'}`} onClick={handleBackToMaster}><ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />{!isCollapsed && <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.06em]">{isImpersonating ? 'Sair do Cliente' : 'Voltar para Admin'}</span>}</Button>
+             <Button variant="default" className={`w-full h-8 bg-primary hover:bg-primary/90 text-white text-xs ${isCollapsed ? 'justify-center px-0' : 'justify-start px-3'}`} onClick={handleBackToMaster}><ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />{!isCollapsed && <span className="ml-2 text-[10px] font-semibold uppercase tracking-[0.06em]">{isImpersonating ? 'Sair do Cliente' : 'Voltar para Admin'}</span>}</Button>
           )}
 
           <div className={`flex items-center gap-3 ${isCollapsed ? 'justify-center flex-col' : ''}`}>

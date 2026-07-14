@@ -109,7 +109,7 @@ export default function AthosMateriais() {
   const saving = create.isPending || update.isPending;
 
   return (
-    <div className="max-w-[1000px] mx-auto space-y-6 pb-12">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-12">
       {/* HEADER */}
       <PageHero
         dataTutorial="materiais-header"
@@ -222,7 +222,7 @@ export default function AthosMateriais() {
                     {materialCategoriaLabel(m.categoria)}
                   </span>
                 </div>
-                <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2">{m.titulo}</p>
+                <p className="text-sm font-semibold text-foreground leading-tight line-clamp-2 font-display">{m.titulo}</p>
                 <p className="text-[11px] text-muted-foreground/50">
                   Atualizado {format(parseISO(m.updated_at), "dd 'de' MMM", { locale: ptBR })}
                 </p>

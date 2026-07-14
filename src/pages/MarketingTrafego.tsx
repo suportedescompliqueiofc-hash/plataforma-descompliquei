@@ -3,13 +3,13 @@ import {
   DollarSign, Users, Target, MousePointerClick, Eye, TrendingUp,
   RefreshCw, ChevronDown, ChevronUp, Loader2, Image, MessageCircle, FileText,
   AlertTriangle, AlertCircle, Zap, Info, Trophy, Medal, Award, ArrowUpRight,
-  ArrowDownRight, Minus, Clock, Filter, LayoutDashboard, Layers, BarChart3,
+  Clock, Filter, LayoutDashboard, Layers, BarChart3,
   Megaphone, Settings, Pause, Play, ArrowRight, CheckCircle, CalendarCheck, Handshake, Key,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PageHero } from "@/components/PageHero";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -43,6 +43,8 @@ import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useDashboard } from "@/hooks/useDashboard";
+import { StatCard, StatCardGrid } from "@/components/StatCard";
+import { formatBRL, formatInt, formatPct, formatNum } from "@/lib/format";
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -77,23 +79,12 @@ const DONUT_COLORS = [
 
 const FUNNEL_COLORS = ["#3b82f6", "#8b5cf6", "#10b981", "#22c55e"];
 
-function VariationBadge({ value, invert = false }: { value: number | null; invert?: boolean }) {
-  if (value === null) return <span className="text-xs text-muted-foreground">—</span>;
-  const isPositive = invert ? value < 0 : value > 0;
-  const isNeutral = Math.abs(value) < 1;
-  if (isNeutral) {
-    return (
-      <span className="inline-flex items-center gap-0.5 text-xs text-muted-foreground">
-        <Minus className="h-3 w-3" /> {Math.abs(value).toFixed(0)}%
-      </span>
-    );
-  }
-  return (
-    <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${isPositive ? "text-emerald-600" : "text-red-500"}`}>
-      {isPositive ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-      {Math.abs(value).toFixed(0)}%
-    </span>
-  );
+/** Monta a prop `delta` do StatCard a partir de uma variação percentual já calculada. */
+function variationDelta(value: number | null | undefined, invert = false): { label: string; positive?: boolean } | undefined {
+  if (value === null || value === undefined) return undefined;
+  const positive = invert ? value < 0 : value > 0;
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return { label: `${sign}${formatPct(Math.abs(value), 0)}`, positive };
 }
 
 function AlertIcon({ type }: { type: AlertItem["type"] }) {
@@ -522,39 +513,56 @@ export default function MarketingTrafego() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-[1400px] mx-auto space-y-6">
       {/* === HEADER === */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Inteligencia de Marketing</h1>
-          <p className="text-sm text-muted-foreground flex items-center gap-2">
-            <Clock className="h-3.5 w-3.5" />
-            Ultima sync: {lastSync}
-            {summary.totalInvestido > 0 && (
-              <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
-                Meta API: dados com ~24h de atraso
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <DateRangePicker date={dateRange} setDate={setDateRange} />
-          <Button onClick={handleSync} disabled={syncMutation.isPending} size="sm" variant="outline">
-            {syncMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Sincronizar
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setScoreConfigOpen(true)} title="Configurar Score">
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setTokenDialogOpen(true)} title="Atualizar Token Meta">
-            <Key className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <PageHero
+        icon={Megaphone}
+        title="Inteligência de Marketing"
+        subtitle="Acompanhe performance de campanhas e criativos do Meta Ads em tempo real."
+        right={
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            <DateRangePicker date={dateRange} setDate={setDateRange} className="[&>button]:h-9 [&>button]:text-xs [&>button]:rounded-lg [&>button]:bg-white/10 [&>button]:hover:bg-white/15 [&>button]:border-white/15 [&>button]:text-white" />
+            <Button
+              onClick={handleSync}
+              disabled={syncMutation.isPending}
+              className="h-9 gap-1.5 rounded-lg text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white px-4"
+            >
+              {syncMutation.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Sincronizar
+            </Button>
+            <Button
+              size="icon"
+              className="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-white"
+              onClick={() => setScoreConfigOpen(true)}
+              title="Configurar Score"
+            >
+              <Settings className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="icon"
+              className="h-9 w-9 rounded-lg bg-white/10 hover:bg-white/15 border border-white/15 text-white"
+              onClick={() => setTokenDialogOpen(true)}
+              title="Atualizar Token Meta"
+            >
+              <Key className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        }
+      />
+
+      <p className="text-sm text-muted-foreground flex items-center gap-2">
+        <Clock className="h-3.5 w-3.5" />
+        Última sincronização: {lastSync}
+        {summary.totalInvestido > 0 && (
+          <span className="text-xs bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full">
+            Meta API: dados com ~24h de atraso
+          </span>
+        )}
+      </p>
 
       <ConfiguracaoScore isOpen={scoreConfigOpen} onClose={() => { setScoreConfigOpen(false); refetchScore(); }} />
 
@@ -562,7 +570,7 @@ export default function MarketingTrafego() {
       <Dialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Atualizar Token Meta Ads</DialogTitle>
+            <DialogTitle className="font-display">Atualizar Token Meta Ads</DialogTitle>
             <DialogDescription>
               Cole o novo token do Graph API Explorer. Tokens de usuário expiram a cada ~60 dias.
             </DialogDescription>
@@ -599,61 +607,73 @@ export default function MarketingTrafego() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : !hasData && !syncMutation.isPending ? (
-        <Card>
-          <CardContent className="py-10 text-center">
-            <RefreshCw className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
-            <p className="text-sm text-muted-foreground">
-              Clique em <strong>"Sincronizar"</strong> para carregar os dados do Meta Ads.
-            </p>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden py-10 text-center">
+          <RefreshCw className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">
+            Clique em <strong>"Sincronizar"</strong> para carregar os dados do Meta Ads.
+          </p>
+        </div>
       ) : (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-muted/50 p-1 rounded-xl">
-            <TabsTrigger value="dashboard" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
-              <LayoutDashboard className="h-4 w-4" /> Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="criativos" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
-              <Layers className="h-4 w-4" /> Criativos
-            </TabsTrigger>
-            <TabsTrigger value="campanhas" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
-              <Megaphone className="h-4 w-4" /> Campanhas
-            </TabsTrigger>
-            <TabsTrigger value="analise" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm data-[state=active]:border-b-2 data-[state=active]:border-[#E8500A]">
-              <BarChart3 className="h-4 w-4" /> Analise
-            </TabsTrigger>
-          </TabsList>
+        <div className="space-y-6">
+          <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-xl w-fit">
+            <button
+              type="button"
+              onClick={() => setActiveTab("dashboard")}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${activeTab === "dashboard" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" /> Dashboard
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("criativos")}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${activeTab === "criativos" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Layers className="h-3.5 w-3.5" /> Criativos
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("campanhas")}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${activeTab === "campanhas" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <Megaphone className="h-3.5 w-3.5" /> Campanhas
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("analise")}
+              className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${activeTab === "analise" ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <BarChart3 className="h-3.5 w-3.5" /> Análise
+            </button>
+          </div>
 
           {/* ══════════ TAB 1: DASHBOARD ══════════ */}
-          <TabsContent value="dashboard" className="space-y-6">
+          {activeTab === "dashboard" && (
+          <div className="space-y-6">
             {/* BLOCO A — Meta Ads */}
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Megaphone className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Meta Ads</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              <StatCardGrid cols={4} className="lg:grid-cols-7">
                 {[
-                  { title: "Investido", value: formatCurrency(summary.totalInvestido), icon: DollarSign, color: "text-emerald-500", variation: summary.variacao.investido },
-                  { title: "Impressoes", value: formatCompact(summary.totalImpressoes), icon: Eye, color: "text-cyan-500", variation: summary.variacao.impressoes },
-                  { title: "Cliques", value: formatCompact(summary.totalCliques), icon: TrendingUp, color: "text-pink-500", variation: summary.variacao.cliques },
-                  { title: "Leads Meta", value: formatCompact(summary.totalLeads), icon: Users, color: "text-blue-500", variation: summary.variacao.leads },
-                  { title: "CTR Medio", value: formatPercent(summary.ctrMedio), icon: MousePointerClick, color: "text-purple-500", variation: summary.variacao.ctr },
-                  { title: "CPM", value: summary.totalImpressoes > 0 ? formatCurrency((summary.totalInvestido / summary.totalImpressoes) * 1000) : "—", icon: Eye, color: "text-amber-500", variation: null },
-                  { title: "CPL Meta", value: formatCurrency(summary.cplMedio), icon: Target, color: "text-orange-500", variation: summary.variacao.cpl, invert: true },
+                  { title: "Investido", value: formatBRL(summary.totalInvestido), icon: DollarSign, variation: summary.variacao.investido },
+                  { title: "Impressões", value: formatInt(summary.totalImpressoes), icon: Eye, variation: summary.variacao.impressoes },
+                  { title: "Cliques", value: formatInt(summary.totalCliques), icon: TrendingUp, variation: summary.variacao.cliques },
+                  { title: "Leads Meta", value: formatInt(summary.totalLeads), icon: Users, variation: summary.variacao.leads },
+                  { title: "CTR Médio", value: formatPct(summary.ctrMedio, 2), icon: MousePointerClick, variation: summary.variacao.ctr },
+                  { title: "CPM", value: summary.totalImpressoes > 0 ? formatBRL((summary.totalInvestido / summary.totalImpressoes) * 1000) : "—", icon: Eye, variation: null },
+                  { title: "CPL Meta", value: formatBRL(summary.cplMedio), icon: Target, variation: summary.variacao.cpl, invert: true },
                 ].map((card) => (
-                  <Card key={card.title} className="relative overflow-hidden">
-                    <CardContent className="pt-4 pb-3 px-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <card.icon className={`h-4 w-4 ${card.color}`} />
-                        <VariationBadge value={card.variation} invert={card.invert} />
-                      </div>
-                      <p className="text-lg font-bold truncate">{card.value}</p>
-                      <span className="text-[11px] text-muted-foreground">{card.title}</span>
-                    </CardContent>
-                  </Card>
+                  <StatCard
+                    key={card.title}
+                    label={card.title}
+                    value={card.value}
+                    icon={card.icon}
+                    delta={variationDelta(card.variation, card.invert)}
+                  />
                 ))}
-              </div>
+              </StatCardGrid>
             </div>
 
             {/* BLOCO B — Resultados Reais CRM */}
@@ -662,27 +682,24 @@ export default function MarketingTrafego() {
                 <Users className="h-4 w-4 text-blue-500" />
                 <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Resultados Reais (CRM)</span>
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <StatCardGrid cols={3} className="lg:grid-cols-6">
                 {[
-                  { title: "Leads CRM", value: displayValue(ef?.leads_marketing, formatNumber), icon: Users, color: "text-blue-500" },
-                  { title: "Qualificados", value: displayValue(ef?.qualificados, formatNumber), icon: CheckCircle, color: "text-purple-500" },
-                  { title: "Agendados", value: displayValue(ef?.agendados, formatNumber), icon: CalendarCheck, color: "text-emerald-500" },
-                  { title: "Fechados", value: displayValue(ef?.fechados, formatNumber), icon: Handshake, color: "text-green-600" },
-                  { title: "CPL Real", value: displayValue(ef?.cpl_real), icon: Target, color: "text-orange-500" },
-                  { title: "ROAS Real", value: displayValue(ef?.roas_real, (v) => v.toFixed(2) + "x"), icon: TrendingUp, color: "text-emerald-600", tooltip: "Baseado em vendas registradas no CRM vinculadas a leads de marketing" },
+                  { title: "Leads CRM", value: displayValue(ef?.leads_marketing, formatInt), icon: Users },
+                  { title: "Qualificados", value: displayValue(ef?.qualificados, formatInt), icon: CheckCircle },
+                  { title: "Agendados", value: displayValue(ef?.agendados, formatInt), icon: CalendarCheck },
+                  { title: "Fechados", value: displayValue(ef?.fechados, formatInt), icon: Handshake },
+                  { title: "CPL Real", value: displayValue(ef?.cpl_real, formatBRL), icon: Target },
+                  { title: "ROAS Real", value: displayValue(ef?.roas_real, (v) => `${formatNum(v, 2)}x`), icon: TrendingUp, sublabel: "vendas reais do CRM" },
                 ].map((card) => (
-                  <Card key={card.title} className="relative overflow-hidden border-blue-500/10 bg-blue-500/[0.02]">
-                    <CardContent className="pt-4 pb-3 px-4">
-                      <div className="flex items-center justify-between mb-1">
-                        <card.icon className={`h-4 w-4 ${card.color}`} />
-                        {(card as any).tooltip && <InfoTooltip text={(card as any).tooltip} />}
-                      </div>
-                      <p className="text-lg font-bold truncate">{card.value}</p>
-                      <span className="text-[11px] text-muted-foreground">{card.title}</span>
-                    </CardContent>
-                  </Card>
+                  <StatCard
+                    key={card.title}
+                    label={card.title}
+                    value={card.value}
+                    icon={card.icon}
+                    sublabel={card.sublabel}
+                  />
                 ))}
-              </div>
+              </StatCardGrid>
             </div>
 
             {/* Alerts */}
@@ -724,7 +741,7 @@ export default function MarketingTrafego() {
                               <step.icon className="h-4 w-4" style={{ color: step.color }} />
                               <span className="text-xs font-medium">{step.label}</span>
                             </div>
-                            <p className="text-2xl font-bold" style={{ color: step.color }}>{step.value}</p>
+                            <p className="text-2xl font-bold font-display tabular-nums" style={{ color: step.color }}>{step.value}</p>
                             <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
                               <div className="h-full rounded-full transition-all" style={{ width: `${Math.max(pct, 4)}%`, backgroundColor: step.color }} />
                             </div>
@@ -872,10 +889,12 @@ export default function MarketingTrafego() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+          </div>
+          )}
 
           {/* ══════════ TAB 2: CRIATIVOS ══════════ */}
-          <TabsContent value="criativos" className="space-y-6">
+          {activeTab === "criativos" && (
+          <div className="space-y-6">
             <div className="flex items-center gap-3">
               <Select value={adFilter} onValueChange={setAdFilter}>
                 <SelectTrigger className="h-9 w-[200px] text-xs">
@@ -1087,10 +1106,12 @@ export default function MarketingTrafego() {
                 )}
               </>
             )}
-          </TabsContent>
+          </div>
+          )}
 
           {/* ══════════ TAB 3: CAMPANHAS ══════════ */}
-          <TabsContent value="campanhas" className="space-y-6">
+          {activeTab === "campanhas" && (
+          <div className="space-y-6">
             <div className="flex items-center gap-2">
               <Button variant={campaignStatusFilter === "all" ? "default" : "outline"} size="sm" onClick={() => setCampaignStatusFilter("all")} className="text-xs">
                 Todas ({campaignRows.length})
@@ -1242,10 +1263,12 @@ export default function MarketingTrafego() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
+          </div>
+          )}
 
           {/* ══════════ TAB 4: ANALISE ══════════ */}
-          <TabsContent value="analise" className="space-y-6">
+          {activeTab === "analise" && (
+          <div className="space-y-6">
             {/* Resumo de Eficiencia */}
             {ef && (
               <Card className="rounded-xl border-l-4 border-l-blue-500">
@@ -1437,8 +1460,9 @@ export default function MarketingTrafego() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+          )}
+        </div>
       )}
     </div>
   );

@@ -53,7 +53,7 @@ export function CriativoScoreCard({ scoreOutput, ctr, cpl, leads, diasAtivos }: 
                 y="34"
                 textAnchor="middle"
                 dominantBaseline="central"
-                className="fill-foreground"
+                className="fill-foreground font-display tabular-nums"
                 fontSize="16"
                 fontWeight="700"
               >
@@ -87,7 +87,7 @@ export function CriativoScoreBadge({ scoreOutput }: { scoreOutput: ScoreOutput }
       className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold cursor-default"
       style={{ backgroundColor: `${cor}15`, color: cor }}
     >
-      {score}
+      <span className="font-display tabular-nums">{score}</span>
       <span className="text-[10px] font-medium opacity-80">{tag}</span>
     </span>
   );

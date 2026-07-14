@@ -89,7 +89,7 @@ function LiveTimer({ startedAt }: { startedAt: string }) {
   const s = Math.floor(elapsed / 1000);
   const ms = elapsed % 1000;
   return (
-    <span className="font-mono text-xs text-yellow-400 tabular-nums">
+    <span className="font-display text-xs text-yellow-400 tabular-nums">
       {s}s {ms.toString().padStart(3, "0")}ms
     </span>
   );
@@ -230,11 +230,11 @@ function ExecutionCard({ log }: { log: AiLog }) {
             )}
           </div>
           <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
-            <span>{format(new Date(log.criado_em), "dd/MM 'às' HH:mm:ss", { locale: ptBR })}</span>
+            <span className="font-display tabular-nums">{format(new Date(log.criado_em), "dd/MM 'às' HH:mm:ss", { locale: ptBR })}</span>
             {log.status === "running" ? (
               <LiveTimer startedAt={log.criado_em} />
             ) : log.duracao_ms ? (
-              <span className="font-mono text-xs">
+              <span className="font-display tabular-nums text-xs">
                 {log.duracao_ms >= 1000
                   ? `${(log.duracao_ms / 1000).toFixed(1)}s`
                   : `${log.duracao_ms}ms`}
@@ -442,7 +442,7 @@ export function AiLogsViewer() {
         <div className="rounded-full bg-muted/30 p-5 mb-4">
           <Activity className="h-8 w-8 text-muted-foreground/40" />
         </div>
-        <h3 className="text-sm font-semibold text-foreground mb-1">Nenhuma execução registrada</h3>
+        <h3 className="text-sm font-semibold font-display text-foreground mb-1">Nenhuma execução registrada</h3>
         <p className="text-xs max-w-xs">
           Quando a IA for acionada por uma mensagem no WhatsApp, os logs de execução em tempo real aparecerão aqui.
         </p>

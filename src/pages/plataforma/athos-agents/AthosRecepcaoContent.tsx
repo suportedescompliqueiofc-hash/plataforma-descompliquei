@@ -649,7 +649,7 @@ export function AthosRecepcaoContent() {
 
         <div className="flex items-center gap-2 shrink-0">
           {lastUpdated && !hasChanges && (
-            <span className="hidden items-center gap-1 text-[11px] text-muted-foreground/60 md:flex mr-1">
+            <span className="hidden items-center gap-1 text-[11px] font-display tabular-nums text-muted-foreground/60 md:flex mr-1">
               {format(new Date(lastUpdated), "dd/MM 'às' HH:mm", { locale: ptBR })}
             </span>
           )}

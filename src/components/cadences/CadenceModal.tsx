@@ -77,7 +77,7 @@ export function CadenceModal({ open, onOpenChange, cadence }: CadenceModalProps)
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-border/40 shrink-0">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-base font-semibold text-foreground">
+            <DialogTitle className="text-base font-semibold text-foreground font-display">
               {cadence ? "Detalhes da Cadência" : "Nova Cadência"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground/70">

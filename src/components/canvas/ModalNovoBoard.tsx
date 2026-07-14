@@ -96,7 +96,7 @@ export function ModalNovoBoard({
     <Dialog open={open} onOpenChange={(v) => { if (!v) resetForm(); onOpenChange(v); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Novo Canvas</DialogTitle>
+          <DialogTitle className="font-display">Novo Canvas</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

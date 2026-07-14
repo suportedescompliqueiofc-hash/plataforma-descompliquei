@@ -37,7 +37,7 @@ export default function AthosConsole() {
   const categorias: AthosCategoria[] = ["atendimento", "analise", "cs"];
 
   return (
-    <div className="max-w-[1000px] mx-auto space-y-8 pb-12">
+    <div className="max-w-[1400px] mx-auto space-y-8 pb-12">
       {/* HEADER */}
       <PageHero
         dataTutorial="athos-header"
@@ -121,7 +121,7 @@ export default function AthosConsole() {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className={`text-sm font-semibold ${liberado ? "text-foreground" : "text-muted-foreground"}`}>{agent.nome}</p>
+                        <p className={`text-sm font-semibold font-display ${liberado ? "text-foreground" : "text-muted-foreground"}`}>{agent.nome}</p>
                         <span className="text-[10px] font-medium text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded">{agent.badge}</span>
                         {pausado && (
                           <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 bg-muted px-1.5 py-0.5 rounded">Pausado</span>

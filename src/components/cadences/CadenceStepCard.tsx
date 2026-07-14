@@ -31,7 +31,7 @@ export function CadenceStepCard({ step, isLast, onUpdate, onDelete }: CadenceSte
     <div className="relative group/step animate-in fade-in slide-in-from-top-2 duration-300">
       {/* Step number badge */}
       <div className="absolute -left-3 top-4 z-10">
-        <div className="h-7 w-7 rounded-lg bg-foreground text-background flex items-center justify-center text-[10px] font-bold tabular-nums shadow-sm">
+        <div className="h-7 w-7 rounded-lg bg-foreground text-background flex items-center justify-center text-[10px] font-bold font-display tabular-nums shadow-sm">
           {step.posicao_ordem}
         </div>
       </div>
@@ -44,7 +44,7 @@ export function CadenceStepCard({ step, isLast, onUpdate, onDelete }: CadenceSte
               <typeInfo.icon className="h-2.5 w-2.5" />
               {typeInfo.label}
             </span>
-            <span className="text-[10px] text-muted-foreground/50">
+            <span className="text-[10px] text-muted-foreground/50 font-display tabular-nums">
               Passo {step.posicao_ordem}
             </span>
           </div>
@@ -72,7 +72,7 @@ export function CadenceStepCard({ step, isLast, onUpdate, onDelete }: CadenceSte
                   min="1"
                   value={step.tempo_espera}
                   onChange={e => onUpdate({ tempo_espera: parseInt(e.target.value) || 1 })}
-                  className="w-20 h-10 text-sm rounded-lg border-border/60 tabular-nums"
+                  className="w-20 h-10 text-sm rounded-lg border-border/60 font-display tabular-nums"
                 />
                 <Select value={step.unidade_tempo} onValueChange={v => onUpdate({ unidade_tempo: v as any })}>
                   <SelectTrigger className="flex-1 h-10 text-sm rounded-lg border-border/60">
@@ -85,7 +85,7 @@ export function CadenceStepCard({ step, isLast, onUpdate, onDelete }: CadenceSte
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-[10px] text-muted-foreground/50 tabular-nums">
+              <p className="text-[10px] text-muted-foreground/50 font-display tabular-nums">
                 {step.tempo_espera} {step.unidade_tempo} após o passo anterior
               </p>
             </div>

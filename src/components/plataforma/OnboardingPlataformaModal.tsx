@@ -26,8 +26,8 @@ const STEPS: Step[] = [
   {
     id: 'boas-vindas',
     icon: Sparkles,
-    iconBg: 'bg-[#E85D24]/10',
-    iconColor: 'text-[#E85D24]',
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
     title: 'Bem-vindo(a) à Plataforma!',
     description:
       'Você acabou de acessar o ambiente que vai transformar a captação e conversão de pacientes da sua clínica.',
@@ -195,7 +195,7 @@ export default function OnboardingPlataformaModal() {
         {/* Barra de progresso */}
         <div className="h-1 bg-muted/40 w-full">
           <div
-            className="h-full bg-[#E85D24] transition-all duration-500"
+            className="h-full bg-primary transition-all duration-500"
             style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
           />
         </div>
@@ -206,11 +206,11 @@ export default function OnboardingPlataformaModal() {
             {STEPS.map((s, i) => (
               <div key={s.id} className={cn(
                 'h-1.5 rounded-full transition-all duration-300',
-                i === step ? 'w-6 bg-[#E85D24]' : i < step ? 'w-3 bg-[#E85D24]/40' : 'w-3 bg-muted/40',
+                i === step ? 'w-6 bg-primary' : i < step ? 'w-3 bg-primary/40' : 'w-3 bg-muted/40',
               )} />
             ))}
           </div>
-          <span className="text-[11px] text-muted-foreground/50 font-mono">{step + 1} / {STEPS.length}</span>
+          <span className="text-[11px] text-muted-foreground/50 font-display tabular-nums">{step + 1} / {STEPS.length}</span>
         </div>
 
         {/* Conteúdo */}

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Eye, Edit2, Trash2, Users, DollarSign, ImageIcon, MousePointerClick, BarChart } from "lucide-react";
@@ -22,9 +21,9 @@ export function CreativeCard({ criativo, onEditName, onDelete }: CreativeCardPro
 
   return (
     <>
-      <Card className="overflow-hidden hover:shadow-md transition-all duration-200 group flex flex-col h-full border-muted/60">
+      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden hover:shadow-md transition-all duration-200 group flex flex-col h-full">
         {/* Thumbnail Section */}
-        <div className="relative aspect-video bg-black/5 dark:bg-white/5 flex items-center justify-center overflow-hidden cursor-pointer border-b" onClick={() => setIsModalOpen(true)}>
+        <div className="relative aspect-video bg-black/5 dark:bg-white/5 flex items-center justify-center overflow-hidden cursor-pointer border-b border-border/40" onClick={() => setIsModalOpen(true)}>
           {criativo.url_thumbnail ? (
             <img 
               src={criativo.url_thumbnail} 
@@ -51,30 +50,30 @@ export function CreativeCard({ criativo, onEditName, onDelete }: CreativeCardPro
         </div>
 
         {/* Content Section */}
-        <CardContent className="p-4 flex-1 flex flex-col">
+        <div className="p-4 flex-1 flex flex-col">
           <div className="flex justify-between items-start mb-2 gap-2">
-            <h3 className="font-semibold text-base line-clamp-1" title={criativo.nome || criativo.titulo || "Sem título"}>
+            <h3 className="font-semibold text-base line-clamp-1 font-display" title={criativo.nome || criativo.titulo || "Sem título"}>
               {criativo.nome || criativo.titulo || "Sem título"}
             </h3>
           </div>
-          
+
           {hasMetrics ? (
             <div className="grid grid-cols-2 gap-2 mb-4 mt-1">
-              <div className="bg-muted/30 p-2 rounded border text-center">
+              <div className="bg-muted/30 p-2 rounded border border-border/60 text-center">
                 <span className="text-[10px] text-muted-foreground block uppercase font-semibold">Gasto</span>
-                <span className="text-sm font-bold">R$ {metrics.spend.toFixed(2).replace('.', ',')}</span>
+                <span className="text-sm font-bold font-display tabular-nums">R$ {metrics.spend.toFixed(2).replace('.', ',')}</span>
               </div>
-              <div className="bg-muted/30 p-2 rounded border text-center">
+              <div className="bg-muted/30 p-2 rounded border border-border/60 text-center">
                 <span className="text-[10px] text-muted-foreground block uppercase font-semibold">Custo/Res.</span>
-                <span className="text-sm font-bold">R$ {metrics.cost_per_result.toFixed(2).replace('.', ',')}</span>
+                <span className="text-sm font-bold font-display tabular-nums">R$ {metrics.cost_per_result.toFixed(2).replace('.', ',')}</span>
               </div>
-              <div className="bg-muted/30 p-2 rounded border text-center">
+              <div className="bg-muted/30 p-2 rounded border border-border/60 text-center">
                 <span className="text-[10px] text-muted-foreground block uppercase font-semibold">CTR</span>
-                <span className="text-sm font-bold text-blue-600">{metrics.ctr.toFixed(2)}%</span>
+                <span className="text-sm font-bold font-display tabular-nums text-blue-600">{metrics.ctr.toFixed(2)}%</span>
               </div>
-              <div className="bg-muted/30 p-2 rounded border text-center">
+              <div className="bg-muted/30 p-2 rounded border border-border/60 text-center">
                 <span className="text-[10px] text-muted-foreground block uppercase font-semibold">Cliques</span>
-                <span className="text-sm font-bold">{metrics.clicks}</span>
+                <span className="text-sm font-bold font-display tabular-nums">{metrics.clicks}</span>
               </div>
             </div>
           ) : (
@@ -88,19 +87,19 @@ export function CreativeCard({ criativo, onEditName, onDelete }: CreativeCardPro
               <div className="flex items-center justify-center gap-1 text-primary text-xs font-medium mb-0.5">
                 <Users className="h-3 w-3" /> Leads (CRM)
               </div>
-              <span className="text-lg font-bold text-foreground">{criativo.stats?.contagem_leads || 0}</span>
+              <span className="text-lg font-bold text-foreground font-display tabular-nums">{criativo.stats?.contagem_leads || 0}</span>
             </div>
             <div className="bg-green-50 rounded p-2 text-center">
               <div className="flex items-center justify-center gap-1 text-green-700 text-xs font-medium mb-0.5">
                 <DollarSign className="h-3 w-3" /> Vendas
               </div>
-              <span className="text-lg font-bold text-foreground">{criativo.stats?.contagem_vendas || 0}</span>
+              <span className="text-lg font-bold text-foreground font-display tabular-nums">{criativo.stats?.contagem_vendas || 0}</span>
             </div>
           </div>
-        </CardContent>
+        </div>
 
         {/* Footer Actions */}
-        <CardFooter className="p-3 bg-muted/30 border-t flex justify-between items-center text-xs text-muted-foreground">
+        <div className="p-3 bg-muted/20 border-t border-border/40 flex justify-between items-center text-xs text-muted-foreground">
           <span>{format(new Date(criativo.criado_em), "dd/MM/yy", { locale: ptBR })}</span>
           <div className="flex gap-1">
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsModalOpen(true)} title="Ver Detalhes">
@@ -113,8 +112,8 @@ export function CreativeCard({ criativo, onEditName, onDelete }: CreativeCardPro
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
 
       <CreativeDetailsModal 
         open={isModalOpen} 

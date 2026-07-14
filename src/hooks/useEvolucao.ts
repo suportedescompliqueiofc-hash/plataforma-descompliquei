@@ -137,10 +137,13 @@ async function fetchPeriodMetrics(orgId: string, period: DatePeriod): Promise<Pe
   const leadsOrg = leads.filter((l: any) => l.origem === 'organico' || l.origem === 'indicacao').length;
   const leadsReativ = leads.filter((l: any) => l.origem === 'reativacao').length;
   const leadsOutros = leads.filter((l: any) => !['marketing', 'organico', 'indicacao', 'reativacao', 'paciente'].includes(l.origem)).length;
-  const mqlCount = new Set((mqlNotas as any[]).filter((n: any) => validLeadIds.has(n.lead_id)).map((n: any) => n.lead_id)).size;
-  const agRealizadosList = (agendamentos as any[]).filter((a: any) => a.status === 'realizado' && validLeadIds.has(a.lead_id));
-  const scheduledCount = new Set(agRealizadosList.map((a: any) => a.lead_id)).size;
-  const closedCount = new Set((vendas as any[]).filter((v: any) => validLeadIds.has(v.lead_id)).map((v: any) => v.lead_id)).size;
+  // Qualificados = is_qualified (estado atual do lead), mesmo critério do Painel (useDashboard) — NÃO notas MQL do período.
+  const mqlCount = leads.filter((l: any) => l.is_qualified).length;
+  // Agendamentos = leads únicos com agendamento não-cancelado no período. Mesmo critério do Painel:
+  // NÃO restringe ao cohort (inclui lead antigo agendado agora) e NÃO só 'realizado'.
+  const scheduledCount = new Set((agendamentos as any[]).filter((a: any) => a.status !== 'cancelado').map((a: any) => a.lead_id).filter(Boolean)).size;
+  // Fechamentos = leads únicos com venda no período (todos), igual ao Painel — sem restringir ao cohort.
+  const closedCount = new Set((vendas as any[]).map((v: any) => v.lead_id).filter(Boolean)).size;
   const taxaMQL = totalLeads > 0 ? (mqlCount / totalLeads) * 100 : 0;
   const taxaAgendamento = mqlCount > 0 ? (scheduledCount / mqlCount) * 100 : 0;
   const taxaFechamento = scheduledCount > 0 ? (closedCount / scheduledCount) * 100 : 0;

@@ -38,10 +38,13 @@ import { useProfile } from "@/hooks/useProfile";
 import { PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from "recharts";
 import ConfigNotificacoes from "@/components/agendamentos/ConfigNotificacoes";
 import { CurrencyInput } from "@/components/CurrencyInput";
+import { PageHero } from "@/components/PageHero";
 import AgendamentoFinanceiroConfig from "@/components/agendamentos/AgendamentoFinanceiroConfig";
 import { TimeInput } from "@/components/ui/TimeInput";
 import { useAgendamentoFinanceiroConfig } from "@/hooks/useAgendamentoFinanceiroConfig";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
+import { StatCard, StatCardGrid } from "@/components/StatCard";
+import { formatInt, formatPct } from "@/lib/format";
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -735,7 +738,7 @@ export default function Agendamentos() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 max-w-full overflow-hidden">
+      <div className="max-w-[1400px] mx-auto space-y-8 overflow-hidden">
         <div className="flex items-center justify-between">
           <div className="space-y-2">
             <Skeleton className="h-8 w-64 rounded-lg" />
@@ -758,45 +761,31 @@ export default function Agendamentos() {
   const firstName = profile?.nome_completo?.split(" ")[0] || "Usuário";
 
   return (
-    <div className="space-y-6 max-w-full overflow-hidden">
+    <div className="max-w-[1400px] mx-auto space-y-6 overflow-hidden">
 
       {/* ═══════════════ HERO HEADER ═══════════════ */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#1a0e06] via-[#1f1208] to-[#1a0e06] px-6 py-8 md:px-12 md:py-10" data-tutorial="agendamentos-header">
-        {/* Grid pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: 'linear-gradient(rgba(255,255,255,.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.1) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }} />
-        <div className="absolute -top-20 -right-20 w-[500px] h-[500px] rounded-full opacity-55 blur-[100px]"
-          style={{ background: 'radial-gradient(circle, #ea580c, transparent 65%)' }} />
-        <div className="absolute -bottom-24 -left-24 w-80 h-80 rounded-full opacity-35 blur-[80px]"
-          style={{ background: 'radial-gradient(circle, #d97706, transparent 65%)' }} />
-
-        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight font-display">
-              {greeting}, {firstName}
-            </h1>
-            <p className="text-sm text-white/50 mt-1">
-              {agendamentosHoje.length > 0
-                ? `Você tem ${agendamentosHoje.length} agendamento${agendamentosHoje.length !== 1 ? 's' : ''} hoje`
-                : "Nenhum agendamento para hoje"
-              }
-              {metricasFiltradas.total > 0 && ` · ${metricasFiltradas.total} no período`}
-            </p>
-          </div>
-
+      <PageHero
+        dataTutorial="agendamentos-header"
+        icon={CalendarDays}
+        title={`${greeting}, ${firstName}`}
+        subtitle={
+          (agendamentosHoje.length > 0
+            ? `Você tem ${agendamentosHoje.length} agendamento${agendamentosHoje.length !== 1 ? 's' : ''} hoje`
+            : "Nenhum agendamento para hoje") +
+          (metricasFiltradas.total > 0 ? ` · ${metricasFiltradas.total} no período` : '')
+        }
+        right={
           <div className="flex items-center gap-2">
             <button
               onClick={() => setModalFinanceiroConfig(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-white/60 bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] hover:text-white/80 transition-all"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-white/70 bg-white/10 border border-white/15 hover:bg-white/15 hover:text-white transition-all"
             >
               <DollarSign className="h-3.5 w-3.5" />
               Financeiro
             </button>
             <button
               onClick={() => setModalConfig(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-white/60 bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] hover:text-white/80 transition-all"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium text-white/70 bg-white/10 border border-white/15 hover:bg-white/15 hover:text-white transition-all"
               data-tutorial="agendamentos-config"
             >
               <Settings2 className="h-3.5 w-3.5" />
@@ -804,46 +793,39 @@ export default function Agendamentos() {
             </button>
             <button
               onClick={() => openCriar()}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white text-[#1a0e06] hover:bg-white/90 transition-all shadow-[0_2px_8px_rgba(255,255,255,0.1)]"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/15 text-white transition-all"
               data-tutorial="agendamentos-new"
             >
               <Plus className="h-3.5 w-3.5" />
               Novo Agendamento
             </button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Quick stats inside hero — dados de HOJE */}
-        {(() => {
-          const now = new Date();
-          const hojeRealizados = agendamentosHoje.filter((a) => a.status === "realizado").length;
-          const hojePendentes = agendamentosHoje.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) > now).length;
-          const hojeNoShow = agendamentosHoje.filter((a) => a.status === "nao_compareceu").length;
-          const hojeBase = hojeRealizados + hojeNoShow;
-          const hojeComparecimento = hojeBase > 0 ? Math.round((hojeRealizados / hojeBase) * 100) : null;
-          return (
-            <div className="relative grid grid-cols-2 md:grid-cols-4 gap-3 mt-6" data-tutorial="agendamentos-status">
-              {[
-                { label: "Hoje", value: agendamentosHoje.length, sub: "agendamentos", color: "#3b82f6" },
-                { label: "Realizados", value: hojeRealizados, sub: "compareceram", color: "#10b981" },
-                { label: "Pendentes", value: hojePendentes, sub: "ainda por vir", color: "#6366f1" },
-                hojeComparecimento !== null
-                  ? { label: "Comparecimento", value: `${hojeComparecimento}%`, sub: "taxa do dia", color: "#8b5cf6" }
-                  : { label: "No-show", value: hojeNoShow, sub: "não compareceram", color: "#ef4444" },
-              ].map((stat) => (
-                <div key={stat.label} className="rounded-xl bg-white/[0.06] border border-white/[0.08] px-4 py-3">
-                  <span className="text-[9px] font-bold uppercase tracking-widest text-white/35">{stat.label}</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: stat.color }} />
-                    <span className="text-lg font-bold text-white tabular-nums">{stat.value}</span>
-                  </div>
-                  <p className="text-[9px] text-white/25 mt-0.5">{stat.sub}</p>
-                </div>
-              ))}
-            </div>
-          );
-        })()}
-      </div>
+      {/* Quick stats — dados de HOJE */}
+      {(() => {
+        const now = new Date();
+        const hojeRealizados = agendamentosHoje.filter((a) => a.status === "realizado").length;
+        const hojePendentes = agendamentosHoje.filter((a) => ["agendado", "confirmado"].includes(a.status) && parseISO(a.data_hora_inicio) > now).length;
+        const hojeNoShow = agendamentosHoje.filter((a) => a.status === "nao_compareceu").length;
+        const hojeBase = hojeRealizados + hojeNoShow;
+        const hojeComparecimento = hojeBase > 0 ? Math.round((hojeRealizados / hojeBase) * 100) : null;
+        return (
+          <div data-tutorial="agendamentos-status">
+            <StatCardGrid cols={4}>
+              <StatCard label="Hoje" value={formatInt(agendamentosHoje.length)} sublabel="agendamentos" dotColor="#3b82f6" />
+              <StatCard label="Realizados" value={formatInt(hojeRealizados)} sublabel="compareceram" dotColor="#10b981" />
+              <StatCard label="Pendentes" value={formatInt(hojePendentes)} sublabel="ainda por vir" dotColor="#6366f1" />
+              {hojeComparecimento !== null ? (
+                <StatCard label="Comparecimento" value={formatPct(hojeComparecimento, 0)} sublabel="taxa do dia" dotColor="#8b5cf6" />
+              ) : (
+                <StatCard label="No-show" value={formatInt(hojeNoShow)} sublabel="não compareceram" dotColor="#ef4444" />
+              )}
+            </StatCardGrid>
+          </div>
+        );
+      })()}
 
       {/* ═══════════════ TAB NAVIGATION ═══════════════ */}
       <div className="flex items-center justify-between gap-4" data-tutorial="agendamentos-tabs">
@@ -1011,7 +993,7 @@ export default function Agendamentos() {
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-[10px] text-muted-foreground">Progresso do dia</span>
-                          <span className="text-[11px] font-bold text-emerald-600 tabular-nums">{progressPct}%</span>
+                          <span className="text-[11px] font-bold text-emerald-600 font-display tabular-nums">{progressPct}%</span>
                         </div>
                         <div className="h-2 bg-muted/50 rounded-full overflow-hidden">
                           <div
@@ -1046,8 +1028,8 @@ export default function Agendamentos() {
                         <div className="w-1 h-8 rounded-full shrink-0 bg-indigo-400" />
                         <div className="flex-1 min-w-0">
                           <p className="text-[9px] font-bold uppercase tracking-widest text-indigo-500 mb-0.5">Próximo</p>
-                          <p className="text-[12px] font-semibold text-foreground truncate">{proximoHoje.lead?.nome || proximoHoje.titulo}</p>
-                          <p className="text-[10px] text-muted-foreground tabular-nums">{formatTimeBR(proximoHoje.data_hora_inicio)} · {proximoHoje.duracao_minutos}min</p>
+                          <p className="text-[12px] font-semibold text-foreground truncate font-display">{proximoHoje.lead?.nome || proximoHoje.titulo}</p>
+                          <p className="text-[10px] text-muted-foreground font-display tabular-nums">{formatTimeBR(proximoHoje.data_hora_inicio)} · {proximoHoje.duracao_minutos}min</p>
                         </div>
                         <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 shrink-0" />
                       </button>
@@ -1094,11 +1076,11 @@ export default function Agendamentos() {
                         <div className="w-1 h-7 rounded-full shrink-0" style={{ backgroundColor: getEventColor(ag) }} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 mb-0.5">
-                            <span className="text-[10px] font-bold tabular-nums text-muted-foreground">{formatTimeBR(ag.data_hora_inicio)}</span>
+                            <span className="text-[10px] font-bold font-display tabular-nums text-muted-foreground">{formatTimeBR(ag.data_hora_inicio)}</span>
                             <span className="text-[9px] text-muted-foreground/30">·</span>
                             <span className="text-[10px] text-muted-foreground/60">{formatDateLabel(ag.data_hora_inicio)}</span>
                           </div>
-                          <p className="text-[12px] font-semibold text-foreground truncate">{ag.lead?.nome || ag.titulo}</p>
+                          <p className="text-[12px] font-semibold text-foreground truncate font-display">{ag.lead?.nome || ag.titulo}</p>
                           <div className="flex items-center gap-1 mt-0.5">
                             <TipoIcon className="h-2.5 w-2.5 text-muted-foreground/40" />
                             <span className="text-[10px] text-muted-foreground/50">{TIPO_LABELS[ag.tipo] || ag.tipo}{ag.duracao_minutos ? ` · ${ag.duracao_minutos}min` : ""}</span>
@@ -1146,7 +1128,7 @@ export default function Agendamentos() {
                       )}
                     >
                       {opt.label}
-                      <span className={cn("text-[9px] font-bold tabular-nums px-1 rounded", filtroTipo === opt.value ? "bg-background/20" : "bg-muted")}>
+                      <span className={cn("text-[9px] font-bold font-display tabular-nums px-1 rounded", filtroTipo === opt.value ? "bg-background/20" : "bg-muted")}>
                         {count}
                       </span>
                     </button>
@@ -1199,7 +1181,7 @@ export default function Agendamentos() {
                       <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />
                     )}
                     {opt.label}
-                    <span className={cn("text-[9px] font-bold tabular-nums px-1 rounded", isActive ? "bg-background/20" : "bg-muted")}>
+                    <span className={cn("text-[9px] font-bold font-display tabular-nums px-1 rounded", isActive ? "bg-background/20" : "bg-muted")}>
                       {count}
                     </span>
                   </button>
@@ -1236,7 +1218,7 @@ export default function Agendamentos() {
                               </span>
                             </div>
                             <div>
-                              <p className="text-[12px] font-semibold text-foreground">{ag.lead?.nome || ag.titulo}</p>
+                              <p className="text-[12px] font-semibold text-foreground font-display">{ag.lead?.nome || ag.titulo}</p>
                               {ag.lead?.telefone && (
                                 <p className="text-[10px] text-muted-foreground/50">{ag.lead.telefone}</p>
                               )}
@@ -1245,7 +1227,7 @@ export default function Agendamentos() {
                         </td>
                         <td className="px-5 py-4">
                           <p className="text-[12px] font-medium text-foreground">{format(parseISO(ag.data_hora_inicio), "dd/MM/yyyy", { locale: ptBR })}</p>
-                          <p className="text-[10px] text-muted-foreground tabular-nums">{formatTimeBR(ag.data_hora_inicio)} – {formatTimeBR(ag.data_hora_fim)}</p>
+                          <p className="text-[10px] text-muted-foreground font-display tabular-nums">{formatTimeBR(ag.data_hora_inicio)} – {formatTimeBR(ag.data_hora_fim)}</p>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex items-center gap-1.5">
@@ -1276,7 +1258,7 @@ export default function Agendamentos() {
                           </DropdownMenu>
                         </td>
                         <td className="px-5 py-4">
-                          <span className="text-[11px] text-muted-foreground tabular-nums">{ag.duracao_minutos}min</span>
+                          <span className="text-[11px] text-muted-foreground font-display tabular-nums">{ag.duracao_minutos}min</span>
                         </td>
                         <td className="px-5 py-4 text-right">
                           <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1399,7 +1381,7 @@ export default function Agendamentos() {
                     <kpi.icon className={cn("h-3 w-3", kpi.accent ? "text-emerald-600" : kpi.danger ? "text-red-500" : kpi.future ? "text-indigo-500" : "text-muted-foreground")} />
                     <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">{kpi.label}</span>
                   </div>
-                  <p className={cn("text-lg font-extrabold tracking-tight font-display leading-none", kpi.accent ? "text-emerald-700" : kpi.danger ? "text-red-600" : kpi.future ? "text-indigo-700" : "text-foreground")}>
+                  <p className={cn("text-lg font-extrabold tracking-tight font-display tabular-nums leading-none", kpi.accent ? "text-emerald-700" : kpi.danger ? "text-red-600" : kpi.future ? "text-indigo-700" : "text-foreground")}>
                     {kpi.value}
                   </p>
                   <p className={cn("text-[10px] mt-1 leading-tight", kpi.passadoSemResultado > 0 ? "text-amber-600/80" : "text-muted-foreground/60")}>{kpi.sub}</p>
@@ -1457,7 +1439,7 @@ export default function Agendamentos() {
                                     <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.stroke }} />
                                     <span className="text-[11px] text-muted-foreground">{p.dataKey === "total" ? "Agendados" : "Realizados"}</span>
                                   </div>
-                                  <span className="text-[13px] font-bold tabular-nums text-foreground">{p.value}</span>
+                                  <span className="text-[13px] font-bold font-display tabular-nums text-foreground">{p.value}</span>
                                 </div>
                               ))}
                             </div>
@@ -1496,7 +1478,7 @@ export default function Agendamentos() {
                             <span className="text-[11px] font-medium text-foreground">{s.label}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold tabular-nums text-foreground">{s.total}</span>
+                            <span className="text-[11px] font-bold font-display tabular-nums text-foreground">{s.total}</span>
                             <span className="text-[10px] text-muted-foreground/50 w-8 text-right">{pct}%</span>
                           </div>
                         </div>
@@ -1573,7 +1555,7 @@ export default function Agendamentos() {
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-[11px] font-medium text-foreground">{step.label}</span>
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <span className="text-[13px] font-bold tabular-nums text-foreground">{step.value}</span>
+                                  <span className="text-[13px] font-bold font-display tabular-nums text-foreground">{step.value}</span>
                                   {i > 0 && <span className="text-[10px] text-muted-foreground/50">{pct}%</span>}
                                 </div>
                               </div>
@@ -1591,7 +1573,7 @@ export default function Agendamentos() {
                           <p className="text-[11px] font-bold text-amber-700">Taxa de conversão real (CRM)</p>
                           <p className="text-[10px] text-amber-600/70 mt-0.5">{metricasFunil.vendasDeLeads} vendas de {metricasFunil.leadsAtendidos} leads atendidos</p>
                         </div>
-                        <span className="text-2xl font-extrabold font-display text-amber-700">{metricasFunil.taxa}%</span>
+                        <span className="text-2xl font-extrabold font-display tabular-nums text-amber-700">{metricasFunil.taxa}%</span>
                       </div>
                     )}
                     {(metricasFunil.valorOrcado > 0 || metricasFunil.valorVendas > 0) && (
@@ -1646,8 +1628,8 @@ export default function Agendamentos() {
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-[11px] font-medium text-foreground truncate">{lead.nome}</span>
                               <div className="flex items-center gap-2 shrink-0 ml-2">
-                                <span className="text-[10px] text-emerald-600 font-semibold">{lead.realizados}✓</span>
-                                <span className="text-[12px] font-bold tabular-nums text-foreground">{lead.total}</span>
+                                <span className="text-[10px] text-emerald-600 font-semibold inline-flex items-center gap-0.5">{lead.realizados}<Check className="h-2.5 w-2.5" /></span>
+                                <span className="text-[12px] font-bold font-display tabular-nums text-foreground">{lead.total}</span>
                               </div>
                             </div>
                             <div className="h-1.5 bg-muted/50 rounded-full overflow-hidden">
@@ -2010,13 +1992,13 @@ export default function Agendamentos() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="rounded-xl bg-muted/30 border border-border/30 p-3.5">
                       <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Lead</span>
-                      <p className="text-[13px] font-semibold text-foreground mt-1">{ag.lead?.nome || "Sem lead"}</p>
+                      <p className="text-[13px] font-semibold text-foreground mt-1 font-display">{ag.lead?.nome || "Sem lead"}</p>
                       {ag.lead?.telefone && <p className="text-[10px] text-muted-foreground">{ag.lead.telefone}</p>}
                     </div>
                     <div className="rounded-xl bg-muted/30 border border-border/30 p-3.5">
                       <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Data / Hora</span>
-                      <p className="text-[13px] font-semibold text-foreground mt-1">{format(parseISO(ag.data_hora_inicio), "dd/MM/yyyy")}</p>
-                      <p className="text-[10px] text-muted-foreground tabular-nums">{formatTimeBR(ag.data_hora_inicio)} – {formatTimeBR(ag.data_hora_fim)} · {ag.duracao_minutos}min</p>
+                      <p className="text-[13px] font-semibold text-foreground mt-1 font-display tabular-nums">{format(parseISO(ag.data_hora_inicio), "dd/MM/yyyy")}</p>
+                      <p className="text-[10px] text-muted-foreground font-display tabular-nums">{formatTimeBR(ag.data_hora_inicio)} – {formatTimeBR(ag.data_hora_fim)} · {ag.duracao_minutos}min</p>
                     </div>
                   </div>
 
@@ -2278,7 +2260,7 @@ export default function Agendamentos() {
                 >
                   <div className="w-1 h-10 rounded-full shrink-0" style={{ backgroundColor: bgColor }} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[12px] font-semibold text-foreground truncate">{ag.titulo}</p>
+                    <p className="text-[12px] font-semibold text-foreground truncate font-display">{ag.titulo}</p>
                     <div className="flex items-center gap-2 mt-0.5">
                       <TipoIcon className="h-3 w-3 text-muted-foreground/50" />
                       <span className="text-[10px] text-muted-foreground/60">{formatTimeBR(ag.data_hora_inicio)}</span>

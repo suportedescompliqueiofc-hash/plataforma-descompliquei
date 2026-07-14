@@ -714,7 +714,7 @@ export default function Onboarding() {
     : TEMPO_POR_BLOCO.slice(tela - 1).reduce((a, b) => a + b, 0);
 
   if (loading) return (
-    <div className="fixed inset-0 bg-[#F8F8F6] flex items-center justify-center">
+    <div className="fixed inset-0 bg-background flex items-center justify-center">
       <div className="w-8 h-8 rounded-full border-2 border-t-foreground animate-spin" />
     </div>
   );
@@ -722,7 +722,7 @@ export default function Onboarding() {
   const blocoAtivo = tela >= 1 && tela <= 7 ? BLOCOS[tela - 1] : null;
 
   return (
-    <div className="fixed inset-0 bg-[#F8F8F6] flex flex-col z-50 overflow-hidden">
+    <div className="fixed inset-0 bg-background flex flex-col z-50 overflow-hidden">
 
       {/* Keyframes para animação dos cards da jornada */}
       <style>{`
@@ -737,7 +737,7 @@ export default function Onboarding() {
       `}</style>
 
       {/* Header */}
-      <header className="shrink-0 h-14 flex items-center px-6 border-b border-border/30 bg-[#F8F8F6]/95 backdrop-blur-sm">
+      <header className="shrink-0 h-14 flex items-center px-6 border-b border-border/30 bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-3 flex-1">
           <span className="font-bold text-[15px] text-foreground tracking-tight">Descompliquei</span>
         </div>
@@ -749,7 +749,7 @@ export default function Onboarding() {
                 style={{ width: `${progresso}%` }}
               />
             </div>
-            <span className="shrink-0 text-[12px] text-muted-foreground tabular-nums">{progresso}%</span>
+            <span className="shrink-0 text-[12px] text-muted-foreground font-display tabular-nums">{progresso}%</span>
           </div>
         )}
         {tela > 0 && tela <= 7 && (
@@ -773,7 +773,7 @@ export default function Onboarding() {
               <div className="w-12 h-12 rounded-2xl bg-foreground flex items-center justify-center mb-8">
                 <span className="text-background text-[20px] font-bold">D</span>
               </div>
-              <h1 className="text-[28px] font-bold text-foreground tracking-tight leading-tight mb-4">
+              <h1 className="text-[28px] font-bold text-foreground tracking-tight leading-tight mb-4 font-display">
                 Vamos construir a sua jornada.
               </h1>
               <p className="text-[15px] text-muted-foreground leading-relaxed mb-3">
@@ -784,10 +784,10 @@ export default function Onboarding() {
               </p>
               <button
                 onClick={iniciar}
-                className="flex items-center gap-2 h-11 px-8 rounded-xl bg-foreground text-background text-[14px] font-semibold hover:bg-foreground/90 transition-colors"
+                className="flex items-center gap-1.5 h-9 px-5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors"
               >
                 Começar diagnóstico
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
@@ -799,7 +799,7 @@ export default function Onboarding() {
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-2">
                   Bloco {blocoAtivo.numero} de {totalBlocos}
                 </p>
-                <h2 className="text-[22px] font-bold text-foreground leading-snug">
+                <h2 className="text-[22px] font-bold text-foreground leading-snug font-display">
                   {blocoAtivo.titulo}
                 </h2>
               </div>
@@ -828,10 +828,10 @@ export default function Onboarding() {
                 </button>
                 <button
                   onClick={avancar}
-                  className="flex items-center gap-2 h-10 px-6 rounded-xl bg-foreground text-background text-[13px] font-semibold hover:bg-foreground/90 transition-colors"
+                  className="flex items-center gap-1.5 h-9 px-5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors"
                 >
                   {tela === 7 ? "Concluir diagnóstico" : "Continuar"}
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
 
@@ -859,7 +859,7 @@ export default function Onboarding() {
                     ? <span className="text-red-500 text-xl font-bold">!</span>
                     : <CheckCircle2 className="h-7 w-7 text-emerald-600" />}
                 </div>
-                <h2 className="text-[22px] font-bold text-foreground tracking-tight">
+                <h2 className="text-[22px] font-bold text-foreground tracking-tight font-display">
                   {athosStreaming
                     ? athosPhase === "thinking"
                       ? "Analisando seu diagnóstico..."
@@ -906,7 +906,7 @@ export default function Onboarding() {
                           </div>
                         ))}
                       </div>
-                      <span className="text-[11px] text-muted-foreground/60 tabular-nums font-mono">
+                      <span className="text-[11px] text-muted-foreground/60 tabular-nums font-display">
                         {athosElapsed}s
                       </span>
                     </div>
@@ -950,7 +950,7 @@ export default function Onboarding() {
                       setAthosPhase("thinking");
                       construirJornada();
                     }}
-                    className="h-10 px-6 rounded-xl bg-foreground text-background text-[13px] font-semibold hover:bg-foreground/90 transition-colors"
+                    className="h-9 px-5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors"
                   >
                     Tentar novamente
                   </button>
@@ -967,7 +967,7 @@ export default function Onboarding() {
                 <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-3">
                   Sua jornada personalizada
                 </p>
-                <h2 className="text-[26px] font-bold text-foreground tracking-tight leading-tight">
+                <h2 className="text-[26px] font-bold text-foreground tracking-tight leading-tight font-display">
                   {jornada.titulo}
                 </h2>
                 <p className="text-[13px] text-muted-foreground mt-2">
@@ -988,7 +988,7 @@ export default function Onboarding() {
                         <span className="text-[12px] font-bold text-foreground">{i + 1}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[14px] font-bold text-foreground">{est.titulo}</p>
+                        <p className="text-[14px] font-bold text-foreground font-display">{est.titulo}</p>
                         {est.descricao && (
                           <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">{est.descricao}</p>
                         )}
@@ -1008,7 +1008,7 @@ export default function Onboarding() {
                         )}
                       </div>
                       {est.prazo_dias && (
-                        <div className="shrink-0 text-[10px] font-medium text-muted-foreground/50 bg-muted/40 px-2 py-1 rounded-lg whitespace-nowrap">
+                        <div className="shrink-0 text-[10px] font-medium font-display tabular-nums text-muted-foreground/50 bg-muted/40 px-2 py-1 rounded-lg whitespace-nowrap">
                           {est.prazo_dias} dias
                         </div>
                       )}
@@ -1022,11 +1022,11 @@ export default function Onboarding() {
                 <button
                   onClick={finalizarOnboarding}
                   disabled={finalizando}
-                  className="flex items-center gap-2 h-11 px-8 rounded-xl bg-foreground text-background text-[14px] font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60"
+                  className="flex items-center gap-1.5 h-9 px-5 rounded-lg bg-foreground text-background text-xs font-semibold hover:bg-foreground/90 transition-colors disabled:opacity-60"
                 >
-                  {finalizando && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {finalizando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {finalizando ? "Entrando na plataforma..." : "Começar minha jornada"}
-                  {!finalizando && <ChevronRight className="h-4 w-4" />}
+                  {!finalizando && <ChevronRight className="h-3.5 w-3.5" />}
                 </button>
               </div>
             </div>

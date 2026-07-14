@@ -230,7 +230,7 @@ export default function Settings() {
   ];
 
   return (
-    <div className="space-y-6 pb-10 max-w-full overflow-hidden">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10 overflow-hidden">
       {/* sr-only section switchers for tutorial/onboarding actions */}
       <button data-tutorial="settings-go-marca" className="sr-only" onClick={() => setActiveSection('marca')} tabIndex={-1} aria-hidden="true" />
       <button data-tutorial="settings-go-tags" className="sr-only" onClick={() => setActiveSection('tags')} tabIndex={-1} aria-hidden="true" />
@@ -362,7 +362,7 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <p className="text-sm font-semibold text-foreground">
+                      <p className="text-sm font-semibold text-foreground font-display">
                         {profile?.nome_completo || "Sem nome"}
                       </p>
                       <p className="text-[11px] text-muted-foreground/60 flex items-center gap-1 mt-0.5">
@@ -636,7 +636,7 @@ export default function Settings() {
                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
                             {contratoVencido ? 'Dias em atraso' : 'Dias restantes'}
                           </p>
-                          <p className={`text-xl font-bold font-mono tabular-nums mt-0.5 ${
+                          <p className={`text-xl font-bold font-display tabular-nums mt-0.5 ${
                             contratoVencido ? 'text-red-600' : (diasRestantes ?? 0) <= 15 ? 'text-amber-600' : 'text-foreground'
                           }`}>
                             {Math.abs(diasRestantes ?? 0)}
@@ -644,11 +644,11 @@ export default function Settings() {
                         </div>
                         <div className="px-3">
                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Dias utilizados</p>
-                          <p className="text-xl font-bold font-mono tabular-nums mt-0.5 text-foreground">{diasDecorridos}</p>
+                          <p className="text-xl font-bold font-display tabular-nums mt-0.5 text-foreground">{diasDecorridos}</p>
                         </div>
                         <div className="pl-3">
                           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Duração total</p>
-                          <p className="text-xl font-bold font-mono tabular-nums mt-0.5 text-foreground">{totalDiasContrato}d</p>
+                          <p className="text-xl font-bold font-display tabular-nums mt-0.5 text-foreground">{totalDiasContrato}d</p>
                         </div>
                       </div>
 

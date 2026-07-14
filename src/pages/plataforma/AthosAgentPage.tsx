@@ -29,7 +29,7 @@ import { MASTER_ORG_ID } from "@/lib/constants";
  * `AiTriageLogsTab`, `AiFollowupTab`, modal de Análise), não um template genérico repetido.
  *
  * Assinatura visual do hero: um "readout" mono (status / gatilho / atividade), no mesmo idioma
- * tipográfico já usado para números no resto do produto (font-mono tabular-nums).
+ * tipográfico já usado para números no resto do produto (font-display tabular-nums).
  */
 export default function AthosAgentPage() {
   const { agentId } = useParams<{ agentId: string }>();
@@ -125,7 +125,7 @@ export default function AthosAgentPage() {
           {temLog && (
             <div className="px-6 py-3.5">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">Atividade (30d)</p>
-              <p className="text-[15px] sm:text-base font-bold font-mono tabular-nums mt-0.5 text-foreground">
+              <p className="text-[15px] sm:text-base font-bold font-display tabular-nums mt-0.5 text-foreground">
                 {eventosLoading ? "—" : `${eventos.length}${eventos.length === 30 ? "+" : ""}`}
               </p>
             </div>

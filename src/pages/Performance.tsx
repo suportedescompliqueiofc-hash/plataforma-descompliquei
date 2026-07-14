@@ -106,7 +106,7 @@ function ScoreGauge({
         </div>
       </div>
       <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60">{label}</span>
-      {sublabel && <span className="text-[10px] text-muted-foreground/40">{sublabel}</span>}
+      {sublabel && <span className="text-[10px] text-muted-foreground/40 font-display tabular-nums">{sublabel}</span>}
     </div>
   );
 }
@@ -316,7 +316,7 @@ function PeriodChecklistView({
             </span>
             <div>
               <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{freqLabel}</p>
-              <p className="text-[10px] text-muted-foreground/50 mt-0.5">{done}/{total} tarefas concluídas</p>
+              <p className="text-[10px] text-muted-foreground/50 mt-0.5"><span className="font-display tabular-nums">{done}/{total}</span> tarefas concluídas</p>
             </div>
           </div>
           {/* Mini score */}
@@ -439,7 +439,7 @@ function OverviewTab() {
           <Flame className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-[12px] font-semibold text-amber-800">
-              {todayPending.length} {todayPending.length === 1 ? 'tarefa pendente' : 'tarefas pendentes'} hoje
+              <span className="font-display tabular-nums">{todayPending.length}</span> {todayPending.length === 1 ? 'tarefa pendente' : 'tarefas pendentes'} hoje
             </p>
             <p className="text-[11px] text-amber-700/70 mt-0.5">
               {todayPending.map((t) => t.title).join(' · ')}
@@ -555,7 +555,7 @@ export default function Performance() {
   ];
 
   return (
-    <div className="space-y-6 pb-10">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10">
       {/* ── Header ── */}
       <PageHero
         dataTutorial="performance-header"

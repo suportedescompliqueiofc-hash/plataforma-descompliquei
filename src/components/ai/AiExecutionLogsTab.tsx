@@ -208,7 +208,7 @@ export function AiExecutionLogsTab() {
                 <div className="bg-muted/30 p-4 rounded-2xl mb-3">
                   <Activity className="h-8 w-8 text-muted-foreground/30" />
                 </div>
-                <p className="text-sm font-medium text-muted-foreground mb-0.5">
+                <p className="text-sm font-medium font-display text-muted-foreground mb-0.5">
                   Nenhum log encontrado
                 </p>
                 <p className="text-[11px] text-muted-foreground/50">
@@ -282,7 +282,7 @@ export function AiExecutionLogsTab() {
                                     )}
                                     {log.partes_enviadas != null && (
                                       <span className="text-[10px] text-muted-foreground">
-                                        Partes: <strong className="text-foreground/70">{log.partes_enviadas}</strong>
+                                        Partes: <strong className="text-foreground/70 font-display tabular-nums">{log.partes_enviadas}</strong>
                                       </span>
                                     )}
                                   </div>
@@ -296,11 +296,11 @@ export function AiExecutionLogsTab() {
                           </td>
                           <td className="px-5 py-3 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <span className="text-[11px] text-muted-foreground tabular-nums">
+                              <span className="text-[11px] text-muted-foreground font-display tabular-nums">
                                 {format(new Date(log.criado_em), "dd/MM HH:mm:ss", { locale: ptBR })}
                               </span>
                               {log.duracao_ms != null && (
-                                <span className="text-[9px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md tabular-nums">
+                                <span className="text-[9px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md font-display tabular-nums">
                                   {log.duracao_ms}ms
                                 </span>
                               )}

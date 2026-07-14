@@ -184,12 +184,12 @@ export function AudioPlayer({ audioUrl, variant = 'incoming' }: AudioPlayerProps
                     isOutgoing ? "bg-black/20 text-white" : "bg-muted text-muted-foreground"
                 )}
             >
-                {playbackRate.toFixed(1)}x
+                <span className="font-display tabular-nums">{playbackRate.toFixed(1)}x</span>
             </Button>
           </div>
 
           <div className={cn(
-            "flex justify-between items-center text-[9px] px-0.5 font-medium",
+            "flex justify-between items-center text-[9px] px-0.5 font-medium font-display tabular-nums",
             isOutgoing ? "text-white/80" : "text-muted-foreground"
           )}>
             <span>{formatTime(currentTime)}</span>

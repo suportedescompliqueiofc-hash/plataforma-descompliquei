@@ -129,14 +129,14 @@ export function ModalMoverBoard({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Mover Canvas</DialogTitle>
+          <DialogTitle className="font-display">Mover Canvas</DialogTitle>
         </DialogHeader>
 
         <p className="text-sm text-muted-foreground">
           Mover <span className="font-medium text-foreground">{boardTitulo}</span> para:
         </p>
 
-        <ScrollArea className="max-h-[300px] border rounded-lg p-2">
+        <ScrollArea className="max-h-[300px] border border-border/60 rounded-lg p-2">
           {/* Option: No folder */}
           <button
             className={cn(

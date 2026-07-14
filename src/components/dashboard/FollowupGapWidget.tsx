@@ -99,7 +99,7 @@ export function FollowupGapWidget({ dateRange, origem }: FollowupGapWidgetProps)
               Aguardando follow
             </span>
           </div>
-          <p className="text-2xl font-bold font-mono tabular-nums text-foreground leading-none mt-1">
+          <p className="text-2xl font-bold font-display tabular-nums text-foreground leading-none mt-1">
             {total}
           </p>
         </div>
@@ -110,7 +110,7 @@ export function FollowupGapWidget({ dateRange, origem }: FollowupGapWidgetProps)
               Média sem contato
             </span>
           </div>
-          <p className="text-2xl font-bold font-mono tabular-nums text-amber-600 leading-none mt-1">
+          <p className="text-2xl font-bold font-display tabular-nums text-amber-600 leading-none mt-1">
             {formatHoras(avgHorasSemContato)}
           </p>
         </div>
@@ -121,7 +121,7 @@ export function FollowupGapWidget({ dateRange, origem }: FollowupGapWidgetProps)
               Faturamento em risco
             </span>
           </div>
-          <p className="text-2xl font-bold font-mono tabular-nums text-red-500 leading-none mt-1">
+          <p className="text-2xl font-bold font-display tabular-nums text-red-500 leading-none mt-1">
             {faturamentoEmRisco > 0 ? formatBRL(faturamentoEmRisco) : "—"}
           </p>
         </div>
@@ -142,7 +142,7 @@ export function FollowupGapWidget({ dateRange, origem }: FollowupGapWidgetProps)
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[11px] font-mono tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded-md px-2 py-0.5">
+              <span className="text-[11px] font-display tabular-nums font-semibold text-amber-600 bg-amber-500/10 rounded-md px-2 py-0.5">
                 {formatHoras(lead.horasSemContato)} sem resposta
               </span>
               <button

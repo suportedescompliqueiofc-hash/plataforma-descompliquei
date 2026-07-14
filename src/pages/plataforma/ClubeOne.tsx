@@ -87,8 +87,8 @@ function BarraProgresso({ pontos, nivelAtual, proximoNivel }: { pontos: number; 
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>{pontos} pts</span>
-        <span>{proximoNivel.nome}: {meta} pts</span>
+        <span className="font-display tabular-nums">{pontos} pts</span>
+        <span className="font-display tabular-nums">{proximoNivel.nome}: {meta} pts</span>
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
         <div
@@ -96,7 +96,7 @@ function BarraProgresso({ pontos, nivelAtual, proximoNivel }: { pontos: number; 
           style={{ width: `${pct}%` }}
         />
       </div>
-      <p className="text-[10px] text-muted-foreground/50 text-right">{pct}% para {proximoNivel.nome}</p>
+      <p className="text-[10px] text-muted-foreground/50 text-right font-display tabular-nums">{pct}% para {proximoNivel.nome}</p>
     </div>
   );
 }
@@ -243,7 +243,7 @@ function MembroSheet({
                       </p>
                     </div>
                     <span className={cn(
-                      'text-sm font-bold tabular-nums shrink-0',
+                      'text-sm font-bold font-display tabular-nums shrink-0',
                       r.tipo === 'ganho' ? 'text-emerald-600' : 'text-red-500'
                     )}>
                       {r.tipo === 'ganho' ? '+' : '-'}{r.pontos}
@@ -288,7 +288,7 @@ function MembroSheet({
                                 )}
                               </div>
                               <span className={cn(
-                                'text-xs font-bold tabular-nums shrink-0',
+                                'text-xs font-bold font-display tabular-nums shrink-0',
                                 isPenalidade ? 'text-red-500' : 'text-emerald-600'
                               )}>
                                 {isPenalidade ? '-' : '+'}{pts} pts
@@ -388,7 +388,7 @@ export default function ClubeOne() {
   const [membroSelecionado, setMembroSelecionado] = useState<ClubeMembro | null>(null);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-[1400px] mx-auto space-y-6">
       {/* Header */}
       <PageHero
         icon={Trophy}

@@ -277,7 +277,7 @@ export function AiFollowupConfig() {
                   <div className="flex items-start gap-3">
                     {/* Step badge */}
                     <div
-                      className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-bold transition-colors ${
+                      className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[12px] font-bold font-display tabular-nums transition-colors ${
                         item.ativo
                           ? "bg-foreground text-background"
                           : "bg-muted text-muted-foreground/40"
@@ -325,7 +325,7 @@ export function AiFollowupConfig() {
                         <Input
                           type="number"
                           min={1}
-                          className="h-7 w-[68px] text-xs tabular-nums text-center rounded-lg border-border/60"
+                          className="h-7 w-[68px] text-xs font-display tabular-nums text-center rounded-lg border-border/60"
                           value={item.minutos}
                           onChange={(e) => {
                             const val = parseInt(e.target.value, 10);
@@ -337,7 +337,7 @@ export function AiFollowupConfig() {
                         <span className="text-[11px] text-muted-foreground">
                           min sem resposta
                         </span>
-                        <span className="ml-auto text-[11px] font-mono font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5 tabular-nums">
+                        <span className="ml-auto text-[11px] font-display font-semibold text-muted-foreground bg-muted/60 rounded-md px-1.5 py-0.5 tabular-nums">
                           {formatMinutos(item.minutos)}
                         </span>
                       </div>

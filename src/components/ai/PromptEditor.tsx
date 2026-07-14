@@ -58,7 +58,7 @@ export function PromptEditor({ value, onChange, disabled, placeholder }: PromptE
       {/* Coluna de Números de Linha */}
       <div 
         id="line-numbers"
-        className="bg-muted/50 border-r text-muted-foreground w-12 text-right py-4 px-2 select-none overflow-hidden"
+        className="bg-muted/50 border-r text-muted-foreground w-12 text-right py-4 px-2 select-none overflow-hidden tabular-nums"
       >
         {Array.from({ length: lineCount }).map((_, i) => (
           <div key={i} className="h-6 leading-6">{i + 1}</div>

@@ -166,19 +166,19 @@ export default function AgendamentoFinanceiroConfig({ isOpen, onClose }: Props) 
                       <div className="space-y-1">
                         <div className="flex justify-between text-[11px]">
                           <span className="text-muted-foreground">Consulta paga pelo lead</span>
-                          <span className="font-semibold tabular-nums">R$ {abatimentoExemplo.consulta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-semibold font-display tabular-nums">R$ {abatimentoExemplo.consulta.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-[11px]">
                           <span className="text-muted-foreground">Procedimento (valor cheio)</span>
-                          <span className="font-semibold tabular-nums">R$ {abatimentoExemplo.proc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-semibold font-display tabular-nums">R$ {abatimentoExemplo.proc.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-[11px] text-red-600">
                           <span>Abatimento da consulta</span>
-                          <span className="font-semibold tabular-nums">– R$ {abatimentoExemplo.desconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-semibold font-display tabular-nums">– R$ {abatimentoExemplo.desconto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="border-t border-border/40 pt-1 flex justify-between text-[12px] font-bold text-emerald-600">
                           <span>Lead paga pelo procedimento</span>
-                          <span className="tabular-nums">R$ {abatimentoExemplo.final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-display tabular-nums">R$ {abatimentoExemplo.final.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </div>
                       </div>
                     </div>

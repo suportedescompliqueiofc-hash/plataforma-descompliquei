@@ -94,7 +94,7 @@ export default function CrmOnboarding() {
   };
 
   return (
-    <div className="space-y-6 pb-10 max-w-2xl mx-auto">
+    <div className="max-w-[1400px] mx-auto space-y-6 pb-10">
       <div>
         <div className="flex items-center gap-2 mb-1">
           <div className="p-1.5 rounded-lg bg-muted">

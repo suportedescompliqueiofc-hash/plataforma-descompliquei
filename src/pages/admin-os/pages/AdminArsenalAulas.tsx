@@ -77,7 +77,7 @@ function SortableAulaRow({ aula, index, onEdit, onToggleAtivo, onDelete }: Sorta
         <GripVertical className="h-4 w-4" />
       </button>
 
-      <span className="flex-shrink-0 w-5 text-[11px] font-mono text-muted-foreground/40 tabular-nums">
+      <span className="flex-shrink-0 w-5 text-[11px] font-display text-muted-foreground/40 tabular-nums">
         {index + 1}
       </span>
 

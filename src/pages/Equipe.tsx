@@ -11,24 +11,12 @@ import { useTeamMembersForSelect } from "@/hooks/useTeamMembersForSelect";
 import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
 import { PageHero } from "@/components/PageHero";
+import { StatCard, StatCardGrid } from "@/components/StatCard";
+import { formatBRL, formatInt, formatPct } from "@/lib/format";
+import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { useState } from "react";
-import {
-  startOfDay, endOfDay, startOfWeek, endOfWeek,
-  startOfMonth, endOfMonth, startOfYear, endOfYear,
-} from "date-fns";
+import { startOfMonth, endOfMonth } from "date-fns";
 import { DateRange } from "react-day-picker";
-
-type PeriodKey = "dia" | "semana" | "mes" | "ano";
-
-function getPeriodRange(key: PeriodKey): DateRange {
-  const now = new Date();
-  switch (key) {
-    case "dia":    return { from: startOfDay(now), to: endOfDay(now) };
-    case "semana": return { from: startOfWeek(now, { weekStartsOn: 1 }), to: endOfWeek(now, { weekStartsOn: 1 }) };
-    case "mes":    return { from: startOfMonth(now), to: endOfMonth(now) };
-    case "ano":    return { from: startOfYear(now), to: endOfYear(now) };
-  }
-}
 
 const ChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
@@ -42,7 +30,7 @@ const ChartTooltip = ({ active, payload, label }: any) => {
               <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
               <span className="text-xs text-muted-foreground">{entry.name}</span>
             </div>
-            <span className="text-[13px] font-bold text-foreground font-mono tabular-nums">{entry.value}</span>
+            <span className="text-[13px] font-bold text-foreground font-display tabular-nums">{entry.value}</span>
           </div>
         ))}
       </div>
@@ -83,15 +71,14 @@ export default function Equipe() {
   const { profile } = useProfile();
   const { members } = useTeamMembersForSelect();
 
-  const [period, setPeriod] = useState<PeriodKey>("mes");
-  const dateRange = getPeriodRange(period);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) });
   const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(undefined);
 
   const { metrics, isLoading } = useDashboard(dateRange, 'geral', selectedMemberId);
   const selectedMember = selectedMemberId ? members.find(m => m.id === selectedMemberId) : null;
 
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtCurrency = (v: number) => `R$ ${fmt(v)}`;
+  // Delegam para @/lib/format (fonte única da verdade de formatação).
+  const fmtCurrency = formatBRL;
 
   const totalLeads = metrics?.totalLeadsAtivos ?? 0;
   const mql       = metrics?.mqlCount ?? 0;
@@ -105,11 +92,11 @@ export default function Equipe() {
   const taxaGlobal = metrics?.taxaConversaoGlobal ?? 0;
 
   const kpis = [
-    { label: "LEADS ATIVOS",  value: totalLeads,              icon: UserPlus,     color: "text-foreground",  rate: null },
-    { label: "QUALIFICADOS",  value: mql,                     icon: BadgeCheck,   color: "text-emerald-600", rate: `${taxaMQL}%` },
-    { label: "AGENDAMENTOS",  value: agend,                   icon: CalendarCheck,color: "text-violet-600",  rate: `${taxaAgend}%` },
-    { label: "FECHAMENTOS",   value: fechados,                icon: Trophy,       color: "text-blue-600",    rate: `${taxaFech}%` },
-    { label: "FATURAMENTO",   value: fmtCurrency(faturamento),icon: DollarSign,   color: "text-emerald-600", rate: ticketMedio > 0 ? `TM ${fmtCurrency(ticketMedio)}` : null },
+    { label: "LEADS ATIVOS",  value: formatInt(totalLeads),   icon: UserPlus,      dot: undefined,  rate: null },
+    { label: "QUALIFICADOS",  value: formatInt(mql),          icon: BadgeCheck,    dot: "#10b981",  rate: formatPct(taxaMQL) },
+    { label: "AGENDAMENTOS",  value: formatInt(agend),        icon: CalendarCheck, dot: "#8b5cf6",  rate: formatPct(taxaAgend) },
+    { label: "FECHAMENTOS",   value: formatInt(fechados),     icon: Trophy,        dot: "#3b82f6",  rate: formatPct(taxaFech) },
+    { label: "FATURAMENTO",   value: fmtCurrency(faturamento),icon: DollarSign,    dot: "#10b981",  rate: ticketMedio > 0 ? `TM ${fmtCurrency(ticketMedio)}` : null },
   ];
 
   const funnelSteps = [
@@ -119,24 +106,17 @@ export default function Equipe() {
     { label: "Fechados",value: fechados,   color: "#3b82f6", icon: Trophy },
   ];
   const funnelRates = [
-    totalLeads > 0 ? `${taxaMQL}%` : "—",
-    mql > 0        ? `${taxaAgend}%` : "—",
-    agend > 0      ? `${taxaFech}%` : "—",
+    totalLeads > 0 ? formatPct(taxaMQL) : "—",
+    mql > 0        ? formatPct(taxaAgend) : "—",
+    agend > 0      ? formatPct(taxaFech) : "—",
   ];
 
   const chartData = metrics?.leadsOverTime?.map((d: any) => ({ day: d.day, Leads: d.captados })) ?? [];
   const topProcs  = metrics?.topProcedimentos ?? [];
   const ag        = metrics?.agendamentos;
 
-  const PERIODS: { key: PeriodKey; label: string }[] = [
-    { key: "dia", label: "Dia" },
-    { key: "semana", label: "Semana" },
-    { key: "mes", label: "Mês" },
-    { key: "ano", label: "Ano" },
-  ];
-
   return (
-    <div className="p-3 sm:p-5 lg:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
+    <div className="max-w-[1400px] mx-auto space-y-4 sm:space-y-5">
 
       {/* ── Page Header ── */}
       <PageHero
@@ -147,23 +127,8 @@ export default function Equipe() {
       />
 
       {/* ── Toolbar: período ── */}
-      <div className="flex justify-end">
-        <div data-tutorial="equipe-period" className="flex items-center bg-muted/40 rounded-xl p-1 gap-0.5">
-          {PERIODS.map(p => (
-            <button
-              key={p.key}
-              onClick={() => setPeriod(p.key)}
-              className={cn(
-                "px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
-                period === p.key
-                  ? "bg-foreground text-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex justify-end" data-tutorial="equipe-period">
+        <DateRangePicker date={dateRange} setDate={setDateRange} />
       </div>
 
       {/* ── Seletor de Membro ── */}
@@ -204,7 +169,7 @@ export default function Equipe() {
           <div className="px-4 sm:px-5 py-2.5 border-t border-border/40 bg-muted/20 flex items-center gap-2.5">
             <Avatar nome={selectedMember.nome} url_avatar={selectedMember.url_avatar} size="md" />
             <div>
-              <p className="text-sm font-semibold text-foreground">{selectedMember.nome}</p>
+              <p className="text-sm font-semibold text-foreground font-display">{selectedMember.nome}</p>
               <p className="text-[11px] text-muted-foreground">{selectedMember.email}</p>
             </div>
           </div>
@@ -212,7 +177,7 @@ export default function Equipe() {
       </div>
 
       {/* ── KPI Strip ── */}
-      <div data-tutorial="equipe-kpis" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tutorial="equipe-kpis" className="rounded-2xl border border-border/60 bg-card overflow-hidden">
         <div className="px-4 sm:px-5 py-3 border-b border-border/40 bg-muted/[0.03]">
           <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">VISÃO GERAL DO PERÍODO</p>
         </div>
@@ -221,47 +186,22 @@ export default function Equipe() {
             <div className="h-5 w-5 rounded-full border-2 border-foreground/20 border-t-foreground animate-spin" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 bg-border/40 gap-px">
-            {kpis.map((kpi, i) => {
-              const Icon = kpi.icon;
-              const isFaturamento = i === 4;
-              return (
-                <div key={i} className="bg-card px-4 sm:px-5 py-5 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em] leading-tight">{kpi.label}</span>
-                  </div>
-                  {isFaturamento ? (
-                    <div className="min-w-0">
-                      <div className="flex items-baseline gap-1.5">
-                        <span className={cn("text-base font-bold font-display", kpi.color)}>R$</span>
-                        <span className={cn("text-2xl sm:text-[26px] font-bold font-display leading-none tracking-tight font-mono tabular-nums truncate", kpi.color)}>
-                          {fmt(faturamento)}
-                        </span>
-                      </div>
-                      {kpi.rate && (
-                        <span className="text-[10px] font-medium text-muted-foreground font-mono mt-1 block">{kpi.rate}</span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="flex items-baseline gap-2 flex-wrap">
-                      <span className={cn("text-2xl sm:text-[32px] font-bold font-display leading-none tracking-tight", kpi.color)}>
-                        {kpi.value}
-                      </span>
-                      {kpi.rate && (
-                        <span className="text-xs font-semibold text-muted-foreground font-mono">{kpi.rate}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <StatCardGrid cols={5} bare>
+            {kpis.map((kpi, i) => (
+              <StatCard
+                key={i}
+                icon={kpi.icon}
+                dotColor={kpi.dot}
+                label={kpi.label}
+                value={kpi.value}
+              />
+            ))}
+          </StatCardGrid>
         )}
       </div>
 
       {/* ── Funil de Conversão ── */}
-      <div data-tutorial="equipe-funnel" className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div data-tutorial="equipe-funnel" className="rounded-2xl border border-border/60 bg-card overflow-hidden">
         <div className="px-4 sm:px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
           <div className="flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-muted">
@@ -273,31 +213,24 @@ export default function Equipe() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 xl:grid-cols-4 bg-border/40 gap-px">
+        <StatCardGrid cols={4} bare flush>
           {funnelSteps.map((step, i) => {
             const Icon = step.icon;
             const maxVal = funnelSteps[0].value || 1;
             const pct = Math.round((step.value / maxVal) * 100);
             return (
-              <div key={i} className="bg-card relative px-4 sm:px-6 py-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em]">{step.label}</span>
-                </div>
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <span className="text-2xl sm:text-[32px] font-bold font-display text-foreground leading-none tracking-tight">
-                    {step.value}
-                  </span>
+              <div key={i} className="relative">
+                <StatCard icon={Icon} dotColor={step.color} label={step.label} value={formatInt(step.value)} />
+                <div className="px-4 sm:px-6 pb-5 -mt-1 flex items-center gap-2">
+                  <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: step.color }} />
+                  </div>
                   {i < funnelSteps.length - 1 && (
-                    <span className="text-xs font-semibold font-mono px-1.5 py-0.5 rounded-md"
+                    <span className="text-[10px] font-semibold font-display tabular-nums px-1.5 py-0.5 rounded-md shrink-0"
                       style={{ color: funnelSteps[i + 1].color, backgroundColor: funnelSteps[i + 1].color + '15' }}>
                       {funnelRates[i]}
                     </span>
                   )}
-                </div>
-                <div className="mt-3 h-1 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${pct}%`, backgroundColor: step.color }} />
                 </div>
                 {/* Seta só em desktop (xl) onde as 4 colunas ficam lado a lado */}
                 {i < funnelSteps.length - 1 && (
@@ -308,7 +241,7 @@ export default function Equipe() {
               </div>
             );
           })}
-        </div>
+        </StatCardGrid>
       </div>
 
       {/* ── Evolução + Top Procedimentos ── */}
@@ -377,7 +310,7 @@ export default function Equipe() {
                 </div>
                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
                   <span className="text-xs text-muted-foreground font-mono">{proc.count}×</span>
-                  <span className="text-sm font-semibold text-emerald-600 font-mono tabular-nums">
+                  <span className="text-sm font-semibold text-emerald-600 font-display tabular-nums">
                     {fmtCurrency(proc.revenue)}
                   </span>
                 </div>
@@ -396,7 +329,7 @@ export default function Equipe() {
 
       {/* ── Agendamentos ── */}
       {ag && (
-        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
           <div className="px-4 sm:px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
             <div className="flex items-center gap-2">
               <span className="p-1.5 rounded-lg bg-muted">
@@ -408,27 +341,24 @@ export default function Equipe() {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 bg-border/40 gap-px">
+          <StatCardGrid cols={3} bare className="xl:grid-cols-6">
             {[
-              { label: "Total",          value: ag.total,       color: "text-foreground" },
-              { label: "Realizados",     value: ag.realizados,  color: "text-emerald-600" },
-              { label: "Confirmados",    value: ag.confirmados, color: "text-blue-600" },
-              { label: "No-show",        value: ag.noShow,      color: "text-rose-600" },
-              { label: "Cancelados",     value: ag.cancelados,  color: "text-muted-foreground" },
-              { label: "Comparecimento", value: `${ag.taxaComparecimento}%`,
-                color: ag.taxaComparecimento >= 70 ? "text-emerald-600" : "text-amber-600" },
+              { label: "Total",          value: formatInt(ag.total),       dot: undefined },
+              { label: "Realizados",     value: formatInt(ag.realizados),  dot: "#10b981" },
+              { label: "Confirmados",    value: formatInt(ag.confirmados), dot: "#3b82f6" },
+              { label: "No-show",        value: formatInt(ag.noShow),      dot: "#f43f5e" },
+              { label: "Cancelados",     value: formatInt(ag.cancelados),  dot: undefined },
+              { label: "Comparecimento", value: formatPct(ag.taxaComparecimento),
+                dot: ag.taxaComparecimento >= 70 ? "#10b981" : "#f59e0b" },
             ].map((item, i) => (
-              <div key={i} className="bg-card px-4 sm:px-5 py-4">
-                <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em] mb-1 leading-tight">{item.label}</p>
-                <span className={cn("text-xl sm:text-2xl font-bold font-display tracking-tight", item.color)}>{item.value}</span>
-              </div>
+              <StatCard key={i} dotColor={item.dot} label={item.label} value={item.value} />
             ))}
-          </div>
+          </StatCardGrid>
         </div>
       )}
 
       {/* ── Taxas de Conversão ── */}
-      <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
         <div className="px-4 sm:px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
           <div className="flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-muted">
@@ -440,21 +370,16 @@ export default function Equipe() {
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 xl:grid-cols-4 bg-border/40 gap-px">
+        <StatCardGrid cols={4} bare>
           {[
-            { label: "Taxa MQL",        value: `${taxaMQL}%`,    desc: "Leads → Qualificados",     color: "#10b981" },
-            { label: "Taxa Agendamento",value: `${taxaAgend}%`,  desc: "Qualificados → Agendados", color: "#8b5cf6" },
-            { label: "Taxa Fechamento", value: `${taxaFech}%`,   desc: "Agendados → Fechados",     color: "#3b82f6" },
-            { label: "Conversão Global",value: `${taxaGlobal}%`, desc: "Leads → Fechados",         color: "#f59e0b" },
+            { label: "Taxa MQL",        value: formatPct(taxaMQL),    desc: "Leads → Qualificados",     color: "#10b981" },
+            { label: "Taxa Agendamento",value: formatPct(taxaAgend),  desc: "Qualificados → Agendados", color: "#8b5cf6" },
+            { label: "Taxa Fechamento", value: formatPct(taxaFech),   desc: "Agendados → Fechados",     color: "#3b82f6" },
+            { label: "Conversão Global",value: formatPct(taxaGlobal), desc: "Leads → Fechados",         color: "#f59e0b" },
           ].map((item, i) => (
-            <div key={i} className="bg-card px-4 sm:px-6 py-5">
-              <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground uppercase tracking-[0.06em] mb-1 leading-tight">{item.label}</p>
-              <p className="text-2xl sm:text-[32px] font-bold font-display tracking-tight leading-none"
-                style={{ color: item.color }}>{item.value}</p>
-              <p className="text-[11px] text-muted-foreground/60 mt-1">{item.desc}</p>
-            </div>
+            <StatCard key={i} dotColor={item.color} label={item.label} value={item.value} sublabel={item.desc} />
           ))}
-        </div>
+        </StatCardGrid>
       </div>
 
     </div>

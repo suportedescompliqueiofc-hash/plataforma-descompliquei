@@ -35,7 +35,7 @@ export function MarketingSpendModal({ open, onOpenChange, onSave }: MarketingSpe
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Registrar Investimento</DialogTitle>
+          <DialogTitle className="font-display">Registrar Investimento</DialogTitle>
           <DialogDescription>
             Adicione valores investidos em marketing (Google Ads, Influencers, etc.) para compor o cálculo do CAC.
           </DialogDescription>

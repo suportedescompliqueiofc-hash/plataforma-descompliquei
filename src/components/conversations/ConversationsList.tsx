@@ -616,7 +616,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
         <div className="absolute top-0 left-0 right-0 z-50 bg-foreground text-background animate-in slide-in-from-top duration-200 shadow-lg">
           <div className="flex items-center justify-between px-3 py-2.5">
             <div className="flex items-center gap-2">
-              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-background/15 text-[10px] font-bold shrink-0">
+              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-background/15 text-[10px] font-bold font-display tabular-nums shrink-0">
                 {selectedIds.size}
               </div>
               <span className="text-[12px] font-semibold truncate">
@@ -639,7 +639,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
           <div className="flex items-baseline gap-2.5">
             <h2 className="text-lg font-extrabold text-foreground tracking-tight font-display">Conversas</h2>
             {filteredConversations && (
-              <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+              <span className="text-xs font-semibold font-display text-muted-foreground tabular-nums">
                 {filteredConversations.length}
               </span>
             )}
@@ -1103,7 +1103,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
       <Dialog open={!!editingLead} onOpenChange={(open) => !open && setEditingLead(null)}>
         <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 font-display">
               <Pencil className="h-4 w-4 text-muted-foreground" />
               Editar Nome
             </DialogTitle>
@@ -1131,7 +1131,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
       <AlertDialog open={!!confirmDelete} onOpenChange={(open) => !open && setConfirmDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir histórico de conversa?</AlertDialogTitle>
+            <AlertDialogTitle className="font-display">Excluir histórico de conversa?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta ação apagará permanentemente todas as mensagens trocadas com <strong>{confirmDelete?.nome || confirmDelete?.telefone}</strong>. O registro do cliente no CRM continuará preservado.
             </AlertDialogDescription>
