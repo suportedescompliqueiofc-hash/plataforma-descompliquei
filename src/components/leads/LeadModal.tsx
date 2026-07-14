@@ -15,7 +15,6 @@ import { parse, format, differenceInYears, isValid, startOfDay, parseISO, format
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { CreatableSelect } from "@/components/ui/CreatableSelect";
 import { useLeadSources } from "@/hooks/useLeadSources";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -480,6 +479,40 @@ const FotoSlot = ({
   );
 };
 
+// ── Data individual do slot (antes ou depois) — editável, sem pré-preenchimento ──
+const FotoDataPicker = ({
+  label, value, onChange, open, onOpenChange,
+}: {
+  label: string; value: Date; onChange: (d: Date) => void; open: boolean; onOpenChange: (o: boolean) => void;
+}) => (
+  <div className="space-y-1">
+    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-1">
+      <CalendarDays className="h-3 w-3" /> {label}
+    </span>
+    <Popover open={open} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-start text-left font-normal h-8 rounded-lg text-[12px] border-border/60 bg-background"
+        >
+          <CalendarDays className="mr-1.5 h-3 w-3 text-muted-foreground shrink-0" />
+          {format(value, "dd/MM/yyyy")}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0 rounded-xl border-border/60" align="start">
+        <Calendar
+          mode="single"
+          selected={value}
+          onSelect={(d) => { if (d) { onChange(d); onOpenChange(false); } }}
+          initialFocus
+          locale={ptBR}
+        />
+      </PopoverContent>
+    </Popover>
+  </div>
+);
+
 // ── Miniatura de uma foto (antes ou depois) ──
 const FotoThumb = ({ foto, onRemove, onOpenImage }: { foto: LeadFoto; onRemove: (f: LeadFoto) => void; onOpenImage: (url: string) => void }) => (
   <div className="group relative rounded-lg overflow-hidden border border-border/50 bg-muted/20 aspect-square">
@@ -599,52 +632,28 @@ const FotosTab = ({ lead, vendasLead = [] }: { lead: any; vendasLead?: any[] }) 
   const [antesFile, setAntesFile] = useState<File | null>(null);
   const [depoisFile, setDepoisFile] = useState<File | null>(null);
   const [proc, setProc] = useState("");
-  const [dataProcedimento, setDataProcedimento] = useState<Date>(new Date());
-  const [dataAutoPreenchida, setDataAutoPreenchida] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [dataAntes, setDataAntes] = useState<Date>(new Date());
+  const [dataDepois, setDataDepois] = useState<Date>(new Date());
+  const [antesPickerOpen, setAntesPickerOpen] = useState(false);
+  const [depoisPickerOpen, setDepoisPickerOpen] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
-  // Primário: procedimentos realmente fechados (vendas). Fallback: interesse declarado no lead.
+  // Apenas procedimentos efetivamente fechados (vendas) — nunca o interesse declarado
   const procedimentosFechados = [...new Set(
     (vendasLead as any[]).map((v) => v.produto_servico?.trim()).filter(Boolean)
   )] as string[];
-  const procOptions = procedimentosFechados.length > 0
-    ? procedimentosFechados
-    : String(lead.procedimento_interesse || "")
-        .split(/[,;•\n]|\s+e\s+/i)
-        .map((p) => p.trim())
-        .filter(Boolean);
-
-  // Data de pagamento mais recente por procedimento — usada pra preencher a data automaticamente
-  const dataPagamentoPorProduto = new Map<string, string>();
-  for (const v of vendasLead as any[]) {
-    const key = v.produto_servico?.trim();
-    if (!key || !v.data_fechamento) continue;
-    const atual = dataPagamentoPorProduto.get(key);
-    if (!atual || v.data_fechamento > atual) dataPagamentoPorProduto.set(key, v.data_fechamento);
-  }
-
-  useEffect(() => {
-    const dataPagamento = proc ? dataPagamentoPorProduto.get(proc) : undefined;
-    if (dataPagamento) {
-      setDataProcedimento(parseISO(dataPagamento));
-      setDataAutoPreenchida(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proc]);
 
   const resetForm = () => {
-    setAntesFile(null); setDepoisFile(null); setProc(""); setDataProcedimento(new Date()); setDataAutoPreenchida(false); setShowForm(false);
+    setAntesFile(null); setDepoisFile(null); setProc(""); setDataAntes(new Date()); setDataDepois(new Date()); setShowForm(false);
   };
 
   const isSaving = upload.isPending;
 
   const handleSubmit = async () => {
     if (!antesFile && !depoisFile) return;
-    const data_procedimento = format(dataProcedimento, "yyyy-MM-dd");
     try {
-      if (antesFile) await upload.mutateAsync({ file: antesFile, tipo: "antes", procedimento: proc || undefined, data_procedimento });
-      if (depoisFile) await upload.mutateAsync({ file: depoisFile, tipo: "depois", procedimento: proc || undefined, data_procedimento });
+      if (antesFile) await upload.mutateAsync({ file: antesFile, tipo: "antes", procedimento: proc || undefined, data_procedimento: format(dataAntes, "yyyy-MM-dd") });
+      if (depoisFile) await upload.mutateAsync({ file: depoisFile, tipo: "depois", procedimento: proc || undefined, data_procedimento: format(dataDepois, "yyyy-MM-dd") });
       resetForm();
     } catch {
       // erro já sinalizado via toast pela mutation
@@ -678,52 +687,29 @@ const FotosTab = ({ lead, vendasLead = [] }: { lead: any; vendasLead?: any[] }) 
         <div className="rounded-xl border border-border/60 bg-card p-4 space-y-3">
           <div className="space-y-1">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Procedimento</span>
-            {procedimentosFechados.length === 0 && (
-              <p className="text-[10px] text-muted-foreground/50">Nenhuma venda registrada para este lead ainda — digite um procedimento manualmente ou registre a venda.</p>
-            )}
-            <CreatableSelect
-              options={procOptions}
-              value={proc}
-              onChange={setProc}
-              placeholder="Selecione o procedimento fechado..."
-              searchPlaceholder="Buscar ou criar procedimento..."
-              emptyPlaceholder="Nenhum procedimento encontrado."
-            />
-          </div>
-
-          <div className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <CalendarDays className="h-3 w-3" /> Data do procedimento
-            </span>
-            <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-start text-left font-normal h-9 rounded-lg text-sm border-border/60 bg-background"
-                >
-                  <CalendarDays className="mr-2 h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  {format(dataProcedimento, "EEE, dd 'de' MMM", { locale: ptBR })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 rounded-xl border-border/60" align="start">
-                <Calendar
-                  mode="single"
-                  selected={dataProcedimento}
-                  onSelect={(d) => { if (d) { setDataProcedimento(d); setDataAutoPreenchida(false); setIsDatePickerOpen(false); } }}
-                  initialFocus
-                  locale={ptBR}
-                />
-              </PopoverContent>
-            </Popover>
-            {dataAutoPreenchida && (
-              <p className="text-[10px] text-muted-foreground/60">Preenchida automaticamente pela data do pagamento — pode ser alterada.</p>
+            {procedimentosFechados.length === 0 ? (
+              <p className="text-[10px] text-muted-foreground/50">Nenhuma venda fechada registrada para este lead ainda — registre a venda para poder anexar fotos.</p>
+            ) : (
+              <Select value={proc} onValueChange={setProc}>
+                <SelectTrigger className="h-9 text-sm rounded-lg border-border/60">
+                  <SelectValue placeholder="Selecione o procedimento fechado..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {procedimentosFechados.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
             )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <FotoSlot label="Antes" file={antesFile} onChange={setAntesFile} />
-            <FotoSlot label="Depois" file={depoisFile} onChange={setDepoisFile} />
+            <div className="space-y-2">
+              <FotoSlot label="Antes" file={antesFile} onChange={setAntesFile} />
+              <FotoDataPicker label="Data do antes" value={dataAntes} onChange={setDataAntes} open={antesPickerOpen} onOpenChange={setAntesPickerOpen} />
+            </div>
+            <div className="space-y-2">
+              <FotoSlot label="Depois" file={depoisFile} onChange={setDepoisFile} />
+              <FotoDataPicker label="Data do depois" value={dataDepois} onChange={setDataDepois} open={depoisPickerOpen} onOpenChange={setDepoisPickerOpen} />
+            </div>
           </div>
 
           <div className="flex justify-end gap-1.5">
@@ -1159,7 +1145,7 @@ const ViewContent = ({
                 <div className="flex items-center gap-x-4 gap-y-1 mt-2 text-[12px] text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1.5">
                     <Phone className="h-3 w-3" />
-                    <span className="font-mono tabular-nums">{formatPhoneDisplay(lead.telefone)}</span>
+                    <span className="font-display tabular-nums">{formatPhoneDisplay(lead.telefone)}</span>
                   </span>
                   {lead.email && (
                     <span className="flex items-center gap-1.5">
@@ -1490,7 +1476,7 @@ const ViewContent = ({
                     {lead.cpf && (
                       <div>
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">CPF</span>
-                        <span className="text-[13px] font-semibold text-foreground font-mono tabular-nums">{lead.cpf}</span>
+                        <span className="text-[13px] font-semibold text-foreground font-display tabular-nums">{lead.cpf}</span>
                       </div>
                     )}
                     {lead.endereco && (
