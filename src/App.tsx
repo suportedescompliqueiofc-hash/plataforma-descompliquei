@@ -133,13 +133,22 @@ function AuthHashErrorInterceptor({ children }: { children: React.ReactNode }) {
     // Limpa o hash para não reprocessar
     window.history.replaceState(null, '', window.location.pathname);
 
-    // Mapeia códigos de erro para mensagens amigáveis
-    let msgKey = 'link-invalido';
-    if (errorCode === 'otp_expired') msgKey = 'link-expirado';
-    else if (errorCode === 'access_denied') msgKey = 'acesso-negado';
+    (async () => {
+      // Um magic link é de uso único: se a pessoa clicar duas vezes no mesmo
+      // link (ex.: pelo e-mail de novo), a 1ª tentativa loga normalmente e a
+      // 2ª cai aqui com "otp_expired" mesmo já havendo sessão válida no navegador.
+      // Nesse caso não faz sentido mandar pra tela de erro — segue pro app.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return;
 
-    // Redireciona para login com a mensagem
-    window.location.href = `/login?msg=${msgKey}`;
+      // Mapeia códigos de erro para mensagens amigáveis
+      let msgKey = 'link-invalido';
+      if (errorCode === 'otp_expired') msgKey = 'link-expirado';
+      else if (errorCode === 'access_denied') msgKey = 'acesso-negado';
+
+      // Redireciona para login com a mensagem
+      window.location.href = `/login?msg=${msgKey}`;
+    })();
   }, [location]);
 
   return <>{children}</>;

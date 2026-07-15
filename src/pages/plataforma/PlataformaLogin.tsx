@@ -13,7 +13,7 @@ const MENSAGENS: Record<string, string> = {
   'acesso-nao-encontrado': 'Acesso não encontrado. Entre em contato com a equipe da Descompliquei.',
   'bloqueado': 'Seu acesso foi suspenso. Entre em contato com o suporte.',
   'expirado': 'Seu período de acesso expirou. Entre em contato para renovar.',
-  'link-expirado': 'O link de acesso expirou. Solicite um novo link à equipe da Descompliquei ou entre com e-mail e senha.',
+  'link-expirado': 'Esse link de acesso já foi usado ou expirou. Se você já clicou nele antes, tente abrir a plataforma normalmente — você pode já estar conectado(a). Caso contrário, solicite um novo link à equipe da Descompliquei ou entre com e-mail e senha.',
   'acesso-negado': 'O link de acesso é inválido ou já foi utilizado. Entre com e-mail e senha.',
   'link-invalido': 'O link de acesso não é válido. Solicite um novo link ou entre com e-mail e senha.',
 };
