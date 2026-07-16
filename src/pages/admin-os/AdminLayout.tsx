@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, Calendar,
   ShieldCheck, ChevronRight, Menu, X, Package, MonitorSmartphone,
   MessageSquare, LogOut, Settings, Swords, Route, Sparkles, LifeBuoy,
-  Bell, ExternalLink, Clock, Trophy, HeartHandshake, Megaphone,
+  Bell, ExternalLink, Clock, HeartHandshake, Megaphone,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, parseISO } from 'date-fns';
@@ -24,7 +24,6 @@ const navItems = [
   { icon: Calendar,        label: 'Sessões Táticas',  path: '/admin/sessoes',  badgeType: 'none' },
   { icon: Package,         label: 'Produtos',         path: '/admin/produtos',    badgeType: 'none' },
   { icon: Megaphone,       label: 'Atualizações',     path: '/admin/atualizacoes', badgeType: 'none' },
-  { icon: Trophy,          label: 'Clube One',        path: '/admin/clube-one',   badgeType: 'none' },
   { icon: Settings,        label: 'Sistema & Config', path: '/admin/sistema',     badgeType: 'none' },
   { icon: LifeBuoy,        label: 'Suporte',          path: '/admin/suporte',  badgeType: 'none' },
 ];

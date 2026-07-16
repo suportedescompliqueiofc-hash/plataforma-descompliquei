@@ -1543,23 +1543,6 @@ const TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
-      name: "obter_clube_one",
-      description: "Busca dados do Clube One: ranking de membros por pontos, nível de cada um (Membro/Destaque/Elite/Fundador One) e histórico de registros de um membro específico. Use para responder sobre desempenho, quem está no topo, pontuação, evolução de membros.",
-      parameters: {
-        type: "object",
-        properties: {
-          membro_id: { type: "string", description: "UUID do membro para ver histórico detalhado de registros desse membro." },
-          produto: { type: "string", enum: ["PCA", "GCA"], description: "Filtrar por produto." },
-          apenas_ativos: { type: "boolean", description: "Se false, inclui membros inativos. Default: true." },
-          limite: { type: "number", description: "Máx. membros no ranking. Default: 20." },
-        },
-        required: [],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "obter_historico_agendamento",
       description: "Retorna o histórico de mudanças de status de um agendamento (ex: agendado → confirmado → realizado → faltou). Use para entender a jornada de um agendamento específico.",
       parameters: {
@@ -3102,41 +3085,6 @@ async function executeTool(name: string, input: any, orgId: string, platformUser
         return JSON.stringify({ ok: true, mensagem: "Memória atualizada." });
       }
 
-      case "obter_clube_one": {
-        const apenasAtivos = input.apenas_ativos !== false;
-        let q = (supabase as any)
-          .from("clube_membros")
-          .select("id, nome, foto_url, produto, pontos_total, nivel, ativo, created_at")
-          .order("pontos_total", { ascending: false })
-          .limit(input.limite ?? 20);
-        if (apenasAtivos) q = q.eq("ativo", true);
-        if (input.produto) q = q.eq("produto", input.produto);
-        const { data: membros } = await q;
-
-        const { data: niveis } = await (supabase as any)
-          .from("clube_niveis")
-          .select("nome, pontos_minimo, pontos_maximo, selo")
-          .order("pontos_minimo");
-
-        let clubeRegistros = null;
-        if (input.membro_id) {
-          const { data: regs } = await (supabase as any)
-            .from("clube_registros")
-            .select("pontos, tipo, observacao, created_at, clube_atividades(nome, categoria)")
-            .eq("membro_id", input.membro_id)
-            .order("created_at", { ascending: false })
-            .limit(20);
-          clubeRegistros = regs;
-        }
-
-        return JSON.stringify({
-          total_membros: membros?.length ?? 0,
-          ranking: membros ?? [],
-          niveis: niveis ?? [],
-          ...(clubeRegistros ? { historico_registros: clubeRegistros } : {}),
-        });
-      }
-
       case "obter_historico_agendamento": {
         const { data: histAgend } = await supabase
           .from("agendamento_status_history")
@@ -3756,10 +3704,6 @@ const TOOL_CATEGORIES: Record<string, { tools: string[]; keywords: RegExp }> = {
       "salvar_memoria", "buscar_memorias", "apagar_memoria", "atualizar_memoria",
     ],
     keywords: /lembr|memória|memoria|memoriz|anota|esquec|apag.*memória|o que.*sab.*sobre/i,
-  },
-  clube: {
-    tools: ["obter_clube_one"],
-    keywords: /clube|clube.?one|ranking.*membro|pontos.*clube|nível.*clube|nivel.*clube|membro.*clube|destaque|elite|fundador.?one|pca|gca/i,
   },
 };
 

@@ -110,8 +110,6 @@ import Onboarding from "./pages/plataforma/Onboarding";
 import OnboardingAthos from "./pages/plataforma/OnboardingAthos";
 import Evolucao from "./pages/plataforma/Evolucao";
 import PlataformaLogin from "./pages/plataforma/PlataformaLogin";
-import ClubeOne from "./pages/plataforma/ClubeOne";
-import AdminClubeOne from "./pages/admin-os/pages/AdminClubeOne";
 import { PlataformaProvider } from "@/contexts/PlataformaContext";
 import { AthosOSProvider } from "@/contexts/AthosOSContext";
 
@@ -445,7 +443,6 @@ const App = () => (
                 <Route path="/admin/acessos/:orgId" element={<AdminAcessoCliente />} />
                 <Route path="/admin/produtos" element={<AdminProdutos />} />
                 <Route path="/admin/atualizacoes" element={<AdminAtualizacoes />} />
-                <Route path="/admin/clube-one" element={<AdminClubeOne />} />
               </Route>
             </Route>
             {/* Plataforma — AppLayout persiste, PlataformaGuard só controla o conteúdo */}
@@ -467,7 +464,6 @@ const App = () => (
                   <Route path="/plataforma/sessoes-taticas" element={<AcessoGuard accessKey="acesso_sessoes_taticas"><SessoesTaticas /></AcessoGuard>} />
                   <Route path="/plataforma/materiais" element={<Navigate to="/crm/materiais" replace />} />
                   <Route path="/plataforma/configuracoes" element={<Navigate to="/crm/settings" replace />} />
-                  <Route path="/plataforma/clube-one" element={<ClubeOne />} />
                 </Route>
               </Route>
             </Route>

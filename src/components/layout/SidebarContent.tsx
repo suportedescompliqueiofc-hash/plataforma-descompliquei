@@ -123,7 +123,6 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
       { title: "Jornada", icon: Route, path: "/plataforma/jornada" },
       { title: "Notas", icon: NotebookText, path: "/crm/notas", accessKey: 'acesso_materiais' as const },
       { title: "Sessões Táticas", icon: Calendar, path: "/plataforma/sessoes-taticas", accessKey: 'acesso_sessoes_taticas' as const },
-      { title: "Clube One", icon: Trophy, path: "/plataforma/clube-one" },
     ] : []),
     // ── ÁREA AUTOMAÇÃO (CRM) ─────────────────────────────────────────────────
     ...(temCrm ? [
