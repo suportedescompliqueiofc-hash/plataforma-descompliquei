@@ -6,6 +6,7 @@ import {
   Plus, DollarSign, TrendingUp, TrendingDown, ShoppingCart, Percent, Pencil, Trash2,
   Calendar as CalendarIcon, User, CreditCard, Loader2, Search, Receipt,
   ArrowUpRight, ArrowDownRight, BarChart3, ChevronDown, Filter, Package,
+  SlidersHorizontal, X,
 } from "lucide-react";
 import { useVendas, Venda } from "@/hooks/useVendas";
 import { VendaModal } from "@/components/vendas/VendaModal";
@@ -18,17 +19,16 @@ import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/CurrencyInput";
 import { cn } from "@/lib/utils";
 import { useProfile } from "@/hooks/useProfile";
+import { useSourcesManager } from "@/hooks/useSourcesManager";
+import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { PageHero } from "@/components/PageHero";
 import { StatCard, StatCardGrid } from "@/components/StatCard";
 import { formatBRL, formatInt } from "@/lib/format";
-
-// ── Helpers ──────────────────────────────────────────────────
-
-function formatCurrency(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
 
 // ── Component ────────────────────────────────────────────────
 
@@ -41,6 +41,9 @@ export default function Vendas() {
   };
   const [dateRange, setDateRange] = useState<DateRange | undefined>(initialDateRange);
   const { vendas, isLoading, deleteVenda } = useVendas(dateRange);
+  // Catálogos completos — independentes do período — para os filtros nunca "sumirem"
+  const { sources } = useSourcesManager();
+  const { procedimentos } = useProcedimentos();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVenda, setEditingVenda] = useState<Venda | null>(null);
@@ -48,50 +51,97 @@ export default function Vendas() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"registros" | "relatorios">("registros");
 
-  // ── Metrics ────────────────────────────────────────────────
+  const [filters, setFilters] = useState({
+    origem: "Todos",
+    procedimento: "Todos",
+    formaPagamento: "Todos",
+    tipoVenda: "Todos",
+  });
+  const [valorMin, setValorMin] = useState<number | null>(null);
+  const [valorMax, setValorMax] = useState<number | null>(null);
 
-  const metrics = useMemo(() => {
-    if (isLoading || vendas.length === 0) {
-      return {
-        totalFaturado: 0, ticketMedio: 0, vendasNoPeriodo: 0, taxaConversao: 0, maiorVenda: 0,
-        faturamentoConsultas: 0, faturamentoProcedimentos: 0, faturamentoOutros: 0,
-        qtdConsultas: 0, qtdProcedimentos: 0,
-      };
-    }
-    const totalFaturado = vendas.reduce((acc, v) => acc + v.valor_fechado, 0);
-    const ticketMedio = totalFaturado / vendas.length;
-    const vendasNoPeriodo = vendas.length;
-    const maiorVenda = Math.max(...vendas.map(v => v.valor_fechado));
-    const vendasComOrcamento = vendas.filter(v => v.valor_orcado && v.valor_orcado > 0);
-    const totalOrcado = vendasComOrcamento.reduce((acc, v) => acc + (v.valor_orcado || 0), 0);
-    const totalFechadoDeOrcados = vendasComOrcamento.reduce((acc, v) => acc + v.valor_fechado, 0);
-    const taxaConversao = totalOrcado > 0 ? (totalFechadoDeOrcados / totalOrcado) * 100 : 0;
+  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+    setFilters((prev) => ({ ...prev, [filterName]: value }));
+  };
 
-    const consultas = vendas.filter(v => v.tipo_venda === "consulta");
-    const procedimentos = vendas.filter(v => !v.tipo_venda || v.tipo_venda === "procedimento");
-    const outros = vendas.filter(v => v.tipo_venda === "outro");
-    const faturamentoConsultas = consultas.reduce((acc, v) => acc + v.valor_fechado, 0);
-    const faturamentoProcedimentos = procedimentos.reduce((acc, v) => acc + v.valor_fechado, 0);
-    const faturamentoOutros = outros.reduce((acc, v) => acc + v.valor_fechado, 0);
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (filters.origem !== "Todos") count++;
+    if (filters.procedimento !== "Todos") count++;
+    if (filters.formaPagamento !== "Todos") count++;
+    if (filters.tipoVenda !== "Todos") count++;
+    if (valorMin !== null) count++;
+    if (valorMax !== null) count++;
+    return count;
+  }, [filters, valorMin, valorMax]);
 
-    return {
-      totalFaturado, ticketMedio, vendasNoPeriodo, taxaConversao, maiorVenda,
-      faturamentoConsultas, faturamentoProcedimentos, faturamentoOutros,
-      qtdConsultas: consultas.length, qtdProcedimentos: procedimentos.length,
-    };
-  }, [vendas, isLoading]);
+  const clearFilters = () => {
+    setFilters({ origem: "Todos", procedimento: "Todos", formaPagamento: "Todos", tipoVenda: "Todos" });
+    setValorMin(null);
+    setValorMax(null);
+  };
+
+  // ── Filter option lists ─────────────────────────────────────
+  // Sempre o catálogo COMPLETO (independente do período) ∪ valores que já
+  // aparecem nas vendas — assim os filtros nunca "somem" quando o período
+  // selecionado não tem aquela origem/procedimento.
+
+  const origensDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    sources.forEach(s => { if (s.nome) set.add(s.nome); });
+    vendas.forEach(v => { if (v.leads?.origem) set.add(v.leads.origem); });
+    return Array.from(set).sort();
+  }, [sources, vendas]);
+
+  const procedimentosDisponiveis = useMemo(() => {
+    const set = new Set<string>();
+    procedimentos.forEach(p => { if (p.nome) set.add(p.nome); });
+    vendas.forEach(v => { if (v.produto_servico) set.add(v.produto_servico); });
+    return Array.from(set).sort();
+  }, [procedimentos, vendas]);
+
+  const formasPagamentoDisponiveis = useMemo(() => {
+    const set = new Set(vendas.map(v => v.forma_pagamento).filter((v): v is string => !!v));
+    return Array.from(set).sort();
+  }, [vendas]);
 
   // ── Filtered vendas ────────────────────────────────────────
 
   const filteredVendas = useMemo(() => {
-    if (!searchQuery.trim()) return vendas;
-    const q = searchQuery.toLowerCase();
-    return vendas.filter(v =>
-      (v.leads?.nome || "").toLowerCase().includes(q) ||
-      (v.produto_servico || "").toLowerCase().includes(q) ||
-      (v.forma_pagamento || "").toLowerCase().includes(q)
-    );
-  }, [vendas, searchQuery]);
+    const q = searchQuery.trim().toLowerCase();
+    return vendas.filter(v => {
+      if (q &&
+        !(v.leads?.nome || "").toLowerCase().includes(q) &&
+        !(v.produto_servico || "").toLowerCase().includes(q) &&
+        !(v.forma_pagamento || "").toLowerCase().includes(q)
+      ) return false;
+      if (filters.origem !== "Todos" && v.leads?.origem !== filters.origem) return false;
+      if (filters.procedimento !== "Todos" && v.produto_servico !== filters.procedimento) return false;
+      if (filters.formaPagamento !== "Todos" && v.forma_pagamento !== filters.formaPagamento) return false;
+      if (filters.tipoVenda !== "Todos" && (v.tipo_venda || "procedimento") !== filters.tipoVenda) return false;
+      if (valorMin !== null && v.valor_fechado < valorMin) return false;
+      if (valorMax !== null && v.valor_fechado > valorMax) return false;
+      return true;
+    });
+  }, [vendas, searchQuery, filters, valorMin, valorMax]);
+
+  // ── Metrics (sobre o resultado já filtrado) ─────────────────
+
+  const metrics = useMemo(() => {
+    if (isLoading || filteredVendas.length === 0) {
+      return { totalFaturado: 0, ticketMedio: 0, vendasNoPeriodo: 0, taxaConversao: 0, maiorVenda: 0 };
+    }
+    const totalFaturado = filteredVendas.reduce((acc, v) => acc + v.valor_fechado, 0);
+    const ticketMedio = totalFaturado / filteredVendas.length;
+    const vendasNoPeriodo = filteredVendas.length;
+    const maiorVenda = Math.max(...filteredVendas.map(v => v.valor_fechado));
+    const vendasComOrcamento = filteredVendas.filter(v => v.valor_orcado && v.valor_orcado > 0);
+    const totalOrcado = vendasComOrcamento.reduce((acc, v) => acc + (v.valor_orcado || 0), 0);
+    const totalFechadoDeOrcados = vendasComOrcamento.reduce((acc, v) => acc + v.valor_fechado, 0);
+    const taxaConversao = totalOrcado > 0 ? (totalFechadoDeOrcados / totalOrcado) * 100 : 0;
+
+    return { totalFaturado, ticketMedio, vendasNoPeriodo, taxaConversao, maiorVenda };
+  }, [filteredVendas, isLoading]);
 
   // ── Handlers ───────────────────────────────────────────────
 
@@ -139,7 +189,7 @@ export default function Vendas() {
       />
 
       <div className="flex flex-col gap-5">
-        {/* Toolbar: filtros */}
+        {/* Toolbar: período + exportar */}
         <div className="flex items-center gap-2.5 flex-wrap" data-tutorial="vendas-filters">
           <DateRangePicker
             date={dateRange}
@@ -179,83 +229,6 @@ export default function Vendas() {
           </StatCardGrid>
         </div>
       </div>
-
-      {/* ═══ COMPOSIÇÃO DO FATURAMENTO ═══ */}
-      {!isLoading && vendas.length > 0 && (metrics.faturamentoConsultas > 0 || metrics.faturamentoProcedimentos > 0) && (
-        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-          <div className="px-5 py-3.5 border-b border-border/40 bg-muted/[0.03]">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-muted">
-                <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-              </span>
-              <div>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">COMPOSIÇÃO DO FATURAMENTO</p>
-                <p className="text-[10px] text-muted-foreground/50 mt-0.5">Distribuição entre consultas e procedimentos</p>
-              </div>
-            </div>
-          </div>
-          <div className="px-5 py-4 space-y-4">
-            {/* Barra de proporção */}
-            {metrics.totalFaturado > 0 && (
-              <div className="space-y-1.5">
-                <div className="h-2.5 rounded-full overflow-hidden flex bg-muted/40">
-                  {metrics.faturamentoProcedimentos > 0 && (
-                    <div
-                      className="h-full bg-emerald-500 transition-all"
-                      style={{ width: `${(metrics.faturamentoProcedimentos / metrics.totalFaturado) * 100}%` }}
-                    />
-                  )}
-                  {metrics.faturamentoConsultas > 0 && (
-                    <div
-                      className="h-full bg-blue-400 transition-all"
-                      style={{ width: `${(metrics.faturamentoConsultas / metrics.totalFaturado) * 100}%` }}
-                    />
-                  )}
-                  {metrics.faturamentoOutros > 0 && (
-                    <div
-                      className="h-full bg-muted-foreground/30 transition-all"
-                      style={{ width: `${(metrics.faturamentoOutros / metrics.totalFaturado) * 100}%` }}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
-            {/* Cards de breakdown */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-emerald-50/60 border border-emerald-100/80 px-4 py-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700/60">Procedimentos</span>
-                </div>
-                <p className="text-lg font-extrabold text-emerald-800 font-display tabular-nums leading-tight">
-                  {formatCurrency(metrics.faturamentoProcedimentos)}
-                </p>
-                <p className="text-[10px] text-emerald-700/50 mt-0.5">
-                  {metrics.qtdProcedimentos} venda{metrics.qtdProcedimentos !== 1 ? "s" : ""} ·{" "}
-                  {metrics.totalFaturado > 0
-                    ? Math.round((metrics.faturamentoProcedimentos / metrics.totalFaturado) * 100)
-                    : 0}%
-                </p>
-              </div>
-              <div className="rounded-xl bg-blue-50/60 border border-blue-100/80 px-4 py-3">
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <div className="h-2 w-2 rounded-full bg-blue-400 shrink-0" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-700/60">Consultas</span>
-                </div>
-                <p className="text-lg font-extrabold text-blue-800 font-display tabular-nums leading-tight">
-                  {formatCurrency(metrics.faturamentoConsultas)}
-                </p>
-                <p className="text-[10px] text-blue-700/50 mt-0.5">
-                  {metrics.qtdConsultas} consulta{metrics.qtdConsultas !== 1 ? "s" : ""} ·{" "}
-                  {metrics.totalFaturado > 0
-                    ? Math.round((metrics.faturamentoConsultas / metrics.totalFaturado) * 100)
-                    : 0}%
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ═══ TABS ═══ */}
       <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit">
@@ -304,6 +277,101 @@ export default function Vendas() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-8 text-xs bg-muted/30 border-border/40 rounded-lg placeholder:text-muted-foreground/40"
             />
+          </div>
+        </div>
+
+        {/* Filtros — sempre visíveis, aplicados sobre os Registros */}
+        <div
+          className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden mb-4"
+          data-tutorial="vendas-filters-advanced"
+        >
+          <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-muted">
+                <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+              </span>
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">FILTROS</p>
+                <p className="text-[10px] text-muted-foreground/50 mt-0.5">Refine os registros por origem, procedimento, pagamento e valor</p>
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 shrink-0 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Limpar ({activeFilterCount})
+              </button>
+            )}
+          </div>
+          <div className="p-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-muted-foreground/70">Origem</Label>
+                <Select value={filters.origem} onValueChange={(v) => handleFilterChange("origem", v)}>
+                  <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="Todos">Todas as origens</SelectItem>
+                    {origensDisponiveis.map((origem) => (
+                      <SelectItem key={origem} value={origem}>{origem}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-muted-foreground/70">Procedimento</Label>
+                <Select value={filters.procedimento} onValueChange={(v) => handleFilterChange("procedimento", v)}>
+                  <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="Todos">Todos os procedimentos</SelectItem>
+                    {procedimentosDisponiveis.map((proc) => (
+                      <SelectItem key={proc} value={proc}>{proc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-muted-foreground/70">Forma de Pagamento</Label>
+                <Select value={filters.formaPagamento} onValueChange={(v) => handleFilterChange("formaPagamento", v)}>
+                  <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="Todos">Todas as formas</SelectItem>
+                    {formasPagamentoDisponiveis.map((forma) => (
+                      <SelectItem key={forma} value={forma}>{forma}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-muted-foreground/70">Tipo de Venda</Label>
+                <Select value={filters.tipoVenda} onValueChange={(v) => handleFilterChange("tipoVenda", v)}>
+                  <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background"><SelectValue /></SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    <SelectItem value="Todos">Todos os tipos</SelectItem>
+                    <SelectItem value="consulta">Consulta</SelectItem>
+                    <SelectItem value="procedimento">Procedimento</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-muted-foreground/70">Valor mínimo</Label>
+                <CurrencyInput
+                  value={valorMin}
+                  onValueChange={(v) => setValorMin(v ?? null)}
+                  className="h-9 text-xs rounded-lg border-border/60 bg-background"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-medium text-muted-foreground/70">Valor máximo</Label>
+                <CurrencyInput
+                  value={valorMax}
+                  onValueChange={(v) => setValorMax(v ?? null)}
+                  className="h-9 text-xs rounded-lg border-border/60 bg-background"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -576,7 +644,7 @@ export default function Vendas() {
             <AlertDialogDescription className="text-sm text-muted-foreground">
               Esta ação não pode ser desfeita. A venda de{" "}
               <strong>{isDeleting?.leads?.nome || "este cliente"}</strong> no valor de{" "}
-              <strong>{isDeleting?.valor_fechado ? formatCurrency(isDeleting.valor_fechado) : "R$ 0,00"}</strong>{" "}
+              <strong>{formatBRL(isDeleting?.valor_fechado)}</strong>{" "}
               será removida permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>

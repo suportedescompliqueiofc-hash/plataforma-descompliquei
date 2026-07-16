@@ -94,24 +94,28 @@ function generateInviteEmailHtml(opts: {
 
 const DEFAULT_PAGES: Record<string, Record<string, boolean>> = {
   admin: {
-    painel: true, conversas: true, notificacoes: true, leads: true,
-    agendamentos: true, vendas: true, procedimentos: true, metas: true,
-    msgs_rapidas: true, cadencias: true, ia: true, configuracoes: false,
+    painel: true, performance: true, conversas: true, notificacoes: true, leads: true,
+    agendamentos: true, vendas: true, procedimentos: true, metas: true, equipe: true,
+    evolucao: true, ia: true, athos_gs: false, arsenal: false, jornada: false, notas: false,
+    sessoes_taticas: false, cadencias: true, atualizacoes: true, configuracoes: false,
   },
   comercial: {
-    painel: true, conversas: true, notificacoes: true, leads: true,
-    agendamentos: true, vendas: true, procedimentos: false, metas: true,
-    msgs_rapidas: false, cadencias: false, ia: false, configuracoes: false,
+    painel: true, performance: true, conversas: true, notificacoes: true, leads: true,
+    agendamentos: true, vendas: true, procedimentos: false, metas: true, equipe: false,
+    evolucao: true, ia: false, athos_gs: false, arsenal: false, jornada: false, notas: false,
+    sessoes_taticas: false, cadencias: false, atualizacoes: true, configuracoes: false,
   },
   atendente: {
-    painel: false, conversas: true, notificacoes: true, leads: false,
-    agendamentos: false, vendas: false, procedimentos: false, metas: false,
-    msgs_rapidas: true, cadencias: false, ia: false, configuracoes: false,
+    painel: false, performance: false, conversas: true, notificacoes: true, leads: false,
+    agendamentos: false, vendas: false, procedimentos: false, metas: false, equipe: false,
+    evolucao: false, ia: false, athos_gs: false, arsenal: false, jornada: false, notas: false,
+    sessoes_taticas: false, cadencias: false, atualizacoes: true, configuracoes: false,
   },
   custom: {
-    painel: false, conversas: true, notificacoes: true, leads: false,
-    agendamentos: false, vendas: false, procedimentos: false, metas: false,
-    msgs_rapidas: false, cadencias: false, ia: false, configuracoes: false,
+    painel: false, performance: false, conversas: true, notificacoes: true, leads: false,
+    agendamentos: false, vendas: false, procedimentos: false, metas: false, equipe: false,
+    evolucao: false, ia: false, athos_gs: false, arsenal: false, jornada: false, notas: false,
+    sessoes_taticas: false, cadencias: false, atualizacoes: true, configuracoes: false,
   },
 };
 

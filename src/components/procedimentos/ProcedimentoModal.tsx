@@ -11,7 +11,7 @@ import { useProcedimentos, Procedimento, ProcedimentoInput } from "@/hooks/usePr
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { toast } from "sonner";
 
-const CATEGORIAS = [
+export const CATEGORIAS = [
   "Estética Facial",
   "Estética Corporal",
   "Capilar",

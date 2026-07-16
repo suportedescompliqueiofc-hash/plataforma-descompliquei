@@ -22,7 +22,7 @@ export interface Venda {
   agendamento_id: string | null;
   tipo_venda: string | null;
   criado_em: string;
-  leads: Pick<Lead, 'nome' | 'telefone'>; // Para join
+  leads: Pick<Lead, 'nome' | 'telefone' | 'origem' | 'fonte'>; // Para join
 }
 
 export function useVendas(dateRange?: DateRange) {
@@ -62,7 +62,9 @@ export function useVendas(dateRange?: DateRange) {
           *,
           leads (
             nome,
-            telefone
+            telefone,
+            origem,
+            fonte
           )
         `)
         .eq('organization_id', orgId)

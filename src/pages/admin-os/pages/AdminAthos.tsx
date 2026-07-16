@@ -19,6 +19,7 @@ import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from "@/integrations
 import { useAuth } from "@/contexts/AuthContext";
 import { MASTER_ORG_ID } from "@/lib/constants";
 import AdminAgentes from "./AdminAgentes";
+import { AthosLupa } from "@/components/ai/AthosLupa";
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
@@ -943,28 +944,24 @@ export default function AdminAthos() {
       }
       .os-orb {
         border-radius: 50%;
-        background-color: #0a0a14;
+        background-color: #0e0e12;
         background-image:
-          radial-gradient(ellipse 60% 45% at 30% 25%, rgba(56,189,248,1), transparent 70%),
-          radial-gradient(ellipse 55% 50% at 75% 30%, rgba(168,85,247,0.95), transparent 65%),
-          radial-gradient(ellipse 65% 45% at 55% 75%, rgba(236,72,153,0.85), transparent 70%),
-          radial-gradient(ellipse 50% 50% at 20% 75%, rgba(34,211,238,0.8), transparent 65%),
-          radial-gradient(ellipse 50% 45% at 80% 80%, rgba(249,115,22,0.7), transparent 65%),
-          radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0a0a14 100%);
+          radial-gradient(ellipse 55% 45% at 30% 25%, rgba(234,88,12,0.55), transparent 68%),
+          radial-gradient(ellipse 45% 40% at 72% 65%, rgba(245,158,11,0.14), transparent 65%),
+          radial-gradient(circle at 50% 50%, #1c1c22 0%, #0e0e12 100%);
         background-size: 100% 100%;
         animation: os-float 6s ease-in-out infinite, os-iridescent 14s ease infinite;
         box-shadow:
-          0 0 60px rgba(168,85,247,0.35),
-          0 0 120px rgba(56,189,248,0.2),
+          0 0 50px rgba(234,88,12,0.16),
+          0 0 100px rgba(234,88,12,0.08),
           0 12px 40px rgba(0,0,0,0.35),
           inset 0 -20px 40px rgba(0,0,0,0.5),
-          inset 0 3px 10px rgba(255,255,255,0.1),
-          inset -5px -10px 30px rgba(168,85,247,0.2);
+          inset 0 3px 10px rgba(255,255,255,0.08),
+          inset -5px -10px 30px rgba(234,88,12,0.1);
       }
       @keyframes os-iridescent {
-        0%, 100% { filter: hue-rotate(0deg) saturate(1); }
-        33% { filter: hue-rotate(25deg) saturate(1.15); }
-        66% { filter: hue-rotate(-15deg) saturate(1.1); }
+        0%, 100% { filter: brightness(1) saturate(1); }
+        50% { filter: brightness(1.08) saturate(1.12); }
       }
       @keyframes os-spec-rotate {
         0%, 100% { transform: rotate(0deg) translateX(0); }
@@ -985,11 +982,11 @@ export default function AdminAthos() {
         background:
           conic-gradient(from 0deg at 50% 50%,
             transparent 0deg,
-            rgba(255,255,255,0.04) 60deg,
+            rgba(255,255,255,0.03) 60deg,
             transparent 120deg,
-            rgba(168,85,247,0.06) 180deg,
+            rgba(234,88,12,0.05) 180deg,
             transparent 240deg,
-            rgba(56,189,248,0.05) 300deg,
+            rgba(255,255,255,0.02) 300deg,
             transparent 360deg);
         animation: os-spec-rotate 8s linear infinite;
         mix-blend-mode: screen;
@@ -1003,7 +1000,7 @@ export default function AdminAthos() {
         pointer-events: none;
       }
       .os-ring { border: 1px solid rgba(234,88,12,0.07); border-radius: 50%; animation: os-pulse-ring 4s ease-in-out infinite; }
-      .os-ring-2 { border: 1px dashed rgba(139,92,246,0.05); border-radius: 50%; animation: os-pulse-ring-2 5s ease-in-out infinite; }
+      .os-ring-2 { border: 1px dashed rgba(120,113,108,0.06); border-radius: 50%; animation: os-pulse-ring-2 5s ease-in-out infinite; }
       .os-orbit { animation: os-orbit-spin 20s linear infinite; }
       .os-particle { animation: os-particle-drift 7s ease-in-out infinite; }
       .os-particle-2 { animation: os-particle-drift 9s ease-in-out infinite; animation-delay: -3s; }
@@ -1013,9 +1010,7 @@ export default function AdminAthos() {
         position: relative;
         padding: 1.5px;
         border-radius: 18px;
-        background: linear-gradient(135deg, rgba(234,88,12,0.15), rgba(139,92,246,0.15), rgba(6,182,212,0.15), rgba(234,88,12,0.15));
-        background-size: 300% 300%;
-        animation: os-border-glow 8s ease infinite;
+        background: rgba(120,113,108,0.16);
       }
       .os-input-glow::before {
         content: '';
@@ -1024,15 +1019,16 @@ export default function AdminAthos() {
         border-radius: 18px;
         background: inherit;
         filter: blur(12px);
-        opacity: 0.4;
+        opacity: 0;
         z-index: -1;
+        transition: opacity 0.3s ease;
       }
       .os-input-glow:focus-within {
-        background: linear-gradient(135deg, rgba(234,88,12,0.3), rgba(139,92,246,0.3), rgba(6,182,212,0.3), rgba(234,88,12,0.3));
-        background-size: 300% 300%;
+        background: linear-gradient(135deg, rgba(234,88,12,0.35), rgba(245,158,11,0.2), rgba(234,88,12,0.35));
+        background-size: 200% 200%;
         animation: os-border-glow 4s ease infinite;
       }
-      .os-input-glow:focus-within::before { opacity: 0.6; }
+      .os-input-glow:focus-within::before { opacity: 0.5; }
     `}</style>
     <div className="flex h-full min-h-[calc(100vh-4rem)] lg:min-h-screen overflow-hidden relative bg-background">
       {/* Page background gradient overlay — adapts to theme via opacity blends */}
@@ -1040,8 +1036,8 @@ export default function AdminAthos() {
         style={{
           background: `
             radial-gradient(ellipse 80% 60% at 50% 0%, rgba(234,88,12,0.08) 0%, transparent 60%),
-            radial-gradient(ellipse 70% 60% at 100% 100%, rgba(139,92,246,0.07) 0%, transparent 55%),
-            radial-gradient(ellipse 60% 50% at 0% 100%, rgba(6,182,212,0.05) 0%, transparent 55%)
+            radial-gradient(ellipse 70% 60% at 100% 100%, rgba(245,158,11,0.04) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 50% at 0% 100%, rgba(120,113,108,0.03) 0%, transparent 55%)
           `,
         }}
       />
@@ -1661,33 +1657,15 @@ function WelcomeScreen({ onSuggestion, userName }: { onSuggestion: (text: string
   return (
     <div className="relative flex flex-col items-center justify-center h-full px-8">
       {/* Floating particles — só os pequenos, blobs ficam no bg da página */}
-      <div className="os-particle absolute top-[15%] right-[24%] w-1.5 h-1.5 rounded-full bg-amber-400/15 pointer-events-none" />
-      <div className="os-particle-2 absolute bottom-[25%] left-[18%] w-1 h-1 rounded-full bg-violet-400/12 pointer-events-none" />
-      <div className="os-particle-3 absolute top-[55%] right-[15%] w-[3px] h-[3px] rounded-full bg-cyan-400/10 pointer-events-none" />
+      <div className="os-particle absolute top-[15%] right-[24%] w-1.5 h-1.5 rounded-full bg-orange-400/15 pointer-events-none" />
+      <div className="os-particle-2 absolute bottom-[25%] left-[18%] w-1 h-1 rounded-full bg-amber-400/12 pointer-events-none" />
+      <div className="os-particle-3 absolute top-[55%] right-[15%] w-[3px] h-[3px] rounded-full bg-foreground/10 pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-md flex flex-col items-center text-center -mt-8">
 
-        {/* Orb — compacto, iridescente */}
-        <div className="relative mx-auto mb-5" style={{ width: '140px', height: '140px' }}>
-          {/* Outer rings */}
-          <div className="os-ring absolute" style={{ inset: '14px' }} />
-          <div className="os-ring-2 absolute" style={{ inset: '4px' }} />
-
-          {/* Orb body */}
-          <div className="absolute" style={{ inset: '22px' }}>
-            <div className="os-orb absolute inset-0">
-              <div className="os-orb-shimmer" />
-            </div>
-            <div className="os-orb-highlight absolute inset-0 pointer-events-none" />
-            <div className="os-orb-rim" />
-          </div>
-
-          {/* Orbiting particles */}
-          <div className="os-orbit absolute" style={{ inset: '10px' }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-300/70 shadow-[0_0_10px_rgba(56,189,248,0.6)]" />
-            <div className="absolute bottom-[8%] right-[5%] w-1 h-1 rounded-full bg-violet-400/60 shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
-            <div className="absolute top-[38%] left-0 w-[3px] h-[3px] rounded-full bg-pink-400/50 shadow-[0_0_6px_rgba(236,72,153,0.4)]" />
-          </div>
+        {/* Símbolo do Athos — lupa de cristal */}
+        <div className="relative mx-auto mb-5 flex items-center justify-center">
+          <AthosLupa className="w-28 h-28" />
         </div>
 
         {/* Greeting + Headline */}
@@ -1696,16 +1674,8 @@ function WelcomeScreen({ onSuggestion, userName }: { onSuggestion: (text: string
             Olá, {firstName}
           </p>
         )}
-        <h1
-          className="text-[32px] font-bold font-display leading-[1.1] tracking-tight mb-2"
-          style={{
-            background: 'linear-gradient(135deg, #1a1a1a 0%, #8b5cf6 50%, #ea580c 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}
-        >
-          Como posso ajudar?
+        <h1 className="text-[32px] font-bold font-display leading-[1.1] tracking-tight mb-2 text-foreground">
+          Como posso <span className="text-[#E85D24]">ajudar</span>?
         </h1>
         <p className="text-[12px] text-muted-foreground/40 mb-6 max-w-[240px] leading-relaxed">
           Acesso total ao CRM — pergunte, analise e execute.
@@ -1774,7 +1744,7 @@ function MessageBubble({ msg, onImageClick }: { msg: OSMessage; onImageClick: (u
   return (
     <div className="flex gap-3 items-start">
       <div className="shrink-0 mt-1 flex items-center justify-center w-7 h-7 rounded-xl bg-muted/30 border border-border/30">
-        <div className="w-3 h-3 rounded-full os-orb" style={{ animation: 'os-iridescent 12s ease infinite', boxShadow: '0 0 6px rgba(80,140,230,0.12)' }} />
+        <AthosLupa className="w-5 h-5" />
       </div>
 
       <div className="flex-1 min-w-0 space-y-2">

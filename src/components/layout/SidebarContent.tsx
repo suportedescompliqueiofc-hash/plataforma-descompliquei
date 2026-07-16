@@ -4,10 +4,11 @@ import {
   LayoutDashboard, Users, BarChart3, Settings, LogOut, ChevronLeft,
   MessageSquare, Bell, ShoppingCart, Bot, GitMerge, GitBranch, ShieldCheck,
   Calendar, Target, CalendarDays, ImagePlay, PenLine,
-  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Sparkles, Swords, Route, UsersRound, Megaphone,
+  Phone, FileText, Stethoscope, Trophy, Rocket, TrendingUp, Swords, Route, UsersRound, Megaphone,
   NotebookText
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AthosLupa } from "@/components/ai/AthosLupa";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,6 +26,8 @@ import { usePermissions, PageKey } from "@/hooks/usePermissions";
 import { useOnboarding } from "@/hooks/useOnboarding";
 import { useAtualizacoes } from "@/hooks/useAtualizacoes";
 
+const AthosLupaIcon = (props: { className?: string }) => <AthosLupa mono {...props} />;
+
 interface SidebarContentProps {
   isCollapsed?: boolean;
   toggleCollapse?: () => void;
@@ -36,7 +39,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   const { signOut, user } = useAuth();
   const { profile, role } = useProfile();
   const { branding } = useBranding();
-  const { plataformaUser, plan, progressPercent, acesso, isContextLoading: plataformaLoading, isMember } = usePlataforma();
+  const { plataformaUser, plan, progressPercent, acesso, isContextLoading: plataformaLoading } = usePlataforma();
   const { pending: performancePending } = usePerformanceBadge();
   const { showInSidebar: showOnboarding, completedCount: onboardingDone, totalCount: onboardingTotal } = useOnboarding();
   const { naoVistosCount: atualizacoesNaoVistas } = useAtualizacoes();
@@ -79,14 +82,15 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
   // CRM é uma ÁREA entitled: só aparece se o produto liberar acesso_crm (superadmin = ACESSO_TOTAL).
   const temCrm = plataformaLoading || acesso.acesso_crm;
 
-  // Membros de equipe operam só no CRM — seções de Aprendizado ficam ocultas.
-  const showAprendizado = temPlataforma && !isMember;
+  // Aprendizado (Arsenal/Jornada/Notas/Sessões Táticas): entitlement do produto da org.
+  // Visibilidade por membro é decidida depois, item a item, pela permissão de equipe.
+  const showAprendizado = temPlataforma;
 
   // MENU ÚNICO INTEGRADO — CRM + Plataforma numa sidebar só (sem pula-pula).
   type MenuItem = {
     title: string;
     isSeparator?: boolean;
-    icon?: LucideIcon;
+    icon?: LucideIcon | ((props: { className?: string }) => JSX.Element);
     path?: string;
     accessKey?: keyof typeof acesso;
     superadminOnly?: boolean;
@@ -114,7 +118,7 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     ...((temCrm || temOS) ? [
       { isSeparator: true, title: "Inteligência" },
       ...(temCrm ? [{ title: "Agentes de IA", icon: Bot, path: "/crm/athos" }] : []),
-      ...(temOS ? [{ title: "Athos", icon: Sparkles, path: "/plataforma/athos-gs" }] : []),
+      ...(temOS ? [{ title: "Athos", icon: AthosLupaIcon, path: "/plataforma/athos-gs" }] : []),
     ] : []),
     // ── ÁREA APRENDIZADO (Plataforma) ────────────────────────────────────────
     ...(showAprendizado ? [
@@ -163,9 +167,10 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     { title: "Voltar ao CRM", icon: BarChart3, path: "/crm" },
   ];
 
-  // Mapeamento path CRM → chave de permissão
+  // Mapeamento path → chave de permissão (CRM e Aprendizado)
   const PATH_PERMISSION_MAP: Record<string, PageKey> = {
     '/crm':                    'painel',
+    '/crm/performance':        'performance',
     '/crm/conversas':          'conversas',
     '/crm/notificacoes':       'notificacoes',
     '/crm/leads':              'leads',
@@ -174,11 +179,17 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
     '/crm/procedimentos':      'procedimentos',
     '/crm/metas':              'metas',
     '/crm/equipe':             'equipe',
+    '/crm/evolucao':           'evolucao',
     '/crm/cadences':           'cadencias',
     '/crm/ia':                 'ia',
     '/crm/athos':              'ia',
+    '/crm/atualizacoes':       'atualizacoes',
     '/crm/settings':           'configuracoes',
-    '/plataforma':             'plataforma',
+    '/plataforma/athos-gs':    'athos_gs',
+    '/plataforma/arsenal':     'arsenal',
+    '/plataforma/jornada':     'jornada',
+    '/crm/notas':              'notas',
+    '/plataforma/sessoes-taticas': 'sessoes_taticas',
   };
 
   // Chaves que partem como `true` em ACESSO_TOTAL mas devem ser `false` para membros.
@@ -192,12 +203,16 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
         if (item.isSeparator) return true;
         if (!item.path) return true;
 
-        // Itens da Plataforma (Aprendizado): gate por accessKey; sem flicker durante o loading
+        // Itens da Plataforma (Aprendizado): gate por accessKey (entitlement do produto)
+        // + permissão de equipe (quem pode ver); sem flicker durante o loading.
         const isPlataformaItem = item.path.startsWith('/plataforma') || !!item.accessKey;
         if (isPlataformaItem) {
           if (plataformaLoading) return true;
           if (item.accessKey && !acesso[item.accessKey]) return false;
-          return true;
+          if (permissions.isOwner) return true;
+          const permKey = PATH_PERMISSION_MAP[item.path];
+          if (!permKey) return true;
+          return permissions.canAccess(permKey);
         }
 
         // Itens do CRM: permissões do papel

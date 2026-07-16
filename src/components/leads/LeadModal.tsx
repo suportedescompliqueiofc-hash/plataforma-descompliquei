@@ -10,7 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Switch } from "@/components/ui/switch";
 import { useLeads } from "@/hooks/useLeads";
 import MaskedInput, { PhoneInput, CpfInput } from "@/components/MaskedInput";
-import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Pencil, MessageCircle, Briefcase, Globe, ImageOff, Megaphone, Calendar as CalendarIcon, Hash, UserCheck, ChevronRight, Plus, ArrowRight, Sparkles, Target, Activity, Zap, Copy, ExternalLink, CalendarDays, Shield, UserCog } from "lucide-react";
+import { User, Mail, Phone, DollarSign, MapPin, Tag, Clock, MessageSquare, Pencil, MessageCircle, Briefcase, Globe, ImageOff, Megaphone, Calendar as CalendarIcon, Hash, UserCheck, ChevronRight, Plus, ArrowRight, Sparkles, Target, Activity, Zap, Copy, Check, ExternalLink, CalendarDays, Shield, UserCog } from "lucide-react";
 import { parse, format, differenceInYears, isValid, startOfDay, parseISO, formatDistanceToNow, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +112,36 @@ const InfoItem = ({ icon: Icon, label, value, className }: { icon: any, label: s
   </div>
 );
 
+// ── Header de card canônico (padrão CLAUDE.md) — usado em todos os blocos do corpo ──
+const SECTION_HEADER_TONES = {
+  default: { wrap: "bg-muted", icon: "text-muted-foreground" },
+  blue:    { wrap: "bg-blue-100 dark:bg-blue-900/40", icon: "text-blue-600 dark:text-blue-400" },
+  emerald: { wrap: "bg-emerald-100 dark:bg-emerald-900/40", icon: "text-emerald-600 dark:text-emerald-400" },
+  amber:   { wrap: "bg-amber-100 dark:bg-amber-900/40", icon: "text-amber-600 dark:text-amber-400" },
+} as const;
+
+const SectionCardHeader = ({
+  icon: Icon, title, description, tone = "default", right,
+}: {
+  icon: any; title: string; description?: React.ReactNode; tone?: keyof typeof SECTION_HEADER_TONES; right?: React.ReactNode;
+}) => {
+  const t = SECTION_HEADER_TONES[tone];
+  return (
+    <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className={cn("p-1.5 rounded-lg shrink-0", t.wrap)}>
+          <Icon className={cn("h-3.5 w-3.5", t.icon)} />
+        </span>
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground truncate">{title}</p>
+          {description && <p className="text-[10px] text-muted-foreground/50 mt-0.5 truncate">{description}</p>}
+        </div>
+      </div>
+      {right}
+    </div>
+  );
+};
+
 // ── Timeline compacta (aba Histórico) — reaproveita useJornadaPaciente ──
 const HISTORICO_STYLE: Record<EventoTipo, { icon: any; dot: string }> = {
   entrada:     { icon: UserCheck,     dot: 'bg-emerald-500' },
@@ -197,7 +227,7 @@ const HistoricoTimeline = ({ leadId }: { leadId: string }) => {
                 <div className="min-w-0 flex-1 pt-0.5">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-[13px] font-semibold text-foreground leading-snug">{e.titulo}</p>
-                    <span className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0 mt-0.5">{quando}</span>
+                    <span className="text-[10px] text-muted-foreground/60 font-display tabular-nums shrink-0 mt-0.5">{quando}</span>
                   </div>
                   {e.descricao && (
                     <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed break-words">{e.descricao}</p>
@@ -321,19 +351,16 @@ const IaTab = ({ lead }: { lead: any }) => {
 
       {/* Atendimento pela IA */}
       {respondeuIA && (
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-            <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Atendimento pela IA</span>
-          </div>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <SectionCardHeader icon={MessageCircle} title="Atendimento pela IA" />
           <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-3">
             <div>
               <span className={labelCls}>Tempo atendido pela IA</span>
-              <span className={cn(valueCls, "tabular-nums")}>{tempoIAmin != null ? formatMinutosLabel(tempoIAmin) : '—'}</span>
+              <span className={cn(valueCls, "font-display tabular-nums")}>{tempoIAmin != null ? formatMinutosLabel(tempoIAmin) : '—'}</span>
             </div>
             <div>
               <span className={labelCls}>Respostas da IA</span>
-              <span className={cn(valueCls, "tabular-nums")}>{botMsgs.length}</span>
+              <span className={cn(valueCls, "font-display tabular-nums")}>{botMsgs.length}</span>
             </div>
             <div className="col-span-2">
               <span className={labelCls}>Status</span>
@@ -347,11 +374,8 @@ const IaTab = ({ lead }: { lead: any }) => {
 
       {/* Resumo da conversa (IA) */}
       {resumo && (
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Resumo da conversa (IA)</span>
-          </div>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <SectionCardHeader icon={Sparkles} title="Resumo da conversa (IA)" tone="amber" />
           <div className="p-4 text-[13px] text-foreground/90 leading-relaxed space-y-2">
             <FormattedText content={resumo} />
           </div>
@@ -360,11 +384,8 @@ const IaTab = ({ lead }: { lead: any }) => {
 
       {/* Leitura do lead — objetivo e objeção (extraídos pelo Athos Escriba) */}
       {(fu.objetivo || fu.objecao) && (
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-            <Target className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Leitura do lead</span>
-          </div>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <SectionCardHeader icon={Target} title="Leitura do lead" />
           <div className="p-4 space-y-3">
             {fu.objetivo && (
               <div>
@@ -384,11 +405,8 @@ const IaTab = ({ lead }: { lead: any }) => {
 
       {/* Análise de Follow-Up (Athos) */}
       {temFollowup && (
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-            <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-            <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Análise de Follow-Up</span>
-          </div>
+        <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+          <SectionCardHeader icon={Clock} title="Análise de Follow-Up" />
           <div className="p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               {fu.followup_gap && gapLabels[fu.followup_gap] && (
@@ -397,7 +415,7 @@ const IaTab = ({ lead }: { lead: any }) => {
                 </span>
               )}
               {horasSemContato != null && (
-                <span className="text-[11px] text-muted-foreground">Sem contato há <span className="font-semibold text-foreground tabular-nums">{horasSemContato}h</span></span>
+                <span className="text-[11px] text-muted-foreground">Sem contato há <span className="font-semibold text-foreground font-display tabular-nums">{horasSemContato}h</span></span>
               )}
             </div>
             {fu.followup_gap_motivo && (
@@ -406,7 +424,7 @@ const IaTab = ({ lead }: { lead: any }) => {
             {((fu.followup_tentativas ?? 0) > 0 || fu.followup_ultima_tentativa) && (
               <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1 border-t border-border/40">
                 {(fu.followup_tentativas ?? 0) > 0 && (
-                  <span className="text-[11px] text-muted-foreground pt-2">Tentativas: <span className="font-semibold text-foreground tabular-nums">{fu.followup_tentativas}</span></span>
+                  <span className="text-[11px] text-muted-foreground pt-2">Tentativas: <span className="font-semibold text-foreground font-display tabular-nums">{fu.followup_tentativas}</span></span>
                 )}
                 {fu.followup_ultima_tentativa && (
                   <span className="text-[11px] text-muted-foreground pt-2">Última: <span className="font-semibold text-foreground">{formatDistanceToNow(new Date(fu.followup_ultima_tentativa), { addSuffix: true, locale: ptBR })}</span></span>
@@ -568,10 +586,10 @@ const FotoBlocoAccordion = ({
           <span className="text-[12px] font-medium text-foreground flex items-center gap-1.5">
             {grupo}
             <span className="text-muted-foreground/50">—</span>
-            <span className="tabular-nums text-muted-foreground">{format(parseISO(data), "dd/MM/yyyy")}</span>
+            <span className="font-display tabular-nums text-muted-foreground">{format(parseISO(data), "dd/MM/yyyy")}</span>
           </span>
           <span className="flex items-center gap-2">
-            <span className="text-[11px] text-muted-foreground">{fotos.length} foto{fotos.length !== 1 ? "s" : ""}</span>
+            <span className="text-[11px] text-muted-foreground"><span className="font-display tabular-nums">{fotos.length}</span> foto{fotos.length !== 1 ? "s" : ""}</span>
             <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", open && "rotate-180")} />
           </span>
         </button>
@@ -611,11 +629,8 @@ const FotoGrupoCard = ({
   const blocosOrdenados = [...blocos.entries()].sort((a, b) => b[0].localeCompare(a[0]));
 
   return (
-    <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-        <Syringe className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">{grupo}</span>
-      </div>
+    <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+      <SectionCardHeader icon={Syringe} title={grupo} />
       <div className="divide-y divide-border/40">
         {blocosOrdenados.map(([data, fotos]) => (
           <FotoBlocoAccordion key={data} grupo={grupo} data={data} fotos={fotos} onRemove={onRemove} onOpenImage={onOpenImage} />
@@ -774,7 +789,7 @@ const DocumentoRow = ({ doc, onRemove }: { doc: LeadDocumento; onRemove: (d: Lea
     </div>
     <div className="min-w-0 flex-1">
       <p className="text-[13px] text-foreground truncate">{doc.nome_arquivo}</p>
-      <p className="text-[10px] text-muted-foreground/50">{formatBytes(doc.tamanho_bytes)}</p>
+      <p className="text-[10px] text-muted-foreground/50 font-display tabular-nums">{formatBytes(doc.tamanho_bytes)}</p>
     </div>
     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
       {doc.signedUrl && (
@@ -799,20 +814,16 @@ const DocumentoPastaCard = ({
   onRemoveDoc: (d: LeadDocumento) => void;
   onRemovePasta?: (p: LeadDocumentoPasta) => void;
 }) => (
-  <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-    <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-      <div className="flex items-center gap-2">
-        <Folder className="h-3.5 w-3.5 text-muted-foreground" />
-        <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">
-          {pasta ? pasta.nome : "Sem pasta"}
-        </span>
-      </div>
-      {pasta && onRemovePasta && (
+  <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+    <SectionCardHeader
+      icon={Folder}
+      title={pasta ? pasta.nome : "Sem pasta"}
+      right={pasta && onRemovePasta ? (
         <Button size="icon" variant="ghost" className="h-6 w-6 opacity-50 hover:opacity-100" onClick={() => onRemovePasta(pasta)}>
           <Trash2 className="h-3 w-3" />
         </Button>
-      )}
-    </div>
+      ) : undefined}
+    />
     {documentos.length === 0 ? (
       <p className="text-[11px] text-muted-foreground/50 px-4 py-3">Nenhum documento nesta pasta</p>
     ) : (
@@ -984,7 +995,17 @@ const ViewContent = ({
   const queryClient = useQueryClient();
   const [showAgendamentoModal, setShowAgendamentoModal] = useState(false);
   const [showVendaModal, setShowVendaModal] = useState(false);
+  const [phoneCopied, setPhoneCopied] = useState(false);
   const onEdit = (field: string, value: any) => { if (isEditing && handleInputChange) handleInputChange(field, value); };
+  const handleCopyPhone = async () => {
+    if (!lead.telefone) return;
+    try {
+      await navigator.clipboard.writeText(cleanPhoneNumber(lead.telefone));
+      setPhoneCopied(true);
+      setTimeout(() => setPhoneCopied(false), 1500);
+    } catch { /* clipboard indisponível */ }
+  };
+  const whatsappHref = lead.telefone ? `https://wa.me/${cleanPhoneNumber(lead.telefone)}` : undefined;
   const getStatusConfig = (status: string) => {
     switch (status) {
       case "Ativo": return { dot: "bg-emerald-500", text: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", label: "Ativo" };
@@ -997,10 +1018,10 @@ const ViewContent = ({
 
   const getScoreConfig = (score: string | null) => {
     switch (score) {
-      case "A": return { label: "A", color: "#10B981", text: "Lead dos Sonhos" };
-      case "B": return { label: "B", color: "#3B82F6", text: "Qualificado" };
-      case "C": return { label: "C", color: "#F59E0B", text: "Em Desenvolvimento" };
-      case "D": return { label: "D", color: "#EF4444", text: "Fora do ICP" };
+      case "A": return { label: "A", color: "#10B981", text: "Lead dos Sonhos", dot: "bg-emerald-500", pillText: "text-emerald-700 dark:text-emerald-300", pillBg: "bg-emerald-50 dark:bg-emerald-950/30", pillBorder: "border-emerald-200 dark:border-emerald-900" };
+      case "B": return { label: "B", color: "#3B82F6", text: "Qualificado", dot: "bg-blue-500", pillText: "text-blue-700 dark:text-blue-300", pillBg: "bg-blue-50 dark:bg-blue-950/30", pillBorder: "border-blue-200 dark:border-blue-900" };
+      case "C": return { label: "C", color: "#F59E0B", text: "Em Desenvolvimento", dot: "bg-amber-500", pillText: "text-amber-700 dark:text-amber-300", pillBg: "bg-amber-50 dark:bg-amber-950/30", pillBorder: "border-amber-200 dark:border-amber-900" };
+      case "D": return { label: "D", color: "#EF4444", text: "Fora do ICP", dot: "bg-red-500", pillText: "text-red-700 dark:text-red-300", pillBg: "bg-red-50 dark:bg-red-950/30", pillBorder: "border-red-200 dark:border-red-900" };
       default: return null;
     }
   };
@@ -1127,36 +1148,63 @@ const ViewContent = ({
             ) : (
               /* ── View mode hero ── */
               <>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="text-xl font-extrabold tracking-tight text-foreground font-display leading-tight">{lead.nome || 'Lead sem nome'}</h3>
+                <h3 className="text-xl font-extrabold tracking-tight text-foreground font-display leading-tight truncate">{lead.nome || 'Lead sem nome'}</h3>
+
+                {/* Trio de pills premium: status, score, qualificado — pastel + texto escuro + dot */}
+                <div className="flex items-center gap-1.5 flex-wrap mt-2">
+                  <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md border", statusConfig.bg, statusConfig.text, statusConfig.border)}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", statusConfig.dot)} />
+                    {statusConfig.label}
+                  </span>
+                  {scoreConfig && (
+                    <span className={cn("inline-flex items-center gap-1.5 text-[10px] font-bold px-2 py-1 rounded-md border", scoreConfig.pillBg, scoreConfig.pillText, scoreConfig.pillBorder)}>
+                      <span className={cn("h-1.5 w-1.5 rounded-full", scoreConfig.dot)} />
+                      Score {scoreConfig.label} · {scoreConfig.text}
+                    </span>
+                  )}
                   {lead.is_qualified && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                      <UserCheck className="h-3 w-3" />
+                    <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 px-2 py-1 rounded-md border border-emerald-200 dark:border-emerald-900">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                       Qualificado
                     </span>
                   )}
-                  {scoreConfig && (
-                    <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold text-white px-2 py-0.5 rounded-md" style={{ backgroundColor: scoreConfig.color }}>
-                      <Target className="h-3 w-3" />
-                      Score {scoreConfig.label}
-                    </span>
-                  )}
                 </div>
-                <div className="flex items-center gap-x-4 gap-y-1 mt-2 text-[12px] text-muted-foreground flex-wrap">
+
+                <div className="flex items-center gap-x-4 gap-y-1 mt-2.5 text-[12px] text-muted-foreground flex-wrap">
                   <span className="flex items-center gap-1.5">
-                    <Phone className="h-3 w-3" />
+                    <Phone className="h-3 w-3 shrink-0" />
                     <span className="font-display tabular-nums">{formatPhoneDisplay(lead.telefone)}</span>
+                    {lead.telefone && (
+                      <span className="flex items-center gap-0.5 ml-0.5">
+                        <button
+                          type="button"
+                          onClick={() => whatsappHref && window.open(whatsappHref, '_blank', 'noopener,noreferrer')}
+                          className="p-1 rounded-md text-muted-foreground/60 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                          title="Abrir no WhatsApp"
+                        >
+                          <MessageCircle className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCopyPhone}
+                          className={cn("p-1 rounded-md transition-colors", phoneCopied ? "text-emerald-600" : "text-muted-foreground/60 hover:text-foreground hover:bg-muted/60")}
+                          title="Copiar telefone"
+                        >
+                          {phoneCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                        </button>
+                      </span>
+                    )}
                   </span>
                   {lead.email && (
-                    <span className="flex items-center gap-1.5">
-                      <Mail className="h-3 w-3" />
-                      {lead.email}
+                    <span className="flex items-center gap-1.5 truncate">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{lead.email}</span>
                     </span>
                   )}
                   {lead.idade ? (
                     <span className="flex items-center gap-1.5">
-                      <User className="h-3 w-3" />
-                      {lead.idade} anos
+                      <User className="h-3 w-3 shrink-0" />
+                      <span className="font-display tabular-nums">{lead.idade}</span> anos
                     </span>
                   ) : null}
                 </div>
@@ -1195,7 +1243,7 @@ const ViewContent = ({
       {/* ═══════════════ TABS (somente view mode) ═══════════════ */}
       {!isEditing && (
         <div className="px-6 pt-5 flex justify-center">
-          <div className="inline-flex items-center gap-0.5 bg-muted/40 rounded-xl p-1 max-w-full overflow-x-auto">
+          <div className="inline-flex items-center gap-1 bg-muted/40 rounded-xl p-1 max-w-full overflow-x-auto">
             {TABS.map((t) => {
               const TabIcon = t.icon;
               const active = activeTab === t.id;
@@ -1206,15 +1254,15 @@ const ViewContent = ({
                   type="button"
                   onClick={() => setActiveTab(t.id)}
                   className={cn(
-                    "flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11.5px] font-semibold transition-colors whitespace-nowrap",
+                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11.5px] font-semibold transition-colors whitespace-nowrap shrink-0",
                     active ? "bg-foreground text-background shadow-sm" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  <TabIcon className="h-3.5 w-3.5" />
+                  <TabIcon className="h-3.5 w-3.5 shrink-0" />
                   {t.label}
                   {count != null && count > 0 && (
                     <span className={cn(
-                      "text-[9px] font-bold px-1 rounded tabular-nums",
+                      "text-[9px] font-bold font-display px-1 rounded tabular-nums",
                       active ? "bg-background/20 text-background" : "bg-muted text-muted-foreground"
                     )}>{count}</span>
                   )}
@@ -1228,9 +1276,10 @@ const ViewContent = ({
       {/* ═══════════════ ORIGEM / CADASTRO / ÚLTIMO CONTATO (centralizado, sempre visível) ═══════════════ */}
       {!isEditing && (
         <div className="px-6 pt-3 flex justify-center">
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px]">
-            <span>
-              <span className="text-muted-foreground">Origem: </span>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-[11px]">
+            <span className="flex items-center gap-1.5">
+              <Globe className="h-3 w-3 text-muted-foreground/50" />
+              <span className="text-muted-foreground">Origem</span>
               <span className={cn("font-semibold", {
                 'text-amber-600': lead.origem === 'marketing',
                 'text-emerald-600': lead.origem === 'organico' || lead.origem === 'indicacao',
@@ -1242,15 +1291,17 @@ const ViewContent = ({
                 {{ marketing: 'Marketing', organico: 'Orgânico', indicacao: 'Orgânico', reativacao: 'Reativação', paciente: 'Paciente', convenio: 'Convênio' }[lead.origem as string] ?? lead.origem ?? '—'}
               </span>
             </span>
-            <span className="text-border/60">•</span>
-            <span>
-              <span className="text-muted-foreground">Cadastro: </span>
-              <span className="font-semibold text-foreground">{createdDate || '—'}</span>
+            <span className="h-3 w-px bg-border/60" />
+            <span className="flex items-center gap-1.5">
+              <CalendarDays className="h-3 w-3 text-muted-foreground/50" />
+              <span className="text-muted-foreground">Cadastro</span>
+              <span className="font-semibold text-foreground font-display tabular-nums">{createdDate || '—'}</span>
             </span>
-            <span className="text-border/60">•</span>
-            <span>
-              <span className="text-muted-foreground">Último contato: </span>
-              <span className={cn("font-semibold", lastContactTime ? "text-foreground" : "text-muted-foreground/50")}>{lastContactTime || 'Sem contato'}</span>
+            <span className="h-3 w-px bg-border/60" />
+            <span className="flex items-center gap-1.5">
+              <Clock className="h-3 w-3 text-muted-foreground/50" />
+              <span className="text-muted-foreground">Último contato</span>
+              <span className={cn("font-semibold font-display tabular-nums", lastContactTime ? "text-foreground" : "text-muted-foreground/50")}>{lastContactTime || 'Sem contato'}</span>
             </span>
           </div>
         </div>
@@ -1259,11 +1310,8 @@ const ViewContent = ({
       {/* ═══════════════ RESPONSÁVEL (edição) ═══════════════ */}
       {isEditing && (
         <div className="px-6 pt-4">
-          <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border/40 bg-muted/20">
-              <UserCog className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Responsável</span>
-            </div>
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <SectionCardHeader icon={UserCog} title="Responsável" />
             <div className="px-4 py-3">
               {isEditing ? (
                 <Select
@@ -1321,11 +1369,8 @@ const ViewContent = ({
 
         {/* ═══════════════ INFORMAÇÕES (edição) ═══════════════ */}
         {isEditing && (
-          <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-              <User className="h-3.5 w-3.5 text-muted-foreground" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Informações</span>
-            </div>
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+            <SectionCardHeader icon={User} title="Informações" />
             <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-3">
               <div>
                 <label className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-1">Origem</label>
@@ -1373,15 +1418,15 @@ const ViewContent = ({
 
             {/* Próximo agendamento em destaque */}
             {proxAgendamento && (
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="flex items-center gap-3 px-4 py-3">
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="flex items-center gap-3 px-5 py-4">
                   <span className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950/30 shrink-0">
                     <CalendarIcon className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                   </span>
                   <div className="min-w-0">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">Próximo agendamento</span>
                     <span className="text-[13px] font-semibold text-foreground">
-                      {proxAgendamento.titulo || 'Agendamento'} · {format(parseISO(proxAgendamento.data_hora_inicio), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                      {proxAgendamento.titulo || 'Agendamento'} · <span className="font-display tabular-nums">{format(parseISO(proxAgendamento.data_hora_inicio), "dd/MM 'às' HH:mm", { locale: ptBR })}</span>
                     </span>
                   </div>
                 </div>
@@ -1392,14 +1437,14 @@ const ViewContent = ({
             {vendasLead.length > 0 && (() => {
               const total = (vendasLead as any[]).reduce((s, v) => s + (Number(v.valor_fechado) || 0), 0);
               return (
-                <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                  <div className="flex items-center gap-3 px-4 py-3">
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <div className="flex items-center gap-3 px-5 py-4">
                     <span className="p-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 shrink-0">
                       <DollarSign className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                     </span>
                     <div className="min-w-0">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground block">
-                        {vendasLead.length} procedimento{vendasLead.length !== 1 ? 's' : ''} fechado{vendasLead.length !== 1 ? 's' : ''}
+                        <span className="tabular-nums font-display">{vendasLead.length}</span> procedimento{vendasLead.length !== 1 ? 's' : ''} fechado{vendasLead.length !== 1 ? 's' : ''}
                       </span>
                       <span className="text-[13px] font-semibold text-foreground tabular-nums font-display">
                         R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1412,11 +1457,8 @@ const ViewContent = ({
 
             {/* Procedimento(s) de interesse — preenchido automaticamente pela IA */}
             {hasProcedimentoInteresse && (
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-                  <Syringe className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Procedimento de interesse</span>
-                </div>
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <SectionCardHeader icon={Syringe} title="Procedimento de interesse" />
                 <div className="p-4 flex flex-wrap gap-2">
                   {String(lead.procedimento_interesse)
                     .split(/[,;•\n]|\s+e\s+/i)
@@ -1438,11 +1480,8 @@ const ViewContent = ({
             {hasInfoBlock && (() => {
               const resp = respLead;
               return (
-                <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                  <div className="flex items-center gap-2 px-4 py-3 border-b border-border/40 bg-muted/20">
-                    <User className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-[11px] font-bold uppercase tracking-[0.06em] text-muted-foreground">Informações</span>
-                  </div>
+                <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                  <SectionCardHeader icon={User} title="Informações" />
                   <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4">
                     {resp && (
                       <div className="col-span-2 flex items-center gap-2.5 pb-3.5 border-b border-border/40">
@@ -1461,7 +1500,7 @@ const ViewContent = ({
                     {lead.data_nascimento && (
                       <div>
                         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground block mb-0.5">Nascimento</span>
-                        <span className="text-[13px] font-semibold text-foreground tabular-nums">
+                        <span className="text-[13px] font-semibold text-foreground font-display tabular-nums">
                           {toDisplayDate(lead.data_nascimento)}
                           {lead.idade ? <span className="text-muted-foreground font-normal ml-1">({lead.idade}a)</span> : ''}
                         </span>
@@ -1492,8 +1531,8 @@ const ViewContent = ({
 
             {/* Lead Score — só quando definido */}
             {scoreConfig && (
-              <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-                <div className="p-4 flex items-center gap-4">
+              <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
+                <div className="p-5 flex items-center gap-4">
                   <div className="relative shrink-0">
                     <svg width="56" height="56" viewBox="0 0 64 64" className="transform -rotate-90">
                       <circle cx="32" cy="32" r="28" fill="none" stroke="currentColor" strokeWidth="4" className="text-muted/60" />
@@ -1521,29 +1560,17 @@ const ViewContent = ({
         {/* ═══════════════ CONSULTAS (agendamentos) ═══════════════ */}
         {!isEditing && activeTab === 'consultas' && (
             <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-4 py-3.5 border-b border-border/40 bg-blue-50/50 dark:bg-blue-950/10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-1.5 rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                      <CalendarIcon className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                    </span>
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Agendamentos</p>
-                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                        {agendamentos.length > 0 ? `${agendamentos.length} registro${agendamentos.length !== 1 ? 's' : ''}` : 'Nenhum registro'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowAgendamentoModal(true)}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40 hover:bg-blue-200 dark:hover:bg-blue-900/60 px-2 py-1 rounded-lg transition-colors"
-                    title="Novo agendamento"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Novo
-                  </button>
-                </div>
-              </div>
+              <SectionCardHeader
+                icon={CalendarIcon}
+                tone="blue"
+                title="Agendamentos"
+                description={agendamentos.length > 0 ? (<><span className="font-display tabular-nums">{agendamentos.length}</span> registro{agendamentos.length !== 1 ? 's' : ''}</>) : 'Nenhum registro'}
+                right={
+                  <Button size="sm" variant="outline" onClick={() => setShowAgendamentoModal(true)} className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 shrink-0">
+                    <Plus className="h-3.5 w-3.5" /> Novo
+                  </Button>
+                }
+              />
               {agendamentos.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <div className="p-3 rounded-xl bg-muted/40 mb-3">
@@ -1574,7 +1601,7 @@ const ViewContent = ({
                           </div>
                           <div className="flex items-center gap-1.5">
                             <Clock className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                            <p className="text-[11px] text-muted-foreground/60 tabular-nums">
+                            <p className="text-[11px] text-muted-foreground/60 font-display tabular-nums">
                               {a.data_hora_inicio ? format(parseISO(a.data_hora_inicio), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR }) : '—'}
                             </p>
                           </div>
@@ -1596,29 +1623,17 @@ const ViewContent = ({
         {/* ═══════════════ FINANCEIRO (fechamentos) ═══════════════ */}
         {!isEditing && activeTab === 'financeiro' && (
             <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden">
-              <div className="px-4 py-3.5 border-b border-border/40 bg-emerald-50/50 dark:bg-emerald-950/10">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                      <DollarSign className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    </span>
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Fechamentos</p>
-                      <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                        {vendasLead.length > 0 ? `${vendasLead.length} venda${vendasLead.length !== 1 ? 's' : ''} registrada${vendasLead.length !== 1 ? 's' : ''}` : 'Nenhuma venda'}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setShowVendaModal(true)}
-                    className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-900/60 px-2 py-1 rounded-lg transition-colors"
-                    title="Novo fechamento"
-                  >
-                    <Plus className="h-3 w-3" />
-                    Novo
-                  </button>
-                </div>
-              </div>
+              <SectionCardHeader
+                icon={DollarSign}
+                tone="emerald"
+                title="Fechamentos"
+                description={vendasLead.length > 0 ? (<><span className="font-display tabular-nums">{vendasLead.length}</span> venda{vendasLead.length !== 1 ? 's' : ''} registrada{vendasLead.length !== 1 ? 's' : ''}</>) : 'Nenhuma venda'}
+                right={
+                  <Button size="sm" variant="outline" onClick={() => setShowVendaModal(true)} className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3 shrink-0">
+                    <Plus className="h-3.5 w-3.5" /> Novo
+                  </Button>
+                }
+              />
               {vendasLead.length > 0 && (() => {
                 const total = (vendasLead as any[]).reduce((s, v) => s + (Number(v.valor_fechado) || 0), 0);
                 const media = total / vendasLead.length;
@@ -1659,7 +1674,7 @@ const ViewContent = ({
                         </div>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <CalendarDays className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                          <p className="text-[11px] text-muted-foreground/60 tabular-nums">
+                          <p className="text-[11px] text-muted-foreground/60 font-display tabular-nums">
                             {v.data_fechamento ? format(parseISO(v.data_fechamento), "dd/MM/yyyy", { locale: ptBR }) : '—'}
                           </p>
                           {v.forma_pagamento && (

@@ -118,7 +118,7 @@ import { formatBRL, formatInt, formatPct } from '@/lib/format';
 </StatCardGrid>
 // Card isolado: <StatCard standalone ... />  ·  cor de categoria: dotColor
 ```
-- **Formatação de número:** SEMPRE via `@/lib/format` (`formatBRL` = `R$ 80.300` completo, 0 casas; `formatInt`; `formatPct`; `formatNum`). ❌ **PROIBIDO abreviar** métrica (`80.3K`, `1.2M`) — só tamanho de arquivo (KB/MB) pode abreviar.
+- **Formatação de número:** SEMPRE via `@/lib/format` (`formatBRL` = `R$ 80.300,00` completo, sempre 2 casas decimais — decisão 2026-07-16: nenhum valor em reais pode ter centavos arredondados/descartados em nenhuma tela; `formatInt`; `formatPct`; `formatNum`). ❌ **PROIBIDO abreviar** métrica (`80.3K`, `1.2M`) — só tamanho de arquivo (KB/MB) pode abreviar.
 - Exceções (não são "card de KPI"): gauges/anéis de progresso (`Performance.tsx`), heros escuros com gradiente (`Metas` "Ritmo Necessário"/Simulador) — famílias visuais próprias.
 
 **Card Headers:**
@@ -726,7 +726,7 @@ steps: [
 | `AgendamentoLeadModal` | (modal de agendamentos) | `agendamento-modal`, `agendamento-field-lead`, `-titulo`, `-tipo`, `-duracao`, `-data`, `-cor`, `-obs`, `agendamento-submit` |
 | `Vendas.tsx` | `vendas` | `vendas-header`, `vendas-filters`, `vendas-metrics`, `vendas-row` |
 | `VendaModal.tsx` | (modal de vendas) | `venda-modal`, `venda-field-cliente`, `-procedimento`, `-valor`, `-data`, `-pagamento`, `venda-submit` |
-| `Metas.tsx` | `metas` | `metas-header`, `metas-month`, `metas-edit`, `metas-funnel`, `metas-tabs`, `metas-historico`, `metas-projecao`, `metas-criar` |
+| `Metas.tsx` | `metas` | `metas-header`, `metas-month`, `metas-edit`, `metas-criar`, `metas-projecao` (gráfico de colunas "prédios" de receita acumulada, toggle Dia/Semana/Mês), `metas-ritmo` (ritmo necessário R$/dia · R$/semana + insight); modal: `meta-field-nome`, `meta-field-periodo`, `meta-field-receita`, `meta-submit`. **Meta é SÓ receita** (decisão 2026-07-16): removidos APENAS os dois blocos de funil de conversão pedidos — a seção de funil do formulário (ticket + taxas + prévia da cascata) e a seção "O que falta pra bater / Configure o funil". Mantidos: gráfico de projeção de receita (colunas), Ritmo Necessário e **Simulador "E se?"** (sliders de leads/dia, taxas e ticket → receita projetada). O form grava `ticket_medio`/`tx_*`/`meta_leads`/`meta_mqls`/`meta_reunioes`/`meta_fechamentos` = 0 (não há mais funil na meta) |
 | `AiSettings.tsx` | `ia` | `ia-tabs`, `ia-status`, `ia-toggle`, `ia-prompt`, `ia-save`, `ia-field-identity`, `ia-field-voice`, `ia-field-procedures`, `ia-field-faq`, `ia-field-horario`, `ia-field-pagamento`, `ia-field-instructions`, `ia-logs` |
 | `AiFollowupConfig.tsx` | (sub-componente ia) | `ia-followup-config` |
 | `AiFollowupTab.tsx` | (sub-componente ia) | `ia-followup-history` |

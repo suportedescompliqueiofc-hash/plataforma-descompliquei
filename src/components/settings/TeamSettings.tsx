@@ -20,9 +20,10 @@ import { ptBR } from "date-fns/locale";
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PAGE_KEYS = [
-  'painel', 'conversas', 'notificacoes', 'leads', 'pipeline',
-  'agendamentos', 'vendas', 'procedimentos', 'metas', 'equipe',
-  'cadencias', 'ia', 'configuracoes', 'plataforma',
+  'painel', 'performance', 'conversas', 'notificacoes', 'leads',
+  'agendamentos', 'vendas', 'procedimentos', 'metas', 'equipe', 'evolucao',
+  'ia', 'athos_gs', 'arsenal', 'jornada', 'notas', 'sessoes_taticas',
+  'cadencias', 'atualizacoes', 'configuracoes',
 ] as const;
 
 const ROLE_ICONS: Record<string, React.ElementType> = {

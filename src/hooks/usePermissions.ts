@@ -4,9 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from './useProfile';
 
 export type PageKey =
-  | 'painel' | 'conversas' | 'notificacoes' | 'leads'
-  | 'agendamentos' | 'vendas' | 'procedimentos' | 'metas'
-  | 'cadencias' | 'ia' | 'configuracoes' | 'plataforma';
+  | 'painel' | 'performance' | 'conversas' | 'notificacoes' | 'leads'
+  | 'agendamentos' | 'vendas' | 'procedimentos' | 'metas' | 'equipe'
+  | 'evolucao' | 'ia' | 'athos_gs' | 'arsenal' | 'jornada' | 'notas'
+  | 'sessoes_taticas' | 'cadencias' | 'atualizacoes' | 'configuracoes';
 
 export interface UserPermissions {
   isOwner: boolean;
@@ -19,9 +20,10 @@ export interface UserPermissions {
 }
 
 const ALL_ACCESS: Record<PageKey, boolean> = {
-  painel: true, conversas: true, notificacoes: true, leads: true,
-  agendamentos: true, vendas: true, procedimentos: true, metas: true,
-  cadencias: true, ia: true, configuracoes: true, plataforma: true,
+  painel: true, performance: true, conversas: true, notificacoes: true, leads: true,
+  agendamentos: true, vendas: true, procedimentos: true, metas: true, equipe: true,
+  evolucao: true, ia: true, athos_gs: true, arsenal: true, jornada: true, notas: true,
+  sessoes_taticas: true, cadencias: true, atualizacoes: true, configuracoes: true,
 };
 
 export function usePermissions(): UserPermissions {

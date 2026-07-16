@@ -1,11 +1,13 @@
 // Formatação canônica de números da plataforma — FONTE ÚNICA DA VERDADE.
-// Regra (design system, 2026-07-13): moeda sempre completa (R$ 80.300), 0 casas
-// decimais, NUNCA abreviar ("80.3K"/"1.2M" são proibidos). Números em pt-BR.
+// Regra (design system, 2026-07-13; revisado 2026-07-16): moeda sempre completa
+// (R$ 80.300,00), NUNCA abreviar ("80.3K"/"1.2M" são proibidos). Sempre 2 casas
+// decimais — nenhum valor em reais pode ter os centavos arredondados/descartados,
+// em nenhuma tela da plataforma. Números em pt-BR.
 
-/** Moeda BRL sem casas decimais e sem abreviação. Ex.: 80300 → "R$ 80.300". */
+/** Moeda BRL com 2 casas decimais e sem abreviação. Ex.: 80300.5 → "R$ 80.300,50". */
 export function formatBRL(value: number | null | undefined): string {
   const v = Number.isFinite(value as number) ? (value as number) : 0;
-  return `R$ ${v.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`;
+  return `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 /** Inteiro em pt-BR com separador de milhar. Ex.: 1284 → "1.284". */

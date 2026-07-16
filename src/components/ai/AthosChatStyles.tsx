@@ -25,28 +25,23 @@ export function AthosChatStyles() {
       }
       .os-orb {
         border-radius: 50%;
-        background-color: #0a0a14;
+        background-color: #0e0e12;
         background-image:
-          radial-gradient(ellipse 60% 45% at 30% 25%, rgba(56,189,248,1), transparent 70%),
-          radial-gradient(ellipse 55% 50% at 75% 30%, rgba(168,85,247,0.95), transparent 65%),
-          radial-gradient(ellipse 65% 45% at 55% 75%, rgba(236,72,153,0.85), transparent 70%),
-          radial-gradient(ellipse 50% 50% at 20% 75%, rgba(34,211,238,0.8), transparent 65%),
-          radial-gradient(ellipse 50% 45% at 80% 80%, rgba(249,115,22,0.7), transparent 65%),
-          radial-gradient(circle at 50% 50%, #1a1a2e 0%, #0a0a14 100%);
+          radial-gradient(ellipse 45% 34% at 30% 24%, rgba(234,88,12,0.55), transparent 62%),
+          radial-gradient(ellipse 30% 22% at 70% 66%, rgba(245,158,11,0.10), transparent 65%),
+          radial-gradient(circle at 38% 30%, #1c1c22 0%, #14141a 45%, #0e0e12 100%);
         background-size: 100% 100%;
         animation: os-float 6s ease-in-out infinite, os-iridescent 14s ease infinite;
         box-shadow:
-          0 0 60px rgba(168,85,247,0.35),
-          0 0 120px rgba(56,189,248,0.2),
-          0 12px 40px rgba(0,0,0,0.35),
-          inset 0 -20px 40px rgba(0,0,0,0.5),
-          inset 0 3px 10px rgba(255,255,255,0.1),
-          inset -5px -10px 30px rgba(168,85,247,0.2);
+          0 0 70px rgba(234,88,12,0.14),
+          0 14px 44px rgba(0,0,0,0.4),
+          inset 0 -22px 42px rgba(0,0,0,0.55),
+          inset 0 3px 10px rgba(255,255,255,0.08),
+          inset -6px -12px 28px rgba(0,0,0,0.35);
       }
       @keyframes os-iridescent {
-        0%, 100% { filter: hue-rotate(0deg) saturate(1); }
-        33% { filter: hue-rotate(25deg) saturate(1.15); }
-        66% { filter: hue-rotate(-15deg) saturate(1.1); }
+        0%, 100% { filter: saturate(1) brightness(1); }
+        50% { filter: saturate(1.12) brightness(1.05); }
       }
       @keyframes os-spec-rotate {
         0%, 100% { transform: rotate(0deg) translateX(0); }
@@ -69,9 +64,9 @@ export function AthosChatStyles() {
             transparent 0deg,
             rgba(255,255,255,0.04) 60deg,
             transparent 120deg,
-            rgba(168,85,247,0.06) 180deg,
+            rgba(234,88,12,0.05) 180deg,
             transparent 240deg,
-            rgba(56,189,248,0.05) 300deg,
+            rgba(245,158,11,0.04) 300deg,
             transparent 360deg);
         animation: os-spec-rotate 8s linear infinite;
         mix-blend-mode: screen;
@@ -85,19 +80,17 @@ export function AthosChatStyles() {
         pointer-events: none;
       }
       .os-ring { border: 1px solid rgba(234,88,12,0.07); border-radius: 50%; animation: os-pulse-ring 4s ease-in-out infinite; }
-      .os-ring-2 { border: 1px dashed rgba(139,92,246,0.05); border-radius: 50%; animation: os-pulse-ring-2 5s ease-in-out infinite; }
+      .os-ring-2 { border: 1px dashed rgba(255,255,255,0.05); border-radius: 50%; animation: os-pulse-ring-2 5s ease-in-out infinite; }
       .os-orbit { animation: os-orbit-spin 20s linear infinite; }
       .os-particle { animation: os-particle-drift 7s ease-in-out infinite; }
       .os-particle-2 { animation: os-particle-drift 9s ease-in-out infinite; animation-delay: -3s; }
       .os-particle-3 { animation: os-particle-drift 11s ease-in-out infinite; animation-delay: -6s; }
-      @keyframes os-border-glow { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
       .os-input-glow {
         position: relative;
         padding: 1.5px;
         border-radius: 18px;
-        background: linear-gradient(135deg, rgba(234,88,12,0.15), rgba(139,92,246,0.15), rgba(6,182,212,0.15), rgba(234,88,12,0.15));
-        background-size: 300% 300%;
-        animation: os-border-glow 8s ease infinite;
+        background: linear-gradient(135deg, rgba(234,88,12,0.10), rgba(234,88,12,0.02));
+        transition: background 0.3s ease;
       }
       .os-input-glow::before {
         content: '';
@@ -105,16 +98,14 @@ export function AthosChatStyles() {
         inset: 0;
         border-radius: 18px;
         background: inherit;
-        filter: blur(12px);
-        opacity: 0.4;
+        filter: blur(10px);
+        opacity: 0.3;
         z-index: -1;
       }
       .os-input-glow:focus-within {
-        background: linear-gradient(135deg, rgba(234,88,12,0.3), rgba(139,92,246,0.3), rgba(6,182,212,0.3), rgba(234,88,12,0.3));
-        background-size: 300% 300%;
-        animation: os-border-glow 4s ease infinite;
+        background: linear-gradient(135deg, rgba(234,88,12,0.45), rgba(245,158,11,0.15));
       }
-      .os-input-glow:focus-within::before { opacity: 0.6; }
+      .os-input-glow:focus-within::before { opacity: 0.55; }
     `}</style>
   );
 }

@@ -16,6 +16,7 @@ import { ToolCard } from "@/components/ai/ToolCard";
 import { MessageContent } from "@/components/ai/MessageContent";
 import { AthosChatStyles } from "@/components/ai/AthosChatStyles";
 import { AthosOrbAvatar } from "@/components/ai/AthosOrbAvatar";
+import { AthosLupa } from "@/components/ai/AthosLupa";
 import {
   useAthosOS, MODEL_CONTEXT,
   type OSConversation, type OSMessage,
@@ -168,8 +169,8 @@ export default function DescompliqueiOS() {
         style={{
           background: `
             radial-gradient(ellipse 80% 60% at 50% 0%, rgba(234,88,12,0.08) 0%, transparent 60%),
-            radial-gradient(ellipse 70% 60% at 100% 100%, rgba(139,92,246,0.07) 0%, transparent 55%),
-            radial-gradient(ellipse 60% 50% at 0% 100%, rgba(6,182,212,0.05) 0%, transparent 55%)
+            radial-gradient(ellipse 70% 60% at 100% 100%, rgba(245,158,11,0.05) 0%, transparent 55%),
+            radial-gradient(ellipse 60% 50% at 0% 100%, rgba(120,113,108,0.04) 0%, transparent 55%)
           `,
         }}
       />
@@ -703,33 +704,15 @@ function WelcomeScreen({ onSuggestion, userName }: { onSuggestion: (text: string
   return (
     <div className="relative flex flex-col items-center justify-center h-full px-8">
       {/* Floating particles — só os pequenos, blobs ficam no bg da página */}
-      <div className="os-particle absolute top-[15%] right-[24%] w-1.5 h-1.5 rounded-full bg-amber-400/15 pointer-events-none" />
-      <div className="os-particle-2 absolute bottom-[25%] left-[18%] w-1 h-1 rounded-full bg-violet-400/12 pointer-events-none" />
-      <div className="os-particle-3 absolute top-[55%] right-[15%] w-[3px] h-[3px] rounded-full bg-cyan-400/10 pointer-events-none" />
+      <div className="os-particle absolute top-[15%] right-[24%] w-1.5 h-1.5 rounded-full bg-orange-400/15 pointer-events-none" />
+      <div className="os-particle-2 absolute bottom-[25%] left-[18%] w-1 h-1 rounded-full bg-amber-400/12 pointer-events-none" />
+      <div className="os-particle-3 absolute top-[55%] right-[15%] w-[3px] h-[3px] rounded-full bg-neutral-400/10 pointer-events-none" />
 
       <div className="relative z-10 w-full max-w-md flex flex-col items-center text-center -mt-8">
 
-        {/* Orb — compacto, iridescente */}
-        <div className="relative mx-auto mb-5" style={{ width: '140px', height: '140px' }}>
-          {/* Outer rings */}
-          <div className="os-ring absolute" style={{ inset: '14px' }} />
-          <div className="os-ring-2 absolute" style={{ inset: '4px' }} />
-
-          {/* Orb body */}
-          <div className="absolute" style={{ inset: '22px' }}>
-            <div className="os-orb absolute inset-0">
-              <div className="os-orb-shimmer" />
-            </div>
-            <div className="os-orb-highlight absolute inset-0 pointer-events-none" />
-            <div className="os-orb-rim" />
-          </div>
-
-          {/* Orbiting particles */}
-          <div className="os-orbit absolute" style={{ inset: '10px' }}>
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-cyan-300/70 shadow-[0_0_10px_rgba(56,189,248,0.6)]" />
-            <div className="absolute bottom-[8%] right-[5%] w-1 h-1 rounded-full bg-violet-400/60 shadow-[0_0_8px_rgba(168,85,247,0.4)]" />
-            <div className="absolute top-[38%] left-0 w-[3px] h-[3px] rounded-full bg-pink-400/50 shadow-[0_0_6px_rgba(236,72,153,0.4)]" />
-          </div>
+        {/* Símbolo do Athos — lupa de cristal */}
+        <div className="relative mx-auto mb-5 flex items-center justify-center">
+          <AthosLupa className="w-28 h-28" />
         </div>
 
         {/* Greeting + Headline */}
@@ -738,16 +721,8 @@ function WelcomeScreen({ onSuggestion, userName }: { onSuggestion: (text: string
             Olá, {firstName}
           </p>
         )}
-        <h1
-          className="text-[32px] font-bold font-display leading-[1.1] tracking-tight mb-2"
-          style={{
-            background: 'linear-gradient(135deg, #1a1a1a 0%, #8b5cf6 50%, #ea580c 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-          }}
-        >
-          Como posso ajudar?
+        <h1 className="text-[32px] font-bold font-display leading-[1.1] tracking-tight mb-2 text-foreground">
+          Como posso <span className="text-[#E85D24]">ajudar</span>?
         </h1>
         <p className="text-[12px] text-muted-foreground/40 mb-6 max-w-[240px] leading-relaxed">
           Acesso total ao CRM — pergunte, analise e execute.
