@@ -1,22 +1,10 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { usePlataforma } from "@/contexts/PlataformaContext";
+import { Outlet } from "react-router-dom";
 
+// Onboarding de primeiro acesso (diagnóstico com "monte de perguntas") DESATIVADO
+// em 2026-07-16 a pedido do dono: o usuário entra direto na plataforma, sem ser
+// forçado ao fluxo /plataforma/onboarding. A jornada de implementação passa a ser
+// montada exclusivamente pelo CS. A rota /plataforma/onboarding continua existindo,
+// mas ninguém é mais redirecionado para ela automaticamente.
 export function OnboardingGuard() {
-  const { plataformaUser, isContextLoading, isMember, hasPlataformaAccess } = usePlataforma();
-
-  // Enquanto carrega, mostra o conteúdo (evita flash em branco)
-  if (isContextLoading) return <Outlet />;
-
-  // Onboarding completo (diagnóstico → Athos → Jornada) só para produtos com acesso à plataforma
-  // Produto CRM isolado (sem Arsenal, Athos, Sessões ou Materiais) não passa por este fluxo
-  if (
-    !isMember &&
-    hasPlataformaAccess &&
-    plataformaUser?.platform_onboarding_enabled === true &&
-    plataformaUser?.onboarding_concluido === false
-  ) {
-    return <Navigate to="/plataforma/onboarding" replace />;
-  }
-
   return <Outlet />;
 }
