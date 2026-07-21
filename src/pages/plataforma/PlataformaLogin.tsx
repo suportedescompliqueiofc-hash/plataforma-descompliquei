@@ -43,9 +43,12 @@ export default function PlataformaLogin() {
     e.preventDefault();
     setForgotLoading(true);
     try {
-      await supabase.functions.invoke('send-password-reset-public', {
+      // `functions.invoke` NÃO lança em erro de função/rede — devolve { data, error }.
+      // Sem checar `error` aqui, a tela de sucesso aparecia mesmo com a chamada falhando.
+      const { error } = await supabase.functions.invoke('send-password-reset-public', {
         body: { email: forgotEmail },
       });
+      if (error) throw error;
       setForgotSent(true);
     } catch {
       toast.error('Não foi possível enviar o e-mail. Tente novamente.');
