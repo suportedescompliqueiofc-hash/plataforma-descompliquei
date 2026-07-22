@@ -866,14 +866,18 @@ Sistema completo de agendamentos com notificações automáticas via WhatsApp.
   - **`tipo`** — o banco usa 4 valores: `consulta`, `procedimento`, `avaliacao`, `retorno`. A UI só oferece os dois primeiros.
   - **`status`** — valores reais: `agendado`, `confirmado`, `realizado`, `cancelado`, `nao_compareceu`, `remarcado` (o código filtra por `nao_compareceu`, **não** `faltou`).
   - **`procedimento_id` é a fonte da verdade** do vínculo com o catálogo (migration `20260720120000`). Antes dela, o modal inline de `Agendamentos.tsx` gravava numa coluna inexistente e a seleção era perdida silenciosamente. Os dois modais agora gravam `procedimento_id` e mantêm `procedimento_interesse` em sincronia só enquanto o campo legado existir — **ao ler, use `procedimento_id`**.
-- `agendamento_config_notificacoes` — config por org: `notif_ativa` (bool), `lembretes` (jsonb `[{ativo, minutos_antes}]`), `mensagem_lembrete` (template), `notif_confirmacao_ativa`, `mensagem_confirmacao`
-- `agendamento_notificacoes` — tabela de dedup para o cron de lembretes. Campos: `agendamento_id`, `organization_id`, `antecedencia_minutos`, `status` (`'enviado'` | `'pendente'` | `'cancelado'`). Status `'cancelado'` é inserido pelo frontend quando `ativarFluxo = false` — o cron verifica esta tabela antes de enviar e pula registros existentes.
+- `agendamento_config_notificacoes` — config por org: `notif_ativa` (bool), `lembretes` (jsonb), `mensagem_lembrete` (template), `notif_confirmacao_ativa`, `mensagem_confirmacao`
+  - **`lembretes` — DUAS modalidades por item (convivem; a clínica escolhe por lembrete):**
+    - `modo: 'relativo'` (ausente = este) → `{ ativo, minutos_antes }` — disparado `data_hora_inicio − minutos_antes` (24h/48h antes etc.).
+    - `modo: 'fixo'` → `{ ativo, modo:'fixo', dias_antes, horario }` — disparado N dias antes do agendamento, num **horário fixo do dia** (`horario` = `"HH:MM"`, fuso America/Sao_Paulo = UTC−3). Resolve o problema de "1 dia antes" cair sempre no mesmo horário da consulta. Se o horário já passou quando o agendamento é criado, **não envia**.
+  - **Fonte única da lógica:** `src/lib/lembretes.ts` (`chaveLembrete`, `momentoEnvioLembrete`, `antecedenciaMinutos`, `lembreteAtivoValido`, `formatLembrete`). O cron `process-appointment-notifications` **espelha** essa lógica em Deno (runtimes diferentes — sincronizar à mão).
+- `agendamento_notificacoes` — tabela de dedup para o cron de lembretes. Campos: `agendamento_id`, `organization_id`, `antecedencia_minutos`, **`chave_lembrete`** (dedup real: `rel:<min>` ou `fixo:<dias>:<HH:MM>`), `status` (`'enviado'` | `'pendente'` | `'cancelado'`). Dedup é por **`(agendamento_id, chave_lembrete)`** — o `antecedencia_minutos` inteiro não identifica um lembrete fixo. Status `'cancelado'` é inserido pelo frontend quando `ativarFluxo = false` — o cron verifica esta tabela antes de enviar e pula registros existentes.
 - `agendamento_notif_log` — log de execução de cada disparo (exibido no histórico do frontend)
 
 ### Edge Functions de agendamentos
 
 - `send-appointment-confirmation` — envia mensagem de confirmação imediata ao criar agendamento (se `notif_confirmacao_ativa = true` na config da org)
-- `process-appointment-notifications` — cron que verifica agendamentos futuros e envia lembretes dentro da janela de 5 minutos antes do horário configurado. Usa `agendamento_notificacoes` para dedup.
+- `process-appointment-notifications` — cron que verifica agendamentos futuros e envia lembretes dentro de uma janela de 5 minutos em torno do momento de envio. Suporta as duas modalidades (`relativo` e `fixo`); dedup por `chave_lembrete`. Horário fixo é calculado em UTC−3 (Brasília, sem horário de verão).
 
 ### Tipos de agendamento
 

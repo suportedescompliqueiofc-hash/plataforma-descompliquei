@@ -161,7 +161,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
         .in("agendamento_id", agendamentoIds)
         .in("status", ["enviado", "cancelado", "pendente"]);
       if (error) throw error;
-      return (data || []) as { agendamento_id: string; chave_lembrete: string | null; status: string }[];
+      return (data || []) as unknown as { agendamento_id: string; chave_lembrete: string | null; status: string }[];
     },
     enabled: !!orgId && isOpen && agendamentoIds.length > 0,
   });
@@ -218,7 +218,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
         notif_interna_ativa: config.notif_interna_ativa,
         notif_interna_minutos_antes: config.notif_interna_minutos_antes,
         atualizado_em: new Date().toISOString(),
-      };
+      } as any;
 
       if (config.id) {
         const { error } = await supabase

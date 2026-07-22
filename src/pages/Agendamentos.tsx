@@ -600,7 +600,7 @@ export default function Agendamentos() {
             .eq("organization_id", orgId)
             .single();
           const lembretes: Lembrete[] =
-            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? (cfg.lembretes as Lembrete[]) : [];
+            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? (cfg.lembretes as unknown as Lembrete[]) : [];
           const ativos = lembretes.filter(lembreteAtivoValido);
           if (ativos.length > 0) {
             const dataInicioDate = new Date(novo.data_hora_inicio);
