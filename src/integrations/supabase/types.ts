@@ -499,6 +499,7 @@ export type Database = {
           local: string | null
           observacoes_pos: string | null
           organization_id: string
+          procedimento_id: string | null
           procedimento_interesse: string | null
           resultado: string | null
           status: string | null
@@ -522,6 +523,7 @@ export type Database = {
           local?: string | null
           observacoes_pos?: string | null
           organization_id: string
+          procedimento_id?: string | null
           procedimento_interesse?: string | null
           resultado?: string | null
           status?: string | null
@@ -545,6 +547,7 @@ export type Database = {
           local?: string | null
           observacoes_pos?: string | null
           organization_id?: string
+          procedimento_id?: string | null
           procedimento_interesse?: string | null
           resultado?: string | null
           status?: string | null
@@ -554,6 +557,13 @@ export type Database = {
           valor_orcado?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "agendamentos_procedimento_id_fkey"
+            columns: ["procedimento_id"]
+            isOneToOne: false
+            referencedRelation: "procedimentos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "agendamentos_lead_id_fkey"
             columns: ["lead_id"]

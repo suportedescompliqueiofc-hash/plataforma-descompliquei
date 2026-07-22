@@ -20,6 +20,7 @@ export interface Agendamento {
   cor: string;
   resultado: string | null;
   observacoes_pos: string | null;
+  procedimento_id: string | null;
   procedimento_interesse: string | null;
   valor_orcado: number | null;
   criado_em: string;

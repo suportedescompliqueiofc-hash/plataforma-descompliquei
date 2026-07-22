@@ -283,7 +283,10 @@ Deno.serve(async (req: Request) => {
 
       // Enviar e-mail de convite via Resend
       if (magicLink) {
-        const resendKey = Deno.env.get('RESEND_API_KEY') || 're_DXMBEgHd_Cz3HntziNJPtTT6gQ3SY8maq';
+        const resendKey = Deno.env.get('RESEND_API_KEY');
+        if (!resendKey) {
+          console.error('[manage-team] RESEND_API_KEY ausente — convite NÃO enviado');
+        }
         const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Descompliquei <boas-vindas@descompliqueiofc.com>';
 
         const ROLE_NAMES: Record<string, string> = {

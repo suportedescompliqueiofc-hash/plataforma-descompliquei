@@ -57,20 +57,79 @@ function formatPhone(telefone: string): string {
   return digits.startsWith('55') && digits.length >= 12 ? digits : `55${digits}`;
 }
 
-// ── Lê o schema atual do frontend ──────────────────────────────
-// O frontend salva: notif_ativa (bool), lembretes (jsonb [{ativo, minutos_antes}]),
-// mensagem_lembrete (text). A função retorna um array de lembretes ativos com
-// o template global preenchido.
-function extrairLembretes(config: any): { antecedencia_minutos: number; template: string }[] {
+// ── Modalidades de lembrete ─────────────────────────────────────
+// Espelha src/lib/lembretes.ts (runtimes diferentes — manter em sincronia manual).
+//   • 'relativo' → X minutos antes do agendamento.
+//   • 'fixo'     → N dias antes, num horário fixo do dia (HH:MM, fuso de Brasília).
+type LembreteDesc =
+  | { modo: 'relativo'; antecedencia_minutos: number; template: string }
+  | { modo: 'fixo'; dias_antes: number; horario: string; template: string };
+
+function extrairLembretes(config: any): LembreteDesc[] {
   if (!config.notif_ativa) return [];
 
-  const lembretes: { ativo: boolean; minutos_antes: number }[] =
-    Array.isArray(config.lembretes) ? config.lembretes : [];
+  const lembretes: any[] = Array.isArray(config.lembretes) ? config.lembretes : [];
   const template = config.mensagem_lembrete || '';
+  const out: LembreteDesc[] = [];
 
-  return lembretes
-    .filter((l) => l.ativo && l.minutos_antes > 0)
-    .map((l) => ({ antecedencia_minutos: l.minutos_antes, template }));
+  for (const l of lembretes) {
+    if (!l || !l.ativo) continue;
+    const modo = l.modo === 'fixo' ? 'fixo' : 'relativo';
+    if (modo === 'fixo') {
+      if (!l.horario) continue;
+      out.push({ modo: 'fixo', dias_antes: Number(l.dias_antes ?? 1), horario: String(l.horario), template });
+    } else {
+      if (!(l.minutos_antes > 0)) continue;
+      out.push({ modo: 'relativo', antecedencia_minutos: Number(l.minutos_antes), template });
+    }
+  }
+  return out;
+}
+
+// Momento de envio de um lembrete de horário fixo: (data do agendamento − dias_antes) às HH:MM.
+// Brasil não tem horário de verão desde 2019 → America/Sao_Paulo = UTC-3 fixo (UTC = local + 3h).
+function calcMomentoFixo(dataInicio: Date, diasAntes: number, horario: string): Date {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(dataInicio);
+  const y = Number(parts.find(p => p.type === 'year')?.value);
+  const mo = Number(parts.find(p => p.type === 'month')?.value);
+  const d = Number(parts.find(p => p.type === 'day')?.value);
+  const [hh, mm] = horario.split(':').map(Number);
+  return new Date(Date.UTC(y, mo - 1, d - diasAntes, (hh || 0) + 3, mm || 0, 0, 0));
+}
+
+// Resolve momento de envio, chave de dedup, antecedência efetiva e rótulo de tipo por lembrete.
+function resolverLembrete(desc: LembreteDesc, dataInicio: Date): {
+  momentoEnvio: Date;
+  chave: string;
+  antecedenciaMin: number;
+  tipo: string;
+  valido: boolean;
+} {
+  if (desc.modo === 'fixo') {
+    const momentoEnvio = calcMomentoFixo(dataInicio, desc.dias_antes, desc.horario);
+    const antecedenciaMin = Math.max(0, Math.round((dataInicio.getTime() - momentoEnvio.getTime()) / 60000));
+    return {
+      momentoEnvio,
+      chave: `fixo:${desc.dias_antes}:${desc.horario}`,
+      antecedenciaMin,
+      tipo: `lembrete_fixo_${desc.dias_antes}d_${desc.horario}`,
+      // horário fixo não pode cair depois (ou em cima) do próprio atendimento
+      valido: momentoEnvio.getTime() < dataInicio.getTime(),
+    };
+  }
+  const momentoEnvio = new Date(dataInicio.getTime() - desc.antecedencia_minutos * 60 * 1000);
+  return {
+    momentoEnvio,
+    chave: `rel:${desc.antecedencia_minutos}`,
+    antecedenciaMin: desc.antecedencia_minutos,
+    tipo: `lembrete_${desc.antecedencia_minutos}min`,
+    valido: true,
+  };
 }
 
 serve(async (req) => {
@@ -138,27 +197,32 @@ serve(async (req) => {
 
       const dataInicio = new Date(ag.data_hora_inicio);
 
-      for (const lembrete of lembretes) {
-        const momentoEnvio = new Date(dataInicio.getTime() - lembrete.antecedencia_minutos * 60 * 1000);
+      for (const desc of lembretes) {
+        const { momentoEnvio, chave, antecedenciaMin, tipo, valido } = resolverLembrete(desc, dataInicio);
+
+        // Lembrete de horário fixo inválido (cairia depois do atendimento) — ignora.
+        if (!valido) continue;
+
         const diffMs = Math.abs(agora.getTime() - momentoEnvio.getTime());
-        // Janela de 5 minutos (intervalo do cron) para não perder nem duplicar
+        // Janela de 5 minutos (intervalo do cron) para não perder nem duplicar.
+        // Se o momento de envio já passou (mais de 5 min), o lembrete NÃO é enviado.
         const dentroJanela = diffMs <= 5 * 60 * 1000;
 
         if (!dentroJanela) continue;
 
         resumo.processados++;
 
-        // Dedup: já foi enviado ou está pendente para este agendamento + antecedência?
+        // Dedup: já foi enviado/pendente/cancelado para este agendamento + lembrete (por chave)?
         const { data: jaEnviado } = await supabaseAdmin
           .from('agendamento_notificacoes')
           .select('id')
           .eq('agendamento_id', ag.id)
-          .eq('antecedencia_minutos', lembrete.antecedencia_minutos)
+          .eq('chave_lembrete', chave)
           .in('status', ['enviado', 'pendente', 'cancelado'])
           .limit(1);
 
         if (jaEnviado && jaEnviado.length > 0) {
-          console.log(`[process-appointment-notifications] Lembrete de ${lembrete.antecedencia_minutos}min já enviado para agendamento ${ag.id}, pulando.`);
+          console.log(`[process-appointment-notifications] Lembrete ${chave} já tratado para agendamento ${ag.id}, pulando.`);
           continue;
         }
 
@@ -177,12 +241,12 @@ serve(async (req) => {
           console.log(`[process-appointment-notifications] Lead ${ag.lead_id} sem telefone.`);
           await registrarLog(supabaseAdmin, {
             agendamento_id: ag.id, organization_id: ag.organization_id,
-            lead_id: ag.lead_id, tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
+            lead_id: ag.lead_id, tipo,
             status: 'falhou', erro: 'Lead sem telefone',
           });
           await registrarDedup(supabaseAdmin, {
             agendamento_id: ag.id, organization_id: ag.organization_id,
-            antecedencia_minutos: lembrete.antecedencia_minutos,
+            antecedencia_minutos: antecedenciaMin, chave_lembrete: chave,
             status: 'falhou', erro: 'Lead sem telefone',
             data_hora_envio: momentoEnvio.toISOString(),
           });
@@ -195,12 +259,12 @@ serve(async (req) => {
           console.log(`[process-appointment-notifications] Sem conexão WhatsApp para org ${ag.organization_id}.`);
           await registrarLog(supabaseAdmin, {
             agendamento_id: ag.id, organization_id: ag.organization_id,
-            lead_id: lead.id, tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
+            lead_id: lead.id, tipo,
             status: 'falhou', erro: 'Sem conexão WhatsApp ativa',
           });
           await registrarDedup(supabaseAdmin, {
             agendamento_id: ag.id, organization_id: ag.organization_id,
-            antecedencia_minutos: lembrete.antecedencia_minutos,
+            antecedencia_minutos: antecedenciaMin, chave_lembrete: chave,
             status: 'falhou', erro: 'Sem conexão WhatsApp ativa',
             data_hora_envio: momentoEnvio.toISOString(),
           });
@@ -212,11 +276,11 @@ serve(async (req) => {
           nome: lead.nome || 'Cliente',
           data: formatDatePtBR(dataInicio),
           hora: formatHora(dataInicio),
-          tempo: formatTempoRelativo(lembrete.antecedencia_minutos),
+          tempo: formatTempoRelativo(antecedenciaMin),
           titulo: ag.titulo || 'Atendimento',
         };
 
-        const mensagem = substituirVariaveis(lembrete.template, vars);
+        const mensagem = substituirVariaveis(desc.template, vars);
         const phoneFormatted = formatPhone(lead.telefone);
         const uazapiUrl = conn.uazapi_url.replace(/\/$/, '');
 
@@ -225,7 +289,7 @@ serve(async (req) => {
         let waMessageId: string | null = null;
 
         try {
-          console.log(`[process-appointment-notifications] Enviando lembrete de ${lembrete.antecedencia_minutos}min para ${phoneFormatted} (ag ${ag.id})`);
+          console.log(`[process-appointment-notifications] Enviando lembrete ${chave} para ${phoneFormatted} (ag ${ag.id})`);
 
           const response = await fetch(`${uazapiUrl}/send/text`, {
             method: 'POST',
@@ -274,7 +338,7 @@ serve(async (req) => {
           agendamento_id: ag.id,
           organization_id: ag.organization_id,
           lead_id: lead.id,
-          tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
+          tipo,
           status: envioStatus,
           erro: envioErro,
           enviado_em: envioStatus === 'enviado' ? now : null,
@@ -284,7 +348,8 @@ serve(async (req) => {
         await registrarDedup(supabaseAdmin, {
           agendamento_id: ag.id,
           organization_id: ag.organization_id,
-          antecedencia_minutos: lembrete.antecedencia_minutos,
+          antecedencia_minutos: antecedenciaMin,
+          chave_lembrete: chave,
           mensagem_template: mensagem,
           status: envioStatus,
           erro: envioErro,
@@ -295,7 +360,7 @@ serve(async (req) => {
         resumo.detalhes.push({
           agendamento_id: ag.id,
           lead: lead.nome,
-          tipo: `lembrete_${lembrete.antecedencia_minutos}min`,
+          tipo,
           status: envioStatus,
           erro: envioErro,
         });
@@ -349,6 +414,7 @@ async function registrarDedup(
     agendamento_id: string;
     organization_id: string;
     antecedencia_minutos: number;
+    chave_lembrete: string;
     mensagem_template?: string;
     status: string;
     erro?: string | null;
@@ -362,6 +428,7 @@ async function registrarDedup(
     tipo_destinatario: 'lead',
     canal: 'whatsapp',
     antecedencia_minutos: data.antecedencia_minutos,
+    chave_lembrete: data.chave_lembrete,
     mensagem_template: data.mensagem_template ?? null,
     status: data.status,
     erro: data.erro ?? null,

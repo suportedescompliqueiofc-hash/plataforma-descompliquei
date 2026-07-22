@@ -862,7 +862,10 @@ Sistema completo de agendamentos com notificações automáticas via WhatsApp.
 
 ### Tabelas
 
-- `agendamentos` — campos: `id`, `organization_id`, `lead_id`, `titulo`, `tipo` (`'consulta'` | `'procedimento'`), `data_hora_inicio`, `data_hora_fim`, `duracao_minutos`, `cor`, `valor_orcado`, `procedimento_interesse`, `observacoes`, `status` (`'agendado'` | `'confirmado'` | `'realizado'` | `'cancelado'` | `'faltou'`)
+- `agendamentos` — campos: `id`, `organization_id`, `lead_id`, `titulo`, `tipo`, `data_hora_inicio`, `data_hora_fim`, `duracao_minutos`, `cor`, `valor_orcado`, **`procedimento_id`** (FK → `procedimentos`), `procedimento_interesse` (texto, **legado**), `observacoes`, `status`
+  - **`tipo`** — o banco usa 4 valores: `consulta`, `procedimento`, `avaliacao`, `retorno`. A UI só oferece os dois primeiros.
+  - **`status`** — valores reais: `agendado`, `confirmado`, `realizado`, `cancelado`, `nao_compareceu`, `remarcado` (o código filtra por `nao_compareceu`, **não** `faltou`).
+  - **`procedimento_id` é a fonte da verdade** do vínculo com o catálogo (migration `20260720120000`). Antes dela, o modal inline de `Agendamentos.tsx` gravava numa coluna inexistente e a seleção era perdida silenciosamente. Os dois modais agora gravam `procedimento_id` e mantêm `procedimento_interesse` em sincronia só enquanto o campo legado existir — **ao ler, use `procedimento_id`**.
 - `agendamento_config_notificacoes` — config por org: `notif_ativa` (bool), `lembretes` (jsonb `[{ativo, minutos_antes}]`), `mensagem_lembrete` (template), `notif_confirmacao_ativa`, `mensagem_confirmacao`
 - `agendamento_notificacoes` — tabela de dedup para o cron de lembretes. Campos: `agendamento_id`, `organization_id`, `antecedencia_minutos`, `status` (`'enviado'` | `'pendente'` | `'cancelado'`). Status `'cancelado'` é inserido pelo frontend quando `ativarFluxo = false` — o cron verifica esta tabela antes de enviar e pula registros existentes.
 - `agendamento_notif_log` — log de execução de cada disparo (exibido no histórico do frontend)

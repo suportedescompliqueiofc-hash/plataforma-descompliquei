@@ -9,7 +9,8 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   Tooltip, Legend, ResponsiveContainer, Cell
 } from "recharts";
-import { useDashboard, type OrigemFilter } from "@/hooks/useDashboard";
+import { useDashboard, useMetaOrigemAcompanhamento, type OrigemFilter } from "@/hooks/useDashboard";
+import { formatBRL, formatPct } from "@/lib/format";
 import { useProfile } from "@/hooks/useProfile";
 import { FollowupGapWidget } from "@/components/dashboard/FollowupGapWidget";
 import { DESCOMPLIQUEI_ORG_ID, ANNA_CLARA_ORG_ID } from "@/lib/constants";
@@ -23,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DateRange } from "react-day-picker";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { PageHero } from "@/components/PageHero";
+import { ProjecaoFaturamento } from "@/components/agendamentos/ProjecaoFaturamento";
 import { Button } from "@/components/ui/button";
 import { useDashboardLeadsModal } from "@/contexts/DashboardLeadsModalContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -173,6 +175,9 @@ export default function Dashboard() {
   });
 
   const { metrics, isLoading, error: metricsError, refetch } = useDashboard(dateRange, origemFilter, undefined, metricsMode);
+
+  /* ── Meta por origem (realizado × alvo de receita por origem do lead, da meta ativa) ── */
+  const { metaAtiva: metaOrigemAtiva, origens: origensMeta } = useMetaOrigemAcompanhamento(orgId);
 
   /* ── Gradients ── */
   const GRADIENTS = (
@@ -595,6 +600,82 @@ export default function Dashboard() {
       })()}
 
       {/* ═══════════════════════════════════════════════
+          META POR ORIGEM — realizado × alvo de receita por origem
+          do lead, da meta ATIVA da org (quando há quebra por origem
+          configurada). Vale para QUALQUER org, não só Descompliquei.
+      ═══════════════════════════════════════════════ */}
+      {(() => {
+        const mo = metaOrigemAtiva;
+        if (!mo || origensMeta.length === 0) return null;
+
+        const ORIGEM_META: Record<string, { label: string; color: string }> = {
+          marketing:  { label: 'Marketing',  color: '#f59e0b' },
+          organico:   { label: 'Orgânico',   color: '#10b981' },
+          reativacao: { label: 'Reativação', color: '#06b6d4' },
+          paciente:   { label: 'Paciente',   color: '#14b8a6' },
+          convenio:   { label: 'Convênio',   color: '#8b5cf6' },
+        };
+
+        const pctBarColor = (pct: number) => pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : '#ef4444';
+
+        const periodoLabel = mo.data_inicio && mo.data_fim
+          ? `${format(new Date(mo.data_inicio), 'dd/MM/yyyy')} – ${format(new Date(mo.data_fim), 'dd/MM/yyyy')}`
+          : '';
+
+        return (
+          <div className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] overflow-hidden" data-tutorial="dashboard-meta-origem">
+            <div className="px-5 py-4 border-b border-border/40 bg-muted/[0.03]">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-lg bg-muted">
+                  <Target className="h-3.5 w-3.5 text-muted-foreground" />
+                </span>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">META POR ORIGEM</p>
+                  <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                    {mo.nome}{periodoLabel ? ` · ${periodoLabel}` : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="divide-y divide-border/40">
+              {origensMeta.map((o) => {
+                const meta = ORIGEM_META[o.origem] ?? { label: o.origem, color: '#6b7280' };
+                const pct = Number(o.pct_receita) || 0;
+                const barColor = pctBarColor(pct);
+                return (
+                  <div key={o.id} className="px-5 py-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: meta.color }} />
+                        <span className="text-[13px] font-medium text-foreground">{meta.label}</span>
+                      </div>
+                      <span className="text-[11px] font-bold font-display tabular-nums" style={{ color: barColor }}>
+                        {formatPct(pct)}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className="text-[15px] font-bold font-display tabular-nums text-foreground">
+                        {formatBRL(o.receita_total)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        alvo <span className="font-display tabular-nums">{formatBRL(o.meta_receita)}</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: barColor }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ═══════════════════════════════════════════════
           DESCOMPLIQUEI ONLY — Scoring + Eficiência
       ═══════════════════════════════════════════════ */}
       {isDescompliqueiOrg && (() => {
@@ -683,6 +764,11 @@ export default function Dashboard() {
       ═══════════════════════════════════════════════ */}
       {!isDescompliqueiOrg && (
         <>
+          {/* ═══ RECEITA NA MESA (projeção vinda dos agendamentos) ═══ */}
+          <div data-tutorial="dashboard-receita-na-mesa">
+            <ProjecaoFaturamento />
+          </div>
+
           {/* ③ FUNIL DE CONVERSÃO — redesenhado */}
           {/* ③ FUNIL COMERCIAL — 4 etapas fixas de negócio */}
           {(() => {

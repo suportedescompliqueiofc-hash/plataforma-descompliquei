@@ -10,15 +10,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import {
+  type Lembrete,
+  lembreteModo,
+  chaveLembrete,
+  momentoEnvioLembrete,
+  antecedenciaMinutos,
+  lembreteAtivoValido,
+  formatLembrete,
+} from "@/lib/lembretes";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-
-interface Lembrete {
-  ativo: boolean;
-  minutos_antes: number;
-}
 
 interface ConfigData {
   id?: string;
@@ -44,6 +48,14 @@ const PRESETS = [
   { label: "48 horas", value: 2880 },
 ];
 
+const DIAS_PRESETS = [
+  { label: "No dia", value: 0 },
+  { label: "1 dia", value: 1 },
+  { label: "2 dias", value: 2 },
+  { label: "3 dias", value: 3 },
+  { label: "7 dias", value: 7 },
+];
+
 const VARIAVEIS = [
   { key: "{nome}", desc: "Nome do lead" },
   { key: "{data}", desc: "Data do atendimento" },
@@ -60,16 +72,8 @@ const DADOS_FICTICIOS: Record<string, string> = {
   "{titulo}": "Consulta de Avaliação",
 };
 
-function formatMinutos(min: number): string {
-  if (min < 60) return `${min} minutos antes`;
-  if (min === 60) return "1 hora antes";
-  if (min < 1440) return `${Math.round(min / 60)} horas antes`;
-  if (min === 1440) return "1 dia antes";
-  return `${Math.round(min / 1440)} dias antes`;
-}
-
 function substituirPreview(template: string): string {
-  let msg = template;
+  let msg = template ?? "";
   for (const [key, val] of Object.entries(DADOS_FICTICIOS)) {
     msg = msg.replaceAll(key, val);
   }
@@ -79,8 +83,8 @@ function substituirPreview(template: string): string {
 const DEFAULT_CONFIG: Omit<ConfigData, "organization_id"> = {
   notif_ativa: true,
   lembretes: [
-    { ativo: true, minutos_antes: 1440 },
-    { ativo: true, minutos_antes: 60 },
+    { ativo: true, modo: "relativo", minutos_antes: 1440 },
+    { ativo: true, modo: "relativo", minutos_antes: 60 },
   ],
   mensagem_lembrete: "Olá {nome}! Lembramos que você tem um atendimento agendado para {data} às {hora} na nossa clínica. Confirme sua presença respondendo SIM.",
   notif_interna_ativa: true,
@@ -153,11 +157,11 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
       if (!agendamentoIds.length) return [];
       const { data, error } = await supabase
         .from("agendamento_notificacoes")
-        .select("agendamento_id, antecedencia_minutos, status")
+        .select("agendamento_id, chave_lembrete, status")
         .in("agendamento_id", agendamentoIds)
         .in("status", ["enviado", "cancelado", "pendente"]);
       if (error) throw error;
-      return (data || []) as { agendamento_id: string; antecedencia_minutos: number; status: string }[];
+      return (data || []) as { agendamento_id: string; chave_lembrete: string | null; status: string }[];
     },
     enabled: !!orgId && isOpen && agendamentoIds.length > 0,
   });
@@ -189,7 +193,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
 
   function addLembrete() {
     if (!config || config.lembretes.length >= 5) return;
-    setConfig({ ...config, lembretes: [...config.lembretes, { ativo: true, minutos_antes: 30 }] });
+    setConfig({ ...config, lembretes: [...config.lembretes, { ativo: true, modo: "relativo", minutos_antes: 30 }] });
   }
 
   function removeLembrete(index: number) {
@@ -239,20 +243,18 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
   }
 
   const previewLembrete = useMemo(() => config ? substituirPreview(config.mensagem_lembrete) : "", [config?.mensagem_lembrete]);
-  const previewConfirmacao = useMemo(() => config ? substituirPreview(config.mensagem_confirmacao) : "", [config?.mensagem_confirmacao]);
 
   const handledKeys = useMemo(() => {
     const s = new Set<string>();
     for (const n of notificacoesExistentes) {
-      s.add(`${n.agendamento_id}-${n.antecedencia_minutos}`);
+      if (n.chave_lembrete) s.add(`${n.agendamento_id}-${n.chave_lembrete}`);
     }
     return s;
   }, [notificacoesExistentes]);
 
   const proximasNotifs = useMemo(() => {
     if (!config || !agendamentosFuturos.length) return [];
-    const lembretes = (Array.isArray(config.lembretes) ? config.lembretes : [])
-      .filter((l: any) => l.ativo && l.minutos_antes > 0);
+    const lembretes = (Array.isArray(config.lembretes) ? config.lembretes : []).filter(lembreteAtivoValido);
     if (!config.notif_ativa || lembretes.length === 0) return [];
 
     const agora = new Date();
@@ -262,24 +264,29 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
       titulo: string;
       momento_envio: Date;
       data_atendimento: Date;
-      minutos_antes: number;
+      chave: string;
+      antecedencia_minutos: number;
+      label: string;
     }[] = [];
 
     for (const ag of agendamentosFuturos) {
       const dataInicio = new Date((ag as any).data_hora_inicio);
       const leadNome = (ag as any).leads?.nome || "Lead";
       for (const l of lembretes) {
-        const key = `${ag.id}-${l.minutos_antes}`;
+        const chave = chaveLembrete(l);
+        const key = `${ag.id}-${chave}`;
         if (handledKeys.has(key)) continue;
-        const momentoEnvio = new Date(dataInicio.getTime() - l.minutos_antes * 60 * 1000);
-        if (momentoEnvio > agora) {
+        const momentoEnvio = momentoEnvioLembrete(l, dataInicio);
+        if (momentoEnvio && momentoEnvio > agora) {
           result.push({
             agendamento_id: ag.id,
             lead_nome: leadNome,
             titulo: (ag as any).titulo || "Atendimento",
             momento_envio: momentoEnvio,
             data_atendimento: dataInicio,
-            minutos_antes: l.minutos_antes,
+            chave,
+            antecedencia_minutos: antecedenciaMinutos(l, dataInicio),
+            label: formatLembrete(l),
           });
         }
       }
@@ -290,8 +297,8 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
       .slice(0, 15);
   }, [config, agendamentosFuturos, handledKeys]);
 
-  async function handleCancelarNotif(agendamento_id: string, minutos_antes: number) {
-    const key = `${agendamento_id}-${minutos_antes}`;
+  async function handleCancelarNotif(agendamento_id: string, chave: string, antecedencia: number) {
+    const key = `${agendamento_id}-${chave}`;
     setCancelandoKey(key);
     try {
       const { error } = await supabase.from("agendamento_notificacoes").insert({
@@ -299,7 +306,8 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
         organization_id: orgId!,
         tipo_destinatario: "lead",
         canal: "whatsapp",
-        antecedencia_minutos: minutos_antes,
+        antecedencia_minutos: antecedencia,
+        chave_lembrete: chave,
         status: "cancelado",
         data_hora_envio: new Date().toISOString(),
       });
@@ -316,12 +324,6 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
     if (isToday(d)) return `Hoje às ${format(d, "HH:mm")}`;
     if (isTomorrow(d)) return `Amanhã às ${format(d, "HH:mm")}`;
     return format(d, "dd/MM 'às' HH:mm", { locale: ptBR });
-  }
-
-  function formatAntecedencia(min: number): string {
-    if (min >= 1440) return `${Math.round(min / 1440)}d antes`;
-    if (min >= 60) return `${Math.round(min / 60)}h antes`;
-    return `${min}min antes`;
   }
 
   if (!isOpen) return null;
@@ -377,53 +379,134 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
 
                 {config.notif_ativa && (
                   <div className="px-5 py-4 space-y-3">
-                    {config.lembretes.map((lembrete, i) => (
-                      <div key={i} className="rounded-xl border border-border/60 bg-muted/[0.02] px-4 py-3 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <Switch
-                              checked={lembrete.ativo}
-                              onCheckedChange={(v) => updateLembrete(i, { ativo: v })}
-                            />
-                            <span className="text-[13px] font-medium text-foreground">
-                              {formatMinutos(lembrete.minutos_antes)}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => removeLembrete(i)}
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {PRESETS.map((p) => (
+                    {config.lembretes.map((lembrete, i) => {
+                      const modo = lembreteModo(lembrete);
+                      return (
+                        <div key={i} className="rounded-xl border border-border/60 bg-muted/[0.02] px-4 py-3 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <Switch
+                                checked={lembrete.ativo}
+                                onCheckedChange={(v) => updateLembrete(i, { ativo: v })}
+                              />
+                              <span className="text-[13px] font-medium text-foreground">
+                                {formatLembrete(lembrete)}
+                              </span>
+                            </div>
                             <button
-                              key={p.value}
-                              onClick={() => updateLembrete(i, { minutos_antes: p.value })}
+                              onClick={() => removeLembrete(i)}
+                              className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Seletor de modalidade */}
+                          <div className="inline-flex items-center gap-1 bg-muted/40 rounded-xl p-1">
+                            <button
+                              onClick={() => updateLembrete(i, { modo: "relativo" })}
                               className={cn(
-                                "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all",
-                                lembrete.minutos_antes === p.value
-                                  ? "bg-foreground text-background border-foreground shadow-sm"
-                                  : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
+                                "px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all",
+                                modo === "relativo"
+                                  ? "bg-foreground text-background shadow-sm"
+                                  : "text-muted-foreground hover:text-foreground"
                               )}
                             >
-                              {p.label}
+                              Tempo antes
                             </button>
-                          ))}
-                          <div className="flex items-center gap-1.5 ml-1">
-                            <Input
-                              type="number"
-                              className="w-16 h-7 text-[11px] rounded-lg border-border/60 text-center font-display tabular-nums"
-                              value={lembrete.minutos_antes}
-                              onChange={(e) => updateLembrete(i, { minutos_antes: parseInt(e.target.value) || 15 })}
-                              min={1}
-                            />
-                            <span className="text-[11px] text-muted-foreground">min</span>
+                            <button
+                              onClick={() => updateLembrete(i, {
+                                modo: "fixo",
+                                dias_antes: lembrete.dias_antes ?? 1,
+                                horario: lembrete.horario ?? "08:00",
+                              })}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all",
+                                modo === "fixo"
+                                  ? "bg-foreground text-background shadow-sm"
+                                  : "text-muted-foreground hover:text-foreground"
+                              )}
+                            >
+                              Horário fixo
+                            </button>
                           </div>
+
+                          {modo === "relativo" ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {PRESETS.map((p) => (
+                                <button
+                                  key={p.value}
+                                  onClick={() => updateLembrete(i, { minutos_antes: p.value })}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all",
+                                    lembrete.minutos_antes === p.value
+                                      ? "bg-foreground text-background border-foreground shadow-sm"
+                                      : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
+                                  )}
+                                >
+                                  {p.label}
+                                </button>
+                              ))}
+                              <div className="flex items-center gap-1.5 ml-1">
+                                <Input
+                                  type="number"
+                                  className="w-16 h-7 text-[11px] rounded-lg border-border/60 text-center font-display tabular-nums"
+                                  value={lembrete.minutos_antes}
+                                  onChange={(e) => updateLembrete(i, { minutos_antes: parseInt(e.target.value) || 15 })}
+                                  min={1}
+                                />
+                                <span className="text-[11px] text-muted-foreground">min</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-2.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {DIAS_PRESETS.map((p) => (
+                                  <button
+                                    key={p.value}
+                                    onClick={() => updateLembrete(i, { dias_antes: p.value })}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all",
+                                      (lembrete.dias_antes ?? 1) === p.value
+                                        ? "bg-foreground text-background border-foreground shadow-sm"
+                                        : "bg-transparent text-muted-foreground border-border/60 hover:border-border hover:text-foreground"
+                                    )}
+                                  >
+                                    {p.label}
+                                  </button>
+                                ))}
+                                <div className="flex items-center gap-1.5 ml-1">
+                                  <Input
+                                    type="number"
+                                    className="w-14 h-7 text-[11px] rounded-lg border-border/60 text-center font-display tabular-nums"
+                                    value={lembrete.dias_antes ?? 1}
+                                    onChange={(e) => updateLembrete(i, { dias_antes: Math.max(0, parseInt(e.target.value) || 0) })}
+                                    min={0}
+                                  />
+                                  <span className="text-[11px] text-muted-foreground">dias antes</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-muted-foreground">às</span>
+                                <div className="flex items-center gap-1.5">
+                                  <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                  <Input
+                                    type="time"
+                                    step={300}
+                                    className="w-[112px] h-8 text-[12px] rounded-lg border-border/60 tabular-nums font-display"
+                                    value={lembrete.horario ?? "08:00"}
+                                    onChange={(e) => updateLembrete(i, { horario: e.target.value || "08:00" })}
+                                  />
+                                </div>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                                Enviado sempre nesse horário (fuso de Brasília), independente da hora do atendimento. Se o horário já tiver passado quando o agendamento for criado, este lembrete não é enviado.
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {config.lembretes.length < 5 && (
                       <button
@@ -551,7 +634,7 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
                 ) : (
                   <div className="divide-y divide-border/30">
                     {proximasNotifs.map((notif) => {
-                      const key = `${notif.agendamento_id}-${notif.minutos_antes}`;
+                      const key = `${notif.agendamento_id}-${notif.chave}`;
                       const isCancelling = cancelandoKey === key;
                       return (
                         <div key={key} className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors group">
@@ -574,14 +657,14 @@ export default function ConfigNotificacoes({ isOpen, onClose }: Props) {
                                 {formatMomentoEnvio(notif.momento_envio)}
                               </p>
                               <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                                {formatAntecedencia(notif.minutos_antes)} do atend.
+                                {notif.label}
                               </p>
                             </div>
                             <span className="text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-600 border border-blue-200/60">
                               pendente
                             </span>
                             <button
-                              onClick={() => handleCancelarNotif(notif.agendamento_id, notif.minutos_antes)}
+                              onClick={() => handleCancelarNotif(notif.agendamento_id, notif.chave, notif.antecedencia_minutos)}
                               disabled={!!cancelandoKey}
                               title="Cancelar envio"
                               className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-all disabled:opacity-30"

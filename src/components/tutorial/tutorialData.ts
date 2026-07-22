@@ -760,6 +760,12 @@ export const tutorials: Tutorial[] = [
         position: 'right',
       },
       {
+        target: 'agendamento-field-procedimento',
+        title: 'Campo: Procedimento',
+        description: 'Vincule o agendamento ao seu **catálogo de procedimentos**. O comportamento muda conforme o tipo:\n\n• Em **Procedimento**, é o serviço que será executado — preenche valor e duração automaticamente a partir do catálogo.\n• Em **Consulta** ou **Avaliação**, é o **procedimento de interesse**: o que a paciente pretende fazer. Não mexe no valor da consulta.\n\n**Por que importa:** é este vínculo que alimenta a projeção de faturamento. Sem ele, o agendamento não entra na conta de quanto ainda há para faturar no mês.',
+        position: 'right',
+      },
+      {
         target: 'agendamento-field-data',
         title: 'Campo: Data e Hora',
         description: 'Selecione a **data e horário** do atendimento.\n\n• Use o seletor de data e hora\n• Confirme que não há conflito com outros agendamentos\n\n**Dica:** no calendário, você também pode criar agendamentos **clicando diretamente em um horário** — a data e hora já vêm preenchidas.',
@@ -827,6 +833,12 @@ export const tutorials: Tutorial[] = [
         description: 'A aba **Métricas** traz gráficos e análises da sua agenda:\n\n• **Taxa de Comparecimento** — porcentagem de pacientes que vieram (meta: acima de 80%)\n• **Taxa de No-Show** — porcentagem de faltas\n• **Gráfico mensal** — tendência de comparecimento nos últimos 6 meses\n• **Distribuição por tipo** — quais tipos de atendimento são mais frequentes\n\n**Análise:** se o no-show está alto, ative lembretes automáticos em **Config. Notificações**.',
         position: 'top',
         action: { type: 'click', selector: '[data-tutorial="agendamentos-tabs"] button:nth-child(3)' },
+      },
+      {
+        target: 'agendamentos-projecao',
+        title: 'Receita na mesa',
+        description: 'Quanto ainda dá para faturar com os agendamentos **que ainda vão acontecer** neste mês.\n\n• **Projeção — procedimentos** — o que está agendado para ser executado\n• **Projeção — consultas** — o potencial das consultas com procedimento de interesse\n\n**Leia como projeção, não como receita garantida.** Os valores já vêm descontados pelas suas taxas reais de comparecimento e conversão dos últimos 180 dias. O "teto" ao lado mostra o valor cheio, se tudo acontecesse.\n\n**Dica:** quanto mais agendamentos com procedimento vinculado, mais fiel fica a projeção.',
+        position: 'bottom',
       },
       {
         target: 'agendamentos-status',
@@ -1179,14 +1191,32 @@ export const tutorials: Tutorial[] = [
         position: 'right',
       },
       {
+        target: 'meta-field-origem-toggle',
+        title: 'Meta por origem (opcional)',
+        description: 'Além da receita total, você pode dizer **quanto dessa receita deve vir de cada origem de lead** — Marketing, Orgânico, Reativação, Paciente (e Convênio, quando aplicável).\n\nLigue o toggle **"Meta por origem"** para abrir um campo de valor para cada origem.\n\n**Regra importante:** a receita-alvo total deixa de ser digitada à mão — ela passa a ser a **soma dos valores de cada origem**, calculada automaticamente.',
+        position: 'right',
+      },
+      {
+        target: 'meta-field-origem-valores',
+        title: 'Valor-alvo por origem',
+        description: 'Preencha quanto espera faturar em **cada origem** neste período.\n\n• O **total** aparece embaixo da lista e é sempre igual à soma dos campos\n• Enquanto o toggle estiver ligado, o campo de **Receita-alvo** fica travado, mostrando esse total\n\n**Dica:** some primeiro as origens que você já consegue prever (ex: Marketing pelo investimento planejado) e distribua o restante entre as demais.',
+        position: 'right',
+      },
+      {
         target: 'meta-submit',
         title: 'Salvar meta',
-        description: 'Clique em **"Criar Meta"** para salvar.\n\n**O que acontece:**\n• A receita realizada passa a ser acompanhada em tempo real\n• O gráfico de projeção mostra o faturamento que você deve atingir até o fim do período\n\nApós criar, acompanhe **diariamente** rolando a página.',
+        description: 'Clique em **"Criar Meta"** para salvar.\n\n**O que acontece:**\n• A receita realizada passa a ser acompanhada em tempo real\n• O gráfico de projeção mostra o faturamento que você deve atingir até o fim do período\n• Se você definiu **Meta por origem**, uma seção nova aparece na página comparando realizado × alvo em cada origem\n\nApós criar, acompanhe **diariamente** rolando a página.',
         position: 'top',
       },
       {
-        target: 'metas-projecao',
+        target: 'metas-por-origem',
         action: { type: 'dismiss', delay: 300 },
+        title: 'Acompanhamento por origem',
+        description: 'Se você ligou **"Meta por origem"** no formulário, essa seção aparece aqui — logo abaixo da receita total — mostrando, para **cada origem**, o realizado × o alvo e a barra de progresso.\n\n**Como usar:** se uma origem está muito atrás do alvo dela, é ali que vale investigar — pode ser tráfego travado, reativação parada, indicação de pacientes caindo, etc.\n\n**Não definiu meta por origem?** Essa seção não aparece — a meta continua funcionando normalmente só com a receita total.',
+        position: 'bottom',
+      },
+      {
+        target: 'metas-projecao',
         title: 'Projeção de receita',
         description: 'O gráfico mostra, em **colunas crescentes**, o faturamento acumulado que você deve atingir até o fim do período — com o **valor de cada etapa acima da coluna**.\n\n• As colunas **sólidas** são o que você já deveria ter faturado até hoje\n• As colunas **claras** são o que ainda falta conquistar\n• A linha **"Você tem"** mostra onde você realmente está\n\nUse o toggle **Dia / Semana / Mês** para mudar a granularidade. Se sua linha está acima do esperado, você está à frente; se está abaixo, precisa acelerar.',
         position: 'bottom',

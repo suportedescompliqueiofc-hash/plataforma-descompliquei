@@ -37,6 +37,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useProfile } from "@/hooks/useProfile";
 import { PieChart, Pie, Cell, LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Tooltip as RechartsTooltip } from "recharts";
 import ConfigNotificacoes from "@/components/agendamentos/ConfigNotificacoes";
+import { type Lembrete, chaveLembrete, antecedenciaMinutos, lembreteAtivoValido } from "@/lib/lembretes";
 import { CurrencyInput } from "@/components/CurrencyInput";
 import { PageHero } from "@/components/PageHero";
 import AgendamentoFinanceiroConfig from "@/components/agendamentos/AgendamentoFinanceiroConfig";
@@ -44,7 +45,9 @@ import { TimeInput } from "@/components/ui/TimeInput";
 import { useAgendamentoFinanceiroConfig } from "@/hooks/useAgendamentoFinanceiroConfig";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { StatCard, StatCardGrid } from "@/components/StatCard";
-import { formatInt, formatPct } from "@/lib/format";
+import { formatBRL, formatInt, formatPct } from "@/lib/format";
+import { aceitaProcedimento, isProcedimentoDeInteresse, labelProcedimento } from "@/lib/agendamentos";
+import { ProjecaoFaturamento } from "@/components/agendamentos/ProjecaoFaturamento";
 
 // ── Constants ─────────────────────────────────────────────────
 
@@ -459,7 +462,7 @@ export default function Agendamentos() {
   // ── Actions ────────────────────────────────────────────────
 
   function resetForm() {
-    setForm({ titulo: "", data_hora_inicio: "", data_hora_fim: "", duracao_minutos: 60, tipo: "consulta", cor: "#3b82f6", valor_orcado: financeiroConfig?.consulta_valor_padrao ?? undefined });
+    setForm({ titulo: "", data_hora_inicio: "", data_hora_fim: "", duracao_minutos: 60, tipo: "consulta", cor: "#3b82f6", valor_orcado: financeiroConfig?.consulta_valor_padrao ?? undefined, procedimento_id: null, procedimento_interesse: null });
     setEnviarConfirmacao(false);
     setAtivarFluxo(true);
     setDataInicioForm(undefined);
@@ -501,6 +504,9 @@ export default function Agendamentos() {
       link_reuniao: ag.link_reuniao,
       cor: ag.cor,
       status: ag.status,
+      valor_orcado: ag.valor_orcado,
+      procedimento_id: ag.procedimento_id,
+      procedimento_interesse: ag.procedimento_interesse,
     });
     parseFormDatetime(localInicio);
     setAgendamentoSelecionado(ag);
@@ -593,17 +599,19 @@ export default function Agendamentos() {
             .select("notif_ativa, lembretes")
             .eq("organization_id", orgId)
             .single();
-          const lembretes: { ativo: boolean; minutos_antes: number }[] =
-            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? cfg.lembretes : [];
-          const ativos = lembretes.filter((l: any) => l.ativo && l.minutos_antes > 0);
+          const lembretes: Lembrete[] =
+            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? (cfg.lembretes as Lembrete[]) : [];
+          const ativos = lembretes.filter(lembreteAtivoValido);
           if (ativos.length > 0) {
+            const dataInicioDate = new Date(novo.data_hora_inicio);
             await supabase.from("agendamento_notificacoes").insert(
-              ativos.map((l: any) => ({
+              ativos.map((l) => ({
                 agendamento_id: novo.id,
                 organization_id: orgId,
                 tipo_destinatario: "lead",
                 canal: "whatsapp",
-                antecedencia_minutos: l.minutos_antes,
+                antecedencia_minutos: antecedenciaMinutos(l, dataInicioDate),
+                chave_lembrete: chaveLembrete(l),
                 status: "cancelado",
                 data_hora_envio: new Date().toISOString(),
               }))
@@ -1307,6 +1315,11 @@ export default function Agendamentos() {
       {activeTab === "metricas" && (
         <div className="space-y-5" data-tutorial="agendamentos-metrics">
 
+          {/* ═══ Projeção de faturamento ═══ */}
+          <div data-tutorial="agendamentos-projecao">
+            <ProjecaoFaturamento />
+          </div>
+
           {/* ═══ KPIs — filtro por tipo ═══ */}
           <div className="space-y-3">
             {/* Pills filtro */}
@@ -1750,7 +1763,14 @@ export default function Agendamentos() {
                 <Select value={form.tipo} onValueChange={(v) => {
                   const leadNome = leadsOrg.find((l) => l.id === form.lead_id)?.nome || "";
                   const valorPadrao = v === "consulta" ? (financeiroConfig?.consulta_valor_padrao ?? undefined) : undefined;
-                  setForm((f) => ({ ...f, tipo: v, titulo: defaultTitulo(v, leadNome), procedimento_id: undefined, valor_orcado: valorPadrao }));
+                  setForm((f) => ({
+                    ...f,
+                    tipo: v,
+                    titulo: defaultTitulo(v, leadNome),
+                    procedimento_id: aceitaProcedimento(v) ? f.procedimento_id : null,
+                    procedimento_interesse: aceitaProcedimento(v) ? f.procedimento_interesse : null,
+                    valor_orcado: valorPadrao,
+                  }));
                 }}>
                   <SelectTrigger className="rounded-lg border-border/60 h-10"><SelectValue /></SelectTrigger>
                   <SelectContent className="rounded-xl">
@@ -1831,10 +1851,12 @@ export default function Agendamentos() {
             </div>
 
 
-            {/* Seletor de procedimento */}
-            {form.tipo === "procedimento" && (
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Procedimento</Label>
+            {/* Seletor de procedimento — em consulta/avaliação é apenas "de interesse" */}
+            {aceitaProcedimento(form.tipo) && (
+              <div className="space-y-1.5" data-tutorial="agendamento-field-procedimento">
+                <Label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  {labelProcedimento(form.tipo)}
+                </Label>
                 {procedimentos.length === 0 ? (
                   <div className="flex items-center gap-2 p-3 rounded-lg border border-border/40 bg-muted/20">
                     <Tag className="h-3.5 w-3.5 text-muted-foreground/50" />
@@ -1847,12 +1869,19 @@ export default function Agendamentos() {
                       const proc = procedimentos.find((p) => p.id === v);
                       if (!proc) return;
                       const leadNome = leadsOrg.find((l) => l.id === form.lead_id)?.nome || "";
+                      const soInteresse = isProcedimentoDeInteresse(form.tipo);
                       setForm((f) => ({
                         ...f,
                         procedimento_id: proc.id,
-                        titulo: `${proc.nome} — ${leadNome}`,
-                        valor_orcado: proc.valor_base ?? f.valor_orcado,
-                        duracao_minutos: proc.duracao_minutos ?? f.duracao_minutos,
+                        // mantido em sincronia com a FK enquanto o campo legado existir
+                        procedimento_interesse: proc.nome,
+                        // Numa consulta o procedimento é só interesse: não toca em título,
+                        // valor nem duração — o valor_orcado ali é o valor da consulta.
+                        ...(soInteresse ? {} : {
+                          titulo: `${proc.nome} — ${leadNome}`,
+                          valor_orcado: proc.valor_base ?? f.valor_orcado,
+                          duracao_minutos: proc.duracao_minutos ?? f.duracao_minutos,
+                        }),
                       }));
                     }}
                   >

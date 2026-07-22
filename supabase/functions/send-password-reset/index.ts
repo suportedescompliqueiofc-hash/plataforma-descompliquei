@@ -158,7 +158,11 @@ Deno.serve(async (req: Request) => {
     const resetLink: string = (linkData as any).properties.action_link;
 
     // 3. Enviar via Resend com template customizado
-    const resendKey = Deno.env.get('RESEND_API_KEY') || 're_DXMBEgHd_Cz3HntziNJPtTT6gQ3SY8maq';
+    const resendKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendKey) {
+      console.error('[send-password-reset] RESEND_API_KEY ausente — e-mail NÃO enviado');
+      return respond({ error: 'Serviço de e-mail não configurado' }, 500);
+    }
     const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Descompliquei <boas-vindas@descompliqueiofc.com>';
 
     const resendRes = await fetch('https://api.resend.com/emails', {

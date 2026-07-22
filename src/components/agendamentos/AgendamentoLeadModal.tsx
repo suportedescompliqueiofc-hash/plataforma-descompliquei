@@ -23,6 +23,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { useAgendamentos, Agendamento, AgendamentoInput } from "@/hooks/useAgendamentos";
 import { useProcedimentos } from "@/hooks/useProcedimentos";
 import { cn } from "@/lib/utils";
+import { type Lembrete, chaveLembrete, antecedenciaMinutos, lembreteAtivoValido } from "@/lib/lembretes";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   agendado:   { label: "Agendado",        color: "#3b82f6", bg: "#eff6ff" },
@@ -55,6 +56,8 @@ const TIPO_ICONS_MODAL: Record<string, any> = {
   procedimento: Scissors,
   retorno:      RotateCcw,
 };
+
+import { aceitaProcedimento, isProcedimentoDeInteresse, labelProcedimento } from "@/lib/agendamentos";
 
 function defaultTitulo(tipo: string, nome: string) {
   return `${TIPO_TITULOS[tipo] ?? tipo} — ${nome}`;
@@ -113,6 +116,7 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
         tipo: "consulta",
         cor: "#3b82f6",
         valor_orcado: financeiroConfig?.consulta_valor_padrao ?? null,
+        procedimento_id: null,
         procedimento_interesse: null,
       });
       setAtivarFluxo(true);
@@ -144,6 +148,8 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
       link_reuniao: agendamentoExistente.link_reuniao,
       cor: agendamentoExistente.cor,
       valor_orcado: agendamentoExistente.valor_orcado,
+      procedimento_id: agendamentoExistente.procedimento_id,
+      procedimento_interesse: agendamentoExistente.procedimento_interesse,
     });
     parseDatetimeLocal(localInicio);
     setMode("edit");
@@ -239,23 +245,25 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
         const ag = await criarAgendamento.mutateAsync(payload);
         await supabase.from("leads").update({ is_scheduled: true }).eq("id", leadId);
         if (!ativarFluxo && ag?.id && orgId) {
-          // Pré-cancela todos os lembretes para este agendamento
+          // Pré-cancela todos os lembretes (relativos e de horário fixo) para este agendamento
           const { data: cfg } = await supabase
             .from("agendamento_config_notificacoes")
             .select("notif_ativa, lembretes")
             .eq("organization_id", orgId)
             .single();
-          const lembretes: { ativo: boolean; minutos_antes: number }[] =
-            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? cfg.lembretes : [];
-          const ativos = lembretes.filter((l) => l.ativo && l.minutos_antes > 0);
+          const lembretes: Lembrete[] =
+            cfg?.notif_ativa && Array.isArray(cfg?.lembretes) ? (cfg.lembretes as Lembrete[]) : [];
+          const ativos = lembretes.filter(lembreteAtivoValido);
           if (ativos.length > 0) {
+            const dataInicioDate = new Date(ag.data_hora_inicio);
             await supabase.from("agendamento_notificacoes").insert(
               ativos.map((l) => ({
                 agendamento_id: ag.id,
                 organization_id: orgId,
                 tipo_destinatario: "lead",
                 canal: "whatsapp",
-                antecedencia_minutos: l.minutos_antes,
+                antecedencia_minutos: antecedenciaMinutos(l, dataInicioDate),
+                chave_lembrete: chaveLembrete(l),
                 status: "cancelado",
                 data_hora_envio: new Date().toISOString(),
               }))
@@ -474,7 +482,8 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                         ...f,
                         tipo: v,
                         titulo: defaultTitulo(v, leadNome),
-                        procedimento_interesse: v === "procedimento" ? f.procedimento_interesse : null,
+                        procedimento_id: aceitaProcedimento(v) ? f.procedimento_id : null,
+                        procedimento_interesse: aceitaProcedimento(v) ? f.procedimento_interesse : null,
                         valor_orcado: v === "consulta"
                           ? (financeiroConfig?.consulta_valor_padrao ?? null)
                           : v === "procedimento" ? f.valor_orcado : null,
@@ -519,19 +528,28 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                   </div>
                 </div>
               </div>
-              {form.tipo === "procedimento" && (
+              {aceitaProcedimento(form.tipo) && (
                 <div>
-                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Procedimento</Label>
+                  <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    {labelProcedimento(form.tipo)}
+                  </Label>
                   <Select
-                    value={form.procedimento_interesse ?? ""}
+                    value={form.procedimento_id ?? ""}
                     onValueChange={(v) => {
-                      const proc = procedimentos.find((p) => p.nome === v);
+                      const proc = procedimentos.find((p) => p.id === v);
+                      const soInteresse = isProcedimentoDeInteresse(form.tipo);
                       setForm((f) => ({
                         ...f,
-                        procedimento_interesse: v || null,
-                        titulo: v ? `Procedimento — ${v}` : defaultTitulo("procedimento", leadNome),
-                        valor_orcado: proc?.valor_base ?? f.valor_orcado,
-                        duracao_minutos: proc?.duracao_minutos ?? f.duracao_minutos,
+                        procedimento_id: proc?.id ?? null,
+                        // mantido em sincronia com a FK enquanto o campo legado existir
+                        procedimento_interesse: proc?.nome ?? null,
+                        // Numa consulta o procedimento é só interesse: não toca em título,
+                        // valor nem duração — o valor_orcado ali é o valor da consulta.
+                        ...(soInteresse ? {} : {
+                          titulo: proc ? `Procedimento — ${proc.nome}` : defaultTitulo("procedimento", leadNome),
+                          valor_orcado: proc?.valor_base ?? f.valor_orcado,
+                          duracao_minutos: proc?.duracao_minutos ?? f.duracao_minutos,
+                        }),
                       }));
                     }}
                   >
@@ -546,7 +564,7 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                         </div>
                       ) : (
                         procedimentos.filter((p) => p.ativo).map((p) => (
-                          <SelectItem key={p.id} value={p.nome}>
+                          <SelectItem key={p.id} value={p.id}>
                             <div className="flex items-center justify-between gap-4 w-full">
                               <span>{p.nome}</span>
                               {p.valor_base && (

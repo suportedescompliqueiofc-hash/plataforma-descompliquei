@@ -4,7 +4,7 @@ import { format, parseISO, startOfWeek, startOfMonth, endOfMonth, endOfWeek, add
 import { ptBR } from "date-fns/locale";
 import {
   Target, Plus, Edit2, Loader2, DollarSign, Clock, Flame,
-  ChevronDown, ChevronLeft, ChevronRight, Trash2, Info, TrendingUp, SlidersHorizontal,
+  ChevronDown, ChevronLeft, ChevronRight, Trash2, Info, TrendingUp, SlidersHorizontal, Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -25,6 +26,8 @@ import { CurrencyInput } from "@/components/CurrencyInput";
 import { PageHero } from "@/components/PageHero";
 import { StatCard } from "@/components/StatCard";
 import { formatBRL, formatPct, formatInt } from "@/lib/format";
+import { ProjecaoFaturamento } from "@/components/agendamentos/ProjecaoFaturamento";
+import { ANNA_CLARA_ORG_ID } from "@/lib/constants";
 import { ComposedChart, Bar, Cell, Line, LabelList, XAxis, YAxis, CartesianGrid, ResponsiveContainer, ReferenceLine, Tooltip as RechartsTooltip } from "recharts";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -54,7 +57,36 @@ interface Meta {
   tipo_meta?: string;
   meta_receita_piso?: number;
   meta_receita_super?: number;
+  // Meta por origem
+  usa_meta_origem?: boolean;
 }
+
+interface MetaOrigemAcomp {
+  id: string;
+  meta_id: string;
+  organization_id: string;
+  origem: string;
+  meta_receita: number;
+  data_inicio: string;
+  data_fim: string;
+  receita_total: number;
+  pct_receita: number;
+}
+
+interface OrigemDef {
+  id: string;
+  label: string;
+  dot: string; // classe tailwind do dot de cor
+}
+
+// Espelha EXATAMENTE o Select de "Origem" do LeadModal.tsx.
+const ORIGENS_BASE: OrigemDef[] = [
+  { id: "marketing", label: "Marketing", dot: "bg-amber-500" },
+  { id: "organico", label: "Orgânico", dot: "bg-emerald-500" },
+  { id: "reativacao", label: "Reativação", dot: "bg-cyan-500" },
+  { id: "paciente", label: "Paciente", dot: "bg-teal-500" },
+];
+const ORIGEM_CONVENIO: OrigemDef = { id: "convenio", label: "Convênio", dot: "bg-violet-500" };
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -96,6 +128,11 @@ export default function Metas() {
   const { profile } = useProfile();
   const orgId = profile?.organization_id;
   const queryClient = useQueryClient();
+  const isAnnaClaraOrg = orgId === ANNA_CLARA_ORG_ID;
+  const origensDisponiveis = useMemo<OrigemDef[]>(
+    () => (isAnnaClaraOrg ? [...ORIGENS_BASE, ORIGEM_CONVENIO] : ORIGENS_BASE),
+    [isAnnaClaraOrg]
+  );
   const [modalMeta, setModalMeta] = useState(false);
   const [editingMeta, setEditingMeta] = useState<Meta | null>(null);
   const [deletingMetaId, setDeletingMetaId] = useState<string | null>(null);
@@ -152,6 +189,18 @@ export default function Metas() {
   const [formFim, setFormFim] = useState("");
   const [formReceita, setFormReceita] = useState(50000);
   const [formLoading, setFormLoading] = useState(false);
+
+  // ── Meta por origem ─────────────────────────────────────
+  const [formUsaMetaOrigem, setFormUsaMetaOrigem] = useState(false);
+  const [formMetaOrigens, setFormMetaOrigens] = useState<Record<string, number>>({});
+
+  // Enquanto "Meta por origem" está ligado, o alvo total é sempre a soma das origens.
+  useEffect(() => {
+    if (!formUsaMetaOrigem) return;
+    const total = origensDisponiveis.reduce((sum, o) => sum + (formMetaOrigens[o.id] || 0), 0);
+    setFormReceita(total);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formUsaMetaOrigem, formMetaOrigens, origensDisponiveis]);
 
   // ── Simulador "E se?" ──────────────────────────────────
   const [simLeadsDia, setSimLeadsDia] = useState(0);
@@ -221,6 +270,22 @@ export default function Metas() {
         map.set(k, (map.get(k) ?? 0) + Number(v.valor_fechado || 0));
       }
       return map;
+    },
+    enabled: !!orgId && !!meta?.id,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  // Acompanhamento (realizado × alvo) por origem — só existe linha quando a meta usa origem.
+  const { data: metaOrigensAcomp = [] } = useQuery({
+    queryKey: ["meta-origens-acomp", orgId, meta?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_meta_origem_acompanhamento" as any)
+        .select("*")
+        .eq("meta_id", meta!.id)
+        .eq("organization_id", orgId!);
+      if (error) throw error;
+      return (data as unknown as MetaOrigemAcomp[]) || [];
     },
     enabled: !!orgId && !!meta?.id,
     refetchInterval: 5 * 60 * 1000,
@@ -310,17 +375,42 @@ export default function Metas() {
         tipo_meta: formTipoMeta,
         meta_receita_piso: formTipoMeta === 'niveis' ? formReceitaPiso : 0,
         meta_receita_super: formTipoMeta === 'niveis' ? formReceitaSuper : 0,
+        usa_meta_origem: formUsaMetaOrigem,
       };
+
+      let metaId: string;
       if (editingMeta) {
         const { error } = await supabase.from("metas").update(payload).eq("id", editingMeta.id);
         if (error) throw error;
+        metaId = editingMeta.id;
       } else {
-        const { error } = await supabase.from("metas").insert(payload);
+        const { data, error } = await supabase.from("metas").insert(payload).select("id").single();
         if (error) throw error;
+        metaId = data.id;
+      }
+
+      // Sincroniza meta_origens: sempre limpa e recria a partir do estado atual do form.
+      const { error: delError } = await supabase.from("meta_origens" as any).delete().eq("meta_id", metaId);
+      if (delError) throw delError;
+
+      if (formUsaMetaOrigem) {
+        const rows = origensDisponiveis
+          .map((o) => ({
+            meta_id: metaId,
+            organization_id: orgId!,
+            origem: o.id,
+            meta_receita: formMetaOrigens[o.id] || 0,
+          }))
+          .filter((r) => r.meta_receita > 0);
+        if (rows.length > 0) {
+          const { error: insError } = await supabase.from("meta_origens" as any).insert(rows);
+          if (insError) throw insError;
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["todas-metas", orgId] });
+      queryClient.invalidateQueries({ queryKey: ["meta-origens-acomp", orgId] });
       toast.success(editingMeta ? "Meta atualizada!" : "Meta criada!");
       if (!editingMeta) setSelectedMetaId(null);
       setModalMeta(false);
@@ -361,6 +451,8 @@ export default function Metas() {
     setFormReceita(baseReceita);
     setFormTipoMeta(baseTipoMeta);
     setFormReceitaPiso(basePiso); setFormReceitaSuper(baseSuper);
+    setFormUsaMetaOrigem(false);
+    setFormMetaOrigens({});
     setModalMeta(true);
   }
 
@@ -373,7 +465,23 @@ export default function Metas() {
     setFormTipoMeta((meta.tipo_meta as 'simples' | 'niveis') || 'simples');
     setFormReceitaPiso(Number(meta.meta_receita_piso) || 30000);
     setFormReceitaSuper(Number(meta.meta_receita_super) || 80000);
+    setFormUsaMetaOrigem(false);
+    setFormMetaOrigens({});
     setModalMeta(true);
+
+    // Busca async: toggle "usa_meta_origem" (não vem da view) + valores já salvos por origem.
+    (async () => {
+      const [{ data: metaRow }, { data: origensRows }] = await Promise.all([
+        supabase.from("metas" as any).select("usa_meta_origem").eq("id", meta.id).single(),
+        supabase.from("meta_origens" as any).select("origem, meta_receita").eq("meta_id", meta.id),
+      ]);
+      setFormUsaMetaOrigem(!!(metaRow as unknown as { usa_meta_origem?: boolean } | null)?.usa_meta_origem);
+      const map: Record<string, number> = {};
+      for (const row of (origensRows ?? []) as unknown as { origem: string; meta_receita: number }[]) {
+        map[row.origem] = Number(row.meta_receita) || 0;
+      }
+      setFormMetaOrigens(map);
+    })();
   }
 
   function handleReceitaChange(v: number | undefined) {
@@ -540,14 +648,58 @@ export default function Metas() {
               )}
             </div>
 
+            {/* ── Meta por origem (toggle) ── */}
+            <div data-tutorial="meta-field-origem-toggle" className="rounded-xl border border-border/60 bg-muted/20 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-muted shrink-0"><Layers className="h-3.5 w-3.5 text-muted-foreground" /></div>
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Meta por origem</p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-0.5">Defina quanto da receita-alvo vem de cada origem do lead</p>
+                  </div>
+                </div>
+                <Switch checked={formUsaMetaOrigem} onCheckedChange={setFormUsaMetaOrigem} />
+              </div>
+
+              {formUsaMetaOrigem && (
+                <div data-tutorial="meta-field-origem-valores" className="mt-4 pt-4 border-t border-border/40 space-y-3">
+                  {origensDisponiveis.map((o) => (
+                    <div key={o.id} className="flex items-center gap-2.5">
+                      <span className={cn("h-2 w-2 rounded-full shrink-0", o.dot)} />
+                      <Label className="text-[11px] font-medium text-muted-foreground/70 w-20 shrink-0">{o.label}</Label>
+                      <CurrencyInput
+                        value={formMetaOrigens[o.id] ?? 0}
+                        onValueChange={(v) => setFormMetaOrigens((prev) => ({ ...prev, [o.id]: v ?? 0 }))}
+                        className="h-9 text-sm rounded-lg border-border/60"
+                      />
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/30">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total (= receita-alvo)</span>
+                    <span className="text-sm font-bold font-display tabular-nums text-foreground">
+                      {fmtBRL(origensDisponiveis.reduce((sum, o) => sum + (formMetaOrigens[o.id] || 0), 0))}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* ── Receita ── */}
             <div data-tutorial="meta-field-receita">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{formTipoMeta === 'niveis' ? 'Receita (Piso · Alvo · Super)' : 'Receita-alvo'}</p>
+              {formUsaMetaOrigem && (
+                <p className="text-[10px] text-muted-foreground/60 mb-2">O alvo agora é a <strong className="text-foreground/80">soma das origens</strong> definida acima — campo travado.</p>
+              )}
 
               {formTipoMeta === 'simples' ? (
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-medium text-muted-foreground/70">Meta Receita</Label>
-                  <CurrencyInput value={formReceita} onValueChange={handleReceitaChange} className="h-10 text-sm rounded-lg border-border/60" />
+                  <CurrencyInput
+                    value={formReceita}
+                    onValueChange={handleReceitaChange}
+                    disabled={formUsaMetaOrigem}
+                    className={cn("h-10 text-sm rounded-lg border-border/60", formUsaMetaOrigem && "bg-muted/40 text-muted-foreground")}
+                  />
                 </div>
               ) : (
                 <div className="grid gap-3 grid-cols-3">
@@ -557,7 +709,12 @@ export default function Metas() {
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-emerald-500" /><Label className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">Alvo</Label></div>
-                    <CurrencyInput value={formReceita} onValueChange={handleReceitaChange} className="h-10 text-sm rounded-lg border-emerald-200 bg-emerald-50/50 focus-visible:ring-emerald-300" />
+                    <CurrencyInput
+                      value={formReceita}
+                      onValueChange={handleReceitaChange}
+                      disabled={formUsaMetaOrigem}
+                      className={cn("h-10 text-sm rounded-lg border-emerald-200 bg-emerald-50/50 focus-visible:ring-emerald-300", formUsaMetaOrigem && "opacity-60")}
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-violet-500" /><Label className="text-[11px] font-semibold uppercase tracking-wider text-violet-600">Super</Label></div>
@@ -746,6 +903,48 @@ export default function Metas() {
           )}
         </div>
       </TooltipProvider>
+
+      {/* ═══ META POR ORIGEM (só aparece quando a meta tem valores por origem) ═══ */}
+      {metaOrigensAcomp.length > 0 && (
+        <div data-tutorial="metas-por-origem">
+          <div className="flex items-center gap-2 mb-5">
+            <div className="p-1.5 rounded-lg bg-muted"><Layers className="h-3.5 w-3.5 text-muted-foreground" /></div>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Meta por origem</p>
+              <p className="text-[10px] text-muted-foreground/50 mt-0.5">Receita realizada × alvo, em cada origem do lead — a soma bate com a meta total</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {[...metaOrigensAcomp]
+              .sort((a, b) => (Number(b.meta_receita) || 0) - (Number(a.meta_receita) || 0))
+              .map((row) => {
+                const origemDef = origensDisponiveis.find((o) => o.id === row.origem);
+                const pct = Number(row.pct_receita) || 0;
+                return (
+                  <div key={row.id} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4">
+                    <div className="flex items-center gap-2 mb-2.5">
+                      <span className={cn("h-2 w-2 rounded-full shrink-0", origemDef?.dot ?? "bg-muted-foreground")} />
+                      <p className="text-xs font-semibold text-foreground">{origemDef?.label ?? row.origem}</p>
+                      <span className={cn("ml-auto text-[10px] font-bold font-display tabular-nums px-1.5 py-0.5 rounded-md border", pctBg(pct))}>{fmtPct(pct)}</span>
+                    </div>
+                    <div className="flex items-baseline gap-1.5 mb-2.5">
+                      <p className="text-base font-bold font-display tabular-nums text-foreground">{fmtBRL(Number(row.receita_total) || 0)}</p>
+                      <p className="text-[11px] text-muted-foreground font-display tabular-nums">de {fmtBRL(Number(row.meta_receita) || 0)}</p>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden bg-muted">
+                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }} />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ RECEITA NA MESA (projeção vinda dos agendamentos) ═══ */}
+      <div data-tutorial="metas-receita-na-mesa">
+        <ProjecaoFaturamento />
+      </div>
 
       {/* ═══ GRÁFICO DE PROJEÇÃO (prédios de receita) ═══ */}
       <div data-tutorial="metas-projecao">

@@ -1029,3 +1029,76 @@ export function useDashboard(dateRange: DateRange | undefined, origemFilter: Ori
 
   return { metrics, isLoading: isLoading && !!orgId, error, refetch };
 }
+
+/* ═══════════════════════════════════════════════
+   Meta por Origem — bloco "Meta por Origem" do Dashboard.
+   Busca a meta ATIVA da org e, se houver quebra por origem
+   configurada (linhas na view vw_meta_origem_acompanhamento),
+   retorna o realizado × alvo de receita por origem no período da meta.
+═══════════════════════════════════════════════ */
+
+export interface MetaAtivaResumo {
+  id: string;
+  nome: string;
+  data_inicio: string;
+  data_fim: string;
+  meta_receita: number;
+  receita_total: number;
+  pct_receita: number;
+}
+
+export interface MetaOrigemAcompanhamento {
+  id: string;
+  meta_id: string;
+  organization_id: string;
+  origem: string;
+  meta_receita: number;
+  data_inicio: string;
+  data_fim: string;
+  receita_total: number;
+  pct_receita: number;
+}
+
+export function useMetaOrigemAcompanhamento(orgId: string | undefined) {
+  const { data: metaAtiva, isLoading: isLoadingMeta } = useQuery({
+    queryKey: ['meta-ativa-origem', orgId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vw_meta_acompanhamento')
+        .select('id, nome, data_inicio, data_fim, meta_receita, receita_total, pct_receita')
+        .eq('organization_id', orgId!)
+        .eq('ativo', true)
+        .order('data_inicio', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data as MetaAtivaResumo | null;
+    },
+    enabled: !!orgId,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const metaId = metaAtiva?.id;
+
+  const { data: origensRaw, isLoading: isLoadingOrigens } = useQuery({
+    queryKey: ['meta-origem-acompanhamento', orgId, metaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('vw_meta_origem_acompanhamento' as any)
+        .select('id, meta_id, organization_id, origem, meta_receita, data_inicio, data_fim, receita_total, pct_receita')
+        .eq('meta_id', metaId!)
+        .eq('organization_id', orgId!)
+        .order('meta_receita', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as MetaOrigemAcompanhamento[];
+    },
+    enabled: !!orgId && !!metaId,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  return {
+    metaAtiva: metaAtiva ?? null,
+    origens: origensRaw ?? [],
+    isLoading: isLoadingMeta || isLoadingOrigens,
+  };
+}
