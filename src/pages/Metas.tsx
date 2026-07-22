@@ -4,7 +4,7 @@ import { format, parseISO, startOfWeek, startOfMonth, endOfMonth, endOfWeek, add
 import { ptBR } from "date-fns/locale";
 import {
   Target, Plus, Edit2, Loader2, DollarSign, Clock, Flame,
-  ChevronDown, ChevronLeft, ChevronRight, Trash2, Info, TrendingUp, SlidersHorizontal, Layers,
+  ChevronDown, ChevronLeft, ChevronRight, Trash2, Info, TrendingUp, SlidersHorizontal, Layers, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +71,15 @@ interface MetaOrigemAcomp {
   data_fim: string;
   receita_total: number;
   pct_receita: number;
+  meta_receita_piso: number;
+  meta_receita_super: number;
+}
+
+// Piso · Alvo · Super de UMA origem.
+interface OrigemNiveis {
+  alvo: number;
+  piso: number;
+  super: number;
 }
 
 interface OrigemDef {
@@ -191,16 +200,50 @@ export default function Metas() {
   const [formLoading, setFormLoading] = useState(false);
 
   // ── Meta por origem ─────────────────────────────────────
+  // Só as origens que o usuário adicionou entram na meta (via seletor).
   const [formUsaMetaOrigem, setFormUsaMetaOrigem] = useState(false);
-  const [formMetaOrigens, setFormMetaOrigens] = useState<Record<string, number>>({});
+  const [formOrigensSelecionadas, setFormOrigensSelecionadas] = useState<string[]>([]);
+  const [formMetaOrigens, setFormMetaOrigens] = useState<Record<string, OrigemNiveis>>({});
 
-  // Enquanto "Meta por origem" está ligado, o alvo total é sempre a soma das origens.
+  const origensRestantes = useMemo(
+    () => origensDisponiveis.filter((o) => !formOrigensSelecionadas.includes(o.id)),
+    [origensDisponiveis, formOrigensSelecionadas]
+  );
+
+  function addOrigem(id: string) {
+    setFormOrigensSelecionadas((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    setFormMetaOrigens((prev) => (prev[id] ? prev : { ...prev, [id]: { alvo: 0, piso: 0, super: 0 } }));
+  }
+  function removeOrigem(id: string) {
+    setFormOrigensSelecionadas((prev) => prev.filter((x) => x !== id));
+  }
+  function setOrigemNivel(id: string, nivel: keyof OrigemNiveis, v: number) {
+    setFormMetaOrigens((prev) => ({ ...prev, [id]: { ...(prev[id] ?? { alvo: 0, piso: 0, super: 0 }), [nivel]: v } }));
+  }
+
+  // Somas por nível das origens selecionadas.
+  const totaisOrigem = useMemo(() => {
+    const acc = { alvo: 0, piso: 0, super: 0 };
+    for (const id of formOrigensSelecionadas) {
+      const n = formMetaOrigens[id];
+      if (!n) continue;
+      acc.alvo += n.alvo || 0;
+      acc.piso += n.piso || 0;
+      acc.super += n.super || 0;
+    }
+    return acc;
+  }, [formOrigensSelecionadas, formMetaOrigens]);
+
+  // Enquanto "Meta por origem" está ligado, os campos gerais são sempre a soma das origens (por nível).
   useEffect(() => {
     if (!formUsaMetaOrigem) return;
-    const total = origensDisponiveis.reduce((sum, o) => sum + (formMetaOrigens[o.id] || 0), 0);
-    setFormReceita(total);
+    setFormReceita(totaisOrigem.alvo);
+    if (formTipoMeta === 'niveis') {
+      setFormReceitaPiso(totaisOrigem.piso);
+      setFormReceitaSuper(totaisOrigem.super);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formUsaMetaOrigem, formMetaOrigens, origensDisponiveis]);
+  }, [formUsaMetaOrigem, totaisOrigem, formTipoMeta]);
 
   // ── Simulador "E se?" ──────────────────────────────────
   const [simLeadsDia, setSimLeadsDia] = useState(0);
@@ -394,14 +437,19 @@ export default function Metas() {
       if (delError) throw delError;
 
       if (formUsaMetaOrigem) {
-        const rows = origensDisponiveis
-          .map((o) => ({
-            meta_id: metaId,
-            organization_id: orgId!,
-            origem: o.id,
-            meta_receita: formMetaOrigens[o.id] || 0,
-          }))
-          .filter((r) => r.meta_receita > 0);
+        const rows = formOrigensSelecionadas
+          .map((id) => {
+            const n = formMetaOrigens[id] ?? { alvo: 0, piso: 0, super: 0 };
+            return {
+              meta_id: metaId,
+              organization_id: orgId!,
+              origem: id,
+              meta_receita: n.alvo || 0,
+              meta_receita_piso: formTipoMeta === 'niveis' ? (n.piso || 0) : 0,
+              meta_receita_super: formTipoMeta === 'niveis' ? (n.super || 0) : 0,
+            };
+          })
+          .filter((r) => r.meta_receita > 0 || r.meta_receita_piso > 0 || r.meta_receita_super > 0);
         if (rows.length > 0) {
           const { error: insError } = await supabase.from("meta_origens" as any).insert(rows);
           if (insError) throw insError;
@@ -453,6 +501,7 @@ export default function Metas() {
     setFormReceitaPiso(basePiso); setFormReceitaSuper(baseSuper);
     setFormUsaMetaOrigem(false);
     setFormMetaOrigens({});
+    setFormOrigensSelecionadas([]);
     setModalMeta(true);
   }
 
@@ -467,20 +516,29 @@ export default function Metas() {
     setFormReceitaSuper(Number(meta.meta_receita_super) || 80000);
     setFormUsaMetaOrigem(false);
     setFormMetaOrigens({});
+    setFormOrigensSelecionadas([]);
     setModalMeta(true);
 
     // Busca async: toggle "usa_meta_origem" (não vem da view) + valores já salvos por origem.
     (async () => {
       const [{ data: metaRow }, { data: origensRows }] = await Promise.all([
         supabase.from("metas" as any).select("usa_meta_origem").eq("id", meta.id).single(),
-        supabase.from("meta_origens" as any).select("origem, meta_receita").eq("meta_id", meta.id),
+        supabase.from("meta_origens" as any).select("origem, meta_receita, meta_receita_piso, meta_receita_super").eq("meta_id", meta.id),
       ]);
       setFormUsaMetaOrigem(!!(metaRow as unknown as { usa_meta_origem?: boolean } | null)?.usa_meta_origem);
-      const map: Record<string, number> = {};
-      for (const row of (origensRows ?? []) as unknown as { origem: string; meta_receita: number }[]) {
-        map[row.origem] = Number(row.meta_receita) || 0;
+      const map: Record<string, OrigemNiveis> = {};
+      const rows = (origensRows ?? []) as unknown as { origem: string; meta_receita: number; meta_receita_piso: number; meta_receita_super: number }[];
+      for (const row of rows) {
+        map[row.origem] = {
+          alvo: Number(row.meta_receita) || 0,
+          piso: Number(row.meta_receita_piso) || 0,
+          super: Number(row.meta_receita_super) || 0,
+        };
       }
+      // Mantém a ordem canônica das origens disponíveis.
+      const sel = origensDisponiveis.map((o) => o.id).filter((id) => id in map);
       setFormMetaOrigens(map);
+      setFormOrigensSelecionadas(sel);
     })();
   }
 
@@ -663,23 +721,105 @@ export default function Metas() {
 
               {formUsaMetaOrigem && (
                 <div data-tutorial="meta-field-origem-valores" className="mt-4 pt-4 border-t border-border/40 space-y-3">
-                  {origensDisponiveis.map((o) => (
-                    <div key={o.id} className="flex items-center gap-2.5">
-                      <span className={cn("h-2 w-2 rounded-full shrink-0", o.dot)} />
-                      <Label className="text-[11px] font-medium text-muted-foreground/70 w-20 shrink-0">{o.label}</Label>
-                      <CurrencyInput
-                        value={formMetaOrigens[o.id] ?? 0}
-                        onValueChange={(v) => setFormMetaOrigens((prev) => ({ ...prev, [o.id]: v ?? 0 }))}
-                        className="h-9 text-sm rounded-lg border-border/60"
-                      />
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/30">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total (= receita-alvo)</span>
-                    <span className="text-sm font-bold font-display tabular-nums text-foreground">
-                      {fmtBRL(origensDisponiveis.reduce((sum, o) => sum + (formMetaOrigens[o.id] || 0), 0))}
-                    </span>
+                  {/* Seletor de origens */}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-muted-foreground/70">
+                      {formTipoMeta === 'niveis' ? 'Defina Piso · Alvo · Super de cada origem' : 'Defina a meta de cada origem'}
+                    </p>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button type="button" variant="outline" size="sm" disabled={origensRestantes.length === 0}
+                          className="h-8 rounded-lg text-[11px] font-medium border-border/60 gap-1.5 px-3">
+                          <Plus className="h-3.5 w-3.5" /> Adicionar origem
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-52 p-1.5 rounded-xl border-border/60">
+                        {origensRestantes.length === 0 ? (
+                          <p className="text-[11px] text-muted-foreground/60 px-2 py-1.5">Todas as origens já foram adicionadas</p>
+                        ) : origensRestantes.map((o) => (
+                          <button key={o.id} type="button" onClick={() => addOrigem(o.id)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs text-foreground hover:bg-muted/60 transition-colors">
+                            <span className={cn("h-2 w-2 rounded-full shrink-0", o.dot)} />
+                            {o.label}
+                          </button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
                   </div>
+
+                  {/* Origens selecionadas */}
+                  {formOrigensSelecionadas.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-border/60 py-4 text-center">
+                      <p className="text-[11px] text-muted-foreground/60">Nenhuma origem adicionada. Use <strong className="text-foreground/70">Adicionar origem</strong> para escolher.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {formOrigensSelecionadas.map((id) => {
+                        const o = origensDisponiveis.find((x) => x.id === id);
+                        const n = formMetaOrigens[id] ?? { alvo: 0, piso: 0, super: 0 };
+                        if (!o) return null;
+                        return (
+                          <div key={id} className="rounded-lg border border-border/50 bg-background/60 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className={cn("h-2 w-2 rounded-full shrink-0", o.dot)} />
+                              <span className="text-xs font-semibold text-foreground">{o.label}</span>
+                              <button type="button" onClick={() => removeOrigem(id)} aria-label={`Remover ${o.label}`}
+                                className="ml-auto h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/60 hover:text-red-600 hover:bg-red-50 transition-colors">
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                            {formTipoMeta === 'niveis' ? (
+                              <div className="grid grid-cols-3 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Piso</Label>
+                                  <CurrencyInput value={n.piso} onValueChange={(v) => setOrigemNivel(id, 'piso', v ?? 0)}
+                                    className="h-9 text-sm rounded-lg border-amber-200 bg-amber-50/50 focus-visible:ring-amber-300" />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Alvo</Label>
+                                  <CurrencyInput value={n.alvo} onValueChange={(v) => setOrigemNivel(id, 'alvo', v ?? 0)}
+                                    className="h-9 text-sm rounded-lg border-emerald-200 bg-emerald-50/50 focus-visible:ring-emerald-300" />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] font-semibold uppercase tracking-wider text-violet-600">Super</Label>
+                                  <CurrencyInput value={n.super} onValueChange={(v) => setOrigemNivel(id, 'super', v ?? 0)}
+                                    className="h-9 text-sm rounded-lg border-violet-200 bg-violet-50/50 focus-visible:ring-violet-300" />
+                                </div>
+                              </div>
+                            ) : (
+                              <CurrencyInput value={n.alvo} onValueChange={(v) => setOrigemNivel(id, 'alvo', v ?? 0)}
+                                className="h-9 text-sm rounded-lg border-border/60" />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Totais por nível */}
+                  {formOrigensSelecionadas.length > 0 && (
+                    formTipoMeta === 'niveis' ? (
+                      <div className="grid grid-cols-3 gap-2 pt-2 mt-1 border-t border-border/30">
+                        <div>
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-amber-600/80">Piso total</p>
+                          <p className="text-xs font-bold font-display tabular-nums text-foreground">{fmtBRL(totaisOrigem.piso)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-emerald-600/80">Alvo total</p>
+                          <p className="text-xs font-bold font-display tabular-nums text-foreground">{fmtBRL(totaisOrigem.alvo)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-violet-600/80">Super total</p>
+                          <p className="text-xs font-bold font-display tabular-nums text-foreground">{fmtBRL(totaisOrigem.super)}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/30">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Total (= receita-alvo)</span>
+                        <span className="text-sm font-bold font-display tabular-nums text-foreground">{fmtBRL(totaisOrigem.alvo)}</span>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
             </div>
@@ -688,7 +828,11 @@ export default function Metas() {
             <div data-tutorial="meta-field-receita">
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">{formTipoMeta === 'niveis' ? 'Receita (Piso · Alvo · Super)' : 'Receita-alvo'}</p>
               {formUsaMetaOrigem && (
-                <p className="text-[10px] text-muted-foreground/60 mb-2">O alvo agora é a <strong className="text-foreground/80">soma das origens</strong> definida acima — campo travado.</p>
+                <p className="text-[10px] text-muted-foreground/60 mb-2">
+                  {formTipoMeta === 'niveis'
+                    ? <>Piso, Alvo e Super são a <strong className="text-foreground/80">soma das origens</strong> definida acima — campos travados.</>
+                    : <>O alvo agora é a <strong className="text-foreground/80">soma das origens</strong> definida acima — campo travado.</>}
+                </p>
               )}
 
               {formTipoMeta === 'simples' ? (
@@ -705,7 +849,7 @@ export default function Metas() {
                 <div className="grid gap-3 grid-cols-3">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-amber-400" /><Label className="text-[11px] font-semibold uppercase tracking-wider text-amber-600">Piso</Label></div>
-                    <CurrencyInput value={formReceitaPiso} onValueChange={(v) => setFormReceitaPiso(v ?? 0)} className="h-10 text-sm rounded-lg border-amber-200 bg-amber-50/50 focus-visible:ring-amber-300" />
+                    <CurrencyInput value={formReceitaPiso} onValueChange={(v) => setFormReceitaPiso(v ?? 0)} disabled={formUsaMetaOrigem} className={cn("h-10 text-sm rounded-lg border-amber-200 bg-amber-50/50 focus-visible:ring-amber-300", formUsaMetaOrigem && "opacity-60")} />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-emerald-500" /><Label className="text-[11px] font-semibold uppercase tracking-wider text-emerald-600">Alvo</Label></div>
@@ -718,7 +862,7 @@ export default function Metas() {
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-violet-500" /><Label className="text-[11px] font-semibold uppercase tracking-wider text-violet-600">Super</Label></div>
-                    <CurrencyInput value={formReceitaSuper} onValueChange={(v) => setFormReceitaSuper(v ?? 0)} className="h-10 text-sm rounded-lg border-violet-200 bg-violet-50/50 focus-visible:ring-violet-300" />
+                    <CurrencyInput value={formReceitaSuper} onValueChange={(v) => setFormReceitaSuper(v ?? 0)} disabled={formUsaMetaOrigem} className={cn("h-10 text-sm rounded-lg border-violet-200 bg-violet-50/50 focus-visible:ring-violet-300", formUsaMetaOrigem && "opacity-60")} />
                   </div>
                 </div>
               )}
@@ -920,6 +1064,17 @@ export default function Metas() {
               .map((row) => {
                 const origemDef = origensDisponiveis.find((o) => o.id === row.origem);
                 const pct = Number(row.pct_receita) || 0;
+                const real = Number(row.receita_total) || 0;
+                const oAlvo = Number(row.meta_receita) || 0;
+                const oPiso = Number(row.meta_receita_piso) || 0;
+                const oSuper = Number(row.meta_receita_super) || 0;
+                const isNiveis = tipoMeta === 'niveis' && oSuper > 0;
+                const nivel: 'none' | 'piso' | 'alvo' | 'super' =
+                  !isNiveis ? 'none'
+                    : real >= oSuper ? 'super'
+                      : real >= oAlvo && oAlvo > 0 ? 'alvo'
+                        : real >= oPiso && oPiso > 0 ? 'piso'
+                          : 'none';
                 return (
                   <div key={row.id} className="rounded-2xl border border-border/60 bg-card shadow-[0_1px_3px_rgba(0,0,0,0.04)] p-4">
                     <div className="flex items-center gap-2 mb-2.5">
@@ -928,12 +1083,41 @@ export default function Metas() {
                       <span className={cn("ml-auto text-[10px] font-bold font-display tabular-nums px-1.5 py-0.5 rounded-md border", pctBg(pct))}>{fmtPct(pct)}</span>
                     </div>
                     <div className="flex items-baseline gap-1.5 mb-2.5">
-                      <p className="text-base font-bold font-display tabular-nums text-foreground">{fmtBRL(Number(row.receita_total) || 0)}</p>
-                      <p className="text-[11px] text-muted-foreground font-display tabular-nums">de {fmtBRL(Number(row.meta_receita) || 0)}</p>
+                      <p className="text-base font-bold font-display tabular-nums text-foreground">{fmtBRL(real)}</p>
+                      <p className="text-[11px] text-muted-foreground font-display tabular-nums">
+                        {isNiveis ? `Alvo ${fmtBRL(oAlvo)}` : `de ${fmtBRL(oAlvo)}`}
+                      </p>
                     </div>
-                    <div className="h-1.5 rounded-full overflow-hidden bg-muted">
-                      <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }} />
-                    </div>
+                    {isNiveis ? (
+                      (() => {
+                        const barColor = nivel === 'super' ? '#8b5cf6' : nivel === 'alvo' ? '#10b981' : nivel === 'piso' ? '#f59e0b' : '#ef4444';
+                        const fill = Math.min((real / oSuper) * 100, 100);
+                        const pisoPct = (oPiso / oSuper) * 100;
+                        const alvoPct = (oAlvo / oSuper) * 100;
+                        const nivelLabel = { super: 'Super', alvo: 'Alvo', piso: 'Piso', none: '' }[nivel];
+                        const nivelBadge = { super: 'bg-violet-50 text-violet-700 border-violet-200', alvo: 'bg-emerald-50 text-emerald-700 border-emerald-200', piso: 'bg-amber-50 text-amber-700 border-amber-200', none: '' }[nivel];
+                        return (
+                          <div className="space-y-1.5">
+                            <div className="relative h-1.5 bg-muted rounded-full overflow-visible">
+                              <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-700" style={{ width: `${fill}%`, backgroundColor: barColor }} />
+                              <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-amber-400 rounded-full" style={{ left: `${pisoPct}%` }} />
+                              <div className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3 bg-emerald-500 rounded-full" style={{ left: `${alvoPct}%` }} />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+                                <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400" />Piso {fmtBRL(oPiso)}</span>
+                                <span className="flex items-center gap-1"><span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500" />Super {fmtBRL(oSuper)}</span>
+                              </div>
+                              {nivel !== 'none' && <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border font-display", nivelBadge)}>{nivelLabel} atingido</span>}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <div className="h-1.5 rounded-full overflow-hidden bg-muted">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: pctColor(pct) }} />
+                      </div>
+                    )}
                   </div>
                 );
               })}

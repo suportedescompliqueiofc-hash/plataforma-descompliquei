@@ -1193,13 +1193,13 @@ export const tutorials: Tutorial[] = [
       {
         target: 'meta-field-origem-toggle',
         title: 'Meta por origem (opcional)',
-        description: 'Além da receita total, você pode dizer **quanto dessa receita deve vir de cada origem de lead** — Marketing, Orgânico, Reativação, Paciente (e Convênio, quando aplicável).\n\nLigue o toggle **"Meta por origem"** para abrir um campo de valor para cada origem.\n\n**Regra importante:** a receita-alvo total deixa de ser digitada à mão — ela passa a ser a **soma dos valores de cada origem**, calculada automaticamente.',
+        description: 'Além da receita total, você pode dizer **quanto dessa receita deve vir de cada origem de lead** — Marketing, Orgânico, Reativação, Paciente (e Convênio, quando aplicável).\n\nLigue o toggle **"Meta por origem"** para escolher, num seletor, **quais origens** entram na meta e definir o valor de cada uma.\n\n**Regra importante:** a receita-alvo total deixa de ser digitada à mão — ela passa a ser a **soma dos valores das origens**, calculada automaticamente.',
         position: 'right',
       },
       {
         target: 'meta-field-origem-valores',
-        title: 'Valor-alvo por origem',
-        description: 'Preencha quanto espera faturar em **cada origem** neste período.\n\n• O **total** aparece embaixo da lista e é sempre igual à soma dos campos\n• Enquanto o toggle estiver ligado, o campo de **Receita-alvo** fica travado, mostrando esse total\n\n**Dica:** some primeiro as origens que você já consegue prever (ex: Marketing pelo investimento planejado) e distribua o restante entre as demais.',
+        title: 'Escolha as origens e os valores',
+        description: 'Clique em **"Adicionar origem"** para incluir só as origens que você quer acompanhar — não precisa preencher todas. Cada origem pode ser removida no **✕**.\n\n• Em **Meta Simples**, você define um valor-alvo por origem\n• Em **Meta com Níveis**, cada origem tem **Piso · Alvo · Super** próprios\n• Os campos gerais de receita ficam **travados** e mostram a **soma por nível** das origens — a meta total é a soma dos **Alvos**\n\n**Dica:** comece pelas origens que você já consegue prever e distribua o restante.',
         position: 'right',
       },
       {
