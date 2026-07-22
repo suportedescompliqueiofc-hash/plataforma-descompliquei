@@ -24,12 +24,13 @@ function generateWelcomeEmailHtml(opts: {
   clinicName: string;
   planName: string;
   magicLink: string;
+  loginUrl: string;
   email: string;
   isExisting: boolean;
   isCrmOnly: boolean;
   isResend: boolean;
 }): string {
-  const { clinicName, planName, magicLink, email, isExisting, isCrmOnly } = opts;
+  const { clinicName, planName, magicLink, loginUrl, email, isExisting, isCrmOnly } = opts;
   const productLabel = isCrmOnly ? 'CRM Descompliquei' : 'Plataforma Descompliquei';
   const headline = isExisting && !opts.isResend ? 'Seu acesso foi atualizado' : isCrmOnly ? 'Bem-vindo(a) ao CRM!' : 'Bem-vindo(a) à plataforma';
   const bodyText = isExisting && !opts.isResend
@@ -83,7 +84,7 @@ function generateWelcomeEmailHtml(opts: {
 
               <p style="color:#111827;font-size:15px;line-height:1.65;margin:0 0 16px;">${bodyText}</p>
               <p style="color:#6b7280;font-size:13px;line-height:1.65;margin:0 0 32px;">
-                O link é de uso único e expira em <strong style="color:#374151;">24 horas</strong>. Após o primeiro acesso você poderá definir uma senha se preferir.
+                O link é de uso único. Ao entrar, <strong style="color:#374151;">defina uma senha</strong> nas Configurações para não depender mais de link em futuros acessos.
               </p>
 
               <!-- CTA Button -->
@@ -108,6 +109,18 @@ function generateWelcomeEmailHtml(opts: {
                     <p style="color:#374151;font-size:13px;font-weight:600;margin:0 0 6px;">${infoTitle}</p>
                     <p style="color:#6b7280;font-size:13px;margin:0;line-height:1.6;">
                       ${infoBody}
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Fallback: acesso durável -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:16px;">
+                <tr>
+                  <td style="background:#fafafa;border-radius:10px;border-left:3px solid #E85D24;padding:16px 20px;">
+                    <p style="color:#374151;font-size:13px;font-weight:600;margin:0 0 6px;">O link não abriu ou expirou?</p>
+                    <p style="color:#6b7280;font-size:13px;margin:0;line-height:1.6;">
+                      Sua conta já existe. Acesse <a href="${loginUrl}" style="color:#E85D24;text-decoration:none;">a tela de login</a> e clique em <strong>"Esqueci a senha"</strong> para entrar quando quiser — funciona a qualquer momento.
                     </p>
                   </td>
                 </tr>
@@ -459,7 +472,10 @@ Deno.serve(async (req: Request) => {
       console.warn(`[step:send-welcome-email] SKIPPED: magicLink is null`);
     } else {
       step = 'send-welcome-email';
-      const resendKey = Deno.env.get('RESEND_API_KEY') || 're_DXMBEgHd_Cz3HntziNJPtTT6gQ3SY8maq';
+      const resendKey = Deno.env.get('RESEND_API_KEY');
+      if (!resendKey) {
+        console.error('[step:send-welcome-email] RESEND_API_KEY ausente — e-mail NÃO enviado');
+      }
       // Domínio verificado no Resend: descompliqueiofc.com
       // Para alterar o remetente, setar RESEND_FROM_EMAIL nos secrets do Supabase
       const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'Descompliquei <boas-vindas@descompliqueiofc.com>';
@@ -471,6 +487,7 @@ Deno.serve(async (req: Request) => {
         clinicName: clinic_name,
         planName: displayPlan,
         magicLink,
+        loginUrl: appUrl,
         email,
         isExisting: isExistingPlatformUser,
         isCrmOnly: !hasPlataformaAccess,
