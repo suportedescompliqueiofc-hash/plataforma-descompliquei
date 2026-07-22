@@ -787,7 +787,7 @@ export const tutorials: Tutorial[] = [
         target: 'agendamentos-config',
         action: { type: 'dismiss', delay: 300 },
         title: 'Configurar notificações',
-        description: 'Configure **lembretes automáticos** para seus agendamentos:\n\n• Defina quando enviar o lembrete (ex: 1h antes, 1 dia antes)\n• Personalize a mensagem do lembrete\n• Ative ou desative por tipo de atendimento\n\n**Por que usar:** lembretes automáticos reduzem drasticamente a taxa de **no-show** (não comparecimento). Um simples lembrete pode aumentar a presença em **30% ou mais**.',
+        description: 'Configure **lembretes automáticos** para seus agendamentos:\n\n• Escolha **quando enviar**: um **tempo antes** (ex.: 1h, 1 dia) ou em um **horário fixo do dia** (ex.: 1 dia antes, às 08:00)\n• Personalize a mensagem do lembrete\n• Ative ou desative por tipo de atendimento\n\n**Por que usar:** lembretes automáticos reduzem drasticamente a taxa de **no-show** (não comparecimento). Um simples lembrete pode aumentar a presença em **30% ou mais**.',
         position: 'bottom',
       },
       {
