@@ -70,7 +70,14 @@ async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise
       },
       body: JSON.stringify({
         model: "deepseek/deepseek-v4-flash-0731",
-        max_tokens: 512,
+        // response_format obriga o modelo a devolver JSON. Sem isto ele às vezes
+        // respondia em prosa e o parser falhava com "JSON não encontrado" — 21.393
+        // erros numa semana. O prompt já pede "Retorne APENAS este JSON", que é o
+        // que o modo json_object exige para ser aceito.
+        response_format: { type: "json_object" },
+        // 512 truncava a resposta no meio: sem a chave de fechamento o regex
+        // /\{[\s\S]*\}/ não casa e cai no mesmo erro.
+        max_tokens: 1024,
         temperature: 0.4,
         messages: [
           { role: "system", content: systemPrompt },
@@ -104,8 +111,15 @@ async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise
 
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      const truncou = data.choices?.[0]?.finish_reason === "length";
       console.error("[FOLLOWUP] Resposta IA sem JSON válido:", content.substring(0, 500));
-      throw new Error("JSON não encontrado na resposta da IA");
+      // Distinguir truncamento de prosa: são causas diferentes e o motivo vai
+      // parar em ia_followup_log.motivo_ia, que é onde se diagnostica isso.
+      throw new Error(
+        truncou
+          ? `Resposta da IA truncada em max_tokens (${content.length} chars) — JSON incompleto`
+          : "JSON não encontrado na resposta da IA",
+      );
     }
 
     return JSON.parse(jsonMatch[0]);
