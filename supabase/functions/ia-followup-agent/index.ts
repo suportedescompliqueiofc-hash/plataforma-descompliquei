@@ -75,9 +75,12 @@ async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise
         // erros numa semana. O prompt já pede "Retorne APENAS este JSON", que é o
         // que o modo json_object exige para ser aceito.
         response_format: { type: "json_object" },
-        // 512 truncava a resposta no meio: sem a chave de fechamento o regex
-        // /\{[\s\S]*\}/ não casa e cai no mesmo erro.
-        max_tokens: 1024,
+        // O modelo é de reasoning: gasta o orçamento pensando ANTES de emitir o
+        // JSON. Com 512 (e depois 1024) o log mostrava `finish_reason=length`
+        // com content VAZIO — todo o budget ia embora no raciocínio e a resposta
+        // nem começava. O JSON de saída tem ~200 chars; a folga é para o
+        // raciocínio, não para a resposta.
+        max_tokens: 4096,
         temperature: 0.4,
         messages: [
           { role: "system", content: systemPrompt },
