@@ -707,17 +707,35 @@ Identifique onde a conversa parou e gere o follow-up mais humano e eficaz possí
           erros++;
           console.error(`[FOLLOWUP] Erro no lead ${lead.id}:`, leadErr?.message);
 
+          const tentativaComErro = (lead.followup_tentativas || 0) + 1;
+
           try {
             await supabase.from("ia_followup_log").insert({
               lead_id: lead.id,
               organization_id: orgId,
-              tentativa: (lead.followup_tentativas || 0) + 1,
+              tentativa: tentativaComErro,
               status: "erro",
               motivo_ia: leadErr?.message?.substring(0, 500),
               tipo: lead.followup_manual ? "manual" : "automatico",
             });
           } catch (logErr: any) {
             console.error("[FOLLOWUP] Erro ao inserir log de erro:", logErr?.message);
+          }
+
+          // O erro TAMBÉM conta como tentativa. Sem isto o lead continuava
+          // elegível e o cron (*/5) reprocessava o mesmo lead para sempre:
+          // "JSON não encontrado na resposta da IA" gerou 21.393 erros em 104
+          // leads numa semana (205 por lead), sempre no mesmo lead, porque
+          // followup_ultima_tentativa só era gravado no caminho de sucesso.
+          // Mesma classe de bug do process-cadences (corrigido em 2026-08-25).
+          try {
+            await supabase.from("leads").update({
+              followup_tentativas: tentativaComErro,
+              followup_ultima_tentativa: new Date().toISOString(),
+              ...(tentativaComErro >= totalTentativasAtivas ? { followup_pausado: true } : {}),
+            }).eq("id", lead.id);
+          } catch (updErr: any) {
+            console.error("[FOLLOWUP] Erro ao marcar tentativa do lead:", updErr?.message);
           }
         }
       }
