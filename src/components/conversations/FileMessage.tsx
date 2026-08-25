@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getSignedMediaUrl } from '@/lib/media-url';
 import { FileText, Download, Loader2, AlertTriangle, FileType } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -41,15 +42,11 @@ export function FileMessage({ path, fileName = "Documento", onView }: FileMessag
       setError(null);
 
       try {
-        const { data, error: functionError } = await supabase.functions.invoke('get-media-url', {
-          body: { mediaPath: path },
-        });
+        // Helper com cache — a URL assinada vale 24h (src/lib/media-url.ts)
+        const signedUrl = await getSignedMediaUrl(path, 'document');
+        if (!signedUrl) throw new Error("URL não retornada.");
 
-        if (functionError) throw new Error(`Erro: ${functionError.message}`);
-        if (data.error) throw new Error(`Erro: ${data.error}`);
-        if (!data.signedUrl) throw new Error("URL não retornada.");
-
-        setFileUrl(data.signedUrl);
+        setFileUrl(signedUrl);
 
       } catch (err: any) {
         console.error("Erro ao carregar arquivo:", err);

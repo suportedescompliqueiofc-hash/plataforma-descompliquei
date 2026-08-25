@@ -226,11 +226,17 @@ export function ActiveConversation({ leadId, showMateriais, onToggleMateriais, c
   const { data: leadAdInfo } = useQuery({
     queryKey: ['lead_ad_header', lead?.criativo_id],
     queryFn: async () => {
+      // `leads.criativo_id` aponta para `criativos`, NÃO para `meta_ads` — a
+      // query buscava na tabela errada e devolvia 406 em toda conversa vinda de
+      // anúncio (1.991 leads têm criativo_id: 1.991 casam em `criativos`, ZERO
+      // em `meta_ads`). O cabeçalho do criativo nunca chegou a aparecer.
+      // `id_externo` é o Meta ad ID; apelidado para o JSX não mudar.
+      // maybeSingle: criativo apagado devolve null em vez de erro.
       const { data } = await (supabase
-        .from('meta_ads') as any)
-        .select('id, nome, meta_ad_id, url_thumbnail')
+        .from('criativos') as any)
+        .select('id, nome, url_thumbnail, meta_ad_id:id_externo')
         .eq('id', lead!.criativo_id!)
-        .single();
+        .maybeSingle();
       return data;
     },
     enabled: !!lead?.criativo_id,

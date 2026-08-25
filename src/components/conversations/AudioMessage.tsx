@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getSignedMediaUrl } from '@/lib/media-url';
 import { AudioPlayer } from './AudioPlayer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -35,12 +36,11 @@ export function AudioMessage({ filePath, variant = 'incoming' }: AudioMessagePro
     setError(null);
 
     try {
-      // Busca URL assinada via Edge Function centralizada
-      const { data, error: functionError } = await supabase.functions.invoke('get-media-url', {
-        body: { mediaPath: filePath, mediaType: 'audio' },
-      });
+      // URL assinada via helper com cache (a URL vale 24h — ver src/lib/media-url.ts)
+      const signedUrl = await getSignedMediaUrl(filePath, 'audio');
+      const data = signedUrl ? { signedUrl } : null;
 
-      if (functionError || !data?.signedUrl) {
+      if (!data?.signedUrl) {
         // Fallback para buscar no bucket principal caso a função falhe
         const { data: fallbackData } = supabase.storage.from('audio-mensagens').getPublicUrl(filePath);
         if (fallbackData?.publicUrl) {

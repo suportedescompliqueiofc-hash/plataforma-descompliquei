@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getSignedMediaUrl } from '@/lib/media-url';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, RefreshCw, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,15 +34,11 @@ export function MediaMessage({ path, type, onView }: MediaMessageProps) {
     setError(null);
 
     try {
-      const { data, error: functionError } = await supabase.functions.invoke('get-media-url', {
-        body: { mediaPath: path, mediaType: type },
-      });
+      // Helper com cache — a URL assinada vale 24h (src/lib/media-url.ts)
+      const signedUrl = await getSignedMediaUrl(path, type);
+      if (!signedUrl) throw new Error("URL não retornada.");
 
-      if (functionError) throw new Error(functionError.message || "Erro na Edge Function");
-      if (data.error) throw new Error(data.error);
-      if (!data.signedUrl) throw new Error("URL não retornada.");
-
-      setMediaUrl(data.signedUrl);
+      setMediaUrl(signedUrl);
 
     } catch (err: any) {
       console.error("Erro ao carregar mídia:", err);
