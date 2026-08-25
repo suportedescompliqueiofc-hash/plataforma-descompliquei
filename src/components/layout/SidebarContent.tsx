@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AthosLupa } from "@/components/ai/AthosLupa";
+import { prefetchRota } from "@/lib/route-prefetch";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
@@ -326,6 +327,13 @@ export function SidebarContent({ isCollapsed = false, toggleCollapse }: SidebarC
 
             const isAcessarCRM = item.title === 'Acessar CRM';
             const linkProps: any = isAcessarCRM ? { target: "_blank", rel: "noopener noreferrer" } : {};
+
+            // Começa a baixar o chunk da rota assim que o ponteiro toca o link.
+            // Ganha os ~200-500 ms até o clique, que é o que de fato zera o
+            // "piscar" da primeira visita — inclusive nos chunks grandes, como
+            // Leads (452 kB). Vai no linkProps porque os dois <Link> abaixo
+            // (recolhido e expandido) compartilham este objeto.
+            linkProps.onMouseEnter = () => prefetchRota(item.path);
 
             const tutorialAttr = item.path ? tutorialTargetMap[item.path] : undefined;
 

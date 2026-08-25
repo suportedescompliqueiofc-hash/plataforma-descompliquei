@@ -98,6 +98,7 @@ import { useProfile } from "./hooks/useProfile";
 import { usePlataforma } from "@/contexts/PlataformaContext";
 import { cn } from "./lib/utils";
 import { MASTER_ORG_ID } from "./lib/constants";
+import { prefetchRotasFrequentes } from "./lib/route-prefetch";
 
 // Componentes da Plataforma
 const Hub = lazy(() => import("./pages/plataforma/Hub"));
@@ -354,30 +355,11 @@ const AppLayoutRoute = () => (
 );
 
 /**
- * Baixa em segundo plano os chunks das páginas do dia a dia assim que o
- * navegador fica ocioso. O code splitting deixou o bundle inicial 75% menor,
- * mas cobrava um "piscar" na PRIMEIRA visita de cada rota — com o prefetch o
- * chunk já está em cache quando a pessoa clica, e o ganho vem sem o custo.
- * `import()` é idempotente: chamar de novo reaproveita o módulo já carregado.
+ * Rede de segurança do prefetch: baixa os chunks em série quando o navegador
+ * fica ocioso. A defesa principal é o `onMouseEnter` nos links da sidebar
+ * (ver src/lib/route-prefetch.ts) — esta cobre quem navega por teclado ou
+ * digitando a URL.
  */
-const prefetchRotasFrequentes = () => {
-  const rotas = [
-    () => import("./pages/Dashboard"),
-    () => import("./pages/Leads"),
-    () => import("./pages/Conversas"),
-    () => import("./pages/Agendamentos"),
-    () => import("./pages/Vendas"),
-    () => import("./pages/Notifications"),
-    () => import("./pages/Metas"),
-    () => import("./pages/Performance"),
-  ];
-  // Em série, para não competir por banda com as requisições da tela atual.
-  rotas.reduce(
-    (fila, carregar) => fila.then(() => carregar().then(() => undefined, () => undefined)),
-    Promise.resolve(),
-  );
-};
-
 function PrefetchDeRotas() {
   useEffect(() => {
     const agendar = (window as any).requestIdleCallback
