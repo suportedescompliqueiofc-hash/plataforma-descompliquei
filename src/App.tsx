@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,11 @@ import Notifications from "./pages/Notifications";
 import Vendas from "./pages/Vendas";
 import { Navigate } from "react-router-dom";
 import Cadences from "./pages/Cadences";
-import MarketingTrafego from "./pages/MarketingTrafego";
-import Agendamentos from "./pages/Agendamentos";
+// Carregadas sob demanda: cada uma arrasta uma biblioteca pesada para o bundle
+// inicial (FullCalendar, recharts, Excalidraw+mermaid+cytoscape+katex). Quem abre
+// o login não precisa baixar nada disso. Ver o Suspense que envolve <Routes>.
+const MarketingTrafego = lazy(() => import("./pages/MarketingTrafego"));
+const Agendamentos = lazy(() => import("./pages/Agendamentos"));
 import Metas from "./pages/Metas";
 import Equipe from "./pages/Equipe";
 import Performance from "./pages/Performance";
@@ -34,7 +37,7 @@ import Procedimentos from "./pages/Procedimentos";
 import JornadaPaciente from "./pages/JornadaPaciente";
 import CriativosBiblioteca from "./pages/CriativosBiblioteca";
 import CriativosPasta from "./pages/CriativosPasta";
-import Canvas from "./pages/Canvas";
+const Canvas = lazy(() => import("./pages/Canvas"));
 import SuperAdmin from "./pages/SuperAdmin";
 import { TutorialProvider } from "./components/tutorial/TutorialProvider";
 import { TutorialSpotlight } from "./components/tutorial/TutorialSpotlight";
@@ -54,7 +57,7 @@ import OutboundPainel from "./pages/outbound/OutboundPainel";
 import OutboundProspectos from "./pages/outbound/OutboundProspectos";
 import OutboundPipeline from "./pages/outbound/OutboundPipeline";
 import OutboundLigacoes from "./pages/outbound/OutboundLigacoes";
-import OutboundAgendamentos from "./pages/outbound/OutboundAgendamentos";
+const OutboundAgendamentos = lazy(() => import("./pages/outbound/OutboundAgendamentos"));
 import OutboundConversas from "./pages/outbound/OutboundConversas";
 import OutboundVendas from "./pages/outbound/OutboundVendas";
 import OutboundScripts from "./pages/outbound/OutboundScripts";
@@ -351,6 +354,11 @@ const App = () => (
               <OnboardingPlataformaChecklist />
               <AtualizacoesPopup />
               <AthosOSProvider>
+              <Suspense fallback={
+                <div className="min-h-screen flex items-center justify-center bg-background">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              }>
               <Routes>
             {/* CRM — AppLayout persiste, CrmGuard só controla o conteúdo */}
             <Route path="/crm/login" element={<Navigate to="/login" replace />} />
@@ -471,6 +479,7 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+              </Suspense>
               </AthosOSProvider>
               </TutorialProvider>
               </DashboardLeadsModalProvider>
