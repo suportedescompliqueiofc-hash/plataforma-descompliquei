@@ -332,8 +332,61 @@ const AppLayoutInner = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+/**
+ * Fallback de rota: um respiro no lugar do conteúdo, NUNCA a tela inteira.
+ * Fica dentro do AppLayout de propósito — sidebar e header continuam montados
+ * enquanto o chunk da página baixa. Com o Suspense em volta do <Routes> inteiro,
+ * o app piscava como se tivesse recarregado a cada primeira visita a uma rota.
+ */
+const ConteudoCarregando = () => (
+  <div className="flex items-center justify-center py-24">
+    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground/60" />
+  </div>
+);
+
 /** Layout route version of AppLayout — persists sidebar across route changes */
-const AppLayoutRoute = () => <AppLayout><Outlet /></AppLayout>;
+const AppLayoutRoute = () => (
+  <AppLayout>
+    <Suspense fallback={<ConteudoCarregando />}>
+      <Outlet />
+    </Suspense>
+  </AppLayout>
+);
+
+/**
+ * Baixa em segundo plano os chunks das páginas do dia a dia assim que o
+ * navegador fica ocioso. O code splitting deixou o bundle inicial 75% menor,
+ * mas cobrava um "piscar" na PRIMEIRA visita de cada rota — com o prefetch o
+ * chunk já está em cache quando a pessoa clica, e o ganho vem sem o custo.
+ * `import()` é idempotente: chamar de novo reaproveita o módulo já carregado.
+ */
+const prefetchRotasFrequentes = () => {
+  const rotas = [
+    () => import("./pages/Dashboard"),
+    () => import("./pages/Leads"),
+    () => import("./pages/Conversas"),
+    () => import("./pages/Agendamentos"),
+    () => import("./pages/Vendas"),
+    () => import("./pages/Notifications"),
+    () => import("./pages/Metas"),
+    () => import("./pages/Performance"),
+  ];
+  // Em série, para não competir por banda com as requisições da tela atual.
+  rotas.reduce(
+    (fila, carregar) => fila.then(() => carregar().then(() => undefined, () => undefined)),
+    Promise.resolve(),
+  );
+};
+
+function PrefetchDeRotas() {
+  useEffect(() => {
+    const agendar = (window as any).requestIdleCallback
+      ?? ((fn: () => void) => setTimeout(fn, 2000));
+    const id = agendar(prefetchRotasFrequentes, { timeout: 5000 });
+    return () => (window as any).cancelIdleCallback?.(id);
+  }, []);
+  return null;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -355,6 +408,7 @@ const App = () => (
               <OnboardingPlataformaModal />
               <OnboardingPlataformaChecklist />
               <AtualizacoesPopup />
+              <PrefetchDeRotas />
               <AthosOSProvider>
               <Suspense fallback={
                 <div className="min-h-screen flex items-center justify-center bg-background">
