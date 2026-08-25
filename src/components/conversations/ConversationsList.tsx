@@ -338,27 +338,15 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
     if (!orgId) return;
 
     (async () => {
-      const PAGE_SIZE = 1000;
-      const allBotLeadIds = new Set<string>();
-      let from = 0;
+      // O DISTINCT roda no banco. Paginar `mensagens` aqui custava 311k linhas em
+      // ~312 requisições para produzir 680 ids — ver get_bot_lead_ids na migration
+      // 20260825133000.
+      const { data, error } = await supabase.rpc('get_bot_lead_ids' as any, {
+        p_org_id: orgId,
+      });
 
-      while (true) {
-        const { data, error } = await supabase
-          .from('mensagens')
-          .select('lead_id')
-          .eq('organization_id', orgId)
-          .eq('remetente', 'bot')
-          .range(from, from + PAGE_SIZE - 1);
-
-        if (error || !data || data.length === 0) break;
-        for (const row of data) {
-          if (row.lead_id) allBotLeadIds.add(row.lead_id);
-        }
-        if (data.length < PAGE_SIZE) break;
-        from += PAGE_SIZE;
-      }
-
-      setLeadsAtendidosIA(allBotLeadIds);
+      if (error || !data) return;
+      setLeadsAtendidosIA(new Set(data as string[]));
     })();
 
     const channel = supabase.channel('ia-filter-sync')

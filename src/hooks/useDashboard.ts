@@ -34,23 +34,15 @@ async function fetchAllBotMessages(orgId: string, startDate: string, endDate: st
 }
 
 async function fetchAllBotLeadIds(orgId: string) {
-  const PAGE_SIZE = 1000;
-  const leadIds = new Set<string>();
-  let from = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from('mensagens')
-      .select('lead_id')
-      .eq('organization_id', orgId)
-      .eq('remetente', 'bot')
-      .eq('automatica', false) // exclui confirmação/lembrete de agendamento
-      .range(from, from + PAGE_SIZE - 1);
-    if (error || !data || data.length === 0) break;
-    for (const m of data) if (m.lead_id) leadIds.add(m.lead_id);
-    if (data.length < PAGE_SIZE) break;
-    from += PAGE_SIZE;
-  }
-  return leadIds;
+  // DISTINCT no banco em vez de paginar `mensagens` linha a linha.
+  // p_automatica: false exclui confirmação/lembrete de agendamento — mesma
+  // semântica de antes. Ver migration 20260825133000_get_bot_lead_ids.
+  const { data, error } = await supabase.rpc('get_bot_lead_ids' as any, {
+    p_org_id: orgId,
+    p_automatica: false,
+  });
+  if (error || !data) return new Set<string>();
+  return new Set(data as string[]);
 }
 
 async function fetchAllHumanMessages(orgId: string, startDate: string, endDate: string) {
