@@ -16,29 +16,31 @@ import { BrandingProvider } from "@/contexts/BrandingContext";
 import { AppChromeProvider, useAppChrome } from "@/contexts/AppChromeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { PlataformaGuard } from "@/components/PlataformaGuard";
-import Dashboard from "./pages/Dashboard";
-import Leads from "./pages/Leads";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
-import Conversations from "./pages/Conversas";
-import Notifications from "./pages/Notifications";
-import Vendas from "./pages/Vendas";
 import { Navigate } from "react-router-dom";
-import Cadences from "./pages/Cadences";
-// Carregadas sob demanda: cada uma arrasta uma biblioteca pesada para o bundle
-// inicial (FullCalendar, recharts, Excalidraw+mermaid+cytoscape+katex). Quem abre
-// o login não precisa baixar nada disso. Ver o Suspense que envolve <Routes>.
+import NotFound from "./pages/NotFound"; // estático: é o fallback, buscar chunk p/ 404 não faz sentido
+
+// Toda página é carregada sob demanda. Antes eram 65 imports estáticos e ZERO
+// lazy: quem abria a tela de login baixava as 112 páginas, o painel de admin
+// inteiro e o Outbound junto. Cada `lazy` vira um chunk próprio, buscado só
+// quando a rota é visitada. O <Suspense> que envolve <Routes> cobre a espera.
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Leads = lazy(() => import("./pages/Leads"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Conversations = lazy(() => import("./pages/Conversas"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const Vendas = lazy(() => import("./pages/Vendas"));
+const Cadences = lazy(() => import("./pages/Cadences"));
 const MarketingTrafego = lazy(() => import("./pages/MarketingTrafego"));
 const Agendamentos = lazy(() => import("./pages/Agendamentos"));
-import Metas from "./pages/Metas";
-import Equipe from "./pages/Equipe";
-import Performance from "./pages/Performance";
-import Procedimentos from "./pages/Procedimentos";
-import JornadaPaciente from "./pages/JornadaPaciente";
-import CriativosBiblioteca from "./pages/CriativosBiblioteca";
-import CriativosPasta from "./pages/CriativosPasta";
+const Metas = lazy(() => import("./pages/Metas"));
+const Equipe = lazy(() => import("./pages/Equipe"));
+const Performance = lazy(() => import("./pages/Performance"));
+const Procedimentos = lazy(() => import("./pages/Procedimentos"));
+const JornadaPaciente = lazy(() => import("./pages/JornadaPaciente"));
+const CriativosBiblioteca = lazy(() => import("./pages/CriativosBiblioteca"));
+const CriativosPasta = lazy(() => import("./pages/CriativosPasta"));
 const Canvas = lazy(() => import("./pages/Canvas"));
-import SuperAdmin from "./pages/SuperAdmin";
+const SuperAdmin = lazy(() => import("./pages/SuperAdmin"));
 import { TutorialProvider } from "./components/tutorial/TutorialProvider";
 import { TutorialSpotlight } from "./components/tutorial/TutorialSpotlight";
 import { TutorialHelpCenter } from "./components/tutorial/TutorialHelpCenter";
@@ -47,40 +49,42 @@ import { MemberWelcomeModal } from "./components/onboarding/MemberWelcomeModal";
 import { NpsSurveyPopup } from "./components/nps/NpsSurveyPopup";
 import { OnboardingPlataformaChecklist } from "./components/plataforma/OnboardingPlataformaChecklist";
 import OnboardingPlataformaModal from "./components/plataforma/OnboardingPlataformaModal";
-import CrmOnboarding from "./pages/CrmOnboarding";
-import Atualizacoes from "./pages/Atualizacoes";
 import { AtualizacoesPopup } from "./components/atualizacoes/AtualizacoesPopup";
-import AdminAtualizacoes from "./pages/admin-os/pages/AdminAtualizacoes";
+const CrmOnboarding = lazy(() => import("./pages/CrmOnboarding"));
+const Atualizacoes = lazy(() => import("./pages/Atualizacoes"));
+const AdminAtualizacoes = lazy(() => import("./pages/admin-os/pages/AdminAtualizacoes"));
 
 // Outbound pages
-import OutboundPainel from "./pages/outbound/OutboundPainel";
-import OutboundProspectos from "./pages/outbound/OutboundProspectos";
-import OutboundPipeline from "./pages/outbound/OutboundPipeline";
-import OutboundLigacoes from "./pages/outbound/OutboundLigacoes";
-const OutboundAgendamentos = lazy(() => import("./pages/outbound/OutboundAgendamentos"));
-import OutboundConversas from "./pages/outbound/OutboundConversas";
-import OutboundVendas from "./pages/outbound/OutboundVendas";
-import OutboundScripts from "./pages/outbound/OutboundScripts";
-import OutboundCadencias from "./pages/outbound/OutboundCadencias";
-import OutboundMetas from "./pages/outbound/OutboundMetas";
-import OutboundConfiguracoes from "./pages/outbound/OutboundConfiguracoes";
 import { OutboundLayout } from "./components/outbound/OutboundLayout";
+const OutboundPainel = lazy(() => import("./pages/outbound/OutboundPainel"));
+const OutboundProspectos = lazy(() => import("./pages/outbound/OutboundProspectos"));
+const OutboundPipeline = lazy(() => import("./pages/outbound/OutboundPipeline"));
+const OutboundLigacoes = lazy(() => import("./pages/outbound/OutboundLigacoes"));
+const OutboundAgendamentos = lazy(() => import("./pages/outbound/OutboundAgendamentos"));
+const OutboundConversas = lazy(() => import("./pages/outbound/OutboundConversas"));
+const OutboundVendas = lazy(() => import("./pages/outbound/OutboundVendas"));
+const OutboundScripts = lazy(() => import("./pages/outbound/OutboundScripts"));
+const OutboundCadencias = lazy(() => import("./pages/outbound/OutboundCadencias"));
+const OutboundMetas = lazy(() => import("./pages/outbound/OutboundMetas"));
+const OutboundConfiguracoes = lazy(() => import("./pages/outbound/OutboundConfiguracoes"));
+
+// Admin OS — só superadmin entra aqui, não deve pesar no bundle de ninguém
 import AdminGuard from "./pages/admin-os/AdminGuard";
 import AdminLayout from "./pages/admin-os/AdminLayout";
-import AdminDashboard from "./pages/admin-os/pages/AdminDashboard";
-import AdminClientes from "./pages/admin-os/pages/AdminClientes";
-import AdminClientePerfil from "./pages/admin-os/pages/AdminClientePerfil";
-import AdminIAs from "./pages/admin-os/pages/AdminIAs";
-import AdminSessoes from "./pages/admin-os/pages/AdminSessoes";
-import AdminSistema from "./pages/admin-os/pages/AdminSistema";
-import AdminSuporte from "./pages/admin-os/pages/AdminSuporte";
-import AdminProdutos from "./pages/admin-os/pages/AdminProdutos";
-import AdminAthos from "./pages/admin-os/pages/AdminAthos";
-import AdminCS from "./pages/admin-os/pages/AdminCS";
-import AdminCSCliente from "./pages/admin-os/pages/AdminCSCliente";
-import AdminCSJornada from "./pages/admin-os/pages/AdminCSJornada";
-import AdminCSJornadaEditor from "./pages/admin-os/pages/AdminCSJornadaEditor";
-import AdminAcessoCliente from "./pages/admin-os/pages/AdminAcessoCliente";
+const AdminDashboard = lazy(() => import("./pages/admin-os/pages/AdminDashboard"));
+const AdminClientes = lazy(() => import("./pages/admin-os/pages/AdminClientes"));
+const AdminClientePerfil = lazy(() => import("./pages/admin-os/pages/AdminClientePerfil"));
+const AdminIAs = lazy(() => import("./pages/admin-os/pages/AdminIAs"));
+const AdminSessoes = lazy(() => import("./pages/admin-os/pages/AdminSessoes"));
+const AdminSistema = lazy(() => import("./pages/admin-os/pages/AdminSistema"));
+const AdminSuporte = lazy(() => import("./pages/admin-os/pages/AdminSuporte"));
+const AdminProdutos = lazy(() => import("./pages/admin-os/pages/AdminProdutos"));
+const AdminAthos = lazy(() => import("./pages/admin-os/pages/AdminAthos"));
+const AdminCS = lazy(() => import("./pages/admin-os/pages/AdminCS"));
+const AdminCSCliente = lazy(() => import("./pages/admin-os/pages/AdminCSCliente"));
+const AdminCSJornada = lazy(() => import("./pages/admin-os/pages/AdminCSJornada"));
+const AdminCSJornadaEditor = lazy(() => import("./pages/admin-os/pages/AdminCSJornadaEditor"));
+const AdminAcessoCliente = lazy(() => import("./pages/admin-os/pages/AdminAcessoCliente"));
 import { AcessoGuard } from "./components/AcessoGuard";
 import { OnboardingGuard } from "./components/plataforma/OnboardingGuard";
 import { CrmGuard } from "./components/CrmGuard";
@@ -96,21 +100,19 @@ import { cn } from "./lib/utils";
 import { MASTER_ORG_ID } from "./lib/constants";
 
 // Componentes da Plataforma
-import Hub from "./pages/plataforma/Hub";
-import Jornada from "./pages/plataforma/Jornada";
-import JornadaEstagio from "./pages/plataforma/JornadaEstagio";
-import DescompliqueiOS from "./pages/plataforma/DescompliqueiOS";
-import IAHub from "./pages/plataforma/IAHub";
-import IATipo from "./pages/plataforma/IATipo";
-import AthosConsole from "./pages/plataforma/AthosConsole";
-import AthosAgentPage from "./pages/plataforma/AthosAgentPage";
-import AthosMateriais from "./pages/plataforma/AthosMateriais";
-import Notas from "./pages/plataforma/Notas";
-import SessoesTaticas from "./pages/plataforma/SessoesTaticas";
-import Onboarding from "./pages/plataforma/Onboarding";
-import OnboardingAthos from "./pages/plataforma/OnboardingAthos";
-import Evolucao from "./pages/plataforma/Evolucao";
-import PlataformaLogin from "./pages/plataforma/PlataformaLogin";
+const Hub = lazy(() => import("./pages/plataforma/Hub"));
+const Jornada = lazy(() => import("./pages/plataforma/Jornada"));
+const JornadaEstagio = lazy(() => import("./pages/plataforma/JornadaEstagio"));
+const DescompliqueiOS = lazy(() => import("./pages/plataforma/DescompliqueiOS"));
+const AthosConsole = lazy(() => import("./pages/plataforma/AthosConsole"));
+const AthosAgentPage = lazy(() => import("./pages/plataforma/AthosAgentPage"));
+const AthosMateriais = lazy(() => import("./pages/plataforma/AthosMateriais"));
+const Notas = lazy(() => import("./pages/plataforma/Notas"));
+const SessoesTaticas = lazy(() => import("./pages/plataforma/SessoesTaticas"));
+const Onboarding = lazy(() => import("./pages/plataforma/Onboarding"));
+const OnboardingAthos = lazy(() => import("./pages/plataforma/OnboardingAthos"));
+const Evolucao = lazy(() => import("./pages/plataforma/Evolucao"));
+const PlataformaLogin = lazy(() => import("./pages/plataforma/PlataformaLogin"));
 import { PlataformaProvider } from "@/contexts/PlataformaContext";
 import { AthosOSProvider } from "@/contexts/AthosOSContext";
 
