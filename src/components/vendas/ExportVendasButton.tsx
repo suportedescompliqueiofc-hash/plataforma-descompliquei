@@ -5,8 +5,12 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { DateRange } from "react-day-picker";
 import { cn } from "@/lib/utils";
-import jsPDF from "jspdf";
-import ExcelJS from "exceljs";
+// jspdf + exceljs juntos respondiam por ~900 kB do chunk da página de Vendas,
+// baixados por todo mundo que abria /crm/vendas mesmo sem exportar nada.
+// Agora só os tipos entram no bundle; as libs são carregadas no clique.
+// Mesmo padrão já usado em src/lib/conversation-pdf.ts.
+import type JsPDFDoc from "jspdf";
+import type * as ExcelJS from "exceljs";
 
 // ── Tipos ──────────────────────────────────────────────────────
 
@@ -34,7 +38,8 @@ function periodDisplay(dateRange?: DateRange) {
 // ── XLSX Export ────────────────────────────────────────────────
 
 async function exportToXLSX(vendas: Venda[], dateRange?: DateRange) {
-  const wb = new ExcelJS.Workbook();
+  const { default: ExcelJSLib } = await import("exceljs");
+  const wb = new ExcelJSLib.Workbook();
   wb.creator = "Descompliquei CRM";
   wb.created = new Date();
 
@@ -261,7 +266,7 @@ async function exportToXLSX(vendas: Venda[], dateRange?: DateRange) {
 
 // ── PDF Export ─────────────────────────────────────────────────
 
-function truncateStr(doc: jsPDF, str: string, maxMm: number, fontSize: number): string {
+function truncateStr(doc: JsPDFDoc, str: string, maxMm: number, fontSize: number): string {
   doc.setFontSize(fontSize);
   const scale = doc.internal.scaleFactor;
   while (str.length > 2 && (doc.getStringUnitWidth(str) * fontSize) / scale > maxMm) {
@@ -270,7 +275,8 @@ function truncateStr(doc: jsPDF, str: string, maxMm: number, fontSize: number): 
   return str;
 }
 
-function exportToPDF(vendas: Venda[], dateRange?: DateRange) {
+async function exportToPDF(vendas: Venda[], dateRange?: DateRange) {
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
@@ -460,7 +466,7 @@ export function ExportVendasButton({ vendas, dateRange }: Props) {
     setOpen(false);
     try {
       if (type === "xlsx") await exportToXLSX(vendas, dateRange);
-      else exportToPDF(vendas, dateRange);
+      else await exportToPDF(vendas, dateRange);
     } finally {
       setTimeout(() => setExporting(null), 1500);
     }

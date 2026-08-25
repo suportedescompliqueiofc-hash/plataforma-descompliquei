@@ -111,14 +111,21 @@ async function callFollowupAI(systemPrompt: string, userPrompt: string): Promise
 
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
-      const truncou = data.choices?.[0]?.finish_reason === "length";
       console.error("[FOLLOWUP] Resposta IA sem JSON válido:", content.substring(0, 500));
-      // Distinguir truncamento de prosa: são causas diferentes e o motivo vai
-      // parar em ia_followup_log.motivo_ia, que é onde se diagnostica isso.
+      // O erro precisa dizer POR QUE falhou. A mensagem genérica anterior
+      // ("JSON não encontrado") escondia três causas diferentes — erro da
+      // OpenRouter devolvido com HTTP 200, resposta truncada em max_tokens, e
+      // prosa em vez de JSON — e mandou a gente pro caminho errado duas vezes.
+      const apiErro = data.error?.message || (data.error ? JSON.stringify(data.error) : null);
+      const finish = data.choices?.[0]?.finish_reason ?? "sem finish_reason";
       throw new Error(
-        truncou
-          ? `Resposta da IA truncada em max_tokens (${content.length} chars) — JSON incompleto`
-          : "JSON não encontrado na resposta da IA",
+        apiErro
+          ? `OpenRouter devolveu erro (HTTP 200): ${String(apiErro).substring(0, 200)}`
+          : content.length === 0
+            ? `Resposta da IA veio VAZIA (finish_reason=${finish}, modelo=${data.model ?? "?"})`
+            : finish === "length"
+              ? `Resposta truncada em max_tokens (${content.length} chars) — JSON incompleto`
+              : `IA respondeu sem JSON (${content.length} chars, finish=${finish}): ${content.substring(0, 120)}`,
       );
     }
 
