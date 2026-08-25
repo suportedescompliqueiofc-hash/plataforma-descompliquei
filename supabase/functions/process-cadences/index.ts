@@ -28,7 +28,8 @@ serve(async (req) => {
         lead_id,
         cadencia_id,
         passo_atual_ordem,
-        organization_id
+        organization_id,
+        status_ultima_execucao
       `)
       .eq('status', 'ativo')
       .lte('proxima_execucao', nowIso);
@@ -98,21 +99,10 @@ serve(async (req) => {
 
         const messageBody = (currentStep.conteudo || '').replace(/\{\{nome_lead\}\}/g, lead.nome || 'Cliente');
 
-        // 3. Registrar a mensagem no banco (para aparecer no chat)
-        const { data: savedMsg } = await supabaseAdmin
-          .from('mensagens')
-          .insert({
-            lead_id: lead.id,
-            organization_id: item.organization_id,
-            user_id: lead.usuario_id,
-            conteudo: messageBody,
-            direcao: 'saida',
-            remetente: 'bot',
-            tipo_conteudo: currentStep.tipo_mensagem || 'texto',
-            media_path: url_midia,
-          })
-          .select('id')
-          .single();
+        // 3. A mensagem só é gravada DEPOIS do envio dar certo (ver passo 6b).
+        // Gravar antes fazia cada tentativa fracassada virar uma linha em
+        // `mensagens`: em 21-23/08/2026 isso gerou 176.676 mensagens fantasma,
+        // 56% da tabela, e derrubou a performance de toda a plataforma.
 
         // 4. Formatar telefone para UAZAPI
         const telefoneDigits = (lead.telefone || '').replace(/\D/g, '');
@@ -159,10 +149,20 @@ serve(async (req) => {
         const uazData = await response.json();
         const waMessageId = uazData?.id ?? uazData?.messageid ?? null;
 
-        // Atualizar msg salva com ID do whatsapp
-        if (waMessageId && savedMsg?.id) {
-          await supabaseAdmin.from('mensagens').update({ id_mensagem: waMessageId }).eq('id', savedMsg.id);
-        }
+        // 6b. Envio confirmado — agora sim a mensagem entra no chat.
+        await supabaseAdmin
+          .from('mensagens')
+          .insert({
+            lead_id: lead.id,
+            organization_id: item.organization_id,
+            user_id: lead.usuario_id,
+            conteudo: messageBody,
+            direcao: 'saida',
+            remetente: 'bot',
+            tipo_conteudo: currentStep.tipo_mensagem || 'texto',
+            media_path: url_midia,
+            id_mensagem: waMessageId,
+          });
 
         // 7. Calcular próxima execução
         const followingStep = steps.find(s => s.posicao_ordem === (nextStepOrder + 1));
@@ -209,12 +209,27 @@ serve(async (req) => {
       } catch (err: any) {
         console.error(`[process-cadences] Falha no lead ${item.lead_id}:`, err.message);
         const now = new Date();
+
+        // Sem isto o passo nunca desiste: o catch não mexia em `proxima_execucao`,
+        // que continuava no passado, então o mesmo lead era reselecionado a cada
+        // execução do cron (*/1). Erros permanentes — "not on WhatsApp",
+        // "missing file field", "Lead não encontrado" — viravam laço infinito:
+        // 1.440 tentativas por lead por dia, 210 mil falhas em 3 dias.
+        // Uma nova tentativa em 30 min cobre falha transitória (rede, WhatsApp
+        // reconectando); a segunda falha seguida encerra a cadência do lead.
+        // ponytail: 2 tentativas fixas usando as colunas que já existem. Se um dia
+        // precisar de backoff por classe de erro, aí sim vale uma coluna de contador.
+        const jaHaviaFalhado = item.status_ultima_execucao === 'erro';
+
         await supabaseAdmin
           .from('lead_cadencias')
-          .update({ 
+          .update({
             ultima_execucao: now.toISOString(),
             status_ultima_execucao: 'erro',
-            erro_log: err.message
+            erro_log: err.message,
+            ...(jaHaviaFalhado
+              ? { status: 'erro', proxima_execucao: null }
+              : { proxima_execucao: addMinutes(now, 30).toISOString() }),
           })
           .eq('id', item.id);
 
