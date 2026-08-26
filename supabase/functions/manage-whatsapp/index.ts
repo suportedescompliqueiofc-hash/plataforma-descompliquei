@@ -57,16 +57,24 @@ serve(async (req: Request) => {
       if (conn?.uazapi_token && conn?.instance_name) {
         const uazHeaders = { 'token': conn.uazapi_token, 'Content-Type': 'application/json' }
         const connectRes = await fetch(`${baseUrl}/instance/connect`, { method: 'POST', headers: uazHeaders, body: JSON.stringify({}) })
-        const connectData = await connectRes.json()
-        const qr = connectData?.instance?.qrcode || connectData?.qrcode || null
-        if (connectData?.connected) {
-          await supabaseAdmin.from('whatsapp_connections').update({ status: 'connected', qr_code: null, last_connected_at: new Date().toISOString() }).eq('id', conn.id)
-          return new Response(JSON.stringify({ status: 'connected' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+        const connectData = await connectRes.json().catch(() => ({}))
+
+        // Token inválido/expirado no provedor (ex: instância recriada do lado da UAZAPI) —
+        // não trava em "desconectado" para sempre, cai para o fluxo de criação de instância nova abaixo.
+        if (!connectRes.ok) {
+          console.error('UAZAPI reconnect falhou, recriando instância:', connectRes.status, JSON.stringify(connectData))
+        } else {
+          const qr = connectData?.instance?.qrcode || connectData?.qrcode || null
+          if (connectData?.connected) {
+            await supabaseAdmin.from('whatsapp_connections').update({ status: 'connected', qr_code: null, last_connected_at: new Date().toISOString() }).eq('id', conn.id)
+            return new Response(JSON.stringify({ status: 'connected' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+          }
+          if (qr) {
+            await supabaseAdmin.from('whatsapp_connections').update({ status: 'qr_pending', qr_code: qr }).eq('id', conn.id)
+            return new Response(JSON.stringify({ status: 'qr_pending', qr }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+          }
+          return new Response(JSON.stringify({ status: 'qr_pending', qr: null }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
         }
-        if (qr) {
-          await supabaseAdmin.from('whatsapp_connections').update({ status: 'qr_pending', qr_code: qr }).eq('id', conn.id)
-        }
-        return new Response(JSON.stringify({ status: 'qr_pending', qr }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
       }
 
       // Cria nova instância usando o admin token
