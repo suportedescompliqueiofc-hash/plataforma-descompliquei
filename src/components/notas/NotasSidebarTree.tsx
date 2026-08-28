@@ -375,7 +375,7 @@ function TreeRow({
         <button
           {...attributes}
           {...listeners}
-          onClick={() => { onSelect(node.id); if (podeExpandir) onToggle(node.id); }}
+          onClick={() => onSelect(node.id)}
           className="flex-1 flex items-center gap-1.5 py-1.5 text-[12.5px] font-medium truncate text-left cursor-pointer"
         >
           <PaginaIcone node={node} isOpen={isOpen} />
