@@ -134,13 +134,21 @@ export function useCadences() {
 
         if (dispatchError) throw dispatchError;
 
-        const inserts = leadIds.map(leadId => {
-            const randomDelay = Math.floor(Math.random() * (maxDelay - minDelay + 1) + minDelay);
-            let executionDate = new Date();
+        // Intervalo de segurança em ms puro, sem passar pelas funções addX do
+        // date-fns: addDays trunca a fração aleatória pra inteiro e descartava
+        // o segundo aleatório inteiro pra cadências em "dias" (o caso mais comum).
+        // Também empilha o atraso de cada lead sobre o anterior — sorteios
+        // independentes a partir de "agora" podiam cair perto um do outro por
+        // acaso e o cron mandava os dois na mesma execução.
+        const baseWaitMs = firstStep.unidade_tempo === 'minutos' ? firstStep.tempo_espera * 60_000
+            : firstStep.unidade_tempo === 'horas' ? firstStep.tempo_espera * 3_600_000
+            : firstStep.tempo_espera * 86_400_000;
+        const baseNow = Date.now();
+        let cumulativeDelayMs = 0;
 
-            if (firstStep.unidade_tempo === 'minutos') executionDate = addMinutes(executionDate, firstStep.tempo_espera + (randomDelay / 60));
-            else if (firstStep.unidade_tempo === 'horas') executionDate = addHours(executionDate, firstStep.tempo_espera + (randomDelay / 3600));
-            else executionDate = addDays(executionDate, firstStep.tempo_espera + (randomDelay / 86400));
+        const inserts = leadIds.map(leadId => {
+            cumulativeDelayMs += Math.floor(Math.random() * (maxDelay - minDelay + 1) + minDelay) * 1000;
+            const executionDate = new Date(baseNow + baseWaitMs + cumulativeDelayMs);
 
             return {
                 organization_id: orgId,
