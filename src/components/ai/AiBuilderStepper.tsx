@@ -81,6 +81,7 @@ type AgentPromptFormData = {
   sendInstagram: boolean;
   presentationTone: "emocional" | "equilibrado" | "direto";
   customHandoff: string;
+  customHandoffForaHorario: string;
 };
 type CrmProcedure = { nome: string };
 
@@ -196,6 +197,7 @@ export function AiBuilderStepper({
   const [customQs, setCustomQs] = useState<boolean[]>(() => (data.customQuestions ?? []).map((q) => !!q));
   const [customGreeting, setCustomGreeting] = useState(() => !!data.customGreeting);
   const [customHandoff, setCustomHandoff] = useState(() => !!data.customHandoff);
+  const [customHandoffForaHorario, setCustomHandoffForaHorario] = useState(() => !!data.customHandoffForaHorario);
 
   const DEFAULT_QUESTIONS = [
     { label: "O que incomoda", text: "Me conta, o que você quer melhorar?" },
@@ -673,6 +675,25 @@ export function AiBuilderStepper({
                   {customHandoff && (
                     <div className="px-4 pb-3 pt-2 border-t border-border/40">
                       <Textarea value={data.customHandoff} onChange={(e) => onFieldChange("customHandoff", e.target.value)} className={`${TC} min-h-[70px] resize-y`} disabled={disabled} placeholder="Digite sua frase de handoff..." />
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-lg border border-border/60 bg-background overflow-hidden mt-3">
+                  <div className="flex items-center justify-between gap-3 px-4 py-3 bg-muted/20">
+                    <div>
+                      <p className="text-sm font-medium">Frase de handoff fora do horário</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Usada quando o lead escreve fora do horário de atendimento humano definido no Passo 3. Padrão: <span className="italic">"Que bom, [Nome]! Tenho certeza que vamos te entregar o resultado que você espera. No momento estamos fora do nosso horário de atendimento, mas vou passar seu atendimento pra [equipe] — assim que reabrirmos, eles entram em contato com você por aqui. 😊"</span>
+                      </p>
+                    </div>
+                    <Button type="button" variant={customHandoffForaHorario ? "secondary" : "outline"} size="sm" className="h-8 rounded-lg text-xs font-medium shrink-0 gap-1.5" onClick={() => { const next = !customHandoffForaHorario; setCustomHandoffForaHorario(next); if (!next) onFieldChange("customHandoffForaHorario", ""); }} disabled={disabled}>
+                      {customHandoffForaHorario ? (<><X className="h-3.5 w-3.5" /> Voltar ao padrão</>) : (<><Sparkles className="h-3.5 w-3.5" /> Personalizar</>)}
+                    </Button>
+                  </div>
+                  {customHandoffForaHorario && (
+                    <div className="px-4 pb-3 pt-2 border-t border-border/40">
+                      <Textarea value={data.customHandoffForaHorario} onChange={(e) => onFieldChange("customHandoffForaHorario", e.target.value)} className={`${TC} min-h-[70px] resize-y`} disabled={disabled} placeholder="Digite sua frase de handoff fora do horário..." />
                     </div>
                   )}
                 </div>

@@ -37,6 +37,7 @@ type AgentPromptFormData = {
   sendInstagram: boolean;
   presentationTone: "emocional" | "equilibrado" | "direto";
   customHandoff: string;
+  customHandoffForaHorario: string;
 };
 
 type ParsedPromptResult = { ok: true; data: AgentPromptFormData } | { ok: false };
@@ -90,6 +91,7 @@ function createEmptyFormData(): AgentPromptFormData {
     sendInstagram: true,
     presentationTone: "equilibrado",
     customHandoff: "",
+    customHandoffForaHorario: "",
   };
 }
 
@@ -199,6 +201,7 @@ function buildPromptMarkdown(data: AgentPromptFormData): string {
     `Enviar Instagram na apresentação: ${data.sendInstagram ? "Sim" : "Não"}`,
     `Tom da apresentação: ${data.presentationTone}`,
     `Frase de handoff personalizada: ${data.customHandoff.trim() || "(usar padrão)"}`,
+    `Frase de handoff fora do horário de atendimento: ${data.customHandoffForaHorario.trim() || "(usar padrão)"}`,
   ];
 
   return sections.join("\n").trim();
@@ -229,6 +232,7 @@ const FLOW_LABEL_PATTERNS = [
   "Enviar Instagram na apresentação",
   "Tom da apresentação",
   "Frase de handoff personalizada",
+  "Frase de handoff fora do horário de atendimento",
 ];
 
 // Igual ao extractLabeledValue, mas preserva valores de VÁRIAS linhas (ex: uma
@@ -328,6 +332,7 @@ function parsePromptMarkdown(markdown: string): ParsedPromptResult {
       sendInstagram: flowSection ? parseYesNo(extractLabeledValue(flowSection, "Enviar Instagram na apresentação")) : true,
       presentationTone: (flowSection ? extractLabeledValue(flowSection, "Tom da apresentação") ?? "equilibrado" : "equilibrado") as "emocional" | "equilibrado" | "direto",
       customHandoff: flowSection ? (extractLabeledBlock(flowSection, "Frase de handoff personalizada") ?? "").replace(/^\(usar padrão\)$/, "") : "",
+      customHandoffForaHorario: flowSection ? (extractLabeledBlock(flowSection, "Frase de handoff fora do horário de atendimento") ?? "").replace(/^\(usar padrão\)$/, "") : "",
     },
   };
 }

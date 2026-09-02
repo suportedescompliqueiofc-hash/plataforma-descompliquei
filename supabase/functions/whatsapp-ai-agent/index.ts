@@ -1146,7 +1146,8 @@ Deno.serve(async (req: Request) => {
       if (horario.sunday_closed !== false)
         parts.push('Domingo: Fechado');
       if (parts.length > 0)
-        horarioStr = `\n\n## HORARIO DE ATENDIMENTO HUMANO\n${parts.join('\n')}`;
+        horarioStr = `\n\n## HORARIO DE ATENDIMENTO HUMANO\n${parts.join('\n')}`
+          + `\nSe a data/hora atual (informada no final deste prompt) cair fora dessas faixas, ao fazer o handoff use a "Frase de handoff fora do horário de atendimento" configurada na secao PERSONALIZACAO DO FLUXO (em vez da "Frase de handoff personalizada" normal). Se ela estiver como "(usar padrão)", adapte a frase de handoff normal avisando que a equipe respondera assim que o horario de atendimento reabrir.`;
     }
 
     const pgto = aiConfig.formas_pagamento;
