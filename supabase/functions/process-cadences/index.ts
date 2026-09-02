@@ -20,25 +20,18 @@ serve(async (req) => {
   try {
     console.log("[process-cadences] Verificando envios agendados...");
 
-    const nowIso = new Date().toISOString();
+    // Reserva atomicamente as linhas antes de processar (FOR UPDATE SKIP LOCKED),
+    // senão execuções do cron que se sobrepõem (lote grande, UAZAPI lento) pegam
+    // as mesmas linhas e mandam a mesma mensagem 2-3x. Foi isso que aconteceu em
+    // 02/09/2026 quando o backlog de 9 dias parado foi reprocessado de uma vez.
     const { data: leadsInCadence, error: fetchError } = await supabaseAdmin
-      .from('lead_cadencias')
-      .select(`
-        id,
-        lead_id,
-        cadencia_id,
-        passo_atual_ordem,
-        organization_id,
-        status_ultima_execucao
-      `)
-      .eq('status', 'ativo')
-      .lte('proxima_execucao', nowIso);
+      .rpc('claim_due_lead_cadencias', { p_limit: 200 });
 
     if (fetchError) throw fetchError;
-    
+
     if (!leadsInCadence || leadsInCadence.length === 0) {
-      return new Response(JSON.stringify({ success: true, count: 0 }), { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      return new Response(JSON.stringify({ success: true, count: 0 }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
@@ -52,7 +45,7 @@ serve(async (req) => {
           .select('id, nome, telefone, usuario_id')
           .eq('id', item.lead_id)
           .single();
-        
+
         if (leadError || !lead) throw new Error("Lead não encontrado.");
 
         // 2. Buscar conexão WhatsApp ativa para a organização
@@ -181,11 +174,11 @@ serve(async (req) => {
           finalStatus = 'concluido';
         }
 
-        // 8. Atualiza estado e REGISTRA LOG HISTÓRICO
+        // 8. Atualiza estado (sai de 'processando') e REGISTRA LOG HISTÓRICO
         await supabaseAdmin
           .from('lead_cadencias')
-          .update({ 
-            passo_atual_ordem: nextStepOrder, 
+          .update({
+            passo_atual_ordem: nextStepOrder,
             proxima_execucao: nextDate,
             status: finalStatus,
             ultima_execucao: now.toISOString(),
@@ -221,6 +214,9 @@ serve(async (req) => {
         // precisar de backoff por classe de erro, aí sim vale uma coluna de contador.
         const jaHaviaFalhado = item.status_ultima_execucao === 'erro';
 
+        // status precisa ser reescrito sempre (não só quando falha 2x): a linha
+        // saiu de 'ativo' pra 'processando' na reserva (claim), então tem que
+        // sair de 'processando' aqui também, senão fica presa até o auto-cura.
         await supabaseAdmin
           .from('lead_cadencias')
           .update({
@@ -229,7 +225,7 @@ serve(async (req) => {
             erro_log: err.message,
             ...(jaHaviaFalhado
               ? { status: 'erro', proxima_execucao: null }
-              : { proxima_execucao: addMinutes(now, 30).toISOString() }),
+              : { status: 'ativo', proxima_execucao: addMinutes(now, 30).toISOString() }),
           })
           .eq('id', item.id);
 
@@ -253,9 +249,9 @@ serve(async (req) => {
     });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
 });
