@@ -167,7 +167,7 @@ export function useCadences() {
     }
   });
 
-  return { cadences, isLoading, createCadence: createCadence.mutate, updateCadence: updateCadence.mutate, deleteCadence: deleteCadence.mutate, bulkStartCadence: bulkStartCadence.mutate, isCreating: createCadence.isPending, isUpdating: updateCadence.isPending };
+  return { cadences, isLoading, createCadence: createCadence.mutate, updateCadence: updateCadence.mutate, deleteCadence: deleteCadence.mutate, bulkStartCadence: bulkStartCadence.mutateAsync, isCreating: createCadence.isPending, isUpdating: updateCadence.isPending };
 }
 
 export function useLeadCadence(leadId: string | undefined) {
