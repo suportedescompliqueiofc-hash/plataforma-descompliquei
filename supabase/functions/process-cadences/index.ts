@@ -106,21 +106,26 @@ serve(async (req) => {
         // 5. Preparar Payload UAZAPI
         const uazapiUrl = conn.uazapi_url.replace(/\/$/, '');
         let endpoint = '/send/text';
-        let uazPayload: any = { number: phoneFormatted };
+        let uazPayload: any;
 
+        // UAZAPI: todo tipo de mídia usa POST /send/media com { number, type, file, text }
+        // (mesmo contrato de send-quick-message/index.ts). Os campos mediaUrl/caption/url/filename
+        // não existem na API — geravam "missing file field" em toda cadência com passo de mídia.
         const tipo = currentStep.tipo_mensagem;
-        if (tipo === 'imagem' || tipo === 'audio' || tipo === 'video') {
+        if (tipo === 'audio') {
           endpoint = '/send/media';
-          uazPayload.mediaUrl = url_midia;
-          uazPayload.caption = tipo === 'audio' ? '' : messageBody;
+          uazPayload = { number: phoneFormatted, type: 'ptt', file: url_midia };
+        } else if (tipo === 'imagem') {
+          endpoint = '/send/media';
+          uazPayload = { number: phoneFormatted, type: 'image', file: url_midia, text: messageBody };
+        } else if (tipo === 'video') {
+          endpoint = '/send/media';
+          uazPayload = { number: phoneFormatted, type: 'video', file: url_midia, text: messageBody };
         } else if (tipo === 'pdf') {
-          endpoint = '/send/document';
-          uazPayload.url = url_midia;
-          uazPayload.filename = cadence.nome || 'documento.pdf';
-          uazPayload.caption = messageBody;
+          endpoint = '/send/media';
+          uazPayload = { number: phoneFormatted, type: 'document', file: url_midia, docName: cadence.nome || 'documento.pdf', text: messageBody };
         } else {
-          uazPayload.text = messageBody;
-          uazPayload.delay = 1200;
+          uazPayload = { number: phoneFormatted, text: messageBody, delay: 1200 };
         }
 
         // 6. Disparar via UAZAPI
