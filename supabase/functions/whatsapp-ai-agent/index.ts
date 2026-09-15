@@ -1159,7 +1159,7 @@ Deno.serve(async (req: Request) => {
     // 1. Lead
     const { data: lead, error: leadErr } = await supabase
       .from("leads")
-      .select("id, nome, telefone, ia_ativa, ia_paused_until, ai_pending_since, origem")
+      .select("id, nome, telefone, ia_ativa, ia_paused_until, ai_pending_since, origem, is_scheduled, is_closed")
       .eq("id", lead_id)
       .single();
 
@@ -1208,11 +1208,17 @@ Deno.serve(async (req: Request) => {
         .eq("lead_id", lead_id)
         .eq("tag_id", aiConfig.tag_reativacao_id)
         .maybeSingle();
-      if (temTagReativacao) {
+      // Regra de ouro da reativação: nunca vale pra quem já está agendado ou
+      // fechado de verdade. Incidente 2026-09-15: um lead com agendamento
+      // confirmado recebeu a IA de reativação perguntando se ela queria
+      // remarcar do zero. Trava aqui, não só na seleção de leads da campanha.
+      if (temTagReativacao && !lead.is_scheduled && !lead.is_closed) {
         promptAtivo = aiConfig.prompt_reativacao;
         modeloIaAtivo = aiConfig.modelo_ia_reativacao || aiConfig.modelo_ia;
         isReativacaoAtiva = true;
         console.log(`[AI-Agent] Lead ${lead_id}: usando prompt de reativação (tag ${aiConfig.tag_reativacao_id}).`);
+      } else if (temTagReativacao) {
+        console.log(`[AI-Agent] Lead ${lead_id}: tem etiqueta de reativação mas já está agendado/fechado, usando prompt padrão.`);
       }
     }
 
