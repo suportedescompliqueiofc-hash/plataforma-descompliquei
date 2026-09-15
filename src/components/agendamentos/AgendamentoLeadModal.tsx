@@ -405,7 +405,7 @@ export default function AgendamentoLeadModal({ isOpen, onClose, leadId, leadNome
                     )}
                     {podeNoShow && (
                       <button
-                        onClick={() => handleChangeStatus("no_show")}
+                        onClick={() => handleChangeStatus("nao_compareceu")}
                         disabled={loading}
                         className="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors disabled:opacity-50"
                       >
