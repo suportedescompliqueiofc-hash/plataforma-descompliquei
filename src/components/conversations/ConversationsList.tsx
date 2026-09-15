@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { TAG_COLORS, useTags, Tag } from "@/hooks/useTags";
 import { useLeads } from "@/hooks/useLeads";
 import { useCadences, useLeadCadence } from "@/hooks/useCadences";
+import { useLeadCadencias } from "@/hooks/useLeadCadencias";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -320,6 +321,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
   const { updateLead, deleteLead } = useLeads();
   const { cadences } = useCadences();
   const { startCadence } = useLeadCadence(undefined);
+  const { cadencias, leadCadenciaMap } = useLeadCadencias();
   const { profile } = useProfile();
   const isAnnaClaraOrg = profile?.organization_id === ANNA_CLARA_ORG_ID;
 
@@ -433,6 +435,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
 
   // Estados de Filtro
   const [filters, setFilters] = useState({
+    cadenciaId: "all",
     origin: "all",
     tagId: "all",
     iaFilter: "all",
@@ -459,6 +462,7 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
 
       const originMatch = filters.origin === "all" || c.origem === filters.origin;
       const tagMatch = filters.tagId === "all" || c.tags?.some(tag => tag.id === filters.tagId);
+      const cadenciaMatch = filters.cadenciaId === "all" || !!leadCadenciaMap[c.id]?.has(filters.cadenciaId);
       const iaMatch = filters.iaFilter === "all"
         || (filters.iaFilter === "com_ia" && leadsAtendidosIA.has(c.id))
         || (filters.iaFilter === "sem_ia" && !leadsAtendidosIA.has(c.id));
@@ -480,14 +484,14 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
         (s === "fechado" && (c as any).is_closed)
       );
 
-      return nameMatch && originMatch && tagMatch && iaMatch && dateMatch && outboundMatch && statusMatch;
+      return nameMatch && originMatch && tagMatch && cadenciaMatch && iaMatch && dateMatch && outboundMatch && statusMatch;
     });
-  }, [conversations, searchTerm, filters, messageSearchLeadIds, origemFilter, leadsAtendidosIA]);
+  }, [conversations, searchTerm, filters, messageSearchLeadIds, origemFilter, leadsAtendidosIA, leadCadenciaMap]);
 
-  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.iaFilter !== "all" || !!filters.dateRange || filters.status.length > 0;
+  const hasActiveFilters = filters.origin !== "all" || filters.tagId !== "all" || filters.cadenciaId !== "all" || filters.iaFilter !== "all" || !!filters.dateRange || filters.status.length > 0;
 
   const resetFilters = () => {
-    setFilters({ origin: "all", tagId: "all", iaFilter: "all", dateRange: undefined, status: [] });
+    setFilters({ cadenciaId: "all", origin: "all", tagId: "all", iaFilter: "all", dateRange: undefined, status: [] });
   };
 
   const handleToggleSelection = (id: string) => {
@@ -781,6 +785,26 @@ export function ConversationsList({ origemFilter, basePath = '/crm/conversas', o
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* Cadência */}
+                  {cadencias.length > 0 && (
+                    <div className="space-y-1.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Zap className="h-3 w-3" /> Cadência
+                      </p>
+                      <Select value={filters.cadenciaId} onValueChange={(v) => setFilters(f => ({ ...f, cadenciaId: v }))}>
+                        <SelectTrigger className="h-9 text-xs rounded-lg border-border/60">
+                          <SelectValue placeholder="Todas as cadências" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Todas as cadências</SelectItem>
+                          {cadencias.map(cadencia => (
+                            <SelectItem key={cadencia.id} value={cadencia.id}>{cadencia.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   {/* Atendimento IA */}
                   <div className="space-y-1.5">
