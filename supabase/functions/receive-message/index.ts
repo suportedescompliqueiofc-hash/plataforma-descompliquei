@@ -320,11 +320,14 @@ serve(async (req) => {
       }
     }
 
-    // ── Detecção por mensagem padrão do Instagram — Mentoria (Dr. Derek) ────
-    // Exclusiva do Dr. Derek: candidatos a aluno da mentoria clicam num anúncio
-    // diferente do de leads de estética e chegam com esta frase pré-preenchida.
-    // Mesma técnica de normalização/comparação (NFC + startsWith) da regra acima,
-    // para não quebrar com acento composto vindo do WhatsApp.
+    // ── Detecção de Mentoria (Dr. Derek) ─────────────────────────────────────
+    // Exclusiva do Dr. Derek: candidatos a aluno da mentoria não podem cair na
+    // IA de pré-atendimento de estética (Thamiris) em NENHUMA hipótese — nem
+    // pelo anúncio dedicado (frase pré-preenchida), nem por escrever livremente
+    // sobre "mentoria" na primeira mensagem. Por isso o match cobre as duas
+    // formas: startsWith na frase do anúncio OU a palavra "mentoria" em
+    // qualquer lugar do texto (normalizado NFC + case-insensitive, pra não
+    // quebrar com acento composto do WhatsApp nem variação de caixa).
     //
     // IMPORTANTE: a origem aqui é 'mentoria', NUNCA 'marketing'. A linha ~413
     // (`ia_ativa: detectedOrigem === 'marketing' ? true : null`) usa detectedOrigem
@@ -337,7 +340,8 @@ serve(async (req) => {
     if (orgId === DR_DEREK_ORG_ID) {
       const textTrimmed = (text || '').trim().normalize('NFC');
       const mentoriaNorm = MENTORIA_BASE_PHRASE.normalize('NFC');
-      const mentoriaMatch = textTrimmed.startsWith(mentoriaNorm);
+      const mentoriaMatch = textTrimmed.startsWith(mentoriaNorm)
+        || textTrimmed.toLowerCase().includes('mentoria');
       console.log(`[INSTAGRAM-MENTORIA-DR-DEREK] orgId match: true | fromMe: ${fromMe} | detectedOrigem: ${detectedOrigem} | mentoriaMatch: ${mentoriaMatch} | text: "${textTrimmed.substring(0, 100)}"`);
 
       if (detectedOrigem === 'organico' && !fromMe && mentoriaMatch) {

@@ -236,6 +236,12 @@ function isUnreadableMessage(text: string): boolean {
 
 function normalizeOutgoingMessage(value: string): string {
   return value
+    // Trava determinística: nenhuma mensagem sai com travessão, mesmo que o
+    // modelo ignore a instrução do prompt (LLMs usam "—" com frequência mesmo
+    // quando instruídos a não usar). Regra vale para toda a plataforma, não só
+    // pra IA de reativação — o prompt base já proíbe, isto só garante de fato.
+    .replace(/\s*[—–]\s*/g, ", ")
+    .replace(/,\s*,/g, ",")
     .trim()
     .replace(/[ \t]+/g, " ")
     .replace(/\.+$/g, "");
@@ -777,7 +783,25 @@ async function saveMemory(sessionId: string, orgId: string, role: string, conten
   });
 }
 
-function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
+// Dados da campanha de reativação de paciente modelo da Dra. Carollina (Pink Class).
+// Único lugar com preço/duração dos procedimentos de modelo — se o valor mudar, mudar aqui.
+const PROCEDIMENTOS_MODELO: Record<string, { valor: number; duracaoMinutos: number; label: string }> = {
+  full_face: { valor: 4550, duracaoMinutos: 120, label: "Full Face" },
+  seis_ml: { valor: 2700, duracaoMinutos: 60, label: "6 mL de ácido hialurônico" },
+  quatro_ml: { valor: 1840, duracaoMinutos: 60, label: "4 mL de ácido hialurônico" },
+  avulso_1ml: { valor: 500, duracaoMinutos: 60, label: "Ácido hialurônico avulso, 1 mL" },
+  botox: { valor: 650, duracaoMinutos: 60, label: "Botox, 3 regiões" },
+};
+const DATAS_MODELO_VALIDAS = ["2026-09-18", "2026-09-20"];
+const HORARIOS_MODELO_INICIO = 11; // 11h
+const HORARIOS_MODELO_FIM = 20; // último horário de início às 20h
+// Dia 18 tem só 1 vaga, reservada pro Full Face. Dia 20 tem as demais opções.
+const PROCEDIMENTOS_POR_DATA: Record<string, string[]> = {
+  "2026-09-18": ["full_face"],
+  "2026-09-20": ["full_face", "seis_ml", "quatro_ml", "avulso_1ml", "botox"],
+};
+
+function getTools(promptCrm?: string | null, incluirAgendamentoModelo = false): OpenAI.Chat.ChatCompletionTool[] {
   const baseDescription =
     "Atualiza dados cadastrais do lead (nome, procedimento de interesse) quando o cliente informar isso na conversa. " +
     "NÃO é para escrever resumos ou notas — isso é feito por outro processo, automaticamente, depois da conversa. " +
@@ -786,7 +810,53 @@ function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
     ? `${baseDescription}\n\nRegras adicionais: ${promptCrm}`
     : baseDescription;
 
+  const toolsBase: OpenAI.Chat.ChatCompletionTool[] = incluirAgendamentoModelo
+    ? [
+        {
+          type: "function",
+          function: {
+            name: "consultar_horarios_modelo",
+            description:
+              "Consulta os horários ainda livres num dos dois dias da reativação de paciente modelo (18 ou 20 de setembro). " +
+              "Use ANTES de oferecer horário pra paciente, pra saber o que está realmente disponível. Nunca invente horário sem consultar.",
+            parameters: {
+              type: "object",
+              properties: {
+                data: { type: "string", enum: DATAS_MODELO_VALIDAS, description: "Data no formato YYYY-MM-DD, só 2026-09-18 ou 2026-09-20." },
+                procedimento: {
+                  type: "string",
+                  enum: Object.keys(PROCEDIMENTOS_MODELO),
+                  description: "Procedimento que a paciente escolheu, pra saber se precisa de 1h ou 2h de agenda.",
+                },
+              },
+              required: ["data", "procedimento"],
+            },
+          },
+        },
+        {
+          type: "function",
+          function: {
+            name: "agendar_paciente_modelo",
+            description:
+              "Cria o agendamento da paciente modelo depois que ela já confirmou data, horário (de um dos horários que consultar_horarios_modelo retornou) e procedimento. " +
+              "Só use depois de confirmar o horário com ela, nunca antes.",
+            parameters: {
+              type: "object",
+              properties: {
+                data: { type: "string", enum: DATAS_MODELO_VALIDAS, description: "Data no formato YYYY-MM-DD, só 2026-09-18 ou 2026-09-20." },
+                hora: { type: "string", description: "Horário de início no formato HH:MM, tem que ser um dos horários livres retornados por consultar_horarios_modelo." },
+                procedimento: { type: "string", enum: Object.keys(PROCEDIMENTOS_MODELO), description: "Procedimento confirmado pela paciente." },
+                nome_lead: { type: "string", description: "Nome da paciente, se já souber." },
+              },
+              required: ["data", "hora", "procedimento"],
+            },
+          },
+        },
+      ]
+    : [];
+
   return [
+    ...toolsBase,
     {
       type: "function",
       function: {
@@ -820,6 +890,141 @@ function getTools(promptCrm?: string | null): OpenAI.Chat.ChatCompletionTool[] {
       },
     },
   ];
+}
+
+// Horário local (America/Sao_Paulo, UTC-3, sem horário de verão) -> timestamptz.
+function horarioModeloParaTimestamptz(data: string, horaMinuto: string): string {
+  return new Date(`${data}T${horaMinuto}:00-03:00`).toISOString();
+}
+
+async function horariosLivresModelo(orgId: string, data: string, duracaoMinutos: number): Promise<string[]> {
+  const inicioDoDia = horarioModeloParaTimestamptz(data, "00:00");
+  const fimDoDia = horarioModeloParaTimestamptz(data, "23:59");
+  const { data: existentes } = await supabase
+    .from("agendamentos")
+    .select("data_hora_inicio, data_hora_fim")
+    .eq("organization_id", orgId)
+    .neq("status", "cancelado")
+    .gte("data_hora_inicio", inicioDoDia)
+    .lte("data_hora_inicio", fimDoDia);
+
+  const ocupados = (existentes ?? []).map((a) => ({
+    inicio: new Date(a.data_hora_inicio).getTime(),
+    fim: new Date(a.data_hora_fim).getTime(),
+  }));
+
+  const livres: string[] = [];
+  for (let hora = HORARIOS_MODELO_INICIO; hora <= HORARIOS_MODELO_FIM; hora++) {
+    const horaMinuto = `${String(hora).padStart(2, "0")}:00`;
+    const inicioCandidato = new Date(horarioModeloParaTimestamptz(data, horaMinuto)).getTime();
+    const fimCandidato = inicioCandidato + duracaoMinutos * 60 * 1000;
+    const sobrepoe = ocupados.some((o) => inicioCandidato < o.fim && fimCandidato > o.inicio);
+    if (!sobrepoe) livres.push(horaMinuto);
+  }
+  return livres;
+}
+
+async function executeConsultarHorariosModelo(args: any, orgId: string): Promise<string> {
+  const data = args?.data;
+  const procKey = args?.procedimento;
+  if (!DATAS_MODELO_VALIDAS.includes(data)) {
+    return JSON.stringify({ ok: false, error: "Data inválida. Só existe 2026-09-18 ou 2026-09-20." });
+  }
+  const proc = PROCEDIMENTOS_MODELO[procKey];
+  if (!proc) {
+    return JSON.stringify({ ok: false, error: "Procedimento inválido." });
+  }
+  if (!PROCEDIMENTOS_POR_DATA[data]?.includes(procKey)) {
+    return JSON.stringify({
+      ok: false,
+      error: `${proc.label} não está disponível em ${data}.`,
+      procedimentos_disponiveis_nessa_data: PROCEDIMENTOS_POR_DATA[data]?.map((k) => PROCEDIMENTOS_MODELO[k].label),
+    });
+  }
+  const livres = await horariosLivresModelo(orgId, data, proc.duracaoMinutos);
+  if (livres.length === 0) {
+    return JSON.stringify({ ok: true, horarios_livres: [], aviso: "Não há mais horário livre nessa data para essa duração. Ofereça a outra data." });
+  }
+  return JSON.stringify({ ok: true, data, procedimento: proc.label, duracao_minutos: proc.duracaoMinutos, horarios_livres: livres });
+}
+
+async function executeAgendarPacienteModelo(args: any, leadId: string, orgId: string): Promise<string> {
+  const data = args?.data;
+  const hora = args?.hora;
+  const procKey = args?.procedimento;
+  if (!DATAS_MODELO_VALIDAS.includes(data)) {
+    return JSON.stringify({ ok: false, error: "Data inválida. Só existe 2026-09-18 ou 2026-09-20." });
+  }
+  const proc = PROCEDIMENTOS_MODELO[procKey];
+  if (!proc) {
+    return JSON.stringify({ ok: false, error: "Procedimento inválido." });
+  }
+  if (!PROCEDIMENTOS_POR_DATA[data]?.includes(procKey)) {
+    return JSON.stringify({
+      ok: false,
+      error: `${proc.label} não está disponível em ${data}.`,
+      procedimentos_disponiveis_nessa_data: PROCEDIMENTOS_POR_DATA[data]?.map((k) => PROCEDIMENTOS_MODELO[k].label),
+    });
+  }
+  if (!/^\d{2}:\d{2}$/.test(hora ?? "")) {
+    return JSON.stringify({ ok: false, error: "Horário inválido, use o formato HH:MM." });
+  }
+
+  // Revalida disponibilidade agora, pra evitar dois agendamentos no mesmo horário
+  // (a paciente pode ter demorado pra responder entre a consulta e a confirmação).
+  const livresAgora = await horariosLivresModelo(orgId, data, proc.duracaoMinutos);
+  if (!livresAgora.includes(hora)) {
+    return JSON.stringify({
+      ok: false,
+      error: "Esse horário não está mais livre.",
+      horarios_livres: livresAgora,
+      SYSTEM_INSTRUCTION: "Avise a paciente que esse horário acabou de ser reservado por outra pessoa, e ofereça os horários em horarios_livres.",
+    });
+  }
+
+  const inicio = horarioModeloParaTimestamptz(data, hora);
+  const fim = new Date(new Date(inicio).getTime() + proc.duracaoMinutos * 60 * 1000).toISOString();
+  const nomeLead = args?.nome_lead || null;
+
+  const { data: agendamentoCriado, error } = await supabase
+    .from("agendamentos")
+    .insert({
+      organization_id: orgId,
+      lead_id: leadId,
+      titulo: `Paciente modelo, ${proc.label}${nomeLead ? `, ${nomeLead}` : ""}`,
+      tipo: "procedimento",
+      data_hora_inicio: inicio,
+      data_hora_fim: fim,
+      duracao_minutos: proc.duracaoMinutos,
+      status: "agendado",
+      valor_orcado: proc.valor,
+      procedimento_interesse: proc.label,
+      descricao: `Reativação Pink Class. Sinal de R$ 100 combinado via Pix (chave dra.carollinaborges@gmail.com). Confirmar recebimento do sinal com a equipe antes do dia do procedimento.`,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[AI-Agent] Erro ao criar agendamento de modelo:", error.message);
+    return JSON.stringify({ ok: false, error: error.message });
+  }
+
+  if (nomeLead) {
+    await supabase.from("leads").update({ nome: nomeLead, atualizado_em: new Date().toISOString() }).eq("id", leadId);
+  }
+
+  console.log(`[AI-Agent] Agendamento de paciente modelo criado: lead=${leadId} data=${data} hora=${hora} procedimento=${procKey} agendamento=${agendamentoCriado?.id}`);
+  return JSON.stringify({
+    ok: true,
+    agendamento_id: agendamentoCriado?.id,
+    data,
+    hora,
+    procedimento: proc.label,
+    valor: proc.valor,
+    sinal_valor: 100,
+    chave_pix: "dra.carollinaborges@gmail.com",
+    SYSTEM_INSTRUCTION: "Agendamento criado. Agora, na sua próxima mensagem, confirme o horário reservado pra ela e peça o sinal de R$ 100 via Pix pra garantir a vaga, mandando a chave pix. Deixe claro que a vaga fica reservada, e some confirmação total depois que a equipe ver o pagamento.",
+  });
 }
 
 async function executeCrm(args: any, leadId: string): Promise<string> {
@@ -893,6 +1098,10 @@ async function processToolCalls(
       resultContent = await executeCrm(args, leadId);
     } else if (tc.function.name === "notificacao") {
       resultContent = await executeNotificacao(args, leadId, orgId, leadOrigem);
+    } else if (tc.function.name === "consultar_horarios_modelo") {
+      resultContent = await executeConsultarHorariosModelo(args, orgId);
+    } else if (tc.function.name === "agendar_paciente_modelo") {
+      resultContent = await executeAgendarPacienteModelo(args, leadId, orgId);
     } else {
       resultContent = JSON.stringify({ ok: false, error: "Tool desconhecida" });
     }
@@ -977,13 +1186,34 @@ Deno.serve(async (req: Request) => {
     // 2. Config IA
     const { data: aiConfig } = await supabase
       .from("organization_ai_prompts")
-      .select("prompt, prompt_crm, ia_ativa, modelo_ia, delay_entre_mensagens, acumulo_mensagens, horario_atendimento, formas_pagamento, contraindicacoes, palavras_proibidas, numeros_teste, origens_permitidas, abertura_mensagem_unica")
+      .select("prompt, prompt_crm, ia_ativa, modelo_ia, delay_entre_mensagens, acumulo_mensagens, horario_atendimento, formas_pagamento, contraindicacoes, palavras_proibidas, numeros_teste, origens_permitidas, abertura_mensagem_unica, prompt_reativacao, modelo_ia_reativacao, tag_reativacao_id, ativo_reativacao")
       .eq("organization_id", orgId)
       .maybeSingle();
 
     if (!aiConfig?.ia_ativa || !aiConfig?.prompt) {
       if (execLogId) await updateLog(execLogId, { status: "error", etapa: "erro_config", erro_detalhe: "IA não configurada para esta organização.", duracao_ms: Date.now() - globalStart });
       return jsonResponse({ ok: false, reason: "ia_nao_configurada" });
+    }
+
+    // IA de reativação: leads com a tag configurada em tag_reativacao_id usam um
+    // prompt e modelo à parte (foco em vender/fechar), em vez do prompt padrão da
+    // clínica. Fora isso, nada muda — é opt-in por org via ativo_reativacao.
+    let promptAtivo = aiConfig.prompt;
+    let modeloIaAtivo = aiConfig.modelo_ia;
+    let isReativacaoAtiva = false;
+    if (aiConfig.ativo_reativacao && aiConfig.tag_reativacao_id && aiConfig.prompt_reativacao) {
+      const { data: temTagReativacao } = await supabase
+        .from("leads_tags")
+        .select("lead_id")
+        .eq("lead_id", lead_id)
+        .eq("tag_id", aiConfig.tag_reativacao_id)
+        .maybeSingle();
+      if (temTagReativacao) {
+        promptAtivo = aiConfig.prompt_reativacao;
+        modeloIaAtivo = aiConfig.modelo_ia_reativacao || aiConfig.modelo_ia;
+        isReativacaoAtiva = true;
+        console.log(`[AI-Agent] Lead ${lead_id}: usando prompt de reativação (tag ${aiConfig.tag_reativacao_id}).`);
+      }
     }
 
     // Whitelist de números para testes — se preenchida, só responde os números listados
@@ -1006,12 +1236,12 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const modeloRaw = aiConfig.modelo_ia || "openrouter/deepseek/deepseek-v4-flash";
+    const modeloRaw = modeloIaAtivo || "openrouter/deepseek/deepseek-v4-flash";
     const { client: llmClient, provider: llmProvider } = resolveLlmClient(modeloRaw);
     const modelo = modeloRaw.startsWith("openrouter/") ? modeloRaw.slice("openrouter/".length) : modeloRaw;
     const delayMs = aiConfig.delay_entre_mensagens || 2000;
     const acumuloSeg = (aiConfig.acumulo_mensagens || 45) * 1000;
-    const crmToolsDynamic = getTools(aiConfig.prompt_crm);
+    const crmToolsDynamic = getTools(aiConfig.prompt_crm, isReativacaoAtiva);
 
     // Abertura em bloco único (flag por org). Vale SÓ para a primeira mensagem que a
     // IA envia a este lead — da segunda em diante a resposta é dividida normalmente.
@@ -1130,7 +1360,7 @@ Deno.serve(async (req: Request) => {
         .map((m: any) => ({ role: m.role as string, content: m.content as string }));
     }
 
-    const dadosCliente = (aiConfig.prompt ?? "").trim();
+    const dadosCliente = (promptAtivo ?? "").trim();
     const promptBaseAgente = await loadPromptBase(orgId);
 
     // --- Montar secoes dos novos campos ---
@@ -1180,7 +1410,7 @@ Deno.serve(async (req: Request) => {
     // --- Extrair configuração de emojis do prompt ---
     // O prompt tem a seção "## EMOJIS" com "A IA deve usar emojis?: Sim/Não" e "Emojis permitidos: ..."
     let emojiRegraStr = '';
-    const promptTexto = aiConfig.prompt ?? '';
+    const promptTexto = promptAtivo ?? '';
     const emojiSectionMatch = promptTexto.match(/##\s*EMOJIS\s*\n([\s\S]*?)(?=\n##|\n===|$)/i);
     if (emojiSectionMatch) {
       const emojiSection = emojiSectionMatch[1];

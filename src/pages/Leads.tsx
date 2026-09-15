@@ -42,6 +42,7 @@ import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from "date-f
 import { DateRange } from "react-day-picker";
 import { useLeadSources } from "@/hooks/useLeadSources";
 import { useTags } from "@/hooks/useTags";
+import { useLeadCadencias } from "@/hooks/useLeadCadencias";
 import { ImportLeadsDialog } from "@/components/leads/ImportLeadsDialog";
 import { DateRangePicker } from "@/components/reports/DateRangePicker";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,7 @@ export default function Leads() {
   const { entries: blacklistEntries, isLoading: blacklistLoading, removeFromBlacklist } = useBlacklist();
   const { allSources } = useLeadSources();
   const { availableTags } = useTags();
+  const { cadencias, leadCadenciaMap } = useLeadCadencias();
   const { members: teamMembers } = useTeamMembersForSelect();
 
   const isLoading = leadsLoading;
@@ -96,6 +98,7 @@ export default function Leads() {
     fonte: "Todos",
     tagId: "Todos",
     responsavel_id: "Todos",
+    cadenciaId: "Todos",
   });
 
   const [cadastroRange, setCadastroRange] = useState<DateRange | undefined>(undefined);
@@ -110,6 +113,7 @@ export default function Leads() {
     if (filters.fonte !== "Todos") count++;
     if (filters.tagId !== "Todos") count++;
     if (filters.responsavel_id !== "Todos") count++;
+    if (filters.cadenciaId !== "Todos") count++;
     if (cadastroRange?.from) count++;
     return count;
   }, [filters, cadastroRange]);
@@ -121,6 +125,7 @@ export default function Leads() {
       fonte: "Todos",
       tagId: "Todos",
       responsavel_id: "Todos",
+      cadenciaId: "Todos",
     });
     setCadastroRange(undefined);
   };
@@ -145,6 +150,9 @@ export default function Leads() {
           ? !lead.responsavel_id
           : lead.responsavel_id === filters.responsavel_id);
 
+      const cadenciaMatch = filters.cadenciaId === "Todos" ||
+        !!leadCadenciaMap[lead.id]?.has(filters.cadenciaId);
+
       let cadastroMatch = true;
       if (cadastroRange?.from && lead.criado_em) {
         const leadDate = new Date(lead.criado_em);
@@ -153,9 +161,9 @@ export default function Leads() {
         cadastroMatch = isWithinInterval(leadDate, { start: rangeFrom, end: rangeTo });
       }
 
-      return searchTermMatch && origemMatch && fonteMatch && tagMatch && responsavelMatch && cadastroMatch;
+      return searchTermMatch && origemMatch && fonteMatch && tagMatch && responsavelMatch && cadenciaMatch && cadastroMatch;
     });
-  }, [leads, filters, cadastroRange]);
+  }, [leads, filters, cadastroRange, leadCadenciaMap]);
 
   const totalPages = Math.ceil(filteredLeads.length / ITEMS_PER_PAGE);
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -472,6 +480,20 @@ export default function Leads() {
                     </SelectContent>
                   </Select>
                 </div>
+                {cadencias.length > 0 && (
+                  <div className="space-y-1.5" data-tutorial="leads-cadencia-filter">
+                    <Label className="text-[11px] font-medium text-muted-foreground/70">Cadência</Label>
+                    <Select value={filters.cadenciaId} onValueChange={(value) => handleFilterChange('cadenciaId', value)}>
+                      <SelectTrigger className="h-9 text-xs rounded-lg border-border/60 bg-background"><SelectValue /></SelectTrigger>
+                      <SelectContent className="rounded-xl">
+                        <SelectItem value="Todos">Todas as cadências</SelectItem>
+                        {cadencias.map((cadencia) => (
+                          <SelectItem key={cadencia.id} value={cadencia.id}>{cadencia.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 {teamMembers.length > 0 && (
                   <div className="space-y-1.5">
                     <Label className="text-[11px] font-medium text-muted-foreground/70">Responsável</Label>

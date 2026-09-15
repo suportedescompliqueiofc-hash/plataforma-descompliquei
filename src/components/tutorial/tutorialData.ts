@@ -673,6 +673,12 @@ export const tutorials: Tutorial[] = [
         position: 'right',
       },
       {
+        target: 'leads-cadencia-filter',
+        title: 'Filtro por Cadência',
+        description: 'O campo **Cadência** mostra só quem está matriculado numa sequência de mensagens específica, de qualquer status (ativo, pausado ou concluído).\n\n**Uso estratégico:** acompanhar de perto uma campanha de reativação sem ela se misturar com o resto da base de leads.',
+        position: 'right',
+      },
+      {
         target: 'leads-table',
         title: 'Tabela de leads',
         description: 'A tabela central mostra **todos os seus leads** com informações essenciais:\n\n• **Nome e telefone** — dados de contato\n• **Origem** — badge colorido (Mkt = marketing, Org = orgânico, Imp = importado)\n• **Etiquetas** — tags coloridas para categorização\n• **Responsável** — atendente vinculado ao lead\n• **Data** — quando o lead foi cadastrado\n\n**Clique em qualquer lead** para abrir o modal completo com todos os detalhes, histórico e opções de edição.',
