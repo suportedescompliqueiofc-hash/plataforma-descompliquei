@@ -104,7 +104,12 @@ export function useAgendamentos() {
           lead:leads(id, nome, telefone, lead_scoring)
         `)
         .eq("organization_id", orgId!)
-        .order("data_hora_inicio", { ascending: true });
+        // Descendente: o backlog de agendamentos passados cresce sem limite e o
+        // servidor corta a resposta em ~1000 linhas — ordenando do mais recente
+        // pro mais antigo, o que fica de fora é histórico velho, nunca o de hoje
+        // ou o futuro (era isso que sumia da agenda depois de criar/mexer num agendamento).
+        .order("data_hora_inicio", { ascending: false })
+        .limit(2000);
       if (error) throw error;
       return (data || []) as Agendamento[];
     },

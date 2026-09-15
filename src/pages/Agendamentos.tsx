@@ -392,7 +392,7 @@ export default function Agendamentos() {
       const q = filtroBusca.toLowerCase();
       filtered = filtered.filter((a) => a.lead?.nome?.toLowerCase().includes(q) || a.titulo.toLowerCase().includes(q));
     }
-    return filtered;
+    return [...filtered].sort((a, b) => parseISO(a.data_hora_inicio).getTime() - parseISO(b.data_hora_inicio).getTime());
   }, [agendamentosFiltrados, filtroTipo, filtroStatus, filtroBusca]);
 
   // Métricas charts
